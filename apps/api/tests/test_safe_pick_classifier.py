@@ -146,6 +146,49 @@ class SafePickClassifierTest(unittest.TestCase):
         self.assertTrue(result.manual_correction_applied)
         self.assertIn("manual_verified_watchable", result.reasons)
 
+    def test_manual_english_subtitle_correction_can_clarify_language_gate(self) -> None:
+        result = self.classifier.classify(
+            Candidate(
+                source_movie_id="tmdb:496243",
+                title="Manually Subtitle Checked Choice",
+                media_type=MediaType.MOVIE,
+                original_language="ko",
+                provider_availability=(
+                    ProviderAvailability(
+                        provider_name="Prime Video",
+                        access_type=ProviderAccessType.FLATRATE,
+                        region="DE",
+                    ),
+                ),
+            ),
+            manual_correction=ManualWatchabilityCorrection(
+                source_movie_id="tmdb:496243",
+                english_subtitles_verified=True,
+            ),
+        )
+
+        self.assertEqual(result.status, WatchabilityStatus.SAFE_PICK)
+        self.assertTrue(result.manual_correction_applied)
+        self.assertIn("english_original_or_verified_subtitles", result.reasons)
+
+    def test_manual_subtitle_correction_does_not_override_missing_prime_flatrate(self) -> None:
+        result = self.classifier.classify(
+            Candidate(
+                source_movie_id="tmdb:496243",
+                title="Subtitle Checked But Not On Prime",
+                media_type=MediaType.MOVIE,
+                original_language="ko",
+            ),
+            manual_correction=ManualWatchabilityCorrection(
+                source_movie_id="tmdb:496243",
+                english_subtitles_verified=True,
+            ),
+        )
+
+        self.assertEqual(result.status, WatchabilityStatus.NEEDS_QUICK_CHECK)
+        self.assertTrue(result.manual_correction_applied)
+        self.assertIn("prime_germany_subscription_not_verified", result.reasons)
+
     def test_manual_verified_unwatchable_correction_rejects_candidate(self) -> None:
         result = self.classifier.classify(
             Candidate(
