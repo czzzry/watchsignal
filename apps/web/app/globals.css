@@ -8,6 +8,8 @@
   --accent: #2f6f73;
   --accent-ink: #ffffff;
   --warm: #bb5a3a;
+  --success: #1f7a4c;
+  --warning: #9f3f2e;
 }
 
 * {
@@ -81,6 +83,47 @@ h1 {
   color: var(--muted);
   font-size: 1.05rem;
   line-height: 1.5;
+}
+
+.healthStatus {
+  min-height: 68px;
+  margin-top: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: #ffffff;
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.healthStatus span {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.healthStatusConnected {
+  color: var(--success);
+}
+
+.healthStatusDisconnected {
+  color: var(--warning);
+}
+
+.healthStatus p {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.healthStatus small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  line-height: 1.35;
 }
 
 .actions {

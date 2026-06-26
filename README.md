@@ -66,6 +66,36 @@ env npm_config_cache="$PWD/.tools/npm-cache" PNPM_HOME="$PWD/.tools/pnpm" XDG_CA
 `pnpm` can be invoked through `npm exec` without a global install.
 Set `npm_config_cache` as shown above to avoid using machine-level npm cache folders.
 
+## Local dev handshake
+
+Run the FastAPI backend from one terminal:
+
+```sh
+cd apps/api
+../../.tools/uv/bin/uv run uvicorn movie_night_mediator.api.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Run the Next.js web shell from another terminal:
+
+```sh
+env npm_config_cache="$PWD/.tools/npm-cache" PNPM_HOME="$PWD/.tools/pnpm" XDG_CACHE_HOME="$PWD/.tools/cache" npm exec --yes --package=pnpm@10 -- pnpm dev:web
+```
+
+Open `http://localhost:3000` on the laptop.
+The web shell renders a FastAPI `/health` connected or disconnected state.
+By default, the Next.js server checks `http://127.0.0.1:8000/health`.
+Set `API_BASE_URL` before `pnpm dev:web` if the API is running somewhere else.
+
+To open the web shell from a phone on the same local network, find the laptop's local IP address and open `http://<laptop-ip>:3000` from the phone browser.
+Keep both terminal processes running on the laptop.
+The phone connects to Next.js on the laptop, and the Next.js server connects to FastAPI locally.
+
+Flow note:
+
+```text
+phone or laptop browser -> Next.js web server :3000 -> FastAPI /health :8000
+```
+
 ## Key docs
 
 - [Founder Decisions](docs/founder-decisions.md)
