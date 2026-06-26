@@ -45,6 +45,30 @@ Return a worktree after review:
 .tools/bin/treehouse return <worktree-path>
 ```
 
+## Dependency Prewarm
+
+Treehouse worktrees are isolated from the main checkout.
+They do not automatically contain `.tools/uv`, `apps/web/node_modules`, or other local build artifacts.
+
+Before an AFK multi-agent run, the host should either prewarm each leased worktree or give workers explicit commands that point at the main repo's shared caches.
+
+Backend validation can use the main repo's `uv` binary and cache:
+
+```sh
+cd apps/api
+env XDG_CACHE_HOME=/Users/cezarybaraniecki/Documents/movie-night-mediator-app/.tools/cache /Users/cezarybaraniecki/Documents/movie-night-mediator-app/.tools/uv/bin/uv run python -m unittest discover -s tests
+env XDG_CACHE_HOME=/Users/cezarybaraniecki/Documents/movie-night-mediator-app/.tools/cache /Users/cezarybaraniecki/Documents/movie-night-mediator-app/.tools/uv/bin/uv run python -m compileall -q src tests
+```
+
+Web validation should install dependencies in the leased worktree before building:
+
+```sh
+env npm_config_cache=/Users/cezarybaraniecki/Documents/movie-night-mediator-app/.tools/npm-cache PNPM_HOME=/Users/cezarybaraniecki/Documents/movie-night-mediator-app/.tools/pnpm XDG_CACHE_HOME=/Users/cezarybaraniecki/Documents/movie-night-mediator-app/.tools/cache npm exec --yes --package=pnpm@10 -- pnpm --dir apps/web install
+env npm_config_cache=/Users/cezarybaraniecki/Documents/movie-night-mediator-app/.tools/npm-cache PNPM_HOME=/Users/cezarybaraniecki/Documents/movie-night-mediator-app/.tools/pnpm XDG_CACHE_HOME=/Users/cezarybaraniecki/Documents/movie-night-mediator-app/.tools/cache npm exec --yes --package=pnpm@10 -- pnpm --dir apps/web build
+```
+
+This prevents agents from mistaking missing local tooling for product failure.
+
 ## Coordination Rules
 
 Each parallel task must define owned files or modules.
