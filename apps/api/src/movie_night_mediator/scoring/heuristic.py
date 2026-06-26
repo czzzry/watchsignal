@@ -20,11 +20,12 @@ class HeuristicScorer:
     def score(self, request: ScoringRequest) -> RecommendationResult:
         ranked_candidates: list[RankedCandidate] = []
         scored_rows: list[tuple[float, RankedCandidate]] = []
+        active_users = self._active_users(request)
 
         for candidate in request.candidates:
-            hard_filter_pass = self._passes_hard_filters(request, candidate)
+            hard_filter_pass = self._passes_hard_filters(request, candidate, active_users)
             rankable = self._is_rankable_candidate(request, candidate, hard_filter_pass)
-            user_scores = [self._score_for_user(user, candidate) for user in request.users]
+            user_scores = [self._score_for_user(user, candidate) for user in active_users]
             group_score = self._group_score(request.session.session_mode, user_scores)
             if not hard_filter_pass:
                 group_score = 0.0
@@ -48,7 +49,7 @@ class HeuristicScorer:
                     candidate,
                     hard_filter_pass,
                     request.session.session_mode,
-                    request.users,
+                    active_users,
                     user_scores,
                     is_interesting_pick,
                 ),
@@ -76,7 +77,7 @@ class HeuristicScorer:
                 )
             )
 
-        is_uncertain = not request.users or any(not user.is_onboarded for user in request.users)
+        is_uncertain = not active_users or any(not user.is_onboarded for user in active_users)
         interesting_safe_pick = next(
             (candidate for candidate in ranked_candidates if candidate.is_interesting_pick),
             None,
@@ -90,7 +91,26 @@ class HeuristicScorer:
             interesting_safe_pick=interesting_safe_pick,
         )
 
-    def _passes_hard_filters(self, request: ScoringRequest, candidate: Candidate) -> bool:
+    def _active_users(self, request: ScoringRequest) -> tuple[UserProfile, ...]:
+        if not request.session.viewer_user_ids:
+            return request.users
+
+        users_by_id = {user.user_id: user for user in request.users}
+        ordered_users = tuple(
+            users_by_id[user_id]
+            for user_id in request.session.viewer_user_ids
+            if user_id in users_by_id
+        )
+        if ordered_users:
+            return ordered_users
+        return request.users
+
+    def _passes_hard_filters(
+        self,
+        request: ScoringRequest,
+        candidate: Candidate,
+        users: tuple[UserProfile, ...],
+    ) -> bool:
         if request.household_defaults.rewatch_avoidance_default and not request.session.allow_rewatch:
             if candidate.already_watched:
                 return False
@@ -99,7 +119,7 @@ class HeuristicScorer:
             return False
         if request.session.requested_media_type != candidate.media_type:
             return False
-        if any(user.horror_exclusion for user in request.users) and "Horror" in candidate.genres:
+        if any(user.horror_exclusion for user in users) and "Horror" in candidate.genres:
             return False
         return True
 

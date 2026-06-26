@@ -172,6 +172,54 @@ class HeuristicScorerTest(unittest.TestCase):
         self.assertEqual(result.ranked_candidates[0].title, "Shared Comedy")
         self.assertIn("protects against a weak fit", result.ranked_candidates[1].why_short)
 
+    def test_shared_modes_follow_session_viewer_order_not_input_tuple_order(self) -> None:
+        husband = UserProfile(
+            user_id="husband",
+            role="husband",
+            display_label="Husband",
+            onboarding_seeds=(OnboardingSeed(title="The Matrix", label="loved", genres=("Action",)),),
+        )
+        wife = UserProfile(
+            user_id="wife",
+            role="wife",
+            display_label="Wife",
+            onboarding_seeds=(OnboardingSeed(title="Before Sunrise", label="loved", genres=("Romance",)),),
+        )
+        candidates = (
+            Candidate(
+                source_movie_id="tmdb:1",
+                title="Husband Action",
+                media_type=MediaType.MOVIE,
+                genres=("Action",),
+                providers=("Prime Video",),
+            ),
+            Candidate(
+                source_movie_id="tmdb:2",
+                title="Wife Romance",
+                media_type=MediaType.MOVIE,
+                genres=("Romance",),
+                providers=("Prime Video",),
+            ),
+        )
+        request = ScoringRequest(
+            session=SessionContext(
+                session_id="session-1",
+                audience_mode=AudienceMode.SHARED,
+                session_mode=SessionMode.HUSBAND_FIRST,
+                viewer_user_ids=(husband.user_id, wife.user_id),
+            ),
+            household_defaults=HouseholdDefaults(),
+            users=(wife, husband),
+            candidates=candidates,
+        )
+
+        result = HeuristicScorer().score(request)
+
+        self.assertEqual(result.ranked_candidates[0].title, "Husband Action")
+        self.assertEqual(result.ranked_candidates[0].user_a_score, 0.62)
+        self.assertEqual(result.ranked_candidates[0].user_b_score, 0.5)
+        self.assertIn("Husband: 0.62; Wife: 0.5.", result.ranked_candidates[0].why_short)
+
     def test_shared_ranking_uses_safe_picks_and_exposes_interesting_safe_pick(self) -> None:
         husband = UserProfile(
             user_id="husband",

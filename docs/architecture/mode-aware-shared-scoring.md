@@ -7,6 +7,8 @@ The scorer still remains a replaceable heuristic module, not a permanent recomme
 
 Shared scoring receives a session context, household defaults, two participant profiles, and candidate metadata.
 Candidate metadata now includes a `safety_status` value from the Safe Pick boundary and an `is_interesting_safe_pick` marker.
+When `viewer_user_ids` is present, the scorer uses that session order to map participant A and participant B before calculating per-person scores.
+This keeps `husband_first` and `wife_first` behavior stable even if an API or persistence adapter returns profiles in a different tuple order.
 The scorer does not decide whether a title is watchable.
 It consumes that classification and ranks only `safe_pick` candidates for shared-session main recommendations.
 
