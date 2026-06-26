@@ -8,6 +8,10 @@ from pydantic import BaseModel, Field
 
 from movie_night_mediator.app.backfill import ManualBackfillService
 from movie_night_mediator.app.onboarding import SQLiteOnboardingStore
+from movie_night_mediator.app.session import (
+    SessionTransitionError,
+    SharedSessionService,
+)
 from movie_night_mediator.app.setup import (
     SQLiteSetupStore,
     SetupDefaults,
@@ -20,13 +24,19 @@ from movie_night_mediator.domain import (
     MediaType,
     OnboardingConstraints,
     ParticipantOnboarding,
+    SessionMode,
+    SessionReaction,
+    SessionReactionLabel,
+    SessionShortlistItem,
+    SharedMovieNightSession,
+    SharedSessionState,
     TitleResolutionCandidate,
     TitleResolutionEntry,
     TitleResolutionStatus,
     WatchedStatusScope,
     WatchedTitleBackfill,
 )
-from movie_night_mediator.storage import SQLiteBackfillStore
+from movie_night_mediator.storage import SQLiteBackfillStore, SQLiteSessionStore
 
 
 class SetupProfilePayload(BaseModel):
@@ -116,10 +126,52 @@ class WatchedTitleBackfillPayload(BaseModel):
     tasteLabel: BackfillTasteLabel | None = None
 
 
+class SessionShortlistItemPayload(BaseModel):
+    sourceMovieId: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    candidateRank: int = Field(ge=1)
+
+
+class SessionReactionPayload(BaseModel):
+    sourceMovieId: str = Field(min_length=1)
+    reactionLabel: SessionReactionLabel
+
+
+class CreateSharedSessionPayload(BaseModel):
+    householdId: str = Field(default=DEFAULT_HOUSEHOLD_ID, min_length=1)
+    activeMode: SessionMode = SessionMode.COMPROMISE
+    participantIds: list[str] = Field(min_length=2, max_length=2)
+    shortlist: list[SessionShortlistItemPayload] = Field(min_length=5, max_length=5)
+    sessionId: str | None = None
+
+
+class UpdateSharedSessionPayload(BaseModel):
+    activeMode: SessionMode
+
+
+class SubmitSessionReactionsPayload(BaseModel):
+    participantId: str = Field(min_length=1)
+    reactions: list[SessionReactionPayload] = Field(min_length=1)
+
+
+class SharedSessionPayload(BaseModel):
+    sessionId: str
+    householdId: str
+    activeMode: SessionMode
+    participantIds: list[str]
+    state: SharedSessionState
+    shortlist: list[SessionShortlistItemPayload]
+    founderReactions: list[SessionReactionPayload]
+    wifeReactions: list[SessionReactionPayload]
+    rerankedSourceMovieIds: list[str]
+    bestPickSourceMovieId: str | None = None
+
+
 def create_app(
     setup_store: SQLiteSetupStore | None = None,
     onboarding_store: SQLiteOnboardingStore | None = None,
     backfill_store: SQLiteBackfillStore | None = None,
+    session_store: SQLiteSessionStore | None = None,
 ) -> FastAPI:
     app = FastAPI(
         title="Movie Night Mediator API",
@@ -129,6 +181,10 @@ def create_app(
     resolved_setup_store = setup_store or SQLiteSetupStore()
     resolved_onboarding_store = onboarding_store or SQLiteOnboardingStore()
     backfill_service = ManualBackfillService(backfill_store or SQLiteBackfillStore())
+    session_service = SharedSessionService(
+        session_store=session_store or SQLiteSessionStore(),
+        onboarding_store=resolved_onboarding_store,
+    )
 
     @app.get("/health", tags=["system"])
     def health() -> dict[str, str]:
@@ -232,6 +288,104 @@ def create_app(
             _watched_backfill_to_payload(record)
             for record in backfill_service.list_watched_titles(householdId)
         ]
+
+    @app.post(
+        "/sessions",
+        response_model=SharedSessionPayload,
+        tags=["sessions"],
+    )
+    def post_shared_session(payload: CreateSharedSessionPayload) -> SharedSessionPayload:
+        try:
+            session = session_service.start_session(
+                household_id=payload.householdId,
+                active_mode=payload.activeMode,
+                participant_ids=(payload.participantIds[0], payload.participantIds[1]),
+                shortlist=tuple(
+                    _payload_to_session_shortlist_item(item)
+                    for item in payload.shortlist
+                ),
+                session_id=payload.sessionId,
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+
+        return _shared_session_to_payload(session)
+
+    @app.get(
+        "/sessions/{session_id}",
+        response_model=SharedSessionPayload,
+        tags=["sessions"],
+    )
+    def get_shared_session(session_id: str) -> SharedSessionPayload:
+        session = session_service.load_session(session_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="Shared session not found.")
+
+        return _shared_session_to_payload(session)
+
+    @app.put(
+        "/sessions/{session_id}",
+        response_model=SharedSessionPayload,
+        tags=["sessions"],
+    )
+    def put_shared_session(
+        session_id: str,
+        payload: UpdateSharedSessionPayload,
+    ) -> SharedSessionPayload:
+        try:
+            session = session_service.update_mode(session_id, payload.activeMode)
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except SessionTransitionError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+        return _shared_session_to_payload(session)
+
+    @app.post(
+        "/sessions/{session_id}/reactions",
+        response_model=SharedSessionPayload,
+        tags=["sessions"],
+    )
+    def post_shared_session_reactions(
+        session_id: str,
+        payload: SubmitSessionReactionsPayload,
+    ) -> SharedSessionPayload:
+        try:
+            session = session_service.submit_reactions(
+                session_id=session_id,
+                participant_id=payload.participantId,
+                reactions=tuple(
+                    _payload_to_session_reaction(
+                        session_id,
+                        payload.participantId,
+                        reaction,
+                    )
+                    for reaction in payload.reactions
+                ),
+            )
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except SessionTransitionError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+
+        return _shared_session_to_payload(session)
+
+    @app.post(
+        "/sessions/{session_id}/advance-handoff",
+        response_model=SharedSessionPayload,
+        tags=["sessions"],
+    )
+    def post_shared_session_handoff(session_id: str) -> SharedSessionPayload:
+        try:
+            session = session_service.advance_handoff(session_id)
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except SessionTransitionError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+        return _shared_session_to_payload(session)
 
     return app
 
@@ -410,6 +564,65 @@ def _watched_backfill_to_payload(
         watchedOn=record.watched_on,
         watched=record.watched,
         tasteLabel=record.taste_label,
+    )
+
+
+def _payload_to_session_shortlist_item(
+    payload: SessionShortlistItemPayload,
+) -> SessionShortlistItem:
+    return SessionShortlistItem(
+        source_movie_id=payload.sourceMovieId,
+        title=payload.title,
+        candidate_rank=payload.candidateRank,
+    )
+
+
+def _payload_to_session_reaction(
+    session_id: str,
+    participant_id: str,
+    payload: SessionReactionPayload,
+) -> SessionReaction:
+    return SessionReaction(
+        session_id=session_id,
+        participant_id=participant_id,
+        source_movie_id=payload.sourceMovieId,
+        reaction_label=payload.reactionLabel,
+    )
+
+
+def _shared_session_to_payload(
+    session: SharedMovieNightSession,
+) -> SharedSessionPayload:
+    return SharedSessionPayload(
+        sessionId=session.session_id,
+        householdId=session.household_id,
+        activeMode=session.active_mode,
+        participantIds=list(session.participant_ids),
+        state=session.state,
+        shortlist=[
+            SessionShortlistItemPayload(
+                sourceMovieId=item.source_movie_id,
+                title=item.title,
+                candidateRank=item.candidate_rank,
+            )
+            for item in session.shortlist
+        ],
+        founderReactions=[
+            SessionReactionPayload(
+                sourceMovieId=reaction.source_movie_id,
+                reactionLabel=reaction.reaction_label,
+            )
+            for reaction in session.founder_reactions
+        ],
+        wifeReactions=[
+            SessionReactionPayload(
+                sourceMovieId=reaction.source_movie_id,
+                reactionLabel=reaction.reaction_label,
+            )
+            for reaction in session.wife_reactions
+        ],
+        rerankedSourceMovieIds=list(session.reranked_source_movie_ids),
+        bestPickSourceMovieId=session.best_pick_source_movie_id,
     )
 
 

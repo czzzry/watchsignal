@@ -32,6 +32,20 @@ class SessionMode(StrEnum):
     COMPROMISE = "compromise"
 
 
+class SharedSessionState(StrEnum):
+    FOUNDER_REACTING = "founder_reacting"
+    HANDOFF = "handoff"
+    WIFE_REACTING = "wife_reacting"
+    RERANKED = "reranked"
+
+
+class SessionReactionLabel(StrEnum):
+    INTERESTED = "interested"
+    MAYBE = "maybe"
+    NO = "no"
+    SEEN = "seen"
+
+
 class ProviderAccessType(StrEnum):
     FLATRATE = "flatrate"
     RENT = "rent"
@@ -356,6 +370,110 @@ class SessionContext:
     service_constraint: str | None = None
     language_constraint: str | None = None
     allow_rewatch: bool = False
+
+
+@dataclass(frozen=True)
+class SessionShortlistItem:
+    source_movie_id: str
+    title: str
+    candidate_rank: int
+
+    def __post_init__(self) -> None:
+        normalized_source_movie_id = self.source_movie_id.strip()
+        normalized_title = self.title.strip()
+
+        if not normalized_source_movie_id:
+            raise ValueError("Shortlist items require a source movie id.")
+
+        if not normalized_title:
+            raise ValueError("Shortlist items require a title.")
+
+        if self.candidate_rank < 1:
+            raise ValueError("Shortlist item ranks must be positive.")
+
+        object.__setattr__(self, "source_movie_id", normalized_source_movie_id)
+        object.__setattr__(self, "title", normalized_title)
+
+
+@dataclass(frozen=True)
+class SessionReaction:
+    session_id: str
+    participant_id: str
+    source_movie_id: str
+    reaction_label: SessionReactionLabel
+
+    def __post_init__(self) -> None:
+        normalized_session_id = self.session_id.strip()
+        normalized_participant_id = self.participant_id.strip()
+        normalized_source_movie_id = self.source_movie_id.strip()
+
+        if not normalized_session_id:
+            raise ValueError("Session reactions require a session id.")
+
+        if not normalized_participant_id:
+            raise ValueError("Session reactions require a participant id.")
+
+        if not normalized_source_movie_id:
+            raise ValueError("Session reactions require a source movie id.")
+
+        object.__setattr__(self, "session_id", normalized_session_id)
+        object.__setattr__(self, "participant_id", normalized_participant_id)
+        object.__setattr__(self, "source_movie_id", normalized_source_movie_id)
+
+
+@dataclass(frozen=True)
+class SharedMovieNightSession:
+    session_id: str
+    household_id: str
+    active_mode: SessionMode
+    participant_ids: tuple[str, str]
+    state: SharedSessionState
+    shortlist: tuple[SessionShortlistItem, ...]
+    founder_reactions: tuple[SessionReaction, ...] = ()
+    wife_reactions: tuple[SessionReaction, ...] = ()
+    reranked_source_movie_ids: tuple[str, ...] = ()
+
+    @property
+    def founder_participant_id(self) -> str:
+        return self.participant_ids[0]
+
+    @property
+    def wife_participant_id(self) -> str:
+        return self.participant_ids[1]
+
+    @property
+    def best_pick_source_movie_id(self) -> str | None:
+        if not self.reranked_source_movie_ids:
+            return None
+        return self.reranked_source_movie_ids[0]
+
+    def __post_init__(self) -> None:
+        normalized_session_id = self.session_id.strip()
+        normalized_household_id = self.household_id.strip()
+        normalized_participant_ids = tuple(
+            participant_id.strip() for participant_id in self.participant_ids
+        )
+
+        if not normalized_session_id:
+            raise ValueError("Shared sessions require a session id.")
+
+        if not normalized_household_id:
+            raise ValueError("Shared sessions require a household id.")
+
+        if len(normalized_participant_ids) != 2 or any(
+            not participant_id for participant_id in normalized_participant_ids
+        ):
+            raise ValueError("Shared sessions require exactly two participant ids.")
+
+        if len(set(normalized_participant_ids)) != len(normalized_participant_ids):
+            raise ValueError("Shared session participant ids must be unique.")
+
+        if not self.shortlist:
+            raise ValueError("Shared sessions require a shortlist.")
+
+        object.__setattr__(self, "session_id", normalized_session_id)
+        object.__setattr__(self, "household_id", normalized_household_id)
+        object.__setattr__(self, "participant_ids", normalized_participant_ids)
 
 
 @dataclass(frozen=True)

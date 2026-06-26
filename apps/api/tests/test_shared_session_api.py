@@ -1,0 +1,178 @@
+import tempfile
+import unittest
+from pathlib import Path
+
+from fastapi import HTTPException
+from fastapi.routing import APIRoute
+
+from movie_night_mediator.api.main import (
+    CreateSharedSessionPayload,
+    SubmitSessionReactionsPayload,
+    UpdateSharedSessionPayload,
+    create_app,
+)
+from movie_night_mediator.app.onboarding import SQLiteOnboardingStore
+from movie_night_mediator.domain import (
+    OnboardingConstraints,
+    ParticipantOnboarding,
+    TitleResolutionEntry,
+)
+from movie_night_mediator.storage import SQLiteSessionStore
+
+
+class SharedSessionApiTest(unittest.TestCase):
+    def test_session_api_round_trips_full_pass_the_phone_flow(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "sessions.sqlite3"
+            onboarding_store = complete_onboarding_store(database_path)
+            routes = session_route_endpoints(
+                create_app(
+                    onboarding_store=onboarding_store,
+                    session_store=SQLiteSessionStore(database_path=database_path),
+                )
+            )
+
+            created = routes["post_session"](
+                CreateSharedSessionPayload(**GENERIC_CREATE_SESSION_PAYLOAD)
+            )
+            updated = routes["put_session"](
+                "session-api-1",
+                UpdateSharedSessionPayload(activeMode="husband_first"),
+            )
+            after_founder = routes["post_reactions"](
+                "session-api-1",
+                SubmitSessionReactionsPayload(
+                    participantId="husband",
+                    reactions=reaction_payloads(
+                        ["maybe", "interested", "no", "seen", "maybe"]
+                    ),
+                ),
+            )
+            after_handoff = routes["post_handoff"]("session-api-1")
+            after_wife = routes["post_reactions"](
+                "session-api-1",
+                SubmitSessionReactionsPayload(
+                    participantId="wife",
+                    reactions=reaction_payloads(
+                        ["interested", "maybe", "no", "seen", "interested"]
+                    ),
+                ),
+            )
+            loaded = routes["get_session"]("session-api-1")
+
+            self.assertEqual(payload_to_dict(created)["state"], "founder_reacting")
+            self.assertEqual(payload_to_dict(updated)["activeMode"], "husband_first")
+            self.assertEqual(payload_to_dict(after_founder)["state"], "handoff")
+            self.assertEqual(payload_to_dict(after_handoff)["state"], "wife_reacting")
+            self.assertEqual(payload_to_dict(after_wife)["state"], "reranked")
+            self.assertEqual(payload_to_dict(loaded), payload_to_dict(after_wife))
+            self.assertEqual(payload_to_dict(loaded)["bestPickSourceMovieId"], "tmdb:1")
+
+    def test_session_api_blocks_start_when_onboarding_is_incomplete(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "sessions.sqlite3"
+            routes = session_route_endpoints(
+                create_app(
+                    onboarding_store=SQLiteOnboardingStore(database_path=database_path),
+                    session_store=SQLiteSessionStore(database_path=database_path),
+                )
+            )
+
+            with self.assertRaises(HTTPException) as raised:
+                routes["post_session"](
+                    CreateSharedSessionPayload(**GENERIC_CREATE_SESSION_PAYLOAD)
+                )
+
+            self.assertEqual(raised.exception.status_code, 400)
+            self.assertIn("completed onboarding", raised.exception.detail)
+
+    def test_session_api_returns_conflict_for_invalid_transition(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "sessions.sqlite3"
+            routes = session_route_endpoints(
+                create_app(
+                    onboarding_store=complete_onboarding_store(database_path),
+                    session_store=SQLiteSessionStore(database_path=database_path),
+                )
+            )
+            routes["post_session"](
+                CreateSharedSessionPayload(**GENERIC_CREATE_SESSION_PAYLOAD)
+            )
+
+            with self.assertRaises(HTTPException) as raised:
+                routes["post_handoff"]("session-api-1")
+
+            self.assertEqual(raised.exception.status_code, 409)
+
+
+GENERIC_CREATE_SESSION_PAYLOAD = {
+    "sessionId": "session-api-1",
+    "householdId": "default-household",
+    "activeMode": "compromise",
+    "participantIds": ["husband", "wife"],
+    "shortlist": [
+        {"sourceMovieId": "tmdb:1", "title": "First Pick", "candidateRank": 1},
+        {"sourceMovieId": "tmdb:2", "title": "Second Pick", "candidateRank": 2},
+        {"sourceMovieId": "tmdb:3", "title": "Third Pick", "candidateRank": 3},
+        {"sourceMovieId": "tmdb:4", "title": "Fourth Pick", "candidateRank": 4},
+        {"sourceMovieId": "tmdb:5", "title": "Fifth Pick", "candidateRank": 5},
+    ],
+}
+
+
+def complete_onboarding_store(database_path: Path) -> SQLiteOnboardingStore:
+    onboarding_store = SQLiteOnboardingStore(database_path=database_path)
+    for profile_id in ("husband", "wife"):
+        onboarding_store.save_profile_onboarding(
+            ParticipantOnboarding(
+                profile_id=profile_id,
+                loved_title_entries=(TitleResolutionEntry.unresolved("Loved seed"),),
+                fine_title_entries=(TitleResolutionEntry.unresolved("Fine seed"),),
+                no_title_entries=(TitleResolutionEntry.unresolved("No seed"),),
+                constraints=OnboardingConstraints(),
+            )
+        )
+    return onboarding_store
+
+
+def reaction_payloads(labels: list[str]) -> list[dict[str, str]]:
+    return [
+        {
+            "sourceMovieId": item["sourceMovieId"],
+            "reactionLabel": label,
+        }
+        for item, label in zip(
+            GENERIC_CREATE_SESSION_PAYLOAD["shortlist"],
+            labels,
+            strict=True,
+        )
+    ]
+
+
+def session_route_endpoints(app):
+    routes = {}
+    for route in app.routes:
+        if not isinstance(route, APIRoute):
+            continue
+
+        for method in route.methods:
+            routes[(method, route.path)] = route.endpoint
+
+    return {
+        "post_session": routes[("POST", "/sessions")],
+        "get_session": routes[("GET", "/sessions/{session_id}")],
+        "put_session": routes[("PUT", "/sessions/{session_id}")],
+        "post_reactions": routes[("POST", "/sessions/{session_id}/reactions")],
+        "post_handoff": routes[("POST", "/sessions/{session_id}/advance-handoff")],
+    }
+
+
+def payload_to_dict(payload) -> dict:
+    if hasattr(payload, "model_dump"):
+        return payload.model_dump(mode="json")
+
+    return payload.dict()
+
+
+if __name__ == "__main__":
+    unittest.main()
