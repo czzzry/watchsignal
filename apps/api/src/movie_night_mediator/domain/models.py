@@ -43,6 +43,9 @@ class WatchabilityStatus(StrEnum):
     REJECTED = "rejected"
 
 
+CandidateSafety = WatchabilityStatus
+
+
 class SeedPreferenceLabel(StrEnum):
     LOVED = "loved"
     FINE = "fine"
@@ -341,6 +344,8 @@ class Candidate:
     spoken_languages: tuple[str, ...] = ("en",)
     english_subtitles_verified: bool = False
     already_watched: bool = False
+    safety_status: CandidateSafety = CandidateSafety.SAFE_PICK
+    is_interesting_safe_pick: bool = False
 
 
 @dataclass(frozen=True)
@@ -371,6 +376,7 @@ class RankedCandidate:
     group_score: float
     why_short: str
     hard_filter_pass: bool
+    is_interesting_pick: bool = False
 
 
 @dataclass(frozen=True)
@@ -380,6 +386,7 @@ class RecommendationResult:
     is_uncertain: bool
     uncertainty_reason: str | None = None
     recommended_follow_up: str | None = None
+    interesting_safe_pick: RankedCandidate | None = None
 
 
 @dataclass(frozen=True)

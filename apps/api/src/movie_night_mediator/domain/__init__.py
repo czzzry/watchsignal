@@ -1,6 +1,7 @@
 from movie_night_mediator.domain.models import (
     AudienceMode,
     Candidate,
+    CandidateSafety,
     HouseholdDefaults,
     Household,
     HouseholdSetup,
@@ -35,6 +36,7 @@ from movie_night_mediator.domain.models import (
 __all__ = [
     "AudienceMode",
     "Candidate",
+    "CandidateSafety",
     "Household",
     "HouseholdDefaults",
     "HouseholdSetup",
