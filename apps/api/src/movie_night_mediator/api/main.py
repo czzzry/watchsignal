@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from datetime import date
 from typing import Annotated
 
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from movie_night_mediator.app.backfill import ManualBackfillService
 from movie_night_mediator.app.onboarding import SQLiteOnboardingStore
 from movie_night_mediator.app.setup import (
     SQLiteSetupStore,
@@ -13,13 +15,18 @@ from movie_night_mediator.app.setup import (
     SetupState,
 )
 from movie_night_mediator.domain import (
+    DEFAULT_HOUSEHOLD_ID,
+    BackfillTasteLabel,
     MediaType,
     OnboardingConstraints,
     ParticipantOnboarding,
     TitleResolutionCandidate,
     TitleResolutionEntry,
     TitleResolutionStatus,
+    WatchedStatusScope,
+    WatchedTitleBackfill,
 )
+from movie_night_mediator.storage import SQLiteBackfillStore
 
 
 class SetupProfilePayload(BaseModel):
@@ -85,9 +92,34 @@ class OnboardingCompletionPayload(BaseModel):
     sharedRecommendationUnlocked: bool
 
 
+class BackfillWatchedTitlePayload(BaseModel):
+    householdId: str = Field(default=DEFAULT_HOUSEHOLD_ID, min_length=1)
+    participantIds: list[str] = Field(default_factory=list)
+    includeGlobal: bool = False
+    watchedOn: date | None = None
+    watched: bool = True
+    tasteLabel: BackfillTasteLabel | None = None
+    entry: TitleResolutionEntryPayload
+
+
+class WatchedTitleBackfillPayload(BaseModel):
+    householdId: str
+    scope: WatchedStatusScope
+    participantId: str | None = None
+    titleKey: str
+    rawTitle: str
+    status: TitleResolutionStatus
+    candidate: TitleResolutionCandidatePayload | None = None
+    unresolvedReason: str | None = None
+    watchedOn: date | None = None
+    watched: bool
+    tasteLabel: BackfillTasteLabel | None = None
+
+
 def create_app(
     setup_store: SQLiteSetupStore | None = None,
     onboarding_store: SQLiteOnboardingStore | None = None,
+    backfill_store: SQLiteBackfillStore | None = None,
 ) -> FastAPI:
     app = FastAPI(
         title="Movie Night Mediator API",
@@ -96,6 +128,7 @@ def create_app(
     )
     resolved_setup_store = setup_store or SQLiteSetupStore()
     resolved_onboarding_store = onboarding_store or SQLiteOnboardingStore()
+    backfill_service = ManualBackfillService(backfill_store or SQLiteBackfillStore())
 
     @app.get("/health", tags=["system"])
     def health() -> dict[str, str]:
@@ -163,6 +196,42 @@ def create_app(
             _payload_to_onboarding(payload)
         )
         return _onboarding_to_payload(saved_onboarding)
+
+    @app.post(
+        "/backfill/watched-titles",
+        response_model=list[WatchedTitleBackfillPayload],
+        tags=["backfill"],
+    )
+    def post_watched_title_backfill(
+        payload: BackfillWatchedTitlePayload,
+    ) -> list[WatchedTitleBackfillPayload]:
+        try:
+            records = backfill_service.add_watched_title(
+                household_id=payload.householdId,
+                entry=_payload_to_title_entry(payload.entry),
+                participant_ids=tuple(payload.participantIds),
+                include_global=payload.includeGlobal,
+                watched_on=payload.watchedOn,
+                watched=payload.watched,
+                taste_label=payload.tasteLabel,
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+
+        return [_watched_backfill_to_payload(record) for record in records]
+
+    @app.get(
+        "/backfill/watched-titles",
+        response_model=list[WatchedTitleBackfillPayload],
+        tags=["backfill"],
+    )
+    def get_watched_title_backfill(
+        householdId: str = DEFAULT_HOUSEHOLD_ID,
+    ) -> list[WatchedTitleBackfillPayload]:
+        return [
+            _watched_backfill_to_payload(record)
+            for record in backfill_service.list_watched_titles(householdId)
+        ]
 
     return app
 
@@ -322,6 +391,25 @@ def _candidate_to_payload(
         overview=candidate.overview,
         originalLanguage=candidate.original_language,
         popularity=candidate.popularity,
+    )
+
+
+def _watched_backfill_to_payload(
+    record: WatchedTitleBackfill,
+) -> WatchedTitleBackfillPayload:
+    entry_payload = _title_entry_to_payload(record.entry)
+    return WatchedTitleBackfillPayload(
+        householdId=record.household_id,
+        scope=record.scope,
+        participantId=record.participant_id,
+        titleKey=record.title_key,
+        rawTitle=entry_payload.rawTitle,
+        status=entry_payload.status,
+        candidate=entry_payload.candidate,
+        unresolvedReason=entry_payload.unresolvedReason,
+        watchedOn=record.watched_on,
+        watched=record.watched,
+        tasteLabel=record.taste_label,
     )
 
 

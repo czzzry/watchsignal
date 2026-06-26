@@ -1,7 +1,9 @@
 from movie_night_mediator.domain.models import (
     AudienceMode,
+    BackfillTasteLabel,
     Candidate,
     CandidateSafety,
+    DEFAULT_HOUSEHOLD_ID,
     HouseholdDefaults,
     Household,
     HouseholdSetup,
@@ -30,13 +32,17 @@ from movie_night_mediator.domain.models import (
     UserProfile,
     WatchabilityClassification,
     WatchabilityStatus,
+    WatchedStatusScope,
+    WatchedTitleBackfill,
     default_household_setup,
 )
 
 __all__ = [
     "AudienceMode",
+    "BackfillTasteLabel",
     "Candidate",
     "CandidateSafety",
+    "DEFAULT_HOUSEHOLD_ID",
     "Household",
     "HouseholdDefaults",
     "HouseholdSetup",
@@ -65,5 +71,7 @@ __all__ = [
     "UserProfile",
     "WatchabilityClassification",
     "WatchabilityStatus",
+    "WatchedStatusScope",
+    "WatchedTitleBackfill",
     "default_household_setup",
 ]
