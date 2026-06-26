@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 DEFAULT_HOUSEHOLD_ID = "default-household"
 DEFAULT_HOUSEHOLD_LABEL = "Household"
@@ -164,6 +164,7 @@ class TitleResolutionEntry:
             raise ValueError("Unresolved title entries cannot include a candidate.")
 
 
+@runtime_checkable
 class TitleResolver(Protocol):
     def search(
         self,
@@ -173,6 +174,17 @@ class TitleResolver(Protocol):
         language: str = "en-US",
     ) -> TitleSearchResult:
         """Return likely title candidates without deciding what the user selected."""
+        ...
+
+    def resolve(
+        self,
+        query: str,
+        *,
+        selected_source_movie_id: str | None = None,
+        region: str = "DE",
+        language: str = "en-US",
+    ) -> TitleResolutionEntry:
+        """Return a resolved candidate entry or an unresolved plain-text entry."""
         ...
 
 
