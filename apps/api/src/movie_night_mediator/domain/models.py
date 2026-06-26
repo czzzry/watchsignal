@@ -31,6 +31,12 @@ class SessionMode(StrEnum):
     COMPROMISE = "compromise"
 
 
+class SeedPreferenceLabel(StrEnum):
+    LOVED = "loved"
+    FINE = "fine"
+    NO = "no"
+
+
 @dataclass(frozen=True)
 class HouseholdDefaults:
     default_region: str = "DE"
@@ -162,6 +168,81 @@ class TitleResolutionEntry:
 
         if self.status == TitleResolutionStatus.UNRESOLVED and self.candidate is not None:
             raise ValueError("Unresolved title entries cannot include a candidate.")
+
+
+@dataclass(frozen=True)
+class OnboardingConstraints:
+    horror_exclusion: bool = False
+    subtitle_intolerance: bool = False
+
+
+@dataclass(frozen=True)
+class ParticipantOnboarding:
+    profile_id: str
+    loved_title_entries: tuple[TitleResolutionEntry, ...] = ()
+    fine_title_entries: tuple[TitleResolutionEntry, ...] = ()
+    no_title_entries: tuple[TitleResolutionEntry, ...] = ()
+    constraints: OnboardingConstraints = field(default_factory=OnboardingConstraints)
+
+    @property
+    def has_required_seed_titles(self) -> bool:
+        return bool(
+            self.loved_title_entries
+            and self.fine_title_entries
+            and self.no_title_entries
+        )
+
+    @property
+    def is_complete(self) -> bool:
+        return self.has_required_seed_titles
+
+    def entries_for(
+        self,
+        preference_label: SeedPreferenceLabel,
+    ) -> tuple[TitleResolutionEntry, ...]:
+        if preference_label == SeedPreferenceLabel.LOVED:
+            return self.loved_title_entries
+
+        if preference_label == SeedPreferenceLabel.FINE:
+            return self.fine_title_entries
+
+        return self.no_title_entries
+
+    def __post_init__(self) -> None:
+        normalized_profile_id = self.profile_id.strip()
+        if not normalized_profile_id:
+            raise ValueError("Participant onboarding requires a profile id.")
+
+        object.__setattr__(self, "profile_id", normalized_profile_id)
+
+
+@dataclass(frozen=True)
+class OnboardingCompletion:
+    required_profile_ids: tuple[str, ...]
+    profiles: tuple[ParticipantOnboarding, ...]
+
+    @property
+    def completed_profile_ids(self) -> tuple[str, ...]:
+        return tuple(
+            profile.profile_id for profile in self.profiles if profile.is_complete
+        )
+
+    @property
+    def incomplete_profile_ids(self) -> tuple[str, ...]:
+        completed = set(self.completed_profile_ids)
+        return tuple(
+            profile_id
+            for profile_id in self.required_profile_ids
+            if profile_id not in completed
+        )
+
+    @property
+    def shared_recommendation_unlocked(self) -> bool:
+        return bool(self.required_profile_ids) and not self.incomplete_profile_ids
+
+    @property
+    def shared_recommendation_locked(self) -> bool:
+        return not self.shared_recommendation_unlocked
 
 
 @runtime_checkable
