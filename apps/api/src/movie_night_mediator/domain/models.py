@@ -31,6 +31,18 @@ class SessionMode(StrEnum):
     COMPROMISE = "compromise"
 
 
+class ProviderAccessType(StrEnum):
+    FLATRATE = "flatrate"
+    RENT = "rent"
+    BUY = "buy"
+
+
+class WatchabilityStatus(StrEnum):
+    SAFE_PICK = "safe_pick"
+    NEEDS_QUICK_CHECK = "needs_quick_check"
+    REJECTED = "rejected"
+
+
 @dataclass(frozen=True)
 class HouseholdDefaults:
     default_region: str = "DE"
@@ -219,6 +231,21 @@ class SessionContext:
 
 
 @dataclass(frozen=True)
+class ProviderAvailability:
+    provider_name: str
+    access_type: ProviderAccessType
+    region: str = "DE"
+
+
+@dataclass(frozen=True)
+class ManualWatchabilityCorrection:
+    source_movie_id: str
+    verified_watchable: bool | None = None
+    english_subtitles_verified: bool = False
+    notes: str | None = None
+
+
+@dataclass(frozen=True)
 class Candidate:
     source_movie_id: str
     title: str
@@ -228,9 +255,20 @@ class Candidate:
     genres: tuple[str, ...] = ()
     overview: str = ""
     providers: tuple[str, ...] = ()
+    provider_availability: tuple[ProviderAvailability, ...] = ()
     original_language: str = "en"
     spoken_languages: tuple[str, ...] = ("en",)
+    english_subtitles_verified: bool = False
     already_watched: bool = False
+
+
+@dataclass(frozen=True)
+class WatchabilityClassification:
+    source_movie_id: str
+    title: str
+    status: WatchabilityStatus
+    reasons: tuple[str, ...] = ()
+    manual_correction_applied: bool = False
 
 
 @dataclass(frozen=True)
