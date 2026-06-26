@@ -14,6 +14,11 @@ from movie_night_mediator.domain.models import (
     SessionContext,
     SessionMode,
     ShortlistReaction,
+    TitleResolutionCandidate,
+    TitleResolutionEntry,
+    TitleResolutionStatus,
+    TitleResolver,
+    TitleSearchResult,
     UserProfile,
     default_household_setup,
 )
@@ -34,6 +39,11 @@ __all__ = [
     "SessionContext",
     "SessionMode",
     "ShortlistReaction",
+    "TitleResolutionCandidate",
+    "TitleResolutionEntry",
+    "TitleResolutionStatus",
+    "TitleResolver",
+    "TitleSearchResult",
     "UserProfile",
     "default_household_setup",
 ]
