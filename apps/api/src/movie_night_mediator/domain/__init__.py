@@ -2,8 +2,11 @@ from movie_night_mediator.domain.models import (
     AudienceMode,
     Candidate,
     HouseholdDefaults,
+    Household,
+    HouseholdSetup,
     MediaType,
     OnboardingSeed,
+    ParticipantProfile,
     PostWatchFeedback,
     RankedCandidate,
     RecommendationResult,
@@ -12,14 +15,18 @@ from movie_night_mediator.domain.models import (
     SessionMode,
     ShortlistReaction,
     UserProfile,
+    default_household_setup,
 )
 
 __all__ = [
     "AudienceMode",
     "Candidate",
+    "Household",
     "HouseholdDefaults",
+    "HouseholdSetup",
     "MediaType",
     "OnboardingSeed",
+    "ParticipantProfile",
     "PostWatchFeedback",
     "RankedCandidate",
     "RecommendationResult",
@@ -28,5 +35,5 @@ __all__ = [
     "SessionMode",
     "ShortlistReaction",
     "UserProfile",
+    "default_household_setup",
 ]
-

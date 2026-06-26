@@ -3,6 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import StrEnum
 
+DEFAULT_HOUSEHOLD_ID = "default-household"
+DEFAULT_HOUSEHOLD_LABEL = "Household"
+DEFAULT_HUSBAND_PROFILE_ID = "husband"
+DEFAULT_WIFE_PROFILE_ID = "wife"
+
 
 class MediaType(StrEnum):
     MOVIE = "movie"
@@ -26,6 +31,52 @@ class HouseholdDefaults:
     default_service: str = "Prime Video"
     default_language_mode: str = "english_or_english_subtitles"
     rewatch_avoidance_default: bool = True
+
+
+@dataclass(frozen=True)
+class Household:
+    household_id: str = DEFAULT_HOUSEHOLD_ID
+    label: str = DEFAULT_HOUSEHOLD_LABEL
+    defaults: HouseholdDefaults = field(default_factory=HouseholdDefaults)
+    active_interface: str = "local_web"
+
+
+@dataclass(frozen=True)
+class ParticipantProfile:
+    profile_id: str
+    household_id: str
+    role: str
+    display_label: str
+    sort_order: int
+
+
+@dataclass(frozen=True)
+class HouseholdSetup:
+    household: Household
+    participant_profiles: tuple[ParticipantProfile, ...]
+
+
+def default_household_setup() -> HouseholdSetup:
+    household = Household()
+    return HouseholdSetup(
+        household=household,
+        participant_profiles=(
+            ParticipantProfile(
+                profile_id=DEFAULT_HUSBAND_PROFILE_ID,
+                household_id=household.household_id,
+                role="husband",
+                display_label="Husband",
+                sort_order=1,
+            ),
+            ParticipantProfile(
+                profile_id=DEFAULT_WIFE_PROFILE_ID,
+                household_id=household.household_id,
+                role="wife",
+                display_label="Wife",
+                sort_order=2,
+            ),
+        ),
+    )
 
 
 @dataclass(frozen=True)
@@ -127,4 +178,3 @@ class PostWatchFeedback:
     source_movie_id: str
     feedback_label: str
     free_text_note: str | None = None
-
