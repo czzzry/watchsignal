@@ -20,4 +20,3 @@ class SQLiteSettings:
             if configured_path
             else DEFAULT_SQLITE_PATH
         )
-
