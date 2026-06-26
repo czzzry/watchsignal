@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Protocol
 
 DEFAULT_HOUSEHOLD_ID = "default-household"
 DEFAULT_HOUSEHOLD_LABEL = "Household"
@@ -12,6 +13,11 @@ DEFAULT_WIFE_PROFILE_ID = "wife"
 class MediaType(StrEnum):
     MOVIE = "movie"
     TV = "tv"
+
+
+class TitleResolutionStatus(StrEnum):
+    RESOLVED = "resolved"
+    UNRESOLVED = "unresolved"
 
 
 class AudienceMode(StrEnum):
@@ -85,6 +91,89 @@ class OnboardingSeed:
     label: str
     genres: tuple[str, ...] = ()
     notes: str | None = None
+
+
+@dataclass(frozen=True)
+class TitleResolutionCandidate:
+    source: str
+    source_id: str
+    title: str
+    media_type: MediaType = MediaType.MOVIE
+    release_year: int | None = None
+    overview: str = ""
+    original_language: str | None = None
+    popularity: float | None = None
+
+    @property
+    def source_movie_id(self) -> str:
+        return f"{self.source}:{self.source_id}"
+
+
+@dataclass(frozen=True)
+class TitleSearchResult:
+    raw_query: str
+    candidates: tuple[TitleResolutionCandidate, ...] = ()
+
+    @property
+    def has_candidates(self) -> bool:
+        return bool(self.candidates)
+
+
+@dataclass(frozen=True)
+class TitleResolutionEntry:
+    raw_title: str
+    status: TitleResolutionStatus
+    candidate: TitleResolutionCandidate | None = None
+    unresolved_reason: str | None = None
+
+    @classmethod
+    def resolved(
+        cls,
+        raw_title: str,
+        candidate: TitleResolutionCandidate,
+    ) -> TitleResolutionEntry:
+        return cls(
+            raw_title=raw_title,
+            status=TitleResolutionStatus.RESOLVED,
+            candidate=candidate,
+        )
+
+    @classmethod
+    def unresolved(
+        cls,
+        raw_title: str,
+        reason: str | None = None,
+    ) -> TitleResolutionEntry:
+        return cls(
+            raw_title=raw_title,
+            status=TitleResolutionStatus.UNRESOLVED,
+            unresolved_reason=reason,
+        )
+
+    def __post_init__(self) -> None:
+        normalized_title = self.raw_title.strip()
+        if not normalized_title:
+            raise ValueError("Title resolution entries require a non-empty title.")
+
+        object.__setattr__(self, "raw_title", normalized_title)
+
+        if self.status == TitleResolutionStatus.RESOLVED and self.candidate is None:
+            raise ValueError("Resolved title entries require a candidate.")
+
+        if self.status == TitleResolutionStatus.UNRESOLVED and self.candidate is not None:
+            raise ValueError("Unresolved title entries cannot include a candidate.")
+
+
+class TitleResolver(Protocol):
+    def search(
+        self,
+        query: str,
+        *,
+        region: str = "DE",
+        language: str = "en-US",
+    ) -> TitleSearchResult:
+        """Return likely title candidates without deciding what the user selected."""
+        ...
 
 
 @dataclass(frozen=True)
