@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from movie_night_mediator.app.backfill import ManualBackfillService
+from movie_night_mediator.app.feedback import PostWatchFeedbackService
 from movie_night_mediator.app.onboarding import SQLiteOnboardingStore
 from movie_night_mediator.app.session import (
     SessionTransitionError,
@@ -24,6 +25,7 @@ from movie_night_mediator.domain import (
     MediaType,
     OnboardingConstraints,
     ParticipantOnboarding,
+    PostWatchFeedback,
     SessionMode,
     SessionReaction,
     SessionReactionLabel,
@@ -36,7 +38,11 @@ from movie_night_mediator.domain import (
     WatchedStatusScope,
     WatchedTitleBackfill,
 )
-from movie_night_mediator.storage import SQLiteBackfillStore, SQLiteSessionStore
+from movie_night_mediator.storage import (
+    SQLiteBackfillStore,
+    SQLiteFeedbackStore,
+    SQLiteSessionStore,
+)
 
 
 class SetupProfilePayload(BaseModel):
@@ -126,6 +132,23 @@ class WatchedTitleBackfillPayload(BaseModel):
     tasteLabel: BackfillTasteLabel | None = None
 
 
+class PostWatchFeedbackPayload(BaseModel):
+    householdId: str = Field(default=DEFAULT_HOUSEHOLD_ID, min_length=1)
+    sessionId: str = Field(min_length=1)
+    userId: str = Field(min_length=1)
+    sourceMovieId: str = Field(min_length=1)
+    feedbackLabel: str = Field(min_length=1)
+    freeTextNote: str | None = None
+
+
+class PostWatchFeedbackResponsePayload(BaseModel):
+    sessionId: str
+    userId: str
+    sourceMovieId: str
+    feedbackLabel: str
+    freeTextNote: str | None = None
+
+
 class SessionShortlistItemPayload(BaseModel):
     sourceMovieId: str = Field(min_length=1)
     title: str = Field(min_length=1)
@@ -171,6 +194,7 @@ def create_app(
     setup_store: SQLiteSetupStore | None = None,
     onboarding_store: SQLiteOnboardingStore | None = None,
     backfill_store: SQLiteBackfillStore | None = None,
+    feedback_store: SQLiteFeedbackStore | None = None,
     session_store: SQLiteSessionStore | None = None,
 ) -> FastAPI:
     app = FastAPI(
@@ -181,6 +205,9 @@ def create_app(
     resolved_setup_store = setup_store or SQLiteSetupStore()
     resolved_onboarding_store = onboarding_store or SQLiteOnboardingStore()
     backfill_service = ManualBackfillService(backfill_store or SQLiteBackfillStore())
+    feedback_service = PostWatchFeedbackService(
+        store=feedback_store or SQLiteFeedbackStore()
+    )
     session_service = SharedSessionService(
         session_store=session_store or SQLiteSessionStore(),
         onboarding_store=resolved_onboarding_store,
@@ -287,6 +314,52 @@ def create_app(
         return [
             _watched_backfill_to_payload(record)
             for record in backfill_service.list_watched_titles(householdId)
+        ]
+
+    @app.post(
+        "/feedback/post-watch",
+        response_model=PostWatchFeedbackResponsePayload,
+        response_model_exclude_none=True,
+        tags=["feedback"],
+    )
+    def post_post_watch_feedback(
+        payload: PostWatchFeedbackPayload,
+    ) -> PostWatchFeedbackResponsePayload:
+        try:
+            feedback = feedback_service.save_feedback(
+                household_id=payload.householdId,
+                session_id=payload.sessionId,
+                user_id=payload.userId,
+                source_movie_id=payload.sourceMovieId,
+                feedback_label=payload.feedbackLabel,
+                free_text_note=payload.freeTextNote,
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+
+        return _post_watch_feedback_to_payload(feedback)
+
+    @app.get(
+        "/feedback/post-watch",
+        response_model=list[PostWatchFeedbackResponsePayload],
+        response_model_exclude_none=True,
+        tags=["feedback"],
+    )
+    def get_post_watch_feedback(
+        householdId: str = DEFAULT_HOUSEHOLD_ID,
+        sessionId: str | None = None,
+    ) -> list[PostWatchFeedbackResponsePayload]:
+        try:
+            feedback_records = feedback_service.list_feedback(
+                household_id=householdId,
+                session_id=sessionId,
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+
+        return [
+            _post_watch_feedback_to_payload(feedback)
+            for feedback in feedback_records
         ]
 
     @app.post(
@@ -564,6 +637,18 @@ def _watched_backfill_to_payload(
         watchedOn=record.watched_on,
         watched=record.watched,
         tasteLabel=record.taste_label,
+    )
+
+
+def _post_watch_feedback_to_payload(
+    feedback: PostWatchFeedback,
+) -> PostWatchFeedbackResponsePayload:
+    return PostWatchFeedbackResponsePayload(
+        sessionId=feedback.session_id,
+        userId=feedback.user_id,
+        sourceMovieId=feedback.source_movie_id,
+        feedbackLabel=feedback.feedback_label,
+        freeTextNote=feedback.free_text_note,
     )
 
 

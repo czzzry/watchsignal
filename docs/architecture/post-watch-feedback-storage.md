@@ -1,11 +1,11 @@
 # Post-Watch Feedback Storage
 
 Issue 10 stores post-watch feedback through a small service and SQLite store.
-The API route layer is intentionally not wired in this slice.
+The route layer exposes a minimal save and list contract for the phone UI.
 
 ```mermaid
 flowchart LR
-    A["Future API route"] --> B["PostWatchFeedbackService"]
+    A["FastAPI feedback route"] --> B["PostWatchFeedbackService"]
     B --> C["SQLiteFeedbackStore"]
     C --> D[("post_watch_feedback")]
 ```
@@ -23,5 +23,9 @@ The domain model stays unchanged for now.
 `PostWatchFeedback` remains the application-level feedback record.
 The household id lives at the store boundary because listing feedback by household is a persistence concern.
 
+The API uses `POST /feedback/post-watch` to save one record.
+The API uses `GET /feedback/post-watch` to list feedback for a household, with optional `sessionId` filtering.
+The response omits `householdId` because the household is the list boundary rather than part of the application feedback record.
+
 Outcome capture and watched-history updates remain for the future API-facing Issue 10 slice.
-This worker only implements the backend service and storage core requested for parallel development.
+This worker only implements the feedback capture route and does not decide whether a session outcome should automatically create watched-history records.
