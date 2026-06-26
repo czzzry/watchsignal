@@ -105,7 +105,7 @@ cd apps/api
 ```
 
 ```sh
-env PNPM_HOME="$PWD/.tools/pnpm" XDG_CACHE_HOME="$PWD/.tools/cache" npm exec --yes --package=pnpm@10 -- pnpm --dir apps/web build
+env npm_config_cache="$PWD/.tools/npm-cache" PNPM_HOME="$PWD/.tools/pnpm" XDG_CACHE_HOME="$PWD/.tools/cache" npm exec --yes --package=pnpm@10 -- pnpm --dir apps/web build
 ```
 
 Update this list when the web app, frontend tooling, linting, or persistence tests are added.

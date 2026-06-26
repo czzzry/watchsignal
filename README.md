@@ -59,11 +59,12 @@ cd apps/api
 ```
 
 ```sh
-env PNPM_HOME="$PWD/.tools/pnpm" XDG_CACHE_HOME="$PWD/.tools/cache" npm exec --yes --package=pnpm@10 -- pnpm --dir apps/web build
+env npm_config_cache="$PWD/.tools/npm-cache" PNPM_HOME="$PWD/.tools/pnpm" XDG_CACHE_HOME="$PWD/.tools/cache" npm exec --yes --package=pnpm@10 -- pnpm --dir apps/web build
 ```
 
 `uv` is installed in a workspace-local helper environment at `.tools/uv`.
 `pnpm` can be invoked through `npm exec` without a global install.
+Set `npm_config_cache` as shown above to avoid using machine-level npm cache folders.
 
 ## Key docs
 

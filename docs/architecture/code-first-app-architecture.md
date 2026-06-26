@@ -28,6 +28,9 @@ Instead, it should make the product core testable in normal application code and
 - Main recommendations should use Safe Picks by default.
 - Safe Picks are Prime Video Germany, language-compatible, constraint-compatible, and not already watched unless rewatches are allowed.
 - Uncertain availability, audio, or subtitle compatibility may appear only in a secondary Needs Quick Check section.
+- Amazon Video rent or buy does not count as Prime Video subscription availability.
+- TMDb can help with provider and language data, but MVP code must not pretend it can fully verify provider-specific audio or subtitle tracks.
+- Store manual verified-watchable corrections so the app can learn practical Prime Germany availability over time.
 - Amazon.de availability and language constraints matter for normal use.
 - Onboarding is required before real recommendations.
 - One-sided onboarding unlocks solo recommendations.
