@@ -1,5 +1,5 @@
 import { DEFAULT_API_BASE_URL, loadSetupState } from "./setup-api";
-import { SetupWizard } from "./setup-wizard";
+import { PassThePhoneWizard } from "./pass-the-phone-wizard";
 
 type ApiHealth = {
   connected: boolean;
@@ -62,5 +62,5 @@ export default async function Home() {
     loadSetupState(apiBaseUrl),
   ]);
 
-  return <SetupWizard apiHealth={apiHealth} setupLoad={setupLoad} />;
+  return <PassThePhoneWizard apiHealth={apiHealth} setupLoad={setupLoad} />;
 }

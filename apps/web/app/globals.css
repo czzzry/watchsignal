@@ -1,19 +1,22 @@
 :root {
   color-scheme: light;
-  --bg: #f4f7f7;
+  --bg: #eef3f1;
   --ink: #171b1e;
-  --muted: #667078;
+  --muted: #637079;
   --panel: #ffffff;
-  --line: #d7dee2;
+  --panel-strong: #f8faf9;
+  --line: #d7dedc;
   --accent: #245f73;
   --accent-ink: #ffffff;
-  --warm: #b85b46;
-  --success: #23734f;
-  --warning: #9a412e;
-  --soft-blue: #e5f0f4;
-  --soft-green: #e8f4ee;
-  --soft-coral: #f9e8e2;
-  --shadow: 0 18px 60px rgb(34 51 59 / 12%);
+  --mint: #23734f;
+  --amber: #a86621;
+  --coral: #b85b46;
+  --rose: #9f3857;
+  --soft-blue: #e1eef2;
+  --soft-green: #e3f1e9;
+  --soft-amber: #f6ebd9;
+  --soft-rose: #f4e3e9;
+  --shadow: 0 20px 60px rgb(34 51 59 / 14%);
 }
 
 * {
@@ -27,7 +30,9 @@ html {
 body {
   min-height: 100%;
   margin: 0;
-  background: var(--bg);
+  background:
+    linear-gradient(180deg, rgb(238 243 241 / 80%), rgb(232 237 233 / 100%)),
+    var(--bg);
   color: var(--ink);
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -42,8 +47,14 @@ button {
   background: var(--accent);
   color: var(--accent-ink);
   font: inherit;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid rgb(36 95 115 / 22%);
+  outline-offset: 2px;
 }
 
 .secondaryButton {
@@ -56,10 +67,10 @@ button {
   width: min(100%, 680px);
   min-height: 100svh;
   margin: 0 auto;
-  padding: 18px 14px 22px;
+  padding: 16px 14px 22px;
   display: grid;
   align-content: start;
-  gap: 14px;
+  gap: 12px;
 }
 
 .topBar {
@@ -74,13 +85,15 @@ button {
   margin: 0;
   font-size: 2rem;
   line-height: 1.05;
+  letter-spacing: 0;
 }
 
 .eyebrow {
   margin: 0 0 6px;
-  color: var(--warm);
-  font-size: 0.78rem;
-  font-weight: 800;
+  color: var(--coral);
+  font-size: 0.76rem;
+  font-weight: 850;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -110,223 +123,436 @@ button {
 }
 
 .connectionPillConnected {
-  color: var(--success);
+  color: var(--mint);
 }
 
 .connectionPillDisconnected {
-  color: var(--warning);
+  color: var(--coral);
 }
 
-.setupStatus,
+.statusStrip,
 .wizardPanel {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
-}
-
-.setupStatus {
-  min-height: 68px;
-  padding: 12px 14px;
-  display: grid;
-  align-items: center;
   box-shadow: var(--shadow);
 }
 
-.setupStatus p,
-.setupStatus small,
+.statusStrip {
+  min-height: 74px;
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+}
+
+.statusStrip span,
+.controlLabel,
+.summaryTile span,
+.movieSignals dt {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.statusStrip p,
 .sectionHeading p,
-.sectionHeading h2 {
+.summaryTile p,
+.movieDetails p,
+.winnerCard p,
+.rankedItem p {
   margin: 0;
 }
 
-.setupStatus p {
-  font-weight: 800;
-}
-
-.setupStatus small {
-  display: block;
+.statusStrip p {
   margin-top: 4px;
-  color: var(--muted);
+  color: var(--ink);
   line-height: 1.35;
 }
 
-.stepTabs {
+.statusStrip strong {
+  min-width: 68px;
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--soft-green);
+  color: var(--mint);
+  text-align: center;
+}
+
+.flowTabs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.flowTab {
+  min-height: 54px;
+  border: 1px solid var(--line);
+  padding: 0 4px;
+  background: #ffffff;
+  color: var(--ink);
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  line-height: 1.05;
+}
+
+.flowTab span {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--soft-blue);
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  font-size: 0.76rem;
+}
+
+.flowTabActive {
+  border-color: var(--accent);
+  background: var(--soft-blue);
+}
+
+.progressRail {
+  height: 8px;
+  border-radius: 999px;
+  background: #dbe4e2;
+  overflow: hidden;
+}
+
+.progressRail span {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  display: block;
+  transition: width 160ms ease;
+}
+
+.wizardPanel {
+  padding: 16px;
+}
+
+.sectionHeading {
+  display: grid;
+  gap: 5px;
+}
+
+.sectionHeading h2 {
+  margin: 0;
+  font-size: 1.46rem;
+  line-height: 1.15;
+  letter-spacing: 0;
+}
+
+.sectionHeading p {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.sessionSummaryGrid,
+.handoffStats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.summaryTile {
+  min-height: 78px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--panel-strong);
+  display: grid;
+  align-content: center;
+  gap: 5px;
+}
+
+.summaryTile p {
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.modeBlock {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.controlLabel {
+  margin: 0;
+}
+
+.segmentedControl {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
-.stepTab {
-  min-height: 54px;
+.segment {
+  min-height: 52px;
   border: 1px solid var(--line);
   padding: 0 8px;
   background: #ffffff;
   color: var(--ink);
-  display: grid;
-  grid-template-columns: 24px minmax(0, 1fr);
-  align-items: center;
-  gap: 6px;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
 }
 
-.stepTab span {
-  width: 24px;
-  height: 24px;
-  border-radius: 999px;
-  background: var(--soft-blue);
-  display: grid;
-  place-items: center;
-  color: var(--accent);
-  font-size: 0.78rem;
-}
-
-.stepTabActive {
+.segmentActive {
   border-color: var(--accent);
   background: var(--soft-blue);
+  color: var(--accent);
 }
 
-.wizardPanel {
-  padding: 18px;
-  background: var(--panel);
+.primaryAction,
+.fullWidthButton {
+  width: 100%;
+  margin-top: 16px;
 }
 
-.sectionHeading {
+.reactionPanel {
   display: grid;
-  gap: 4px;
+  gap: 14px;
 }
 
-.sectionHeading h2 {
-  margin: 0;
-  font-size: 1.45rem;
-  line-height: 1.15;
-}
-
-.profileList {
-  display: grid;
+.reactionMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  margin-top: 18px;
 }
 
-.profileField {
-  min-height: 86px;
+.reactionMeta strong {
+  border-radius: 999px;
+  padding: 8px 10px;
+  background: var(--soft-blue);
+  color: var(--accent);
+  font-size: 0.88rem;
+}
+
+.movieCard {
+  min-height: 390px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 12px;
-  background: #fbfcfc;
+  overflow: hidden;
+  background: #ffffff;
+  display: grid;
+  grid-template-rows: 230px minmax(0, 1fr);
+}
+
+.posterImage,
+.winnerPoster {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  background: var(--soft-blue);
+}
+
+.movieDetails {
+  padding: 14px;
   display: grid;
   gap: 8px;
 }
 
-.profileField span {
-  color: var(--muted);
-  font-size: 0.82rem;
-  font-weight: 800;
-  text-transform: uppercase;
+.movieDetails h2 {
+  margin: 0;
+  font-size: 1.55rem;
+  line-height: 1.12;
 }
 
-.profileField input {
-  min-height: 44px;
-  width: 100%;
+.movieFacts {
+  color: var(--muted);
+  font-weight: 750;
+}
+
+.safePill {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: var(--soft-green);
+  color: var(--mint);
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.movieSignals {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 0;
+}
+
+.movieSignals div {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+.movieSignals dd {
+  margin: 2px 0 0;
+  font-weight: 750;
+  line-height: 1.3;
+}
+
+.reactionGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.reactionButton {
+  min-height: 66px;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 0 12px;
   background: #ffffff;
   color: var(--ink);
-  font: inherit;
-  font-size: 1.05rem;
-  font-weight: 750;
+  font-size: 1rem;
 }
 
-.profileField input:focus {
-  border-color: var(--accent);
-  outline: 3px solid rgb(36 95 115 / 18%);
+.reactionButtoninterested {
+  color: var(--mint);
 }
 
-.defaultGrid {
-  display: grid;
-  gap: 10px;
-  margin-top: 18px;
+.reactionButtonmaybe {
+  color: var(--amber);
 }
 
-.defaultItem {
-  min-height: 72px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 12px;
-  background: #fbfcfc;
-  display: grid;
-  align-content: center;
-  gap: 4px;
+.reactionButtonno {
+  color: var(--rose);
 }
 
-.defaultItem span {
+.reactionButtonseen {
   color: var(--muted);
-  font-size: 0.82rem;
-  font-weight: 800;
-  text-transform: uppercase;
 }
 
-.defaultItem p {
-  margin: 0;
-  font-weight: 750;
-  line-height: 1.35;
+.reactionButtonActive {
+  border-color: currentColor;
+  background: var(--panel-strong);
 }
 
-.handoffPreview {
+.handoffPanel,
+.resultsPanel {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-  margin-top: 18px;
+  gap: 16px;
 }
 
-.handoffPreview div {
-  min-height: 74px;
-  border: 1px solid var(--line);
+.handoffHero {
+  height: 132px;
   border-radius: 8px;
-  padding: 12px;
-  background: var(--soft-green);
+  background:
+    linear-gradient(135deg, var(--soft-blue), rgb(255 255 255 / 0%) 58%),
+    var(--soft-green);
   display: grid;
-  grid-template-columns: 38px 1fr;
-  align-items: center;
-  gap: 12px;
+  grid-template-columns: 1fr 1fr;
+  place-items: center;
 }
 
-.handoffPreview span {
-  width: 38px;
-  height: 38px;
+.handoffHero span,
+.handoffHero strong {
+  width: 72px;
+  height: 72px;
   border-radius: 999px;
-  background: var(--accent);
-  color: #ffffff;
   display: grid;
   place-items: center;
+  font-size: 2rem;
+}
+
+.handoffHero span {
+  background: #ffffff;
+  color: var(--accent);
+}
+
+.handoffHero strong {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.centerText {
+  text-align: center;
+}
+
+.inlineActions {
+  padding-bottom: 0;
+}
+
+.winnerCard {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--panel-strong);
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr);
+}
+
+.winnerPoster {
+  min-height: 188px;
+}
+
+.winnerCard > div {
+  padding: 14px;
+  display: grid;
+  align-content: center;
+  gap: 9px;
+}
+
+.winnerScore {
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
+.reactionPair {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.reactionBadge {
+  border-radius: 999px;
+  padding: 6px 9px;
+  background: #ffffff;
+  color: var(--muted);
+  font-size: 0.78rem;
   font-weight: 800;
 }
 
-.handoffPreview p {
-  margin: 0;
-  font-size: 1.08rem;
-  font-weight: 700;
+.rankedList {
+  display: grid;
+  gap: 8px;
 }
 
-.readyNote,
-.changeNote {
-  margin: 14px 0 0;
-  color: var(--muted);
-  line-height: 1.45;
-}
-
-.changeNote {
-  min-height: 42px;
+.rankedItem {
+  min-height: 86px;
+  border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 12px;
+  background: #ffffff;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.rankedItem > strong {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
   background: var(--soft-blue);
   color: var(--accent);
-  font-weight: 800;
+  display: grid;
+  place-items: center;
 }
 
-.changeNoteActive {
-  background: var(--soft-coral);
-  color: var(--warning);
+.rankedItem h3 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+
+.rankedItem p {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 750;
 }
 
 .bottomActions {
@@ -341,11 +567,12 @@ button {
     padding-top: 28px;
   }
 
-  .defaultGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .movieCard {
+    grid-template-columns: 210px minmax(0, 1fr);
+    grid-template-rows: minmax(360px, auto);
   }
 
-  .handoffPreview {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .reactionGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
