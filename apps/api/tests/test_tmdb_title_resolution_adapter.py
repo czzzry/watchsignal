@@ -4,10 +4,13 @@ from movie_night_mediator.adapters import (
     FixtureTmdbTitleResolver,
     normalize_title_query,
 )
-from movie_night_mediator.domain import TitleResolutionStatus
+from movie_night_mediator.domain import TitleResolutionStatus, TitleResolver
 
 
 class FixtureTmdbTitleResolverTest(unittest.TestCase):
+    def test_fixture_resolver_implements_title_resolver_contract(self) -> None:
+        self.assertIsInstance(FixtureTmdbTitleResolver(), TitleResolver)
+
     def test_search_returns_tmdb_like_candidate_for_typo_fixture(self) -> None:
         resolver = FixtureTmdbTitleResolver()
 
@@ -37,6 +40,16 @@ class FixtureTmdbTitleResolverTest(unittest.TestCase):
         assert entry.candidate is not None
         self.assertEqual(entry.candidate.source_movie_id, "tmdb:679")
         self.assertEqual(entry.candidate.title, "Aliens")
+
+    def test_resolve_preserves_plain_text_when_matches_are_ambiguous(self) -> None:
+        resolver = FixtureTmdbTitleResolver()
+
+        entry = resolver.resolve("Alien")
+
+        self.assertEqual(entry.status, TitleResolutionStatus.UNRESOLVED)
+        self.assertEqual(entry.raw_title, "Alien")
+        self.assertIsNone(entry.candidate)
+        self.assertEqual(entry.unresolved_reason, "ambiguous_match")
 
     def test_resolve_preserves_plain_text_when_no_fixture_matches(self) -> None:
         resolver = FixtureTmdbTitleResolver()
