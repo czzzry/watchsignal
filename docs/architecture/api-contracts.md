@@ -41,6 +41,50 @@ Examples:
 - outcome capture
 - post-watch feedback
 
+## Post-Watch Feedback Contract
+
+Post-watch feedback records a participant's later opinion about a watched title.
+The MVP API keeps this separate from outcome capture and watched-history updates.
+
+Expected save endpoint:
+
+- `POST /feedback/post-watch`
+
+Expected save request:
+
+```json
+{
+  "householdId": "default-household",
+  "sessionId": "session-1",
+  "userId": "husband",
+  "sourceMovieId": "tmdb:603",
+  "feedbackLabel": "loved",
+  "freeTextNote": "Still plays well."
+}
+```
+
+Expected save response:
+
+```json
+{
+  "sessionId": "session-1",
+  "userId": "husband",
+  "sourceMovieId": "tmdb:603",
+  "feedbackLabel": "loved",
+  "freeTextNote": "Still plays well."
+}
+```
+
+Expected list endpoint:
+
+- `GET /feedback/post-watch?householdId=default-household`
+- `GET /feedback/post-watch?householdId=default-household&sessionId=session-1`
+
+The list response is an array of the save response shape.
+Feedback labels are normalized to `loved`, `fine`, or `no`.
+Invalid labels, blank ids, and blank filter values return `400`.
+Duplicate feedback for the same household, session, participant, and source movie updates the existing row.
+
 ## Setup Contract Draft
 
 Slice 3 uses a narrow frontend API boundary while Slice 2 owns backend persistence.
