@@ -80,3 +80,10 @@ Real household labels are local runtime data and should not be committed to fixt
 An API contract is the agreement between frontend and backend.
 It says which endpoints exist, which data the frontend sends, which data the backend returns, and what errors can happen.
 Keeping this explicit helps autonomous agents work in parallel without guessing what the other side expects.
+
+## Setup API Learning Note
+
+The browser setup screen talks to FastAPI through `GET /setup` and `PUT /setup`.
+`GET /setup` returns the persisted setup wizard shape when SQLite has a saved row, otherwise it returns generic local defaults.
+`PUT /setup` accepts the same shape, validates it through the API models, and stores the household label, profile labels, and setup defaults in SQLite.
+The backend stores this browser-facing setup shape separately from recommendation scoring so future transport adapters can reuse the setup data without coupling it to the phone UI.
