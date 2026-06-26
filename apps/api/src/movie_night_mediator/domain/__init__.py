@@ -1,6 +1,8 @@
 from movie_night_mediator.domain.models import (
     AudienceMode,
+    BackfillTasteLabel,
     Candidate,
+    DEFAULT_HOUSEHOLD_ID,
     HouseholdDefaults,
     Household,
     HouseholdSetup,
@@ -20,12 +22,16 @@ from movie_night_mediator.domain.models import (
     TitleResolver,
     TitleSearchResult,
     UserProfile,
+    WatchedStatusScope,
+    WatchedTitleBackfill,
     default_household_setup,
 )
 
 __all__ = [
     "AudienceMode",
+    "BackfillTasteLabel",
     "Candidate",
+    "DEFAULT_HOUSEHOLD_ID",
     "Household",
     "HouseholdDefaults",
     "HouseholdSetup",
@@ -45,5 +51,7 @@ __all__ = [
     "TitleResolver",
     "TitleSearchResult",
     "UserProfile",
+    "WatchedStatusScope",
+    "WatchedTitleBackfill",
     "default_household_setup",
 ]

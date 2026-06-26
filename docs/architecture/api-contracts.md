@@ -87,3 +87,11 @@ The browser setup screen talks to FastAPI through `GET /setup` and `PUT /setup`.
 `GET /setup` returns the persisted setup wizard shape when SQLite has a saved row, otherwise it returns generic local defaults.
 `PUT /setup` accepts the same shape, validates it through the API models, and stores the household label, profile labels, and setup defaults in SQLite.
 The backend stores this browser-facing setup shape separately from recommendation scoring so future transport adapters can reuse the setup data without coupling it to the phone UI.
+
+## Manual Backfill Learning Note
+
+Manual backfill is a low-polish backend utility for adding known watched titles before richer history screens exist.
+It accepts the same resolved-or-unresolved title entry shape used by title resolution, then stores watched status for selected participants, the global household history, or both.
+Backfill taste labels are limited to `loved`, `fine`, and `no` so they can become useful taste signals later without changing the scoring formula in this slice.
+Duplicate backfill writes are idempotent for the same household, watched scope, participant, and normalized title key.
+This keeps manual imports reversible and inspectable while preserving onboarding seeds as a separate source of preference hints.

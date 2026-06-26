@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date
 from enum import StrEnum
 from typing import Protocol, runtime_checkable
 
@@ -29,6 +30,17 @@ class SessionMode(StrEnum):
     HUSBAND_FIRST = "husband_first"
     WIFE_FIRST = "wife_first"
     COMPROMISE = "compromise"
+
+
+class BackfillTasteLabel(StrEnum):
+    LOVED = "loved"
+    FINE = "fine"
+    NO = "no"
+
+
+class WatchedStatusScope(StrEnum):
+    PARTICIPANT = "participant"
+    GLOBAL = "global"
 
 
 @dataclass(frozen=True)
@@ -162,6 +174,41 @@ class TitleResolutionEntry:
 
         if self.status == TitleResolutionStatus.UNRESOLVED and self.candidate is not None:
             raise ValueError("Unresolved title entries cannot include a candidate.")
+
+
+@dataclass(frozen=True)
+class WatchedTitleBackfill:
+    household_id: str
+    scope: WatchedStatusScope
+    entry: TitleResolutionEntry
+    title_key: str
+    participant_id: str | None = None
+    watched_on: date | None = None
+    watched: bool = True
+    taste_label: BackfillTasteLabel | None = None
+
+    def __post_init__(self) -> None:
+        normalized_household_id = self.household_id.strip()
+        normalized_title_key = self.title_key.strip()
+        normalized_participant_id = (
+            self.participant_id.strip() if self.participant_id is not None else None
+        )
+
+        if not normalized_household_id:
+            raise ValueError("Watched backfill records require a household id.")
+
+        if not normalized_title_key:
+            raise ValueError("Watched backfill records require a title key.")
+
+        if self.scope == WatchedStatusScope.PARTICIPANT and not normalized_participant_id:
+            raise ValueError("Participant watched backfill records require a participant id.")
+
+        if self.scope == WatchedStatusScope.GLOBAL and normalized_participant_id is not None:
+            raise ValueError("Global watched backfill records cannot include a participant id.")
+
+        object.__setattr__(self, "household_id", normalized_household_id)
+        object.__setattr__(self, "title_key", normalized_title_key)
+        object.__setattr__(self, "participant_id", normalized_participant_id)
 
 
 @runtime_checkable
