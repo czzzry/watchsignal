@@ -1,0 +1,12 @@
+{
+  "name": "movie-night-mediator",
+  "private": true,
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "dev:web": "pnpm --dir apps/web dev",
+    "build:web": "pnpm --dir apps/web build",
+    "test:api": "cd apps/api && ../../.tools/uv/bin/uv run python -m unittest discover -s tests",
+    "compile:api": "cd apps/api && ../../.tools/uv/bin/uv run python -m compileall -q src tests",
+    "check": "pnpm test:api && pnpm compile:api"
+  }
+}

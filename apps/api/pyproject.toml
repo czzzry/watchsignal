@@ -1,0 +1,22 @@
+[project]
+name = "movie-night-mediator-api"
+version = "0.1.0"
+description = "FastAPI backend and recommendation core for the Movie Night Mediator."
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.116.0",
+    "uvicorn[standard]>=0.35.0",
+]
+
+[project.optional-dependencies]
+dev = []
+
+[project.scripts]
+movie-night-demo = "movie_night_mediator.app.demo:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/movie_night_mediator"]

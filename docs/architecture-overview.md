@@ -1,0 +1,104 @@
+# Architecture Overview
+
+This document is the visual companion to the founder decisions and workflow map.
+It is intentionally high-level.
+It should evolve as the real system evolves.
+
+## System context
+
+```mermaid
+flowchart LR
+    A["Founder on phone browser"] --> B["Next.js mobile web app"]
+    C["Pass-the-phone participant"] --> B
+    B --> D["FastAPI backend"]
+    D --> E["SQLite operating store"]
+    D --> F["Scoring module"]
+    D --> G["TMDb metadata and provider data"]
+    F --> E
+    D --> H["Future LLM interpretation module"]
+```
+
+## First vertical slice flow
+
+```mermaid
+flowchart TD
+    A["Open local mobile web app"] --> B["Confirm household profiles"]
+    B --> C["Start shared movie night"]
+    C --> D["Show default mode and allow override"]
+    D --> E["Apply remembered defaults"]
+    E --> F["Ask only minimum clarifying questions"]
+    F --> G["Fetch candidates from TMDb"]
+    G --> H["Apply Safe Pick gate"]
+    H --> I["Score via separate module"]
+    I --> J["Show five-title shortlist"]
+    J --> K["Founder reacts"]
+    K --> L["Hand phone over"]
+    L --> M["Wife reacts"]
+    M --> N["Rerank shortlist"]
+    N --> O["Show best pick and reranked shortlist"]
+    O --> P["Later record what was watched"]
+    P --> Q["Collect Loved or Fine or No"]
+    Q --> R["Update history, metrics, and taste signals"]
+```
+
+## Shared-session input modes
+
+```mermaid
+flowchart TD
+    A["Shared session"] --> B["Separate-device mode"]
+    A --> C["Pass-the-phone mode"]
+    C --> D["MVP primary"]
+    B --> E["MVP plus N"]
+    E --> F["Each person scores on own phone"]
+    D --> G["One person scores, then hands off phone"]
+    F --> H["Same session artifacts and recommendation logic"]
+    G --> H
+```
+
+## Responsibility split
+
+```mermaid
+flowchart LR
+    A["Next.js mobile UI"] --> B["FastAPI API layer"]
+    B --> C["Application use cases"]
+    C --> D["Scoring module"]
+    C --> E["SQLite persistence"]
+    C --> F["TMDb adapter"]
+    C --> G["Future LLM interpretation adapter"]
+    E --> H["History, metrics, watched state, feedback"]
+```
+
+## Upgrade path
+
+```mermaid
+flowchart TD
+    A["MVP"] --> B["MVP plus 1"]
+    B --> C["MVP plus N"]
+    A1["Local mobile web flow"] --> A
+    A2["TMDb + SQLite"] --> A
+    A3["Simple modular scoring"] --> A
+    A4["Structured feedback loop"] --> A
+    B1["LLM-assisted feedback interpretation"] --> B
+    B2["Stronger scoring experiments"] --> B
+    B3["Possible storage upgrade path"] --> B
+    C1["Taste profile snapshot"] --> C
+    C2["Ideal movie synthesis"] --> C
+    C3["Known-show episode recommender"] --> C
+```
+
+## Constraint model
+
+```mermaid
+flowchart TD
+    A["Household defaults"] --> D["Session setup"]
+    B["Individual taste profiles"] --> D
+    C["Session overrides"] --> D
+    A1["Prime Germany usually on"] --> A
+    A2["English audio or foreign plus English subtitles"] --> A
+    A3["Rewatch avoidance"] --> A
+    B1["Personal taste signals"] --> B
+    B2["Per-person watched history"] --> B
+    C1["Tonight's service"] --> C
+    C2["Tonight's mode"] --> C
+    C3["Tonight's runtime"] --> C
+```
