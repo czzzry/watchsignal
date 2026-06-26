@@ -31,6 +31,12 @@ class SessionMode(StrEnum):
     COMPROMISE = "compromise"
 
 
+class CandidateSafety(StrEnum):
+    SAFE_PICK = "safe_pick"
+    NEEDS_QUICK_CHECK = "needs_quick_check"
+    REJECTED = "rejected"
+
+
 @dataclass(frozen=True)
 class HouseholdDefaults:
     default_region: str = "DE"
@@ -231,6 +237,8 @@ class Candidate:
     original_language: str = "en"
     spoken_languages: tuple[str, ...] = ("en",)
     already_watched: bool = False
+    safety_status: CandidateSafety = CandidateSafety.SAFE_PICK
+    is_interesting_safe_pick: bool = False
 
 
 @dataclass(frozen=True)
@@ -252,6 +260,7 @@ class RankedCandidate:
     group_score: float
     why_short: str
     hard_filter_pass: bool
+    is_interesting_pick: bool = False
 
 
 @dataclass(frozen=True)
@@ -261,6 +270,7 @@ class RecommendationResult:
     is_uncertain: bool
     uncertainty_reason: str | None = None
     recommended_follow_up: str | None = None
+    interesting_safe_pick: RankedCandidate | None = None
 
 
 @dataclass(frozen=True)
