@@ -1,12 +1,5 @@
-const steps = [
-  "Set up household profiles",
-  "Start shared movie night",
-  "React to five safe picks",
-  "Hand phone over",
-  "Review tonight's recommendation",
-];
-
-const DEFAULT_API_BASE_URL = "http://127.0.0.1:8000";
+import { DEFAULT_API_BASE_URL, loadSetupState } from "./setup-api";
+import { SetupWizard } from "./setup-wizard";
 
 type ApiHealth = {
   connected: boolean;
@@ -16,8 +9,9 @@ type ApiHealth = {
 
 export const dynamic = "force-dynamic";
 
-async function getApiHealth(): Promise<ApiHealth> {
-  const apiBaseUrl = process.env.API_BASE_URL ?? DEFAULT_API_BASE_URL;
+async function getApiHealth(
+  apiBaseUrl = process.env.API_BASE_URL ?? DEFAULT_API_BASE_URL,
+): Promise<ApiHealth> {
   const healthUrl = new URL("/health", apiBaseUrl);
 
   try {
@@ -62,45 +56,11 @@ async function getApiHealth(): Promise<ApiHealth> {
 }
 
 export default async function Home() {
-  const apiHealth = await getApiHealth();
+  const apiBaseUrl = process.env.API_BASE_URL ?? DEFAULT_API_BASE_URL;
+  const [apiHealth, setupLoad] = await Promise.all([
+    getApiHealth(apiBaseUrl),
+    loadSetupState(apiBaseUrl),
+  ]);
 
-  return (
-    <main className="shell">
-      <section className="panel">
-        <p className="eyebrow">Local mobile MVP</p>
-        <h1>Movie Night Mediator</h1>
-        <p className="lede">
-          A pass-the-phone recommender for finding something watchable tonight.
-        </p>
-        <div
-          className={
-            apiHealth.connected
-              ? "healthStatus healthStatusConnected"
-              : "healthStatus healthStatusDisconnected"
-          }
-          role="status"
-        >
-          <span aria-hidden="true" />
-          <div>
-            <p>FastAPI /health {apiHealth.label}</p>
-            <small>{apiHealth.detail}</small>
-          </div>
-        </div>
-        <div className="actions">
-          <button type="button">Start setup</button>
-          <button type="button" className="secondary">
-            Open demo session
-          </button>
-        </div>
-      </section>
-      <section className="flow" aria-label="MVP flow">
-        {steps.map((step, index) => (
-          <article key={step} className="flowStep">
-            <span>{index + 1}</span>
-            <p>{step}</p>
-          </article>
-        ))}
-      </section>
-    </main>
-  );
+  return <SetupWizard apiHealth={apiHealth} setupLoad={setupLoad} />;
 }

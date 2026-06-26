@@ -41,6 +41,40 @@ Examples:
 - outcome capture
 - post-watch feedback
 
+## Setup Contract Draft
+
+Slice 3 uses a narrow frontend API boundary while Slice 2 owns backend persistence.
+The web app currently probes `GET /setup` and falls back to generic local defaults when that endpoint is unavailable.
+Worker A can satisfy this boundary without changing the setup screen shape.
+
+Expected `GET /setup` response:
+
+```json
+{
+  "householdLabel": "Household",
+  "profiles": [
+    { "id": "profile-1", "label": "Husband", "order": 1 },
+    { "id": "profile-2", "label": "Wife", "order": 2 }
+  ],
+  "defaults": {
+    "sessionType": "Movie night",
+    "inputMode": "Pass the phone",
+    "availabilityRegion": "Prime Video Germany",
+    "languageAccess": "English audio or verified English subtitles",
+    "shortlistSize": 5,
+    "avoidAlreadyWatched": true
+  }
+}
+```
+
+Expected save endpoint:
+
+- `PUT /setup`
+
+The save request should accept the same shape as `GET /setup`.
+The response may return the saved setup in the same shape.
+Real household labels are local runtime data and should not be committed to fixtures or docs.
+
 ## Learning Note
 
 An API contract is the agreement between frontend and backend.
