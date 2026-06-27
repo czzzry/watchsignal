@@ -3,19 +3,12 @@
 import { createServer } from "node:net";
 import { mkdtemp, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { platform, tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
 
 const repoRoot = new URL("..", import.meta.url).pathname;
-const chromeCandidates = [
-  process.env.CHROME_BIN,
-  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-  "/Applications/Chromium.app/Contents/MacOS/Chromium",
-  "google-chrome",
-  "chromium",
-  "chromium-browser",
-].filter(Boolean);
+const browserCandidates = getBrowserCandidates();
 
 const startedProcesses = [];
 let chromeProfileDir = null;
@@ -73,6 +66,7 @@ async function main() {
 
     console.log("Mobile pass-the-phone UX smoke passed.");
     console.log(`Checked URL: ${webUrl}`);
+    console.log(`Browser: ${chrome.browserInstall.label}`);
     console.log("Viewport: 390x844 mobile");
     console.log(
       process.env.MOBILE_UX_SMOKE_EXPECT_API === "1"
@@ -167,11 +161,12 @@ async function resolvePackageRunner() {
 }
 
 async function startChrome() {
-  const chromePath = await findChrome();
+  const browserInstall = await findChrome();
   const port = await getFreePort();
   chromeProfileDir = await mkdtemp(join(tmpdir(), "movie-night-mobile-ux-"));
+  let stderrOutput = "";
   const child = spawn(
-    chromePath,
+    browserInstall.path,
     [
       "--headless=new",
       `--remote-debugging-port=${port}`,
@@ -188,14 +183,26 @@ async function startChrome() {
   startedProcesses.push(child);
   child.stderr.setEncoding("utf8");
   child.stderr.on("data", (chunk) => {
+    stderrOutput += chunk;
     if (process.env.MOBILE_UX_SMOKE_VERBOSE === "1") {
       process.stderr.write(prefixLines(chunk, "chrome"));
     }
   });
 
   const debuggingUrl = `http://127.0.0.1:${port}`;
-  await waitForHttp(`${debuggingUrl}/json/version`, "Chrome DevTools", 90_000);
-  return { debuggingUrl };
+  try {
+    await waitForHttp(`${debuggingUrl}/json/version`, "browser DevTools", 90_000);
+  } catch (error) {
+    const launchFailure = await describeBrowserLaunchFailure(
+      child,
+      browserInstall,
+      debuggingUrl,
+      stderrOutput,
+      error,
+    );
+    throw new Error(launchFailure);
+  }
+  return { debuggingUrl, browserInstall };
 }
 
 async function connectToChrome(debuggingUrl) {
@@ -379,27 +386,194 @@ async function getJson(url) {
 }
 
 async function findChrome() {
-  for (const candidate of chromeCandidates) {
-    if (!candidate) {
-      continue;
+  const failedChecks = [];
+  for (const candidate of browserCandidates) {
+    const result = await resolveBrowserCandidate(candidate);
+    if (result.ok) {
+      return {
+        path: result.path,
+        label: candidate.label,
+        source: candidate.source,
+        family: candidate.family,
+      };
     }
-    if (candidate.includes("/")) {
-      try {
-        const result = spawn(candidate, ["--version"], { stdio: "ignore" });
-        await onceExit(result);
-        return candidate;
-      } catch {
-        continue;
-      }
-    }
-    const resolved = await resolveCommand(candidate);
-    if (resolved) {
-      return resolved;
-    }
+    failedChecks.push(formatBrowserCandidateFailure(candidate, result.reason));
   }
   throw new Error(
-    "Chrome or Chromium was not found. Set CHROME_BIN to a local Chrome executable to run the mobile UX smoke.",
+    [
+      "No supported browser was found for the mobile UX smoke.",
+      "The script prefers Brave on macOS, then falls back to Chrome and Chromium variants.",
+      "Set MOBILE_UX_SMOKE_BROWSER_BIN, BRAVE_BIN, or CHROME_BIN to a local executable to override detection.",
+      `Checked: ${failedChecks.join("; ")}`,
+    ].join(" "),
   );
+}
+
+function getBrowserCandidates() {
+  const isMac = platform() === "darwin";
+  const explicitCandidates = [
+    {
+      family: "browser",
+      label: "MOBILE_UX_SMOKE_BROWSER_BIN",
+      value: process.env.MOBILE_UX_SMOKE_BROWSER_BIN,
+      source: "env",
+    },
+    {
+      family: "brave",
+      label: "BRAVE_BIN",
+      value: process.env.BRAVE_BIN,
+      source: "env",
+    },
+    {
+      family: "chrome",
+      label: "CHROME_BIN",
+      value: process.env.CHROME_BIN,
+      source: "env",
+    },
+  ].filter((candidate) => Boolean(candidate.value));
+
+  const detectedCandidates = [
+    {
+      family: "brave",
+      label: "Brave Browser.app",
+      value: "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+      source: "macOS app",
+    },
+    {
+      family: "chrome",
+      label: "Google Chrome.app",
+      value: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      source: "macOS app",
+    },
+    {
+      family: "chromium",
+      label: "Chromium.app",
+      value: "/Applications/Chromium.app/Contents/MacOS/Chromium",
+      source: "macOS app",
+    },
+    {
+      family: "brave",
+      label: "brave-browser",
+      value: "brave-browser",
+      source: "PATH",
+    },
+    {
+      family: "brave",
+      label: "brave",
+      value: "brave",
+      source: "PATH",
+    },
+    {
+      family: "chrome",
+      label: "google-chrome",
+      value: "google-chrome",
+      source: "PATH",
+    },
+    {
+      family: "chromium",
+      label: "chromium",
+      value: "chromium",
+      source: "PATH",
+    },
+    {
+      family: "chromium",
+      label: "chromium-browser",
+      value: "chromium-browser",
+      source: "PATH",
+    },
+  ];
+
+  return [...explicitCandidates, ...(isMac ? detectedCandidates : detectedCandidates.slice(3))];
+}
+
+async function resolveBrowserCandidate(candidate) {
+  if (!candidate.value) {
+    return { ok: false, reason: "not set" };
+  }
+
+  if (candidate.value.includes("/")) {
+    if (!existsSync(candidate.value)) {
+      return { ok: false, reason: "path does not exist" };
+    }
+    try {
+      const result = spawn(candidate.value, ["--version"], { stdio: "ignore" });
+      await onceExit(result);
+      return { ok: true, path: candidate.value };
+    } catch (error) {
+      return {
+        ok: false,
+        reason: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  const resolved = await resolveCommand(candidate.value);
+  if (!resolved) {
+    return { ok: false, reason: "not on PATH" };
+  }
+  return { ok: true, path: resolved };
+}
+
+function formatBrowserCandidateFailure(candidate, reason) {
+  return `${candidate.label} (${candidate.source}): ${reason}`;
+}
+
+async function describeBrowserLaunchFailure(child, browserInstall, debuggingUrl, stderrOutput, error) {
+  const trimmedStderr = stderrOutput
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(-8);
+  const childExit = await getChildExitSnapshot(child);
+  const details = [
+    `Browser startup failed for ${browserInstall.label}.`,
+    `Path: ${browserInstall.path}.`,
+    `Expected DevTools endpoint: ${debuggingUrl}/json/version.`,
+    childExit ? childExit : "The browser process was still running but never exposed DevTools.",
+  ];
+
+  if (trimmedStderr.length > 0) {
+    details.push(`Recent browser stderr: ${trimmedStderr.join(" | ")}`);
+  }
+
+  if (error instanceof Error && error.message) {
+    details.push(`Probe failure: ${error.message}`);
+  }
+
+  details.push(
+    "Try rerunning with MOBILE_UX_SMOKE_VERBOSE=1 for browser stderr, or set MOBILE_UX_SMOKE_BROWSER_BIN, BRAVE_BIN, or CHROME_BIN explicitly.",
+  );
+
+  return details.join(" ");
+}
+
+async function getChildExitSnapshot(child) {
+  if (child.exitCode !== null) {
+    return `The browser process exited with code ${child.exitCode}.`;
+  }
+
+  if (child.signalCode) {
+    return `The browser process exited from signal ${child.signalCode}.`;
+  }
+
+  const exitResult = await Promise.race([
+    onceChildClose(child),
+    delay(250).then(() => null),
+  ]);
+
+  if (!exitResult) {
+    return null;
+  }
+
+  if (typeof exitResult.code === "number") {
+    return `The browser process exited with code ${exitResult.code}.`;
+  }
+
+  if (exitResult.signal) {
+    return `The browser process exited from signal ${exitResult.signal}.`;
+  }
+
+  return "The browser process exited before DevTools became ready.";
 }
 
 async function resolveCommand(command) {
@@ -464,6 +638,13 @@ async function onceExit(child) {
         reject(new Error(`Process exited with ${code}.`));
       }
     });
+  });
+}
+
+async function onceChildClose(child) {
+  return new Promise((resolve, reject) => {
+    child.once("error", reject);
+    child.once("close", (code, signal) => resolve({ code, signal }));
   });
 }
 
