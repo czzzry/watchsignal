@@ -84,6 +84,9 @@ async function startWebServer() {
   const fallbackApiPort = await getFreePort();
   const packageRunner = await resolvePackageRunner();
   const serverScript = resolveWebServerScript();
+  if (serverScript === "start") {
+    await ensureWebBuild(packageRunner);
+  }
   const child = spawn(
     packageRunner.command,
     [
@@ -115,6 +118,33 @@ async function startWebServer() {
   const url = `http://127.0.0.1:${port}`;
   await waitForHttp(url, "web app");
   return url;
+}
+
+async function ensureWebBuild(packageRunner) {
+  const child = spawn(
+    packageRunner.command,
+    [...packageRunner.args, "--dir", "apps/web", "build"],
+    {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        NEXT_TELEMETRY_DISABLED: "1",
+        PNPM_HOME: join(repoRoot, ".tools", "pnpm"),
+        XDG_CACHE_HOME: join(repoRoot, ".tools", "cache"),
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+  startedProcesses.push(child);
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk) =>
+    process.stdout.write(prefixLines(chunk, "web-build")),
+  );
+  child.stderr.on("data", (chunk) =>
+    process.stderr.write(prefixLines(chunk, "web-build")),
+  );
+  await onceExit(child);
 }
 
 function resolveWebServerScript() {
