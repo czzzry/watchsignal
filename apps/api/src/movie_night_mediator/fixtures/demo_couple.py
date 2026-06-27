@@ -6,6 +6,7 @@ from movie_night_mediator.domain.models import (
     HouseholdDefaults,
     OnboardingSeed,
     ProviderAccessType,
+    RankedCandidate,
     ScoringRequest,
     SessionContext,
     SessionMode,
@@ -15,6 +16,7 @@ from movie_night_mediator.fixtures.candidate_adapter import (
     FixtureCandidate,
     FixtureProviderAvailability,
     fixture_candidates_to_domain,
+    fixture_candidates_to_shortlist,
 )
 
 DEMO_HOUSEHOLD_DEFAULTS = HouseholdDefaults(
@@ -149,6 +151,38 @@ DEMO_CANDIDATE_FIXTURES = (
         spoken_languages=("fr", "en"),
     ),
     FixtureCandidate(
+        source_movie_id="fixture:thoughtful-space-walk",
+        title="Thoughtful Space Walk",
+        release_year=2025,
+        runtime_min=112,
+        genres=("Drama", "Sci-Fi"),
+        provider_availability=(
+            FixtureProviderAvailability(
+                provider_name="Prime Video",
+                access_type=ProviderAccessType.FLATRATE,
+                region="DE",
+            ),
+        ),
+        original_language="en",
+        spoken_languages=("en",),
+    ),
+    FixtureCandidate(
+        source_movie_id="fixture:gentle-puzzle-box",
+        title="Gentle Puzzle Box",
+        release_year=2024,
+        runtime_min=103,
+        genres=("Comedy", "Mystery"),
+        provider_availability=(
+            FixtureProviderAvailability(
+                provider_name="Prime Video",
+                access_type=ProviderAccessType.FLATRATE,
+                region="DE",
+            ),
+        ),
+        original_language="en",
+        spoken_languages=("en",),
+    ),
+    FixtureCandidate(
         source_movie_id="fixture:unverified-language-drama",
         title="Unverified Language Drama",
         release_year=2022,
@@ -214,4 +248,14 @@ def demo_scoring_request(
         household_defaults=DEMO_HOUSEHOLD_DEFAULTS,
         users=(DEMO_HUSBAND_PROFILE, DEMO_WIFE_PROFILE),
         candidates=candidates,
+    )
+
+
+def demo_candidate_shortlist(limit: int = 5) -> tuple[RankedCandidate, ...]:
+    return fixture_candidates_to_shortlist(
+        DEMO_CANDIDATE_FIXTURES,
+        session=DEMO_SHARED_SESSION,
+        household_defaults=DEMO_HOUSEHOLD_DEFAULTS,
+        users=(DEMO_HUSBAND_PROFILE, DEMO_WIFE_PROFILE),
+        limit=limit,
     )
