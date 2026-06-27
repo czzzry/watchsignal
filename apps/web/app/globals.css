@@ -582,6 +582,93 @@ input:focus-visible {
   font-weight: 750;
 }
 
+.debugHistoryPanel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--panel-strong);
+  display: grid;
+  gap: 12px;
+}
+
+.debugHistoryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.debugHistoryHeader h3 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.compactButton {
+  min-height: 40px;
+  padding: 0 12px;
+  flex: 0 0 auto;
+}
+
+.debugMessage {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.debugHistoryBody,
+.debugFacts,
+.debugListBlock {
+  display: grid;
+  gap: 8px;
+}
+
+.debugFacts {
+  margin: 0;
+}
+
+.debugFacts div {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  background: #ffffff;
+}
+
+.debugFacts dt,
+.debugListBlock h4 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.debugFacts dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+  font-weight: 800;
+}
+
+.debugListBlock {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.debugListBlock ol {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.debugListBlock li,
+.debugListBlock p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.88rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
 .bottomActions {
   display: grid;
   grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);

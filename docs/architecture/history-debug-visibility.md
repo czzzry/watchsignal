@@ -26,6 +26,10 @@ The MVP API route is narrower because the current SQLite stores do not persist t
 That evidence includes session state, shortlist titles and ranks, participant reactions, reranked source movie ids, best pick id, post-watch feedback labels, and whether a feedback note exists.
 The route also returns `unavailableEvidence` so callers can see that candidate inputs, hard-filter results, score breakdowns, fit buckets, and Safe Pick flags are not yet persisted.
 The route is read-only and local-debug oriented.
+The pass-the-phone web UI exposes this route from the results screen through a compact current-session evidence panel.
+That panel is intentionally diagnostic rather than dashboard-like.
+It uses the Next proxy at `apps/web/app/api/session/[sessionId]/debug-history/route.ts` so the browser does not need to know the backend base URL.
+Demo-mode sessions and failed debug fetches show local explanatory messages instead of interrupting the result flow.
 
 ```mermaid
 flowchart LR

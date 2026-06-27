@@ -12,8 +12,11 @@ import {
 import {
   advanceSessionHandoff,
   createSharedSession,
+  getSessionDebugHistory,
   submitSessionReactions,
   toApiSessionMode,
+  type DebugHistoryReactionPayload,
+  type DebugHistorySessionPayload,
   type SharedSessionPayload,
 } from "./session-client";
 
@@ -35,6 +38,8 @@ type ReactionState = Record<string, ReactionValue | undefined>;
 type SessionSource = "api" | "demo";
 
 type SyncStatus = "ready" | "saving" | "loading";
+
+type DebugHistoryStatus = "idle" | "loading" | "ready" | "failed";
 
 const stepOrder: WizardStep[] = ["setup", "founder", "handoff", "wife", "results"];
 
@@ -77,6 +82,13 @@ export function PassThePhoneWizard({
   const [sharedSession, setSharedSession] = useState<SharedSessionPayload | null>(
     null,
   );
+  const [debugHistory, setDebugHistory] =
+    useState<DebugHistorySessionPayload | null>(null);
+  const [debugHistoryStatus, setDebugHistoryStatus] =
+    useState<DebugHistoryStatus>("idle");
+  const [debugHistoryMessage, setDebugHistoryMessage] = useState<string | null>(
+    null,
+  );
   const participantIds = [profiles[0]?.id || "husband", profiles[1]?.id || "wife"];
 
   const rankedCandidates = useMemo(
@@ -103,6 +115,9 @@ export function PassThePhoneWizard({
     setFounderReactions({});
     setWifeReactions({});
     setSharedSession(null);
+    setDebugHistory(null);
+    setDebugHistoryStatus("idle");
+    setDebugHistoryMessage(null);
     setSyncStatus("ready");
     setSessionSource(apiHealth.connected ? "api" : "demo");
     setApiError(
@@ -116,6 +131,9 @@ export function PassThePhoneWizard({
     setFounderReactions({});
     setWifeReactions({});
     setSharedSession(null);
+    setDebugHistory(null);
+    setDebugHistoryStatus("idle");
+    setDebugHistoryMessage(null);
 
     if (!apiHealth.connected) {
       setSessionSource("demo");
@@ -144,6 +162,8 @@ export function PassThePhoneWizard({
     } catch (error) {
       setSharedSession(null);
       setSessionSource("demo");
+      setDebugHistoryStatus("failed");
+      setDebugHistoryMessage("Debug evidence is unavailable because the session fell back to demo mode.");
       setApiError(toErrorMessage(error));
     } finally {
       setSyncStatus("ready");
@@ -198,6 +218,8 @@ export function PassThePhoneWizard({
       setSharedSession(session);
     } catch (error) {
       setSessionSource("demo");
+      setDebugHistoryStatus("failed");
+      setDebugHistoryMessage("Debug evidence is unavailable because the session fell back to demo mode.");
       setApiError(toErrorMessage(error));
     } finally {
       setSyncStatus("ready");
@@ -218,6 +240,8 @@ export function PassThePhoneWizard({
       setSharedSession(session);
     } catch (error) {
       setSessionSource("demo");
+      setDebugHistoryStatus("failed");
+      setDebugHistoryMessage("Debug evidence is unavailable because the session fell back to demo mode.");
       setApiError(toErrorMessage(error));
     } finally {
       setSyncStatus("ready");
@@ -241,6 +265,8 @@ export function PassThePhoneWizard({
       setSharedSession(session);
     } catch (error) {
       setSessionSource("demo");
+      setDebugHistoryStatus("failed");
+      setDebugHistoryMessage("Debug evidence is unavailable because the session fell back to demo mode.");
       setApiError(toErrorMessage(error));
     } finally {
       setSyncStatus("ready");
@@ -377,11 +403,39 @@ export function PassThePhoneWizard({
           founderReactions={founderReactions}
           wifeReactions={wifeReactions}
           sessionMode={sessionMode}
+          sessionSource={sessionSource}
+          sharedSession={sharedSession}
+          debugHistory={debugHistory}
+          debugHistoryStatus={debugHistoryStatus}
+          debugHistoryMessage={debugHistoryMessage}
+          onLoadDebugHistory={loadDebugHistory}
           onReset={resetSession}
         />
       ) : null}
     </main>
   );
+
+  async function loadDebugHistory(): Promise<void> {
+    if (sessionSource !== "api" || sharedSession === null) {
+      setDebugHistory(null);
+      setDebugHistoryStatus("failed");
+      setDebugHistoryMessage("Debug evidence is only available for backend-backed sessions.");
+      return;
+    }
+
+    setDebugHistoryStatus("loading");
+    setDebugHistoryMessage(null);
+
+    try {
+      const history = await getSessionDebugHistory(sharedSession.sessionId);
+      setDebugHistory(history);
+      setDebugHistoryStatus("ready");
+    } catch (error) {
+      setDebugHistory(null);
+      setDebugHistoryStatus("failed");
+      setDebugHistoryMessage(toDebugHistoryErrorMessage(error));
+    }
+  }
 }
 
 function SetupStep({
@@ -643,6 +697,12 @@ function ResultsStep({
   founderReactions,
   wifeReactions,
   sessionMode,
+  sessionSource,
+  sharedSession,
+  debugHistory,
+  debugHistoryStatus,
+  debugHistoryMessage,
+  onLoadDebugHistory,
   onReset,
 }: {
   founderLabel: string;
@@ -651,6 +711,12 @@ function ResultsStep({
   founderReactions: ReactionState;
   wifeReactions: ReactionState;
   sessionMode: SessionMode;
+  sessionSource: SessionSource;
+  sharedSession: SharedSessionPayload | null;
+  debugHistory: DebugHistorySessionPayload | null;
+  debugHistoryStatus: DebugHistoryStatus;
+  debugHistoryMessage: string | null;
+  onLoadDebugHistory: () => void | Promise<void>;
   onReset: () => void;
 }) {
   const bestPick = rankedCandidates[0];
@@ -703,10 +769,143 @@ function ResultsStep({
         ))}
       </div>
 
+      <DebugHistoryPanel
+        source={sessionSource}
+        session={sharedSession}
+        history={debugHistory}
+        status={debugHistoryStatus}
+        message={debugHistoryMessage}
+        onLoad={onLoadDebugHistory}
+      />
+
       <button type="button" className="primaryAction" onClick={onReset}>
         Start another session
       </button>
     </section>
+  );
+}
+
+function DebugHistoryPanel({
+  source,
+  session,
+  history,
+  status,
+  message,
+  onLoad,
+}: {
+  source: SessionSource;
+  session: SharedSessionPayload | null;
+  history: DebugHistorySessionPayload | null;
+  status: DebugHistoryStatus;
+  message: string | null;
+  onLoad: () => void | Promise<void>;
+}) {
+  const canLoad = source === "api" && session !== null;
+  const bestPickTitle = history
+    ? titleForSourceMovieId(history.shortlist, history.bestPickSourceMovieId)
+    : null;
+
+  return (
+    <section className="debugHistoryPanel" aria-labelledby="debug-history-heading">
+      <div className="debugHistoryHeader">
+        <div>
+          <p className="eyebrow">Debug history</p>
+          <h3 id="debug-history-heading">Current session evidence</h3>
+        </div>
+        <button
+          type="button"
+          className="secondaryButton compactButton"
+          onClick={onLoad}
+          disabled={!canLoad || status === "loading"}
+        >
+          {status === "loading" ? "Loading..." : history ? "Refresh" : "Load"}
+        </button>
+      </div>
+
+      {!canLoad ? (
+        <p className="debugMessage">
+          Demo sessions do not have persisted backend evidence.
+        </p>
+      ) : null}
+
+      {message ? <p className="debugMessage">{message}</p> : null}
+
+      {history ? (
+        <div className="debugHistoryBody">
+          <dl className="debugFacts">
+            <div>
+              <dt>State</dt>
+              <dd>{history.state}</dd>
+            </div>
+            <div>
+              <dt>Participants</dt>
+              <dd>{history.participantIds.join(", ")}</dd>
+            </div>
+            <div>
+              <dt>Best pick</dt>
+              <dd>{bestPickTitle ?? history.bestPickSourceMovieId ?? "No pick yet"}</dd>
+            </div>
+          </dl>
+
+          <DebugList
+            label="Reranked order"
+            items={history.rerankedSourceMovieIds.map((sourceMovieId) => {
+              const title = titleForSourceMovieId(history.shortlist, sourceMovieId);
+
+              return title ? `${title} (${sourceMovieId})` : sourceMovieId;
+            })}
+          />
+
+          <DebugReactionList
+            label="Founder reactions"
+            reactions={history.founderReactions}
+          />
+          <DebugReactionList
+            label="Wife reactions"
+            reactions={history.wifeReactions}
+          />
+          <DebugList
+            label="Unavailable evidence"
+            items={history.unavailableEvidence}
+          />
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function DebugReactionList({
+  label,
+  reactions,
+}: {
+  label: string;
+  reactions: DebugHistoryReactionPayload[];
+}) {
+  return (
+    <DebugList
+      label={label}
+      items={reactions.map(
+        (reaction) =>
+          `${reaction.participantId}: ${reaction.sourceMovieId} = ${reaction.reactionLabel}`,
+      )}
+    />
+  );
+}
+
+function DebugList({ label, items }: { label: string; items: string[] }) {
+  return (
+    <div className="debugListBlock">
+      <h4>{label}</h4>
+      {items.length > 0 ? (
+        <ol>
+          {items.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ol>
+      ) : (
+        <p>No evidence saved yet.</p>
+      )}
+    </div>
   );
 }
 
@@ -841,10 +1040,32 @@ function reactionsPayload(reactions: ReactionState) {
   }));
 }
 
+function titleForSourceMovieId(
+  shortlist: { sourceMovieId: string; title: string }[],
+  sourceMovieId: string | null,
+): string | null {
+  if (sourceMovieId === null) {
+    return null;
+  }
+
+  return (
+    shortlist.find((candidate) => candidate.sourceMovieId === sourceMovieId)?.title ??
+    null
+  );
+}
+
 function toErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return `${error.message} Continuing in demo mode.`;
   }
 
   return "Session API failed. Continuing in demo mode.";
+}
+
+function toDebugHistoryErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return `${error.message} Debug evidence is unavailable.`;
+  }
+
+  return "Debug history could not be loaded.";
 }
