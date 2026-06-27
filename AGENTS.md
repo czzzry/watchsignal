@@ -72,6 +72,9 @@ Codex should still stop and ask before:
 - For meaningful mobile UI screens, flows, or design alternatives, use Lavish or another reviewable visual artifact when it helps the founder compare direction
 - Do not block tiny UI fixes on Lavish
 - Keep UI work phone-first, polished, and pass-the-phone friendly
+- For meaningful UI flow changes, perform an actual browser click-through on a phone-sized viewport when practical
+- Treat a production build as necessary but not sufficient for UX-facing flow changes
+- Capture or summarize what was clicked, what passed, and any visible rough edges after UX validation
 
 ## Agent skills
 
