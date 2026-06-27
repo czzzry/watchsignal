@@ -10,6 +10,9 @@ from movie_night_mediator.domain.models import (
     RecommendationResult,
     RankedCandidate,
     ScoringRequest,
+    SessionReaction,
+    SessionShortlistItem,
+    SharedMovieNightSession,
     ShortlistReaction,
     WatchedTitleBackfill,
 )
@@ -89,6 +92,44 @@ class DebugSessionSnapshot:
     interesting_safe_pick_id: str | None
 
 
+@dataclass(frozen=True)
+class DebugPersistedShortlistItem:
+    source_movie_id: str
+    title: str
+    candidate_rank: int
+
+
+@dataclass(frozen=True)
+class DebugPersistedReaction:
+    participant_id: str
+    source_movie_id: str
+    reaction_label: str
+
+
+@dataclass(frozen=True)
+class DebugPersistedFeedback:
+    user_id: str
+    source_movie_id: str
+    feedback_label: str
+    has_free_text_note: bool
+
+
+@dataclass(frozen=True)
+class DebugPersistedSessionEvidence:
+    session_id: str
+    household_id: str
+    active_mode: str
+    state: str
+    participant_ids: tuple[str, ...]
+    shortlist: tuple[DebugPersistedShortlistItem, ...]
+    founder_reactions: tuple[DebugPersistedReaction, ...]
+    wife_reactions: tuple[DebugPersistedReaction, ...]
+    reranked_source_movie_ids: tuple[str, ...]
+    best_pick_source_movie_id: str | None
+    post_watch_feedback: tuple[DebugPersistedFeedback, ...]
+    unavailable_evidence: tuple[str, ...]
+
+
 def build_debug_session_snapshot(
     *,
     request: ScoringRequest,
@@ -127,6 +168,39 @@ def build_debug_session_snapshot(
     )
 
 
+def build_persisted_session_evidence(
+    *,
+    session: SharedMovieNightSession,
+    feedback: tuple[PostWatchFeedback, ...] = (),
+) -> DebugPersistedSessionEvidence:
+    return DebugPersistedSessionEvidence(
+        session_id=session.session_id,
+        household_id=session.household_id,
+        active_mode=session.active_mode.value,
+        state=session.state.value,
+        participant_ids=session.participant_ids,
+        shortlist=tuple(_persisted_shortlist_item(item) for item in session.shortlist),
+        founder_reactions=tuple(
+            _persisted_reaction(reaction) for reaction in session.founder_reactions
+        ),
+        wife_reactions=tuple(
+            _persisted_reaction(reaction) for reaction in session.wife_reactions
+        ),
+        reranked_source_movie_ids=session.reranked_source_movie_ids,
+        best_pick_source_movie_id=session.best_pick_source_movie_id,
+        post_watch_feedback=tuple(_persisted_feedback(row) for row in feedback),
+        unavailable_evidence=(
+            "recommendation_scoring_request",
+            "candidate_inputs",
+            "hard_filter_results",
+            "per_person_scores",
+            "group_scores",
+            "fit_buckets",
+            "safe_pick_flags",
+        ),
+    )
+
+
 def _service_constraint(
     request: ScoringRequest,
     defaults: HouseholdDefaults,
@@ -151,6 +225,33 @@ def _candidate_input(candidate: Candidate) -> DebugCandidateInput:
         safety_status=candidate.safety_status.value,
         already_watched=candidate.already_watched,
         is_interesting_safe_pick=candidate.is_interesting_safe_pick,
+    )
+
+
+def _persisted_shortlist_item(
+    item: SessionShortlistItem,
+) -> DebugPersistedShortlistItem:
+    return DebugPersistedShortlistItem(
+        source_movie_id=item.source_movie_id,
+        title=item.title,
+        candidate_rank=item.candidate_rank,
+    )
+
+
+def _persisted_reaction(reaction: SessionReaction) -> DebugPersistedReaction:
+    return DebugPersistedReaction(
+        participant_id=reaction.participant_id,
+        source_movie_id=reaction.source_movie_id,
+        reaction_label=reaction.reaction_label.value,
+    )
+
+
+def _persisted_feedback(row: PostWatchFeedback) -> DebugPersistedFeedback:
+    return DebugPersistedFeedback(
+        user_id=row.user_id,
+        source_movie_id=row.source_movie_id,
+        feedback_label=row.feedback_label,
+        has_free_text_note=row.free_text_note is not None,
     )
 
 

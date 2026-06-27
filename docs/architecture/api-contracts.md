@@ -41,6 +41,68 @@ Examples:
 - outcome capture
 - post-watch feedback
 
+## Debug History Contract
+
+Debug history exposes read-only evidence for inspecting a saved local session.
+It is intentionally narrower than a full recommendation audit trail because persisted recommendation snapshots do not exist yet.
+
+Expected endpoint:
+
+- `GET /debug/history/sessions/{sessionId}`
+
+Expected response:
+
+```json
+{
+  "sessionId": "session-1",
+  "householdId": "default-household",
+  "activeMode": "compromise",
+  "state": "reranked",
+  "participantIds": ["husband", "wife"],
+  "shortlist": [
+    { "sourceMovieId": "tmdb:603", "title": "The Matrix", "candidateRank": 1 }
+  ],
+  "founderReactions": [
+    {
+      "participantId": "husband",
+      "sourceMovieId": "tmdb:603",
+      "reactionLabel": "interested"
+    }
+  ],
+  "wifeReactions": [
+    {
+      "participantId": "wife",
+      "sourceMovieId": "tmdb:603",
+      "reactionLabel": "maybe"
+    }
+  ],
+  "rerankedSourceMovieIds": ["tmdb:603"],
+  "bestPickSourceMovieId": "tmdb:603",
+  "postWatchFeedback": [
+    {
+      "userId": "wife",
+      "sourceMovieId": "tmdb:603",
+      "feedbackLabel": "loved",
+      "hasFreeTextNote": true
+    }
+  ],
+  "unavailableEvidence": [
+    "recommendation_scoring_request",
+    "candidate_inputs",
+    "hard_filter_results",
+    "per_person_scores",
+    "group_scores",
+    "fit_buckets",
+    "safe_pick_flags"
+  ]
+}
+```
+
+Missing sessions return `404`.
+The endpoint does not return raw free-text feedback notes.
+The endpoint does not invent score history from the current shortlist.
+Future persisted recommendation snapshots can extend this route or add a sibling route once the storage model exists.
+
 ## Post-Watch Feedback Contract
 
 Post-watch feedback records a participant's later opinion about a watched title.

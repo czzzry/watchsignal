@@ -19,8 +19,13 @@ The debug view should not expose API keys, environment variables, raw secrets, o
 
 The backend can build a read-only session debug snapshot from existing domain records.
 The current helper lives in `apps/api/src/movie_night_mediator/app/debug_history.py`.
-It does not persist anything and does not wire an API route.
+The rich scoring snapshot helper does not persist anything.
 It combines a scoring request, recommendation result, shortlist reactions, post-watch feedback, and watched-history backfill records into a stable inspection shape.
+The MVP API route is narrower because the current SQLite stores do not persist the original scoring request or recommendation result snapshot.
+`GET /debug/history/sessions/{session_id}` returns the persisted shared-session evidence that exists after a local session.
+That evidence includes session state, shortlist titles and ranks, participant reactions, reranked source movie ids, best pick id, post-watch feedback labels, and whether a feedback note exists.
+The route also returns `unavailableEvidence` so callers can see that candidate inputs, hard-filter results, score breakdowns, fit buckets, and Safe Pick flags are not yet persisted.
+The route is read-only and local-debug oriented.
 
 ```mermaid
 flowchart LR
@@ -29,7 +34,7 @@ flowchart LR
     C["Shortlist reactions"] --> E
     D["Outcome and feedback"] --> E
     F["Watched history and backfill"] --> E
-    E --> G["Future local-only history/debug API"]
+    E --> G["Local-only history/debug API"]
     G --> H["Future lightweight phone or admin view"]
 ```
 
