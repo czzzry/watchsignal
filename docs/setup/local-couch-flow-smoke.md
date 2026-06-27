@@ -18,6 +18,12 @@ If the plain interpreter does not have the API dependencies active, run it with 
 apps/api/.venv/bin/python scripts/couch_flow_smoke.py
 ```
 
+If a Treehouse worktree's backend environment is not synced, use the parent checkout's backend environment:
+
+```sh
+/Users/cezarybaraniecki/Documents/movie-night-mediator-app/apps/api/.venv/bin/python scripts/couch_flow_smoke.py
+```
+
 In a Treehouse worktree that shares the parent checkout's local `uv` install, this form also works after dependencies are available in the local cache:
 
 ```sh
