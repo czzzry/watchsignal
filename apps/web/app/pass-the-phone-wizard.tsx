@@ -13,11 +13,13 @@ import {
   advanceSessionHandoff,
   createSharedSession,
   getSessionDebugHistory,
+  loadRecommendationShortlist,
   submitSessionReactions,
   toApiSessionMode,
   type DebugHistoryReactionPayload,
   type DebugHistoryRecommendationCandidatePayload,
   type DebugHistorySessionPayload,
+  type ShortlistCandidatePayload,
   type SharedSessionPayload,
 } from "./session-client";
 
@@ -58,6 +60,9 @@ const sessionModeLabels: Record<SessionMode, string> = {
   "wife-first": "Wife first",
 };
 
+const fallbackPosterUrl =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 342 513'%3E%3Crect width='342' height='513' fill='%23e1eef2'/%3E%3Crect x='42' y='78' width='258' height='357' rx='18' fill='%23ffffff' stroke='%23245f73' stroke-width='8'/%3E%3Ccircle cx='126' cy='184' r='32' fill='%23245f73'/%3E%3Ccircle cx='216' cy='184' r='32' fill='%23245f73'/%3E%3Cpath d='M102 306h138' stroke='%23245f73' stroke-width='16' stroke-linecap='round'/%3E%3C/svg%3E";
+
 export function PassThePhoneWizard({
   apiHealth,
   setupLoad,
@@ -71,6 +76,8 @@ export function PassThePhoneWizard({
   const [sessionMode, setSessionMode] = useState<SessionMode>("compromise");
   const [founderIndex, setFounderIndex] = useState(0);
   const [wifeIndex, setWifeIndex] = useState(0);
+  const [sessionCandidates, setSessionCandidates] =
+    useState<DemoCandidate[]>(demoCandidates);
   const [founderReactions, setFounderReactions] = useState<ReactionState>({});
   const [wifeReactions, setWifeReactions] = useState<ReactionState>({});
   const [sessionSource, setSessionSource] = useState<SessionSource>(
@@ -96,6 +103,7 @@ export function PassThePhoneWizard({
     () =>
       rankCandidates({
         sessionMode,
+        candidates: sessionCandidates,
         founderReactions,
         wifeReactions,
         rerankedSourceMovieIds:
@@ -103,7 +111,7 @@ export function PassThePhoneWizard({
             ? sharedSession.rerankedSourceMovieIds
             : [],
       }),
-    [founderReactions, sessionMode, sharedSession, wifeReactions],
+    [founderReactions, sessionCandidates, sessionMode, sharedSession, wifeReactions],
   );
 
   const currentStepIndex = stepOrder.indexOf(step);
@@ -113,6 +121,7 @@ export function PassThePhoneWizard({
     setStep("setup");
     setFounderIndex(0);
     setWifeIndex(0);
+    setSessionCandidates(demoCandidates);
     setFounderReactions({});
     setWifeReactions({});
     setSharedSession(null);
@@ -129,6 +138,7 @@ export function PassThePhoneWizard({
   async function startSession() {
     setFounderIndex(0);
     setWifeIndex(0);
+    setSessionCandidates(demoCandidates);
     setFounderReactions({});
     setWifeReactions({});
     setSharedSession(null);
@@ -147,11 +157,20 @@ export function PassThePhoneWizard({
     setApiError(null);
 
     try {
+      const shortlistResponse = await loadRecommendationShortlist({
+        householdId: "default-household",
+        activeMode: toApiSessionMode(sessionMode),
+        participantIds,
+        shortlistSize: setupLoad.setup.defaults.shortlistSize,
+      });
+      const candidates = shortlistResponse.shortlist.map(toSessionCandidate);
+      setSessionCandidates(candidates);
+
       const session = await createSharedSession({
         householdId: "default-household",
         activeMode: toApiSessionMode(sessionMode),
         participantIds,
-        shortlist: demoCandidates.map((candidate, index) => ({
+        shortlist: candidates.map((candidate, index) => ({
           sourceMovieId: candidate.id,
           title: candidate.title,
           candidateRank: index + 1,
@@ -161,6 +180,7 @@ export function PassThePhoneWizard({
       setSharedSession(session);
       setSessionSource("api");
     } catch (error) {
+      setSessionCandidates(demoCandidates);
       setSharedSession(null);
       setSessionSource("demo");
       setDebugHistoryStatus("failed");
@@ -181,7 +201,7 @@ export function PassThePhoneWizard({
       const nextReactions = { ...founderReactions, [candidateId]: reaction };
       setFounderReactions(nextReactions);
 
-      if (founderIndex === demoCandidates.length - 1) {
+      if (founderIndex === sessionCandidates.length - 1) {
         await submitFirstPass(nextReactions);
         setStep("handoff");
         return;
@@ -194,7 +214,7 @@ export function PassThePhoneWizard({
     const nextReactions = { ...wifeReactions, [candidateId]: reaction };
     setWifeReactions(nextReactions);
 
-    if (wifeIndex === demoCandidates.length - 1) {
+    if (wifeIndex === sessionCandidates.length - 1) {
       await submitSecondPass(nextReactions);
       setStep("results");
       return;
@@ -214,7 +234,7 @@ export function PassThePhoneWizard({
     try {
       const session = await submitSessionReactions(sharedSession.sessionId, {
         participantId: participantIds[0],
-        reactions: reactionsPayload(nextReactions),
+        reactions: reactionsPayload(sessionCandidates, nextReactions),
       });
       setSharedSession(session);
     } catch (error) {
@@ -261,7 +281,7 @@ export function PassThePhoneWizard({
     try {
       const session = await submitSessionReactions(sharedSession.sessionId, {
         participantId: participantIds[1],
-        reactions: reactionsPayload(nextReactions),
+        reactions: reactionsPayload(sessionCandidates, nextReactions),
       });
       setSharedSession(session);
     } catch (error) {
@@ -348,9 +368,9 @@ export function PassThePhoneWizard({
           actorLabel={founderLabel}
           actor="founder"
           index={founderIndex}
-          total={demoCandidates.length}
-          candidate={demoCandidates[founderIndex]}
-          selectedReaction={founderReactions[demoCandidates[founderIndex].id]}
+          total={sessionCandidates.length}
+          candidate={sessionCandidates[founderIndex]}
+          selectedReaction={founderReactions[sessionCandidates[founderIndex].id]}
           isSyncing={isSyncing}
           onReaction={recordReaction}
           onBack={() => {
@@ -380,9 +400,9 @@ export function PassThePhoneWizard({
           actorLabel={wifeLabel}
           actor="wife"
           index={wifeIndex}
-          total={demoCandidates.length}
-          candidate={demoCandidates[wifeIndex]}
-          selectedReaction={wifeReactions[demoCandidates[wifeIndex].id]}
+          total={sessionCandidates.length}
+          candidate={sessionCandidates[wifeIndex]}
+          selectedReaction={wifeReactions[sessionCandidates[wifeIndex].id]}
           isSyncing={isSyncing}
           onReaction={recordReaction}
           onBack={() => {
@@ -989,16 +1009,18 @@ type RankedCandidate = DemoCandidate & {
 
 function rankCandidates({
   sessionMode,
+  candidates,
   founderReactions,
   wifeReactions,
   rerankedSourceMovieIds,
 }: {
   sessionMode: SessionMode;
+  candidates: DemoCandidate[];
   founderReactions: ReactionState;
   wifeReactions: ReactionState;
   rerankedSourceMovieIds: string[];
 }): RankedCandidate[] {
-  const localRanked = demoCandidates
+  const localRanked = candidates
     .map((candidate) => {
       const founderReaction = founderReactions[candidate.id];
       const wifeReaction = wifeReactions[candidate.id];
@@ -1084,11 +1106,60 @@ function countReactions(reactions: ReactionState): Record<ReactionValue, number>
   };
 }
 
-function reactionsPayload(reactions: ReactionState) {
-  return demoCandidates.map((candidate) => ({
+function reactionsPayload(
+  candidates: DemoCandidate[],
+  reactions: ReactionState,
+) {
+  return candidates.map((candidate) => ({
     sourceMovieId: candidate.id,
     reactionLabel: reactions[candidate.id] ?? "maybe",
   }));
+}
+
+function toSessionCandidate(
+  candidate: ShortlistCandidatePayload,
+  index: number,
+): DemoCandidate {
+  const fixture = demoCandidates.find(
+    (demoCandidate) =>
+      demoCandidate.id === candidate.sourceMovieId ||
+      demoCandidate.title.toLowerCase() === candidate.title.toLowerCase(),
+  );
+  const rank = candidate.candidateRank || index + 1;
+  const groupScore = candidate.groupScore ?? 72;
+
+  return {
+    id: candidate.sourceMovieId,
+    title: candidate.title,
+    year: candidate.year ?? fixture?.year ?? new Date().getFullYear(),
+    runtime: candidate.runtime ?? fixture?.runtime ?? "Runtime check needed",
+    posterUrl: candidate.posterUrl ?? fixture?.posterUrl ?? fallbackPosterUrl,
+    safePickStatus: toSafePickStatus(candidate.safePickStatus),
+    availability:
+      candidate.availability ??
+      fixture?.availability ??
+      "Availability check needed",
+    languageAccess:
+      candidate.languageAccess ??
+      fixture?.languageAccess ??
+      "Language access check needed",
+    tone: candidate.tone ?? candidate.fitBucket ?? fixture?.tone ?? "Balanced pick",
+    reason:
+      candidate.reason ??
+      fixture?.reason ??
+      "Recommended by the backend shortlist for tonight's shared session.",
+    baseRank: rank,
+    taste: {
+      founder: candidate.founderScore ?? fixture?.taste.founder ?? groupScore,
+      wife: candidate.wifeScore ?? fixture?.taste.wife ?? groupScore,
+    },
+  };
+}
+
+function toSafePickStatus(
+  value: string | null | undefined,
+): DemoCandidate["safePickStatus"] {
+  return value === "Needs Quick Check" ? "Needs Quick Check" : "Safe Pick";
 }
 
 function titleForSourceMovieId(
