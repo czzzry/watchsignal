@@ -168,18 +168,39 @@ class SessionShortlistItemPayload(BaseModel):
     candidateRank: int = Field(ge=1)
 
 
+class RecommendationProviderAvailabilityPayload(BaseModel):
+    providerName: str = Field(min_length=1)
+    accessType: str = Field(min_length=1)
+    region: str = Field(min_length=1)
+
+
 class RecommendationShortlistItemPayload(BaseModel):
     sourceMovieId: str = Field(min_length=1)
     title: str = Field(min_length=1)
     candidateRank: int = Field(ge=1)
+    mediaType: MediaType = MediaType.MOVIE
+    year: int | None = None
     releaseYear: int | None = None
+    runtime: str | None = None
     runtimeMin: int | None = None
     genres: list[str]
     providerNames: list[str]
+    providerAvailability: list[RecommendationProviderAvailabilityPayload]
+    posterUrl: str | None = None
+    safePickStatus: str = Field(min_length=1)
+    availability: str = Field(min_length=1)
+    languageAccess: str = Field(min_length=1)
+    tone: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
     fitBucket: str = Field(min_length=1)
     groupScore: float
+    founderScore: int | None = None
+    wifeScore: int | None = None
     whyShort: str = Field(min_length=1)
     isInterestingPick: bool
+    originalLanguage: str = Field(min_length=1)
+    spokenLanguages: list[str]
+    englishSubtitlesVerified: bool
 
 
 class RecommendationShortlistRequestPayload(BaseModel):
@@ -627,14 +648,36 @@ def _offline_shortlist_item_to_payload(
         sourceMovieId=item.source_movie_id,
         title=item.title,
         candidateRank=item.candidate_rank,
+        mediaType=item.media_type,
+        year=item.year,
         releaseYear=item.release_year,
+        runtime=item.runtime,
         runtimeMin=item.runtime_min,
         genres=list(item.genres),
         providerNames=list(item.provider_names),
+        providerAvailability=[
+            RecommendationProviderAvailabilityPayload(
+                providerName=availability.provider_name,
+                accessType=availability.access_type,
+                region=availability.region,
+            )
+            for availability in item.provider_availability
+        ],
+        posterUrl=item.poster_url,
+        safePickStatus=item.safe_pick_status,
+        availability=item.availability,
+        languageAccess=item.language_access,
+        tone=item.tone,
+        reason=item.reason,
         fitBucket=item.fit_bucket,
         groupScore=item.group_score,
+        founderScore=item.founder_score,
+        wifeScore=item.wife_score,
         whyShort=item.why_short,
         isInterestingPick=item.is_interesting_pick,
+        originalLanguage=item.original_language,
+        spokenLanguages=list(item.spoken_languages),
+        englishSubtitlesVerified=item.english_subtitles_verified,
     )
 
 

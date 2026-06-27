@@ -59,20 +59,43 @@ Expected response:
     "sourceMovieId": "fixture:shared-time-loop",
     "title": "Shared Time Loop",
     "candidateRank": 1,
+    "mediaType": "movie",
+    "year": 2024,
     "releaseYear": 2024,
+    "runtime": "1h 48m",
     "runtimeMin": 108,
     "genres": ["Comedy", "Sci-Fi"],
     "providerNames": ["Prime Video"],
+    "providerAvailability": [
+      {
+        "providerName": "Prime Video",
+        "accessType": "flatrate",
+        "region": "DE"
+      }
+    ],
+    "posterUrl": "https://image.tmdb.org/t/p/w342/x2FJsf1ElAgr63Y3PNPtJrcmpoe.jpg",
+    "safePickStatus": "Safe Pick",
+    "availability": "Prime Video DE flatrate",
+    "languageAccess": "English audio",
+    "tone": "Funny, high-concept, easy to start",
+    "reason": "A lively compromise pick with a clear hook and enough momentum for both viewers.",
     "fitBucket": "compromise",
     "groupScore": 0.67,
+    "founderScore": 67,
+    "wifeScore": 67,
     "whyShort": "Interesting Safe Pick. Fits compromise mode with signal from Comedy, Sci-Fi. Husband: 0.67; Wife: 0.67.",
-    "isInterestingPick": true
+    "isInterestingPick": true,
+    "originalLanguage": "en",
+    "spokenLanguages": ["en"],
+    "englishSubtitlesVerified": false
   }
 ]
 ```
 
 The response always returns five Safe Pick fixture candidates in stable rank order.
 The route is a provider-shaped boundary, not a live provider integration.
+The payload now includes both display-ready fields and the underlying fixture-backed provider and language fields that produced them.
+This keeps the API inspectable while reducing the amount of fallback logic the phone UI has to invent.
 Later TMDb and availability adapters should replace the fixture source behind this API without changing the web-facing shortlist fields unless the product contract changes.
 
 ## Debug History Contract

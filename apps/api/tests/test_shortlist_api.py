@@ -167,6 +167,9 @@ class ShortlistApiTest(unittest.TestCase):
             self.assertIsNone(
                 snapshot_store.load_snapshot("demo-shared-session"),
             )
+            self.assertIsNone(
+                snapshot_store.load_snapshot("demo-shared-session"),
+            )
 
 
 def recommendation_shortlist_endpoint(app, method: str = "GET"):

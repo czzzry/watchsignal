@@ -90,6 +90,9 @@ DEMO_CANDIDATE_FIXTURES = (
         release_year=2024,
         runtime_min=108,
         genres=("Comedy", "Sci-Fi"),
+        poster_url="https://image.tmdb.org/t/p/w342/x2FJsf1ElAgr63Y3PNPtJrcmpoe.jpg",
+        tone="Funny, high-concept, easy to start",
+        reason="A lively compromise pick with a clear hook and enough momentum for both viewers.",
         provider_availability=(
             FixtureProviderAvailability(
                 provider_name="Prime Video",
@@ -107,6 +110,9 @@ DEMO_CANDIDATE_FIXTURES = (
         release_year=2023,
         runtime_min=116,
         genres=("Drama", "Mystery"),
+        poster_url="https://image.tmdb.org/t/p/w342/pThyQovXQrw2m0s9x82twj48Jq4.jpg",
+        tone="Clever, grounded, low-chaos",
+        reason="A steady mystery option that keeps the compromise lane readable and calm.",
         provider_availability=(
             FixtureProviderAvailability(
                 provider_name="Prime Video",
@@ -123,6 +129,9 @@ DEMO_CANDIDATE_FIXTURES = (
         release_year=2021,
         runtime_min=101,
         genres=("Family", "Mystery"),
+        poster_url="https://image.tmdb.org/t/p/w342/k3waqVXSnvCZWfJYNtdamTgTtTA.jpg",
+        tone="Warm, curious, subtitle-friendly",
+        reason="The subtitle-safe wildcard that still stays gentle enough for a relaxed night.",
         provider_availability=(
             FixtureProviderAvailability(
                 provider_name="Prime Video",
@@ -140,6 +149,9 @@ DEMO_CANDIDATE_FIXTURES = (
         release_year=2020,
         runtime_min=94,
         genres=("Adventure", "Family"),
+        poster_url="https://image.tmdb.org/t/p/w342/eWdyYQreja6JGCzqHWXpWHDrrPo.jpg",
+        tone="Brisk, light, dubbed comfort watch",
+        reason="An easy-start adventure with explicit English audio support in the fixture data.",
         provider_availability=(
             FixtureProviderAvailability(
                 provider_name="Prime Video",
@@ -156,6 +168,9 @@ DEMO_CANDIDATE_FIXTURES = (
         release_year=2025,
         runtime_min=112,
         genres=("Drama", "Sci-Fi"),
+        poster_url="https://image.tmdb.org/t/p/w342/uUHvlkLavotfGsNtosDy8ShsIYF.jpg",
+        tone="Thoughtful, spacious, emotional",
+        reason="A reflective sci-fi choice with enough overlap to stay near the top of the shortlist.",
         provider_availability=(
             FixtureProviderAvailability(
                 provider_name="Prime Video",
@@ -172,6 +187,9 @@ DEMO_CANDIDATE_FIXTURES = (
         release_year=2024,
         runtime_min=103,
         genres=("Comedy", "Mystery"),
+        poster_url="https://image.tmdb.org/t/p/w342/pThyQovXQrw2m0s9x82twj48Jq4.jpg",
+        tone="Playful, tidy, low homework",
+        reason="A lighter mystery that keeps the shortlist varied without pushing either viewer too far.",
         provider_availability=(
             FixtureProviderAvailability(
                 provider_name="Prime Video",

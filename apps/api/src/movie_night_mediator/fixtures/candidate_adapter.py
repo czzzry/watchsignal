@@ -37,6 +37,9 @@ class FixtureCandidate:
     runtime_min: int | None = None
     genres: tuple[str, ...] = ()
     overview: str = ""
+    poster_url: str | None = None
+    tone: str | None = None
+    reason: str | None = None
     provider_availability: tuple[FixtureProviderAvailability, ...] = ()
     original_language: str = "en"
     spoken_languages: tuple[str, ...] = ("en",)
