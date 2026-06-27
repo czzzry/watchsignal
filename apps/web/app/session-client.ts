@@ -82,6 +82,17 @@ export type DebugHistoryUserScorePayload = {
   score: number;
 };
 
+export type DebugHistoryCandidateInputPayload = {
+  sourceMovieId: string;
+  title: string;
+  genres: string[];
+  providers: string[];
+  providerAccess: string[];
+  safetyStatus: string;
+  alreadyWatched: boolean;
+  isInterestingSafePick: boolean;
+};
+
 export type DebugHistoryRecommendationCandidatePayload = {
   sourceMovieId: string;
   title: string;
@@ -96,6 +107,7 @@ export type DebugHistoryRecommendationCandidatePayload = {
 
 export type DebugHistoryRecommendationSnapshotPayload = {
   sessionId: string;
+  candidateInputs: DebugHistoryCandidateInputPayload[];
   candidates: DebugHistoryRecommendationCandidatePayload[];
   isUncertain: boolean;
   uncertaintyReason: string | null;

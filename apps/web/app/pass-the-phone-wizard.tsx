@@ -17,6 +17,7 @@ import {
   submitSessionReactions,
   toApiSessionMode,
   type DebugHistoryReactionPayload,
+  type DebugHistoryCandidateInputPayload,
   type DebugHistoryRecommendationCandidatePayload,
   type DebugHistorySessionPayload,
   type ShortlistCandidatePayload,
@@ -991,6 +992,7 @@ function DebugRecommendationSnapshot({
   return (
     <div className="debugListBlock">
       <h4>Scoring snapshot</h4>
+      <DebugCandidateInputs candidateInputs={snapshot.candidateInputs} />
       <ol>
         {snapshot.candidates.map((candidate) => (
           <li key={candidate.sourceMovieId}>
@@ -1006,6 +1008,29 @@ function DebugRecommendationSnapshot({
       {snapshot.recommendedFollowUp ? (
         <p>Follow-up: {snapshot.recommendedFollowUp}</p>
       ) : null}
+    </div>
+  );
+}
+
+function DebugCandidateInputs({
+  candidateInputs,
+}: {
+  candidateInputs: DebugHistoryCandidateInputPayload[];
+}) {
+  return (
+    <div className="debugListBlock">
+      <h4>Candidate inputs</h4>
+      {candidateInputs.length > 0 ? (
+        <ol>
+          {candidateInputs.map((candidate) => (
+            <li key={candidate.sourceMovieId}>
+              {formatDebugCandidateInput(candidate)}
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p>No candidate input snapshot saved yet.</p>
+      )}
     </div>
   );
 }
@@ -1026,6 +1051,18 @@ function DebugReactionList({
       )}
     />
   );
+}
+
+function formatDebugCandidateInput(
+  candidate: DebugHistoryCandidateInputPayload,
+): string {
+  const providers =
+    candidate.providers.length > 0 ? candidate.providers.join(", ") : "No providers";
+  const genres = candidate.genres.length > 0 ? candidate.genres.join(", ") : "No genres";
+  const watchState = candidate.alreadyWatched ? "watched" : "not watched";
+  const interesting = candidate.isInterestingSafePick ? ", interesting safe pick" : "";
+
+  return `${candidate.title}: ${candidate.safetyStatus}, ${watchState}${interesting}. Providers: ${providers}. Genres: ${genres}.`;
 }
 
 function DebugList({ label, items }: { label: string; items: string[] }) {
