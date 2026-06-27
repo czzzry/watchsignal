@@ -9,8 +9,12 @@ from movie_night_mediator.domain.models import (
     MediaType,
     ProviderAccessType,
     ProviderAvailability,
+    RankedCandidate,
+    ScoringRequest,
     SessionContext,
+    UserProfile,
 )
+from movie_night_mediator.scoring import HeuristicScorer
 
 
 @dataclass(frozen=True)
@@ -97,3 +101,30 @@ def fixture_candidates_to_domain(
         )
         for fixture in fixtures
     )
+
+
+def fixture_candidates_to_shortlist(
+    fixtures: tuple[FixtureCandidate, ...],
+    *,
+    session: SessionContext,
+    household_defaults: HouseholdDefaults,
+    users: tuple[UserProfile, ...],
+    limit: int = 5,
+    classifier: SafePickClassifier | None = None,
+    scorer: HeuristicScorer | None = None,
+) -> tuple[RankedCandidate, ...]:
+    candidates = fixture_candidates_to_domain(
+        fixtures,
+        session=session,
+        household_defaults=household_defaults,
+        classifier=classifier,
+    )
+    result = (scorer or HeuristicScorer()).score(
+        ScoringRequest(
+            session=session,
+            household_defaults=household_defaults,
+            users=users,
+            candidates=candidates,
+        )
+    )
+    return result.ranked_candidates[:limit]

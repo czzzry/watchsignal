@@ -34,6 +34,14 @@ class DemoCoupleFixtureTest(unittest.TestCase):
             WatchabilityStatus.SAFE_PICK,
         )
         self.assertEqual(
+            classifications["fixture:thoughtful-space-walk"],
+            WatchabilityStatus.SAFE_PICK,
+        )
+        self.assertEqual(
+            classifications["fixture:gentle-puzzle-box"],
+            WatchabilityStatus.SAFE_PICK,
+        )
+        self.assertEqual(
             classifications["fixture:unverified-language-drama"],
             WatchabilityStatus.NEEDS_QUICK_CHECK,
         )
