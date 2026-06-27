@@ -42,6 +42,7 @@ The SQLite store lives in `apps/api/src/movie_night_mediator/storage/recommendat
 The service helper lives in `apps/api/src/movie_night_mediator/app/recommendation_snapshot.py`.
 The service builds a snapshot from an existing `ScoringRequest` and `RecommendationResult`.
 It intentionally copies the scorer output rather than recalculating or changing any scoring formula.
+The fixture candidate adapter can receive that snapshot service when generating an offline shortlist so backend fixture recommendations persist their ranking evidence automatically.
 Each save replaces the previous snapshot for the same session id.
 This keeps history explainable at the moment of ranking while allowing a later recommendation run to overwrite the session snapshot deliberately.
 The current snapshot does not persist the full scoring request, full candidate metadata, providers, genres, watched-history inputs, or raw private notes.

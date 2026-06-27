@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Protocol
+
 from movie_night_mediator.domain import (
     RecommendationResult,
     RecommendationSnapshot,
@@ -8,6 +10,11 @@ from movie_night_mediator.domain import (
     ScoringRequest,
 )
 from movie_night_mediator.storage import SQLiteRecommendationSnapshotStore
+
+
+class RecommendationScorer(Protocol):
+    def score(self, request: ScoringRequest) -> RecommendationResult:
+        ...
 
 
 class RecommendationSnapshotService:
@@ -34,6 +41,24 @@ class RecommendationSnapshotService:
 
     def list_snapshots(self) -> tuple[RecommendationSnapshot, ...]:
         return self.store.list_snapshots()
+
+
+class SnapshottingRecommendationService:
+    def __init__(
+        self,
+        scorer: RecommendationScorer,
+        snapshot_service: RecommendationSnapshotService,
+    ) -> None:
+        self.scorer = scorer
+        self.snapshot_service = snapshot_service
+
+    def score_and_save_snapshot(self, request: ScoringRequest) -> RecommendationResult:
+        result = self.scorer.score(request)
+        self.snapshot_service.save_result_snapshot(
+            request=request,
+            result=result,
+        )
+        return result
 
 
 def build_recommendation_snapshot(

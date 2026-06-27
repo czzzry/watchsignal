@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
+from movie_night_mediator.app.recommendation_snapshot import (
+    RecommendationSnapshotService,
+    SnapshottingRecommendationService,
+)
 from movie_night_mediator.app.safe_pick import SafePickClassifier
 from movie_night_mediator.domain.models import (
     Candidate,
@@ -112,6 +116,7 @@ def fixture_candidates_to_shortlist(
     limit: int = 5,
     classifier: SafePickClassifier | None = None,
     scorer: HeuristicScorer | None = None,
+    snapshot_service: RecommendationSnapshotService | None = None,
 ) -> tuple[RankedCandidate, ...]:
     candidates = fixture_candidates_to_domain(
         fixtures,
@@ -119,12 +124,19 @@ def fixture_candidates_to_shortlist(
         household_defaults=household_defaults,
         classifier=classifier,
     )
-    result = (scorer or HeuristicScorer()).score(
-        ScoringRequest(
-            session=session,
-            household_defaults=household_defaults,
-            users=users,
-            candidates=candidates,
-        )
+    request = ScoringRequest(
+        session=session,
+        household_defaults=household_defaults,
+        users=users,
+        candidates=candidates,
     )
+    resolved_scorer = scorer or HeuristicScorer()
+    if snapshot_service is None:
+        result = resolved_scorer.score(request)
+    else:
+        result = SnapshottingRecommendationService(
+            scorer=resolved_scorer,
+            snapshot_service=snapshot_service,
+        ).score_and_save_snapshot(request)
+
     return result.ranked_candidates[:limit]
