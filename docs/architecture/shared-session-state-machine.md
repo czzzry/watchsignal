@@ -23,6 +23,16 @@ stateDiagram-v2
 - `POST /sessions/{session_id}/reactions` stores the currently active participant pass.
 - `POST /sessions/{session_id}/advance-handoff` moves from handoff into the second reaction pass.
 
+Each route returns the full shared session payload.
+The frontend should treat the returned `state` as the next-screen driver.
+The payload includes the original `shortlist`, the submitted reaction arrays, `rerankedSourceMovieIds`, `rerankedShortlist`, and `bestPickSourceMovieId`.
+`rerankedShortlist` is empty before reranking and contains the full title objects in result order after the wife reaction pass.
+This keeps the result screen from doing an extra id-to-title join.
+
+The API accepts only a five-title shortlist and one reaction per shortlist item.
+Wrong participant submissions during the active pass are conflicts.
+Duplicate or missing reaction ids are bad requests because the backend cannot safely score an incomplete pass.
+
 ## Learning Note
 
 This state machine is the backend agreement the future phone wizard can trust.

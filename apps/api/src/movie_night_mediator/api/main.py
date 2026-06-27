@@ -187,6 +187,7 @@ class SharedSessionPayload(BaseModel):
     founderReactions: list[SessionReactionPayload]
     wifeReactions: list[SessionReactionPayload]
     rerankedSourceMovieIds: list[str]
+    rerankedShortlist: list[SessionShortlistItemPayload]
     bestPickSourceMovieId: str | None = None
 
 
@@ -678,6 +679,16 @@ def _payload_to_session_reaction(
 def _shared_session_to_payload(
     session: SharedMovieNightSession,
 ) -> SharedSessionPayload:
+    shortlist_by_source_movie_id = {
+        item.source_movie_id: item
+        for item in session.shortlist
+    }
+    reranked_shortlist = [
+        shortlist_by_source_movie_id[source_movie_id]
+        for source_movie_id in session.reranked_source_movie_ids
+        if source_movie_id in shortlist_by_source_movie_id
+    ]
+
     return SharedSessionPayload(
         sessionId=session.session_id,
         householdId=session.household_id,
@@ -707,6 +718,14 @@ def _shared_session_to_payload(
             for reaction in session.wife_reactions
         ],
         rerankedSourceMovieIds=list(session.reranked_source_movie_ids),
+        rerankedShortlist=[
+            SessionShortlistItemPayload(
+                sourceMovieId=item.source_movie_id,
+                title=item.title,
+                candidateRank=item.candidate_rank,
+            )
+            for item in reranked_shortlist
+        ],
         bestPickSourceMovieId=session.best_pick_source_movie_id,
     )
 
