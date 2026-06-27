@@ -7,6 +7,7 @@ from movie_night_mediator.domain.models import (
     HouseholdDefaults,
     PostWatchFeedback,
     ProviderAccessType,
+    RecommendationSnapshot,
     RecommendationResult,
     RankedCandidate,
     ScoringRequest,
@@ -128,6 +129,7 @@ class DebugPersistedSessionEvidence:
     best_pick_source_movie_id: str | None
     post_watch_feedback: tuple[DebugPersistedFeedback, ...]
     unavailable_evidence: tuple[str, ...]
+    recommendation_snapshot: RecommendationSnapshot | None = None
 
 
 def build_debug_session_snapshot(
@@ -172,6 +174,7 @@ def build_persisted_session_evidence(
     *,
     session: SharedMovieNightSession,
     feedback: tuple[PostWatchFeedback, ...] = (),
+    recommendation_snapshot: RecommendationSnapshot | None = None,
 ) -> DebugPersistedSessionEvidence:
     return DebugPersistedSessionEvidence(
         session_id=session.session_id,
@@ -189,15 +192,8 @@ def build_persisted_session_evidence(
         reranked_source_movie_ids=session.reranked_source_movie_ids,
         best_pick_source_movie_id=session.best_pick_source_movie_id,
         post_watch_feedback=tuple(_persisted_feedback(row) for row in feedback),
-        unavailable_evidence=(
-            "recommendation_scoring_request",
-            "candidate_inputs",
-            "hard_filter_results",
-            "per_person_scores",
-            "group_scores",
-            "fit_buckets",
-            "safe_pick_flags",
-        ),
+        recommendation_snapshot=recommendation_snapshot,
+        unavailable_evidence=_unavailable_evidence(recommendation_snapshot),
     )
 
 
@@ -206,6 +202,26 @@ def _service_constraint(
     defaults: HouseholdDefaults,
 ) -> str:
     return request.session.service_constraint or defaults.default_service
+
+
+def _unavailable_evidence(
+    recommendation_snapshot: RecommendationSnapshot | None,
+) -> tuple[str, ...]:
+    if recommendation_snapshot is None:
+        return (
+            "recommendation_scoring_request",
+            "candidate_inputs",
+            "hard_filter_results",
+            "per_person_scores",
+            "group_scores",
+            "fit_buckets",
+            "safe_pick_flags",
+        )
+
+    return (
+        "recommendation_scoring_request",
+        "candidate_inputs",
+    )
 
 
 def _language_constraint(

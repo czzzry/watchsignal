@@ -542,6 +542,75 @@ class RankedCandidate:
 
 
 @dataclass(frozen=True)
+class RecommendationUserScore:
+    user_id: str
+    score: float
+
+    def __post_init__(self) -> None:
+        normalized_user_id = self.user_id.strip()
+        if not normalized_user_id:
+            raise ValueError("Recommendation user scores require a user id.")
+
+        object.__setattr__(self, "user_id", normalized_user_id)
+
+
+@dataclass(frozen=True)
+class RecommendationSnapshotCandidate:
+    source_movie_id: str
+    title: str
+    candidate_rank: int
+    fit_bucket: str
+    group_score: float
+    user_scores: tuple[RecommendationUserScore, ...]
+    why_short: str
+    hard_filter_pass: bool
+    is_interesting_pick: bool = False
+
+    def __post_init__(self) -> None:
+        normalized_source_movie_id = self.source_movie_id.strip()
+        normalized_title = self.title.strip()
+        normalized_fit_bucket = self.fit_bucket.strip()
+        normalized_why_short = self.why_short.strip()
+
+        if not normalized_source_movie_id:
+            raise ValueError("Recommendation snapshot candidates require a source movie id.")
+
+        if not normalized_title:
+            raise ValueError("Recommendation snapshot candidates require a title.")
+
+        if self.candidate_rank < 1:
+            raise ValueError("Recommendation snapshot candidate ranks must be positive.")
+
+        if not normalized_fit_bucket:
+            raise ValueError("Recommendation snapshot candidates require a fit bucket.")
+
+        if not normalized_why_short:
+            raise ValueError("Recommendation snapshot candidates require why_short text.")
+
+        object.__setattr__(self, "source_movie_id", normalized_source_movie_id)
+        object.__setattr__(self, "title", normalized_title)
+        object.__setattr__(self, "fit_bucket", normalized_fit_bucket)
+        object.__setattr__(self, "why_short", normalized_why_short)
+
+
+@dataclass(frozen=True)
+class RecommendationSnapshot:
+    session_id: str
+    candidates: tuple[RecommendationSnapshotCandidate, ...]
+    is_uncertain: bool
+    uncertainty_reason: str | None = None
+    recommended_follow_up: str | None = None
+    interesting_safe_pick_id: str | None = None
+
+    def __post_init__(self) -> None:
+        normalized_session_id = self.session_id.strip()
+        if not normalized_session_id:
+            raise ValueError("Recommendation snapshots require a session id.")
+
+        object.__setattr__(self, "session_id", normalized_session_id)
+
+
+@dataclass(frozen=True)
 class RecommendationResult:
     session_id: str
     ranked_candidates: tuple[RankedCandidate, ...]
