@@ -49,7 +49,7 @@ async function main() {
 
     try {
       await waitForText(tab, "Best pick", "results screen");
-      await waitForText(tab, "Reranked shortlist", "results shortlist");
+      await waitForRankedShortlist(tab);
       await assertNoHorizontalOverflow(tab, "results screen");
     } catch (error) {
       await reportVisiblePageState(tab, "results timeout");
@@ -338,6 +338,20 @@ async function waitForText(tab, text, context) {
         return document.body.innerText.toLowerCase().includes(expected);
       }, expected),
     `text "${text}" on ${context}`,
+  );
+}
+
+async function waitForRankedShortlist(tab) {
+  await waitForValue(
+    async () =>
+      evaluate(tab, () => {
+        const rankedList = document.querySelector('[aria-label="Reranked shortlist"]');
+        if (!rankedList) {
+          return false;
+        }
+        return rankedList.querySelectorAll("article").length > 0;
+      }),
+    'ranked shortlist content on results screen',
   );
 }
 
