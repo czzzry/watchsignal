@@ -29,6 +29,10 @@ That snapshot contains ranked candidate ids and titles, ranks, group score, per-
 The route still returns `unavailableEvidence` so callers can see whether the original scoring request and raw candidate inputs are absent.
 When no recommendation snapshot has been saved, the route continues to mark candidate inputs, hard-filter results, per-person scores, group scores, fit buckets, and Safe Pick flags as unavailable.
 The route is read-only and local-debug oriented.
+The pass-the-phone web UI exposes this route from the results screen through a compact current-session evidence panel.
+That panel is intentionally diagnostic rather than dashboard-like.
+It uses the Next proxy at `apps/web/app/api/session/[sessionId]/debug-history/route.ts` so the browser does not need to know the backend base URL.
+Demo-mode sessions and failed debug fetches show local explanatory messages instead of interrupting the result flow.
 
 ## Persisted Recommendation Snapshot
 

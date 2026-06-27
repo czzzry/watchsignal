@@ -28,6 +28,34 @@ export type SessionReactionPayload = {
   reactionLabel: ReactionValue;
 };
 
+export type DebugHistorySessionPayload = {
+  sessionId: string;
+  householdId: string;
+  activeMode: ApiSessionMode;
+  state: string;
+  participantIds: string[];
+  shortlist: SessionShortlistItemPayload[];
+  founderReactions: DebugHistoryReactionPayload[];
+  wifeReactions: DebugHistoryReactionPayload[];
+  rerankedSourceMovieIds: string[];
+  bestPickSourceMovieId: string | null;
+  postWatchFeedback: DebugHistoryFeedbackPayload[];
+  unavailableEvidence: string[];
+};
+
+export type DebugHistoryReactionPayload = {
+  participantId: string;
+  sourceMovieId: string;
+  reactionLabel: string;
+};
+
+export type DebugHistoryFeedbackPayload = {
+  userId: string;
+  sourceMovieId: string;
+  feedbackLabel: string;
+  hasFreeTextNote: boolean;
+};
+
 export type CreateSessionRequest = {
   householdId: string;
   activeMode: ApiSessionMode;
@@ -71,6 +99,14 @@ export async function advanceSessionHandoff(
   return postJson(`/api/session/${encodeURIComponent(sessionId)}/advance-handoff`, {});
 }
 
+export async function getSessionDebugHistory(
+  sessionId: string,
+): Promise<DebugHistorySessionPayload> {
+  return getJson(
+    `/api/session/${encodeURIComponent(sessionId)}/debug-history`,
+  );
+}
+
 async function postJson<TResponse>(
   url: string,
   body: unknown,
@@ -81,6 +117,20 @@ async function postJson<TResponse>(
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
+  });
+
+  const payload = (await response.json().catch(() => null)) as unknown;
+
+  if (!response.ok) {
+    throw new Error(parseApiError(payload, response.status));
+  }
+
+  return payload as TResponse;
+}
+
+async function getJson<TResponse>(url: string): Promise<TResponse> {
+  const response = await fetch(url, {
+    method: "GET",
   });
 
   const payload = (await response.json().catch(() => null)) as unknown;

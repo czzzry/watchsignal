@@ -29,3 +29,26 @@ export async function postBackendSession(
     );
   }
 }
+
+export async function getBackendSession(path: string): Promise<Response> {
+  const apiBaseUrl = process.env.API_BASE_URL ?? DEFAULT_API_BASE_URL;
+  const url = new URL(path, apiBaseUrl);
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      cache: "no-store",
+      signal: AbortSignal.timeout(2500),
+    });
+    const payload = (await response.json().catch(() => null)) as unknown;
+
+    return Response.json(payload, { status: response.status });
+  } catch {
+    return Response.json(
+      {
+        detail: `Session API is not reachable at ${apiBaseUrl}. Debug evidence is unavailable.`,
+      },
+      { status: 502 },
+    );
+  }
+}
