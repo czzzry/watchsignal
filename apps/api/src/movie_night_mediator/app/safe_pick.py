@@ -83,7 +83,7 @@ class SafePickClassifier:
             )
 
         if self._language_passes(candidate, manual_correction):
-            reasons.append("english_original_or_verified_subtitles")
+            reasons.append("english_audio_or_verified_subtitles")
             return self._classification(
                 candidate,
                 WatchabilityStatus.SAFE_PICK,
@@ -143,6 +143,12 @@ class SafePickClassifier:
         manual_correction: ManualWatchabilityCorrection | None,
     ) -> bool:
         if candidate.original_language.lower() == "en":
+            return True
+        has_explicit_english_audio = (
+            any(language.lower() == "en" for language in candidate.spoken_languages)
+            and candidate.spoken_languages != ("en",)
+        )
+        if has_explicit_english_audio:
             return True
         if candidate.english_subtitles_verified:
             return True

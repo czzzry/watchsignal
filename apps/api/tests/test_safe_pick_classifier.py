@@ -34,7 +34,7 @@ class SafePickClassifierTest(unittest.TestCase):
         )
 
         self.assertEqual(result.status, WatchabilityStatus.SAFE_PICK)
-        self.assertIn("english_original_or_verified_subtitles", result.reasons)
+        self.assertIn("english_audio_or_verified_subtitles", result.reasons)
 
     def test_amazon_rent_or_buy_without_prime_flatrate_needs_quick_check(self) -> None:
         result = self.classifier.classify(
@@ -68,6 +68,7 @@ class SafePickClassifierTest(unittest.TestCase):
                 title="Foreign Language Choice",
                 media_type=MediaType.MOVIE,
                 original_language="ko",
+                spoken_languages=("ko",),
                 provider_availability=(
                     ProviderAvailability(
                         provider_name="Prime Video",
@@ -89,6 +90,26 @@ class SafePickClassifierTest(unittest.TestCase):
                 media_type=MediaType.MOVIE,
                 original_language="ko",
                 english_subtitles_verified=True,
+                provider_availability=(
+                    ProviderAvailability(
+                        provider_name="Prime Video",
+                        access_type=ProviderAccessType.FLATRATE,
+                        region="DE",
+                    ),
+                ),
+            )
+        )
+
+        self.assertEqual(result.status, WatchabilityStatus.SAFE_PICK)
+
+    def test_foreign_language_with_english_audio_is_safe_pick(self) -> None:
+        result = self.classifier.classify(
+            Candidate(
+                source_movie_id="tmdb:496244",
+                title="English Dubbed Choice",
+                media_type=MediaType.MOVIE,
+                original_language="fr",
+                spoken_languages=("fr", "en"),
                 provider_availability=(
                     ProviderAvailability(
                         provider_name="Prime Video",
@@ -169,7 +190,7 @@ class SafePickClassifierTest(unittest.TestCase):
 
         self.assertEqual(result.status, WatchabilityStatus.SAFE_PICK)
         self.assertTrue(result.manual_correction_applied)
-        self.assertIn("english_original_or_verified_subtitles", result.reasons)
+        self.assertIn("english_audio_or_verified_subtitles", result.reasons)
 
     def test_manual_subtitle_correction_does_not_override_missing_prime_flatrate(self) -> None:
         result = self.classifier.classify(

@@ -4,14 +4,17 @@ from movie_night_mediator.domain.models import (
     AudienceMode,
     Candidate,
     HouseholdDefaults,
-    MediaType,
     OnboardingSeed,
     ProviderAccessType,
-    ProviderAvailability,
     ScoringRequest,
     SessionContext,
     SessionMode,
     UserProfile,
+)
+from movie_night_mediator.fixtures.candidate_adapter import (
+    FixtureCandidate,
+    FixtureProviderAvailability,
+    fixture_candidates_to_domain,
 )
 
 DEMO_HOUSEHOLD_DEFAULTS = HouseholdDefaults(
@@ -78,69 +81,128 @@ DEMO_SHARED_SESSION = SessionContext(
     language_constraint="english_or_english_subtitles",
 )
 
-PRIME_DE_FLATRATE = ProviderAvailability(
-    provider_name="Prime Video",
-    access_type=ProviderAccessType.FLATRATE,
-    region="DE",
-)
-
-AMAZON_DE_RENT = ProviderAvailability(
-    provider_name="Amazon Video",
-    access_type=ProviderAccessType.RENT,
-    region="DE",
-)
-
-DEMO_CANDIDATES = (
-    Candidate(
+DEMO_CANDIDATE_FIXTURES = (
+    FixtureCandidate(
         source_movie_id="fixture:shared-time-loop",
         title="Shared Time Loop",
-        media_type=MediaType.MOVIE,
         release_year=2024,
         runtime_min=108,
         genres=("Comedy", "Sci-Fi"),
-        providers=("Prime Video",),
-        provider_availability=(PRIME_DE_FLATRATE,),
+        provider_availability=(
+            FixtureProviderAvailability(
+                provider_name="Prime Video",
+                access_type=ProviderAccessType.FLATRATE,
+                region="DE",
+            ),
+        ),
         original_language="en",
         spoken_languages=("en",),
         is_interesting_safe_pick=True,
     ),
-    Candidate(
+    FixtureCandidate(
         source_movie_id="fixture:quiet-investigation",
         title="Quiet Investigation",
-        media_type=MediaType.MOVIE,
         release_year=2023,
         runtime_min=116,
         genres=("Drama", "Mystery"),
-        providers=("Prime Video",),
-        provider_availability=(PRIME_DE_FLATRATE,),
+        provider_availability=(
+            FixtureProviderAvailability(
+                provider_name="Prime Video",
+                access_type=ProviderAccessType.FLATRATE,
+                region="DE",
+            ),
+        ),
         original_language="en",
         spoken_languages=("en",),
     ),
-    Candidate(
+    FixtureCandidate(
+        source_movie_id="fixture:subtitled-family-mystery",
+        title="Subtitled Family Mystery",
+        release_year=2021,
+        runtime_min=101,
+        genres=("Family", "Mystery"),
+        provider_availability=(
+            FixtureProviderAvailability(
+                provider_name="Prime Video",
+                access_type=ProviderAccessType.FLATRATE,
+                region="DE",
+            ),
+        ),
+        original_language="de",
+        spoken_languages=("de",),
+        english_subtitles_verified=True,
+    ),
+    FixtureCandidate(
+        source_movie_id="fixture:english-dubbed-adventure",
+        title="English Dubbed Adventure",
+        release_year=2020,
+        runtime_min=94,
+        genres=("Adventure", "Family"),
+        provider_availability=(
+            FixtureProviderAvailability(
+                provider_name="Prime Video",
+                access_type=ProviderAccessType.FLATRATE,
+                region="DE",
+            ),
+        ),
+        original_language="fr",
+        spoken_languages=("fr", "en"),
+    ),
+    FixtureCandidate(
+        source_movie_id="fixture:unverified-language-drama",
+        title="Unverified Language Drama",
+        release_year=2022,
+        runtime_min=99,
+        genres=("Drama",),
+        provider_availability=(
+            FixtureProviderAvailability(
+                provider_name="Prime Video",
+                access_type=ProviderAccessType.FLATRATE,
+                region="DE",
+            ),
+        ),
+        original_language="ja",
+        spoken_languages=("ja",),
+    ),
+    FixtureCandidate(
         source_movie_id="fixture:already-watched-classic",
         title="Already Watched Classic",
-        media_type=MediaType.MOVIE,
         release_year=1999,
         runtime_min=136,
         genres=("Action", "Sci-Fi"),
-        providers=("Prime Video",),
-        provider_availability=(PRIME_DE_FLATRATE,),
+        provider_availability=(
+            FixtureProviderAvailability(
+                provider_name="Prime Video",
+                access_type=ProviderAccessType.FLATRATE,
+                region="DE",
+            ),
+        ),
         original_language="en",
         spoken_languages=("en",),
         already_watched=True,
     ),
-    Candidate(
+    FixtureCandidate(
         source_movie_id="fixture:rent-only-thriller",
         title="Rent Only Thriller",
-        media_type=MediaType.MOVIE,
         release_year=2022,
         runtime_min=104,
         genres=("Thriller", "Mystery"),
-        providers=("Amazon Video",),
-        provider_availability=(AMAZON_DE_RENT,),
+        provider_availability=(
+            FixtureProviderAvailability(
+                provider_name="Amazon Video",
+                access_type=ProviderAccessType.RENT,
+                region="DE",
+            ),
+        ),
         original_language="en",
         spoken_languages=("en",),
     ),
+)
+
+DEMO_CANDIDATES = fixture_candidates_to_domain(
+    DEMO_CANDIDATE_FIXTURES,
+    session=DEMO_SHARED_SESSION,
+    household_defaults=DEMO_HOUSEHOLD_DEFAULTS,
 )
 
 
@@ -153,4 +215,3 @@ def demo_scoring_request(
         users=(DEMO_HUSBAND_PROFILE, DEMO_WIFE_PROFILE),
         candidates=candidates,
     )
-
