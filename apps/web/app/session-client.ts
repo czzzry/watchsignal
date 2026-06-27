@@ -271,9 +271,13 @@ function parseShortlistCandidate(
       numberValue(candidate.candidate_rank) ??
       1,
     year: numberValue(candidate.year),
-    releaseYear: numberValue(candidate.releaseYear),
+    releaseYear:
+      numberValue(candidate.releaseYear) ??
+      numberValue(candidate.release_year),
     runtime: stringValue(candidate.runtime),
-    runtimeMin: numberValue(candidate.runtimeMin),
+    runtimeMin:
+      numberValue(candidate.runtimeMin) ??
+      numberValue(candidate.runtime_min),
     posterUrl:
       stringValue(candidate.posterUrl) ??
       stringValue(candidate.poster_url),
@@ -306,7 +310,9 @@ function parseShortlistCandidate(
     isInterestingPick:
       typeof candidate.isInterestingPick === "boolean"
         ? candidate.isInterestingPick
-        : null,
+        : typeof candidate.is_interesting_pick === "boolean"
+          ? candidate.is_interesting_pick
+          : null,
   };
 }
 

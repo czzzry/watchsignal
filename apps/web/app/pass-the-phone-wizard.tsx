@@ -98,6 +98,8 @@ export function PassThePhoneWizard({
     null,
   );
   const participantIds = [profiles[0]?.id || "husband", profiles[1]?.id || "wife"];
+  const founderCandidate = sessionCandidates[founderIndex];
+  const wifeCandidate = sessionCandidates[wifeIndex];
 
   const rankedCandidates = useMemo(
     () =>
@@ -153,7 +155,7 @@ export function PassThePhoneWizard({
       return;
     }
 
-    setSyncStatus("saving");
+    setSyncStatus("loading");
     setApiError(null);
 
     try {
@@ -166,28 +168,41 @@ export function PassThePhoneWizard({
         shortlistSize: setupLoad.setup.defaults.shortlistSize,
       });
       const candidates = shortlistResponse.shortlist.map(toSessionCandidate);
+
+      if (candidates.length === 0) {
+        throw new Error("Recommendation API returned no usable picks for this session.");
+      }
+
       setSessionCandidates(candidates);
 
-      const session = await createSharedSession({
-        sessionId,
-        householdId: "default-household",
-        activeMode: toApiSessionMode(sessionMode),
-        participantIds,
-        shortlist: candidates.map((candidate, index) => ({
-          sourceMovieId: candidate.id,
-          title: candidate.title,
-          candidateRank: index + 1,
-        })),
-      });
+      try {
+        const session = await createSharedSession({
+          sessionId,
+          householdId: "default-household",
+          activeMode: toApiSessionMode(sessionMode),
+          participantIds,
+          shortlist: candidates.map((candidate, index) => ({
+            sourceMovieId: candidate.id,
+            title: candidate.title,
+            candidateRank: index + 1,
+          })),
+        });
 
-      setSharedSession(session);
-      setSessionSource("api");
+        setSharedSession(session);
+        setSessionSource("api");
+      } catch (error) {
+        setSharedSession(null);
+        setSessionSource("demo");
+        setApiError(
+          `${toSessionCreationErrorMessage(error)} Continuing on the same shortlist in local mode.`,
+        );
+      }
     } catch (error) {
       setSessionCandidates(demoCandidates);
       setSharedSession(null);
       setSessionSource("demo");
-      setDebugHistoryStatus("failed");
-      setDebugHistoryMessage("Debug evidence is unavailable because the session fell back to demo mode.");
+      setDebugHistoryStatus("idle");
+      setDebugHistoryMessage(null);
       setApiError(toErrorMessage(error));
     } finally {
       setSyncStatus("ready");
@@ -200,6 +215,10 @@ export function PassThePhoneWizard({
     candidateId: string,
     reaction: ReactionValue,
   ): Promise<void> {
+    if (sessionCandidates.length === 0) {
+      return;
+    }
+
     if (actor === "founder") {
       const nextReactions = { ...founderReactions, [candidateId]: reaction };
       setFounderReactions(nextReactions);
@@ -367,24 +386,33 @@ export function PassThePhoneWizard({
       ) : null}
 
       {step === "founder" ? (
-        <ReactionStep
-          actorLabel={founderLabel}
-          actor="founder"
-          index={founderIndex}
-          total={sessionCandidates.length}
-          candidate={sessionCandidates[founderIndex]}
-          selectedReaction={founderReactions[sessionCandidates[founderIndex].id]}
-          isSyncing={isSyncing}
-          onReaction={recordReaction}
-          onBack={() => {
-            if (founderIndex === 0) {
-              setStep("setup");
-              return;
-            }
+        founderCandidate ? (
+          <ReactionStep
+            actorLabel={founderLabel}
+            actor="founder"
+            index={founderIndex}
+            total={sessionCandidates.length}
+            candidate={founderCandidate}
+            selectedReaction={founderReactions[founderCandidate.id]}
+            isSyncing={isSyncing}
+            onReaction={recordReaction}
+            onBack={() => {
+              if (founderIndex === 0) {
+                setStep("setup");
+                return;
+              }
 
-            setFounderIndex((current) => current - 1);
-          }}
-        />
+              setFounderIndex((current) => current - 1);
+            }}
+          />
+        ) : (
+          <SessionRecoveryStep
+            title="No picks ready yet"
+            detail="This session does not have a shortlist to react to. Start a fresh session to load picks again."
+            actionLabel="Back to setup"
+            onAction={resetSession}
+          />
+        )
       ) : null}
 
       {step === "handoff" ? (
@@ -399,24 +427,33 @@ export function PassThePhoneWizard({
       ) : null}
 
       {step === "wife" ? (
-        <ReactionStep
-          actorLabel={wifeLabel}
-          actor="wife"
-          index={wifeIndex}
-          total={sessionCandidates.length}
-          candidate={sessionCandidates[wifeIndex]}
-          selectedReaction={wifeReactions[sessionCandidates[wifeIndex].id]}
-          isSyncing={isSyncing}
-          onReaction={recordReaction}
-          onBack={() => {
-            if (wifeIndex === 0) {
-              setStep("handoff");
-              return;
-            }
+        wifeCandidate ? (
+          <ReactionStep
+            actorLabel={wifeLabel}
+            actor="wife"
+            index={wifeIndex}
+            total={sessionCandidates.length}
+            candidate={wifeCandidate}
+            selectedReaction={wifeReactions[wifeCandidate.id]}
+            isSyncing={isSyncing}
+            onReaction={recordReaction}
+            onBack={() => {
+              if (wifeIndex === 0) {
+                setStep("handoff");
+                return;
+              }
 
-            setWifeIndex((current) => current - 1);
-          }}
-        />
+              setWifeIndex((current) => current - 1);
+            }}
+          />
+        ) : (
+          <SessionRecoveryStep
+            title="Second pass is missing its picks"
+            detail="The shortlist for this handoff is no longer available. Start another session to reload the lineup."
+            actionLabel="Start another session"
+            onAction={resetSession}
+          />
+        )
       ) : null}
 
       {step === "results" ? (
@@ -670,6 +707,31 @@ function HandoffStep({
   );
 }
 
+function SessionRecoveryStep({
+  title,
+  detail,
+  actionLabel,
+  onAction,
+}: {
+  title: string;
+  detail: string;
+  actionLabel: string;
+  onAction: () => void;
+}) {
+  return (
+    <section className="wizardPanel sessionPanel" aria-labelledby="recovery-heading">
+      <div className="sectionHeading">
+        <p className="eyebrow">Session check</p>
+        <h2 id="recovery-heading">{title}</h2>
+        <p>{detail}</p>
+      </div>
+      <button type="button" className="primaryAction" onClick={onAction}>
+        {actionLabel}
+      </button>
+    </section>
+  );
+}
+
 function SessionSyncStrip({
   source,
   status,
@@ -744,6 +806,17 @@ function ResultsStep({
   onReset: () => void;
 }) {
   const bestPick = rankedCandidates[0];
+
+  if (!bestPick) {
+    return (
+      <SessionRecoveryStep
+        title="No ranked pick yet"
+        detail="This session finished without a shortlist to rank. Start another session to load a fresh set of picks."
+        actionLabel="Start another session"
+        onAction={onReset}
+      />
+    );
+  }
 
   return (
     <section className="wizardPanel resultsPanel" aria-labelledby="results-heading">
@@ -1213,6 +1286,14 @@ function toErrorMessage(error: unknown): string {
   }
 
   return "Session API failed. Continuing in demo mode.";
+}
+
+function toSessionCreationErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Session setup could not be saved to the API.";
 }
 
 function toDebugHistoryErrorMessage(error: unknown): string {

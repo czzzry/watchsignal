@@ -8,6 +8,7 @@ from fastapi.routing import APIRoute
 from movie_night_mediator.api.main import (
     CreateSharedSessionPayload,
     PostWatchFeedbackPayload,
+    RecommendationShortlistRequestPayload,
     SubmitSessionReactionsPayload,
     create_app,
 )
@@ -28,6 +29,77 @@ from movie_night_mediator.storage import (
 
 
 class DebugHistoryApiTest(unittest.TestCase):
+    def test_returns_saved_snapshot_for_same_session_id_after_creation_and_rerank(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "debug-history.sqlite3"
+            routes = debug_route_endpoints(
+                create_app(
+                    onboarding_store=complete_onboarding_store(database_path),
+                    feedback_store=SQLiteFeedbackStore(database_path=database_path),
+                    session_store=SQLiteSessionStore(database_path=database_path),
+                    recommendation_snapshot_store=SQLiteRecommendationSnapshotStore(
+                        database_path=database_path
+                    ),
+                )
+            )
+
+            shortlist_payload = [
+                payload_to_dict(item)
+                for item in routes["post_shortlist"](
+                    RecommendationShortlistRequestPayload(sessionId="debug-session-1")
+                )
+            ]
+            routes["post_session"](CreateSharedSessionPayload(**CREATE_SESSION_PAYLOAD))
+
+            after_creation = payload_to_dict(routes["get_debug"]("debug-session-1"))
+
+            self.assertEqual(
+                after_creation["recommendationSnapshot"]["sessionId"],
+                "debug-session-1",
+            )
+            self.assertEqual(
+                after_creation["recommendationSnapshot"]["candidates"][0][
+                    "sourceMovieId"
+                ],
+                shortlist_payload[0]["sourceMovieId"],
+            )
+            self.assertEqual(after_creation["state"], "founder_reacting")
+            self.assertNotIn("group_scores", after_creation["unavailableEvidence"])
+
+            routes["post_reactions"](
+                "debug-session-1",
+                SubmitSessionReactionsPayload(
+                    participantId="husband",
+                    reactions=reaction_payloads(
+                        ["maybe", "interested", "no", "seen", "maybe"]
+                    ),
+                ),
+            )
+            routes["post_handoff"]("debug-session-1")
+            routes["post_reactions"](
+                "debug-session-1",
+                SubmitSessionReactionsPayload(
+                    participantId="wife",
+                    reactions=reaction_payloads(
+                        ["interested", "maybe", "no", "seen", "interested"]
+                    ),
+                ),
+            )
+
+            after_rerank = payload_to_dict(routes["get_debug"]("debug-session-1"))
+
+            self.assertEqual(after_rerank["state"], "reranked")
+            self.assertEqual(
+                after_rerank["recommendationSnapshot"]["sessionId"],
+                "debug-session-1",
+            )
+            self.assertEqual(
+                after_rerank["recommendationSnapshot"]["candidates"][0]["sourceMovieId"],
+                shortlist_payload[0]["sourceMovieId"],
+            )
+            self.assertEqual(after_rerank["rerankedSourceMovieIds"][0], "tmdb:1")
+            self.assertEqual(after_rerank["bestPickSourceMovieId"], "tmdb:1")
+
     def test_returns_persisted_session_evidence_for_saved_session(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             database_path = Path(directory) / "debug-history.sqlite3"
@@ -101,6 +173,7 @@ class DebugHistoryApiTest(unittest.TestCase):
             )
             self.assertIn("candidate_inputs", response["unavailableEvidence"])
             self.assertIn("group_scores", response["unavailableEvidence"])
+            self.assertIsNone(response["recommendationSnapshot"])
 
     def test_returns_404_for_missing_session(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -184,6 +257,57 @@ class DebugHistoryApiTest(unittest.TestCase):
             )
             self.assertNotIn("group_scores", response["unavailableEvidence"])
 
+    def test_ignores_snapshot_saved_under_different_session_id(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "debug-history.sqlite3"
+            recommendation_snapshot_store = SQLiteRecommendationSnapshotStore(
+                database_path=database_path
+            )
+            routes = debug_route_endpoints(
+                create_app(
+                    onboarding_store=complete_onboarding_store(database_path),
+                    feedback_store=SQLiteFeedbackStore(database_path=database_path),
+                    session_store=SQLiteSessionStore(database_path=database_path),
+                    recommendation_snapshot_store=recommendation_snapshot_store,
+                )
+            )
+
+            routes["post_session"](CreateSharedSessionPayload(**CREATE_SESSION_PAYLOAD))
+            recommendation_snapshot_store.save_snapshot(
+                RecommendationSnapshot(
+                    session_id="other-session",
+                    candidates=(
+                        RecommendationSnapshotCandidate(
+                            source_movie_id="tmdb:9",
+                            title="Wrong Session Pick",
+                            candidate_rank=1,
+                            fit_bucket="compromise",
+                            group_score=0.51,
+                            user_scores=(
+                                RecommendationUserScore(
+                                    user_id="husband",
+                                    score=0.52,
+                                ),
+                                RecommendationUserScore(
+                                    user_id="wife",
+                                    score=0.5,
+                                ),
+                            ),
+                            why_short="Should stay isolated.",
+                            hard_filter_pass=True,
+                            is_interesting_pick=False,
+                        ),
+                    ),
+                    is_uncertain=False,
+                )
+            )
+
+            response = payload_to_dict(routes["get_debug"]("debug-session-1"))
+
+            self.assertIsNone(response["recommendationSnapshot"])
+            self.assertIn("group_scores", response["unavailableEvidence"])
+            self.assertNotIn("tmdb:9", response["rerankedSourceMovieIds"])
+
 
 CREATE_SESSION_PAYLOAD = {
     "sessionId": "debug-session-1",
@@ -239,6 +363,7 @@ def debug_route_endpoints(app):
             routes[(method, route.path)] = route.endpoint
 
     return {
+        "post_shortlist": routes[("POST", "/recommendations/shortlist")],
         "post_session": routes[("POST", "/sessions")],
         "post_reactions": routes[("POST", "/sessions/{session_id}/reactions")],
         "post_handoff": routes[("POST", "/sessions/{session_id}/advance-handoff")],
