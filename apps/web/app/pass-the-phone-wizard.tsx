@@ -563,7 +563,7 @@ function HandoffStep({
         <p className="eyebrow">Handoff</p>
         <h2 id="handoff-heading">Pass the phone to {wifeLabel}</h2>
         <p>
-          {founderLabel}'s reactions are saved for this demo session.{" "}
+          {founderLabel}'s reactions are saved for this session.{" "}
           {wifeLabel} gets the same five titles without seeing the first pass.
         </p>
       </div>
@@ -704,7 +704,7 @@ function ResultsStep({
       </div>
 
       <button type="button" className="primaryAction" onClick={onReset}>
-        Start another demo session
+        Start another session
       </button>
     </section>
   );
