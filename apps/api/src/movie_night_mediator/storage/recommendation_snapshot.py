@@ -7,6 +7,7 @@ from pathlib import Path
 from movie_night_mediator.domain import (
     RecommendationSnapshot,
     RecommendationSnapshotCandidate,
+    RecommendationSnapshotCandidateInput,
     RecommendationUserScore,
 )
 from movie_night_mediator.storage.settings import SQLiteSettings
@@ -61,6 +62,13 @@ class SQLiteRecommendationSnapshotStore:
                 )
                 connection.execute(
                     """
+                    DELETE FROM recommendation_snapshot_candidate_inputs
+                    WHERE session_id = ?
+                    """,
+                    (snapshot.session_id,),
+                )
+                connection.execute(
+                    """
                     DELETE FROM recommendation_snapshot_user_scores
                     WHERE session_id = ?
                     """,
@@ -72,6 +80,41 @@ class SQLiteRecommendationSnapshotStore:
                     WHERE session_id = ?
                     """,
                     (snapshot.session_id,),
+                )
+                connection.executemany(
+                    """
+                    INSERT INTO recommendation_snapshot_candidate_inputs (
+                        session_id,
+                        source_movie_id,
+                        title,
+                        candidate_position,
+                        genres,
+                        providers,
+                        provider_access,
+                        safety_status,
+                        already_watched,
+                        is_interesting_safe_pick
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    [
+                        (
+                            snapshot.session_id,
+                            candidate.source_movie_id,
+                            candidate.title,
+                            index,
+                            _join_values(candidate.genres),
+                            _join_values(candidate.providers),
+                            _join_values(candidate.provider_access),
+                            candidate.safety_status,
+                            int(candidate.already_watched),
+                            int(candidate.is_interesting_safe_pick),
+                        )
+                        for index, candidate in enumerate(
+                            snapshot.candidate_inputs,
+                            start=1,
+                        )
+                    ],
                 )
                 connection.executemany(
                     """
@@ -173,6 +216,23 @@ class SQLiteRecommendationSnapshotStore:
                 """,
                 (normalized_session_id,),
             ).fetchall()
+            candidate_input_rows = connection.execute(
+                """
+                SELECT
+                    source_movie_id,
+                    title,
+                    genres,
+                    providers,
+                    provider_access,
+                    safety_status,
+                    already_watched,
+                    is_interesting_safe_pick
+                FROM recommendation_snapshot_candidate_inputs
+                WHERE session_id = ?
+                ORDER BY candidate_position ASC, source_movie_id ASC
+                """,
+                (normalized_session_id,),
+            ).fetchall()
             score_rows = connection.execute(
                 """
                 SELECT source_movie_id, user_id, score
@@ -194,6 +254,19 @@ class SQLiteRecommendationSnapshotStore:
 
         return RecommendationSnapshot(
             session_id=snapshot_row["session_id"],
+            candidate_inputs=tuple(
+                RecommendationSnapshotCandidateInput(
+                    source_movie_id=row["source_movie_id"],
+                    title=row["title"],
+                    genres=_split_values(row["genres"]),
+                    providers=_split_values(row["providers"]),
+                    provider_access=_split_values(row["provider_access"]),
+                    safety_status=row["safety_status"],
+                    already_watched=bool(row["already_watched"]),
+                    is_interesting_safe_pick=bool(row["is_interesting_safe_pick"]),
+                )
+                for row in candidate_input_rows
+            ),
             candidates=tuple(
                 RecommendationSnapshotCandidate(
                     source_movie_id=row["source_movie_id"],
@@ -251,6 +324,26 @@ class SQLiteRecommendationSnapshotStore:
                         updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
                     );
 
+                    CREATE TABLE IF NOT EXISTS recommendation_snapshot_candidate_inputs (
+                        session_id TEXT NOT NULL
+                            REFERENCES recommendation_snapshots(session_id)
+                            ON DELETE CASCADE,
+                        source_movie_id TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        candidate_position INTEGER NOT NULL,
+                        genres TEXT NOT NULL,
+                        providers TEXT NOT NULL,
+                        provider_access TEXT NOT NULL,
+                        safety_status TEXT NOT NULL,
+                        already_watched INTEGER NOT NULL CHECK (
+                            already_watched IN (0, 1)
+                        ),
+                        is_interesting_safe_pick INTEGER NOT NULL CHECK (
+                            is_interesting_safe_pick IN (0, 1)
+                        ),
+                        PRIMARY KEY (session_id, source_movie_id)
+                    );
+
                     CREATE TABLE IF NOT EXISTS recommendation_snapshot_candidates (
                         session_id TEXT NOT NULL
                             REFERENCES recommendation_snapshots(session_id)
@@ -300,3 +393,14 @@ def _require_non_empty(value: str, field_name: str) -> str:
         raise ValueError(f"{field_name} cannot be empty.")
 
     return normalized_value
+
+
+def _join_values(values: tuple[str, ...]) -> str:
+    return "\u001f".join(values)
+
+
+def _split_values(value: str) -> tuple[str, ...]:
+    if not value:
+        return ()
+
+    return tuple(item for item in value.split("\u001f") if item)

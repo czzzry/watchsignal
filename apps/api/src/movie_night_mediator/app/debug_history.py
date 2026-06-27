@@ -218,10 +218,11 @@ def _unavailable_evidence(
             "safe_pick_flags",
         )
 
-    return (
-        "recommendation_scoring_request",
-        "candidate_inputs",
-    )
+    unavailable = ["recommendation_scoring_request"]
+    if not recommendation_snapshot.candidate_inputs:
+        unavailable.append("candidate_inputs")
+
+    return tuple(unavailable)
 
 
 def _language_constraint(

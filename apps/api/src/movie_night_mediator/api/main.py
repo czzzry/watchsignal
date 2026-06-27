@@ -267,6 +267,17 @@ class DebugHistoryUserScorePayload(BaseModel):
     score: float
 
 
+class DebugHistoryCandidateInputPayload(BaseModel):
+    sourceMovieId: str
+    title: str
+    genres: list[str]
+    providers: list[str]
+    providerAccess: list[str]
+    safetyStatus: str
+    alreadyWatched: bool
+    isInterestingSafePick: bool
+
+
 class DebugHistoryRecommendationCandidatePayload(BaseModel):
     sourceMovieId: str
     title: str
@@ -281,6 +292,7 @@ class DebugHistoryRecommendationCandidatePayload(BaseModel):
 
 class DebugHistoryRecommendationSnapshotPayload(BaseModel):
     sessionId: str
+    candidateInputs: list[DebugHistoryCandidateInputPayload]
     candidates: list[DebugHistoryRecommendationCandidatePayload]
     isUncertain: bool
     uncertaintyReason: str | None = None
@@ -999,6 +1011,19 @@ def _recommendation_snapshot_to_payload(
 ) -> DebugHistoryRecommendationSnapshotPayload:
     return DebugHistoryRecommendationSnapshotPayload(
         sessionId=snapshot.session_id,
+        candidateInputs=[
+            DebugHistoryCandidateInputPayload(
+                sourceMovieId=candidate.source_movie_id,
+                title=candidate.title,
+                genres=list(candidate.genres),
+                providers=list(candidate.providers),
+                providerAccess=list(candidate.provider_access),
+                safetyStatus=candidate.safety_status,
+                alreadyWatched=candidate.already_watched,
+                isInterestingSafePick=candidate.is_interesting_safe_pick,
+            )
+            for candidate in snapshot.candidate_inputs
+        ],
         candidates=[
             DebugHistoryRecommendationCandidatePayload(
                 sourceMovieId=candidate.source_movie_id,

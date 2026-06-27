@@ -168,10 +168,8 @@ class CandidateGenerationAdapterTest(unittest.TestCase):
             )
             self.assertIs(evidence.recommendation_snapshot, loaded_snapshot)
             self.assertNotIn("group_scores", evidence.unavailable_evidence)
-            self.assertIn(
-                "candidate_inputs",
-                evidence.unavailable_evidence,
-            )
+            self.assertNotIn("candidate_inputs", evidence.unavailable_evidence)
+            self.assertGreater(len(loaded_snapshot.candidate_inputs), 0)
 
 
 if __name__ == "__main__":

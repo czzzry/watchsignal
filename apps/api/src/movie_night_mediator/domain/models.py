@@ -555,6 +555,46 @@ class RecommendationUserScore:
 
 
 @dataclass(frozen=True)
+class RecommendationSnapshotCandidateInput:
+    source_movie_id: str
+    title: str
+    genres: tuple[str, ...] = ()
+    providers: tuple[str, ...] = ()
+    provider_access: tuple[str, ...] = ()
+    safety_status: str = CandidateSafety.SAFE_PICK.value
+    already_watched: bool = False
+    is_interesting_safe_pick: bool = False
+
+    def __post_init__(self) -> None:
+        normalized_source_movie_id = self.source_movie_id.strip()
+        normalized_title = self.title.strip()
+        normalized_provider_access = tuple(
+            access.strip() for access in self.provider_access if access.strip()
+        )
+        normalized_safety_status = self.safety_status.strip()
+
+        if not normalized_source_movie_id:
+            raise ValueError(
+                "Recommendation snapshot candidate inputs require a source movie id."
+            )
+
+        if not normalized_title:
+            raise ValueError(
+                "Recommendation snapshot candidate inputs require a title."
+            )
+
+        if not normalized_safety_status:
+            raise ValueError(
+                "Recommendation snapshot candidate inputs require a safety status."
+            )
+
+        object.__setattr__(self, "source_movie_id", normalized_source_movie_id)
+        object.__setattr__(self, "title", normalized_title)
+        object.__setattr__(self, "provider_access", normalized_provider_access)
+        object.__setattr__(self, "safety_status", normalized_safety_status)
+
+
+@dataclass(frozen=True)
 class RecommendationSnapshotCandidate:
     source_movie_id: str
     title: str
@@ -596,8 +636,9 @@ class RecommendationSnapshotCandidate:
 @dataclass(frozen=True)
 class RecommendationSnapshot:
     session_id: str
-    candidates: tuple[RecommendationSnapshotCandidate, ...]
-    is_uncertain: bool
+    candidate_inputs: tuple[RecommendationSnapshotCandidateInput, ...] = ()
+    candidates: tuple[RecommendationSnapshotCandidate, ...] = ()
+    is_uncertain: bool = False
     uncertainty_reason: str | None = None
     recommended_follow_up: str | None = None
     interesting_safe_pick_id: str | None = None

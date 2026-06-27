@@ -63,6 +63,11 @@ class DebugHistoryApiTest(unittest.TestCase):
                 ],
                 shortlist_payload[0]["sourceMovieId"],
             )
+            self.assertGreater(
+                len(after_creation["recommendationSnapshot"]["candidateInputs"]),
+                0,
+            )
+            self.assertNotIn("candidate_inputs", after_creation["unavailableEvidence"])
             self.assertEqual(after_creation["state"], "founder_reacting")
             self.assertNotIn("group_scores", after_creation["unavailableEvidence"])
 
@@ -97,6 +102,7 @@ class DebugHistoryApiTest(unittest.TestCase):
                 after_rerank["recommendationSnapshot"]["candidates"][0]["sourceMovieId"],
                 shortlist_payload[0]["sourceMovieId"],
             )
+            self.assertNotIn("candidate_inputs", after_rerank["unavailableEvidence"])
             self.assertEqual(after_rerank["rerankedSourceMovieIds"][0], "tmdb:1")
             self.assertEqual(after_rerank["bestPickSourceMovieId"], "tmdb:1")
 
@@ -252,9 +258,14 @@ class DebugHistoryApiTest(unittest.TestCase):
                 ],
             )
             self.assertEqual(
+                response["recommendationSnapshot"]["candidateInputs"],
+                [],
+            )
+            self.assertEqual(
                 response["recommendationSnapshot"]["uncertaintyReason"],
                 "More seeds needed.",
             )
+            self.assertIn("candidate_inputs", response["unavailableEvidence"])
             self.assertNotIn("group_scores", response["unavailableEvidence"])
 
     def test_ignores_snapshot_saved_under_different_session_id(self) -> None:

@@ -3,9 +3,11 @@ from __future__ import annotations
 from typing import Protocol
 
 from movie_night_mediator.domain import (
+    Candidate,
     RecommendationResult,
     RecommendationSnapshot,
     RecommendationSnapshotCandidate,
+    RecommendationSnapshotCandidateInput,
     RecommendationUserScore,
     ScoringRequest,
 )
@@ -105,6 +107,19 @@ def build_recommendation_snapshot(
 
     return RecommendationSnapshot(
         session_id=result.session_id,
+        candidate_inputs=tuple(
+            RecommendationSnapshotCandidateInput(
+                source_movie_id=candidate.source_movie_id,
+                title=candidate.title,
+                genres=candidate.genres,
+                providers=candidate.providers,
+                provider_access=tuple(_provider_access_labels(candidate)),
+                safety_status=candidate.safety_status.value,
+                already_watched=candidate.already_watched,
+                is_interesting_safe_pick=candidate.is_interesting_safe_pick,
+            )
+            for candidate in request.candidates
+        ),
         candidates=tuple(candidates),
         is_uncertain=result.is_uncertain,
         uncertainty_reason=result.uncertainty_reason,
@@ -128,3 +143,10 @@ def _active_user_ids(request: ScoringRequest) -> tuple[str, ...]:
     if ordered_user_ids:
         return ordered_user_ids
     return tuple(user.user_id for user in request.users)
+
+
+def _provider_access_labels(candidate: Candidate) -> tuple[str, ...]:
+    return tuple(
+        f"{availability.provider_name}:{availability.access_type.value}:{availability.region}"
+        for availability in candidate.provider_availability
+    )

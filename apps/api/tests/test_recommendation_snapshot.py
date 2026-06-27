@@ -12,6 +12,8 @@ from movie_night_mediator.domain import (
     HouseholdDefaults,
     MediaType,
     OnboardingSeed,
+    ProviderAccessType,
+    ProviderAvailability,
     ScoringRequest,
     SessionContext,
     SessionMode,
@@ -30,6 +32,13 @@ class RecommendationSnapshotTest(unittest.TestCase):
 
         self.assertEqual(snapshot.session_id, "snapshot-session-1")
         self.assertFalse(snapshot.is_uncertain)
+        self.assertEqual(len(snapshot.candidate_inputs), 2)
+        self.assertEqual(snapshot.candidate_inputs[0].source_movie_id, "tmdb:1")
+        self.assertEqual(snapshot.candidate_inputs[0].providers, ("Prime Video",))
+        self.assertEqual(
+            snapshot.candidate_inputs[0].provider_access,
+            ("Prime Video:flatrate:DE",),
+        )
         self.assertEqual(len(snapshot.candidates), 2)
         self.assertEqual(snapshot.candidates[0].candidate_rank, 1)
         self.assertEqual(snapshot.candidates[0].source_movie_id, "tmdb:1")
@@ -63,6 +72,14 @@ class RecommendationSnapshotTest(unittest.TestCase):
 
             self.assertEqual(loaded_snapshot, saved_snapshot)
             self.assertEqual(listed_snapshots, (saved_snapshot,))
+            self.assertEqual(
+                loaded_snapshot.candidate_inputs[0].source_movie_id,
+                "tmdb:1",
+            )
+            self.assertEqual(
+                loaded_snapshot.candidate_inputs[0].provider_access,
+                ("Prime Video:flatrate:DE",),
+            )
             self.assertEqual(loaded_snapshot.candidates[0].why_short, result.ranked_candidates[0].why_short)
             self.assertEqual(loaded_snapshot.candidates[0].user_scores[0].user_id, "husband")
             self.assertEqual(loaded_snapshot.candidates[0].user_scores[1].user_id, "wife")
@@ -92,6 +109,7 @@ class RecommendationSnapshotTest(unittest.TestCase):
             )
 
             self.assertEqual(len(updated_snapshot.candidates), 1)
+            self.assertEqual(len(updated_snapshot.candidate_inputs), 1)
             self.assertEqual(
                 service.load_snapshot("snapshot-session-3"),
                 updated_snapshot,
@@ -148,6 +166,12 @@ def scoring_request(session_id: str) -> ScoringRequest:
                 media_type=MediaType.MOVIE,
                 genres=("Sci-Fi",),
                 providers=("Prime Video",),
+                provider_availability=(
+                    ProviderAvailability(
+                        provider_name="Prime Video",
+                        access_type=ProviderAccessType.FLATRATE,
+                    ),
+                ),
             ),
             Candidate(
                 source_movie_id="tmdb:2",
@@ -155,6 +179,12 @@ def scoring_request(session_id: str) -> ScoringRequest:
                 media_type=MediaType.MOVIE,
                 genres=("Drama",),
                 providers=("Prime Video",),
+                provider_availability=(
+                    ProviderAvailability(
+                        provider_name="Prime Video",
+                        access_type=ProviderAccessType.FLATRATE,
+                    ),
+                ),
             ),
         ),
     )
