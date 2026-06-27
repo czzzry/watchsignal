@@ -40,6 +40,7 @@ export type DebugHistorySessionPayload = {
   rerankedSourceMovieIds: string[];
   bestPickSourceMovieId: string | null;
   postWatchFeedback: DebugHistoryFeedbackPayload[];
+  recommendationSnapshot: DebugHistoryRecommendationSnapshotPayload | null;
   unavailableEvidence: string[];
 };
 
@@ -54,6 +55,32 @@ export type DebugHistoryFeedbackPayload = {
   sourceMovieId: string;
   feedbackLabel: string;
   hasFreeTextNote: boolean;
+};
+
+export type DebugHistoryUserScorePayload = {
+  userId: string;
+  score: number;
+};
+
+export type DebugHistoryRecommendationCandidatePayload = {
+  sourceMovieId: string;
+  title: string;
+  candidateRank: number;
+  fitBucket: string;
+  groupScore: number;
+  userScores: DebugHistoryUserScorePayload[];
+  whyShort: string;
+  hardFilterPass: boolean;
+  isInterestingPick: boolean;
+};
+
+export type DebugHistoryRecommendationSnapshotPayload = {
+  sessionId: string;
+  candidates: DebugHistoryRecommendationCandidatePayload[];
+  isUncertain: boolean;
+  uncertaintyReason: string | null;
+  recommendedFollowUp: string | null;
+  interestingSafePickId: string | null;
 };
 
 export type CreateSessionRequest = {

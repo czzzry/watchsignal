@@ -16,6 +16,7 @@ import {
   submitSessionReactions,
   toApiSessionMode,
   type DebugHistoryReactionPayload,
+  type DebugHistoryRecommendationCandidatePayload,
   type DebugHistorySessionPayload,
   type SharedSessionPayload,
 } from "./session-client";
@@ -864,6 +865,7 @@ function DebugHistoryPanel({
             label="Wife reactions"
             reactions={history.wifeReactions}
           />
+          <DebugRecommendationSnapshot history={history} />
           <DebugList
             label="Unavailable evidence"
             items={history.unavailableEvidence}
@@ -871,6 +873,44 @@ function DebugHistoryPanel({
         </div>
       ) : null}
     </section>
+  );
+}
+
+function DebugRecommendationSnapshot({
+  history,
+}: {
+  history: DebugHistorySessionPayload;
+}) {
+  const snapshot = history.recommendationSnapshot;
+
+  if (snapshot === null) {
+    return (
+      <div className="debugListBlock">
+        <h4>Scoring snapshot</h4>
+        <p>No scoring snapshot saved yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="debugListBlock">
+      <h4>Scoring snapshot</h4>
+      <ol>
+        {snapshot.candidates.map((candidate) => (
+          <li key={candidate.sourceMovieId}>
+            {formatDebugSnapshotCandidate(candidate)}
+          </li>
+        ))}
+      </ol>
+      {snapshot.isUncertain ? (
+        <p>
+          Uncertain: {snapshot.uncertaintyReason ?? "No reason saved."}
+        </p>
+      ) : null}
+      {snapshot.recommendedFollowUp ? (
+        <p>Follow-up: {snapshot.recommendedFollowUp}</p>
+      ) : null}
+    </div>
   );
 }
 
@@ -907,6 +947,17 @@ function DebugList({ label, items }: { label: string; items: string[] }) {
       )}
     </div>
   );
+}
+
+function formatDebugSnapshotCandidate(
+  candidate: DebugHistoryRecommendationCandidatePayload,
+): string {
+  const userScores = candidate.userScores
+    .map((score) => `${score.userId} ${score.score}`)
+    .join(", ");
+  const interestingPick = candidate.isInterestingPick ? ", interesting" : "";
+
+  return `${candidate.candidateRank}. ${candidate.title}: ${candidate.groupScore} group, ${candidate.fitBucket}, ${userScores}${interestingPick}. ${candidate.whyShort}`;
 }
 
 function SummaryTile({ label, value }: { label: string; value: string }) {
