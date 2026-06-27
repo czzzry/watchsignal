@@ -24,8 +24,24 @@ It combines a scoring request, recommendation result, shortlist reactions, post-
 The MVP API route is narrower because the current SQLite stores do not persist the original scoring request or recommendation result snapshot.
 `GET /debug/history/sessions/{session_id}` returns the persisted shared-session evidence that exists after a local session.
 That evidence includes session state, shortlist titles and ranks, participant reactions, reranked source movie ids, best pick id, post-watch feedback labels, and whether a feedback note exists.
-The route also returns `unavailableEvidence` so callers can see that candidate inputs, hard-filter results, score breakdowns, fit buckets, and Safe Pick flags are not yet persisted.
+The route also returns `recommendationSnapshot` when a ranking snapshot has been saved for the session.
+That snapshot contains ranked candidate ids and titles, ranks, group score, per-user scores, short ranking explanation, hard-filter pass value, fit bucket, Interesting Safe Pick flag, uncertainty reason, recommended follow-up, and interesting safe-pick id.
+The route still returns `unavailableEvidence` so callers can see whether the original scoring request and raw candidate inputs are absent.
+When no recommendation snapshot has been saved, the route continues to mark candidate inputs, hard-filter results, per-person scores, group scores, fit buckets, and Safe Pick flags as unavailable.
 The route is read-only and local-debug oriented.
+
+## Persisted Recommendation Snapshot
+
+Recommendation snapshots are owned by the backend recommendation and storage layer.
+The domain shape lives in `apps/api/src/movie_night_mediator/domain/models.py`.
+The SQLite store lives in `apps/api/src/movie_night_mediator/storage/recommendation_snapshot.py`.
+The service helper lives in `apps/api/src/movie_night_mediator/app/recommendation_snapshot.py`.
+The service builds a snapshot from an existing `ScoringRequest` and `RecommendationResult`.
+It intentionally copies the scorer output rather than recalculating or changing any scoring formula.
+Each save replaces the previous snapshot for the same session id.
+This keeps history explainable at the moment of ranking while allowing a later recommendation run to overwrite the session snapshot deliberately.
+The current snapshot does not persist the full scoring request, full candidate metadata, providers, genres, watched-history inputs, or raw private notes.
+Those remain future follow-up fields if the founder wants deeper auditability.
 
 ```mermaid
 flowchart LR

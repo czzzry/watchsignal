@@ -30,6 +30,7 @@ from movie_night_mediator.domain import (
     OnboardingConstraints,
     ParticipantOnboarding,
     PostWatchFeedback,
+    RecommendationSnapshot,
     SessionMode,
     SessionReaction,
     SessionReactionLabel,
@@ -45,6 +46,7 @@ from movie_night_mediator.domain import (
 from movie_night_mediator.storage import (
     SQLiteBackfillStore,
     SQLiteFeedbackStore,
+    SQLiteRecommendationSnapshotStore,
     SQLiteSessionStore,
 )
 
@@ -214,6 +216,32 @@ class DebugHistoryFeedbackPayload(BaseModel):
     hasFreeTextNote: bool
 
 
+class DebugHistoryUserScorePayload(BaseModel):
+    userId: str
+    score: float
+
+
+class DebugHistoryRecommendationCandidatePayload(BaseModel):
+    sourceMovieId: str
+    title: str
+    candidateRank: int
+    fitBucket: str
+    groupScore: float
+    userScores: list[DebugHistoryUserScorePayload]
+    whyShort: str
+    hardFilterPass: bool
+    isInterestingPick: bool
+
+
+class DebugHistoryRecommendationSnapshotPayload(BaseModel):
+    sessionId: str
+    candidates: list[DebugHistoryRecommendationCandidatePayload]
+    isUncertain: bool
+    uncertaintyReason: str | None = None
+    recommendedFollowUp: str | None = None
+    interestingSafePickId: str | None = None
+
+
 class DebugHistorySessionPayload(BaseModel):
     sessionId: str
     householdId: str
@@ -226,6 +254,7 @@ class DebugHistorySessionPayload(BaseModel):
     rerankedSourceMovieIds: list[str]
     bestPickSourceMovieId: str | None = None
     postWatchFeedback: list[DebugHistoryFeedbackPayload]
+    recommendationSnapshot: DebugHistoryRecommendationSnapshotPayload | None = None
     unavailableEvidence: list[str]
 
 
@@ -235,6 +264,7 @@ def create_app(
     backfill_store: SQLiteBackfillStore | None = None,
     feedback_store: SQLiteFeedbackStore | None = None,
     session_store: SQLiteSessionStore | None = None,
+    recommendation_snapshot_store: SQLiteRecommendationSnapshotStore | None = None,
 ) -> FastAPI:
     app = FastAPI(
         title="Movie Night Mediator API",
@@ -250,6 +280,9 @@ def create_app(
     session_service = SharedSessionService(
         session_store=session_store or SQLiteSessionStore(),
         onboarding_store=resolved_onboarding_store,
+    )
+    resolved_recommendation_snapshot_store = (
+        recommendation_snapshot_store or SQLiteRecommendationSnapshotStore()
     )
 
     @app.get("/health", tags=["system"])
@@ -513,9 +546,13 @@ def create_app(
             household_id=session.household_id,
             session_id=session.session_id,
         )
+        recommendation_snapshot = resolved_recommendation_snapshot_store.load_snapshot(
+            session.session_id
+        )
         evidence = build_persisted_session_evidence(
             session=session,
             feedback=feedback_records,
+            recommendation_snapshot=recommendation_snapshot,
         )
         return _debug_history_session_to_payload(evidence)
 
@@ -832,7 +869,44 @@ def _debug_history_session_to_payload(
             )
             for feedback in evidence.post_watch_feedback
         ],
+        recommendationSnapshot=(
+            _recommendation_snapshot_to_payload(evidence.recommendation_snapshot)
+            if evidence.recommendation_snapshot is not None
+            else None
+        ),
         unavailableEvidence=list(evidence.unavailable_evidence),
+    )
+
+
+def _recommendation_snapshot_to_payload(
+    snapshot: RecommendationSnapshot,
+) -> DebugHistoryRecommendationSnapshotPayload:
+    return DebugHistoryRecommendationSnapshotPayload(
+        sessionId=snapshot.session_id,
+        candidates=[
+            DebugHistoryRecommendationCandidatePayload(
+                sourceMovieId=candidate.source_movie_id,
+                title=candidate.title,
+                candidateRank=candidate.candidate_rank,
+                fitBucket=candidate.fit_bucket,
+                groupScore=candidate.group_score,
+                userScores=[
+                    DebugHistoryUserScorePayload(
+                        userId=user_score.user_id,
+                        score=user_score.score,
+                    )
+                    for user_score in candidate.user_scores
+                ],
+                whyShort=candidate.why_short,
+                hardFilterPass=candidate.hard_filter_pass,
+                isInterestingPick=candidate.is_interesting_pick,
+            )
+            for candidate in snapshot.candidates
+        ],
+        isUncertain=snapshot.is_uncertain,
+        uncertaintyReason=snapshot.uncertainty_reason,
+        recommendedFollowUp=snapshot.recommended_follow_up,
+        interestingSafePickId=snapshot.interesting_safe_pick_id,
     )
 
 

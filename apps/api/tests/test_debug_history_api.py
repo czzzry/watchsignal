@@ -15,9 +15,16 @@ from movie_night_mediator.app.onboarding import SQLiteOnboardingStore
 from movie_night_mediator.domain import (
     OnboardingConstraints,
     ParticipantOnboarding,
+    RecommendationSnapshot,
+    RecommendationSnapshotCandidate,
+    RecommendationUserScore,
     TitleResolutionEntry,
 )
-from movie_night_mediator.storage import SQLiteFeedbackStore, SQLiteSessionStore
+from movie_night_mediator.storage import (
+    SQLiteFeedbackStore,
+    SQLiteRecommendationSnapshotStore,
+    SQLiteSessionStore,
+)
 
 
 class DebugHistoryApiTest(unittest.TestCase):
@@ -109,6 +116,73 @@ class DebugHistoryApiTest(unittest.TestCase):
                 routes["get_debug"]("missing-session")
 
             self.assertEqual(raised.exception.status_code, 404)
+
+    def test_includes_saved_recommendation_snapshot_when_available(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "debug-history.sqlite3"
+            recommendation_snapshot_store = SQLiteRecommendationSnapshotStore(
+                database_path=database_path
+            )
+            routes = debug_route_endpoints(
+                create_app(
+                    onboarding_store=complete_onboarding_store(database_path),
+                    feedback_store=SQLiteFeedbackStore(database_path=database_path),
+                    session_store=SQLiteSessionStore(database_path=database_path),
+                    recommendation_snapshot_store=recommendation_snapshot_store,
+                )
+            )
+
+            routes["post_session"](CreateSharedSessionPayload(**CREATE_SESSION_PAYLOAD))
+            recommendation_snapshot_store.save_snapshot(
+                RecommendationSnapshot(
+                    session_id="debug-session-1",
+                    candidates=(
+                        RecommendationSnapshotCandidate(
+                            source_movie_id="tmdb:1",
+                            title="First Pick",
+                            candidate_rank=1,
+                            fit_bucket="compromise",
+                            group_score=0.72,
+                            user_scores=(
+                                RecommendationUserScore(
+                                    user_id="husband",
+                                    score=0.7,
+                                ),
+                                RecommendationUserScore(
+                                    user_id="wife",
+                                    score=0.74,
+                                ),
+                            ),
+                            why_short="Fits compromise mode.",
+                            hard_filter_pass=True,
+                            is_interesting_pick=True,
+                        ),
+                    ),
+                    is_uncertain=True,
+                    uncertainty_reason="More seeds needed.",
+                    recommended_follow_up="Capture more seed titles.",
+                    interesting_safe_pick_id="tmdb:1",
+                )
+            )
+
+            response = payload_to_dict(routes["get_debug"]("debug-session-1"))
+
+            self.assertEqual(
+                response["recommendationSnapshot"]["candidates"][0]["sourceMovieId"],
+                "tmdb:1",
+            )
+            self.assertEqual(
+                response["recommendationSnapshot"]["candidates"][0]["userScores"],
+                [
+                    {"userId": "husband", "score": 0.7},
+                    {"userId": "wife", "score": 0.74},
+                ],
+            )
+            self.assertEqual(
+                response["recommendationSnapshot"]["uncertaintyReason"],
+                "More seeds needed.",
+            )
+            self.assertNotIn("group_scores", response["unavailableEvidence"])
 
 
 CREATE_SESSION_PAYLOAD = {
