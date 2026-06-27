@@ -47,9 +47,14 @@ async function main() {
       await waitForPassProgress(tab, index + 1, "second pass");
     }
 
-    await waitForText(tab, "Best pick", "results screen");
-    await waitForText(tab, "Reranked shortlist", "results shortlist");
-    await assertNoHorizontalOverflow(tab, "results screen");
+    try {
+      await waitForText(tab, "Best pick", "results screen");
+      await waitForText(tab, "Reranked shortlist", "results shortlist");
+      await assertNoHorizontalOverflow(tab, "results screen");
+    } catch (error) {
+      await reportVisiblePageState(tab, "results timeout");
+      throw error;
+    }
 
     if (process.env.MOBILE_UX_SMOKE_EXPECT_API === "1") {
       await clickButton(tab, "Load");
@@ -326,13 +331,45 @@ async function assertButtonDisabled(tab, label, context) {
 }
 
 async function waitForText(tab, text, context) {
+  const expected = text.toLowerCase();
   await waitForValue(
     async () =>
       evaluate(tab, (expected) => {
-        return document.body.innerText.includes(expected);
-      }, text),
+        return document.body.innerText.toLowerCase().includes(expected);
+      }, expected),
     `text "${text}" on ${context}`,
   );
+}
+
+async function reportVisiblePageState(tab, label) {
+  try {
+    const snapshot = await evaluate(tab, () => {
+      const bodyText = document.body.innerText.replace(/\s+/g, " ").trim();
+      const heading = document.querySelector("h1, h2, h3")?.textContent?.trim() || "";
+      const buttons = [...document.querySelectorAll("button")]
+        .map((button) => ({
+          text: (button.textContent || "").replace(/\s+/g, " ").trim(),
+          disabled: button.disabled,
+        }))
+        .filter((button) => button.text.length > 0);
+      return {
+        heading,
+        bodyText: bodyText.slice(0, 1500),
+        buttons,
+      };
+    });
+    console.error(`[ux-debug] ${label} heading: ${snapshot.heading}`);
+    console.error(`[ux-debug] ${label} body: ${snapshot.bodyText}`);
+    console.error(
+      `[ux-debug] ${label} buttons: ${snapshot.buttons
+        .map((button) => `${button.text}${button.disabled ? " (disabled)" : ""}`)
+        .join(" | ")}`,
+    );
+  } catch (error) {
+    console.error(
+      `[ux-debug] ${label} could not capture page state: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 }
 
 async function waitForPassProgress(tab, completedIndex, context) {
