@@ -2,8 +2,8 @@
 
 ## Purpose
 
-The first mobile wizard slice makes the shared couple flow visible before live session wiring is complete.
-It is meant for phone couch testing and agent review, not final recommendation quality.
+The mobile wizard makes the shared couple flow visible for phone couch testing and agent review.
+It now uses the backend shared session API when it is reachable, while preserving a local fixture path for offline review.
 
 ## Current Flow
 
@@ -18,11 +18,12 @@ flowchart TD
 ## UI Boundary
 
 The page still loads setup state and API health through the existing server-side boundary.
-The session shortlist uses local fixture data in `apps/web/app/session-fixtures.ts`.
+The session shortlist uses the five seed titles in `apps/web/app/session-fixtures.ts`.
 The wizard state lives in `apps/web/app/pass-the-phone-wizard.tsx`.
+Browser interactions call `apps/web/app/session-client.ts`, which talks to Next route handlers under `apps/web/app/api/session/`.
+Those handlers proxy to FastAPI through `API_BASE_URL` and avoid making the mobile UI depend on auth, deployment, or browser CORS setup.
 
-This keeps the UI replaceable at the data edge.
-When the backend session API is ready, the fixture provider can be replaced with calls for starting a session, recording reactions, and reading the reranked result.
+This keeps the UI replaceable at the data edge and keeps the fixture data useful as seed and demo data.
 
 ## MVP Behavior
 
@@ -30,15 +31,21 @@ The UI shows the real MVP interaction shape.
 The founder starts a shared session, reacts to five titles, hands the phone over, and the second participant reacts to the same five titles.
 The result screen shows a best pick and the reranked shortlist.
 
-The local reranker is intentionally simple.
-It is only a demo bridge until the backend session and scoring services own the final ranking.
+When the API path is active, the wizard creates a `POST /sessions` session from the five fixture shortlist items.
+The first completed pass submits `POST /sessions/{session_id}/reactions`.
+The handoff screen advances through `POST /sessions/{session_id}/advance-handoff`.
+The second completed pass submits `POST /sessions/{session_id}/reactions` and uses the returned `rerankedSourceMovieIds` for result ordering.
+
+The local reranker is still intentionally simple.
+It is the fallback bridge when the backend is unreachable or rejects the local prototype session.
+
+## Local Review States
+
+The wizard shows whether the pass is in API mode or demo mode.
+It also shows saving and loading states while session calls are in flight.
+If the session API fails, the visible error is kept on screen and the flow continues in demo mode.
 
 ## Next Integration Point
 
-The next frontend step is to replace fixture session state with API calls while preserving the screen flow.
-The useful route set is expected to be:
-
-- `POST /sessions`
-- `GET /sessions/{session_id}`
-- `POST /sessions/{session_id}/reactions`
-- `POST /sessions/{session_id}/rerank`
+The next frontend step is to replace the fixture shortlist with a recommendation candidate provider once that backend contract is available.
+Until then, `apps/web/app/session-fixtures.ts` remains the stable seed list for local review and API session creation.

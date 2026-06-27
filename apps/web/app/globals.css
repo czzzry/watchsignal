@@ -51,6 +51,11 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
 button:focus-visible,
 input:focus-visible {
   outline: 3px solid rgb(36 95 115 / 22%);
@@ -131,6 +136,7 @@ input:focus-visible {
 }
 
 .statusStrip,
+.syncStrip,
 .wizardPanel {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -147,7 +153,21 @@ input:focus-visible {
   gap: 14px;
 }
 
+.syncStrip {
+  min-height: 68px;
+  padding: 12px 14px;
+  border-color: rgb(36 95 115 / 34%);
+  background: var(--soft-blue);
+  box-shadow: none;
+}
+
+.syncStripWarning {
+  border-color: rgb(184 91 70 / 34%);
+  background: var(--soft-amber);
+}
+
 .statusStrip span,
+.syncStrip span,
 .controlLabel,
 .summaryTile span,
 .movieSignals dt {
@@ -158,6 +178,7 @@ input:focus-visible {
 }
 
 .statusStrip p,
+.syncStrip p,
 .sectionHeading p,
 .summaryTile p,
 .movieDetails p,
@@ -167,6 +188,12 @@ input:focus-visible {
 }
 
 .statusStrip p {
+  margin-top: 4px;
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+.syncStrip p {
   margin-top: 4px;
   color: var(--ink);
   line-height: 1.35;

@@ -9,6 +9,13 @@ import {
   type ReactionValue,
   type SessionMode,
 } from "./session-fixtures";
+import {
+  advanceSessionHandoff,
+  createSharedSession,
+  submitSessionReactions,
+  toApiSessionMode,
+  type SharedSessionPayload,
+} from "./session-client";
 
 type ApiHealth = {
   connected: boolean;
@@ -24,6 +31,10 @@ type PassThePhoneWizardProps = {
 type WizardStep = "setup" | "founder" | "handoff" | "wife" | "results";
 
 type ReactionState = Record<string, ReactionValue | undefined>;
+
+type SessionSource = "api" | "demo";
+
+type SyncStatus = "ready" | "saving" | "loading";
 
 const stepOrder: WizardStep[] = ["setup", "founder", "handoff", "wife", "results"];
 
@@ -56,6 +67,17 @@ export function PassThePhoneWizard({
   const [wifeIndex, setWifeIndex] = useState(0);
   const [founderReactions, setFounderReactions] = useState<ReactionState>({});
   const [wifeReactions, setWifeReactions] = useState<ReactionState>({});
+  const [sessionSource, setSessionSource] = useState<SessionSource>(
+    apiHealth.connected ? "api" : "demo",
+  );
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("ready");
+  const [apiError, setApiError] = useState<string | null>(
+    apiHealth.connected ? null : "API is disconnected, so this review is using demo data.",
+  );
+  const [sharedSession, setSharedSession] = useState<SharedSessionPayload | null>(
+    null,
+  );
+  const participantIds = [profiles[0]?.id || "husband", profiles[1]?.id || "wife"];
 
   const rankedCandidates = useMemo(
     () =>
@@ -63,11 +85,16 @@ export function PassThePhoneWizard({
         sessionMode,
         founderReactions,
         wifeReactions,
+        rerankedSourceMovieIds:
+          sharedSession?.state === "reranked"
+            ? sharedSession.rerankedSourceMovieIds
+            : [],
       }),
-    [founderReactions, sessionMode, wifeReactions],
+    [founderReactions, sessionMode, sharedSession, wifeReactions],
   );
 
   const currentStepIndex = stepOrder.indexOf(step);
+  const isSyncing = syncStatus !== "ready";
 
   function resetSession() {
     setStep("setup");
@@ -75,17 +102,66 @@ export function PassThePhoneWizard({
     setWifeIndex(0);
     setFounderReactions({});
     setWifeReactions({});
+    setSharedSession(null);
+    setSyncStatus("ready");
+    setSessionSource(apiHealth.connected ? "api" : "demo");
+    setApiError(
+      apiHealth.connected ? null : "API is disconnected, so this review is using demo data.",
+    );
   }
 
-  function recordReaction(
+  async function startSession() {
+    setFounderIndex(0);
+    setWifeIndex(0);
+    setFounderReactions({});
+    setWifeReactions({});
+    setSharedSession(null);
+
+    if (!apiHealth.connected) {
+      setSessionSource("demo");
+      setApiError("API is disconnected, so this review is using demo data.");
+      setStep("founder");
+      return;
+    }
+
+    setSyncStatus("saving");
+    setApiError(null);
+
+    try {
+      const session = await createSharedSession({
+        householdId: "default-household",
+        activeMode: toApiSessionMode(sessionMode),
+        participantIds,
+        shortlist: demoCandidates.map((candidate, index) => ({
+          sourceMovieId: candidate.id,
+          title: candidate.title,
+          candidateRank: index + 1,
+        })),
+      });
+
+      setSharedSession(session);
+      setSessionSource("api");
+    } catch (error) {
+      setSharedSession(null);
+      setSessionSource("demo");
+      setApiError(toErrorMessage(error));
+    } finally {
+      setSyncStatus("ready");
+      setStep("founder");
+    }
+  }
+
+  async function recordReaction(
     actor: "founder" | "wife",
     candidateId: string,
     reaction: ReactionValue,
-  ) {
+  ): Promise<void> {
     if (actor === "founder") {
-      setFounderReactions((current) => ({ ...current, [candidateId]: reaction }));
+      const nextReactions = { ...founderReactions, [candidateId]: reaction };
+      setFounderReactions(nextReactions);
 
       if (founderIndex === demoCandidates.length - 1) {
+        await submitFirstPass(nextReactions);
         setStep("handoff");
         return;
       }
@@ -94,14 +170,81 @@ export function PassThePhoneWizard({
       return;
     }
 
-    setWifeReactions((current) => ({ ...current, [candidateId]: reaction }));
+    const nextReactions = { ...wifeReactions, [candidateId]: reaction };
+    setWifeReactions(nextReactions);
 
     if (wifeIndex === demoCandidates.length - 1) {
+      await submitSecondPass(nextReactions);
       setStep("results");
       return;
     }
 
     setWifeIndex((current) => current + 1);
+  }
+
+  async function submitFirstPass(nextReactions: ReactionState): Promise<void> {
+    if (sessionSource !== "api" || sharedSession === null) {
+      return;
+    }
+
+    setSyncStatus("saving");
+    setApiError(null);
+
+    try {
+      const session = await submitSessionReactions(sharedSession.sessionId, {
+        participantId: participantIds[0],
+        reactions: reactionsPayload(nextReactions),
+      });
+      setSharedSession(session);
+    } catch (error) {
+      setSessionSource("demo");
+      setApiError(toErrorMessage(error));
+    } finally {
+      setSyncStatus("ready");
+    }
+  }
+
+  async function continueAfterHandoff(): Promise<void> {
+    if (sessionSource !== "api" || sharedSession === null) {
+      setStep("wife");
+      return;
+    }
+
+    setSyncStatus("loading");
+    setApiError(null);
+
+    try {
+      const session = await advanceSessionHandoff(sharedSession.sessionId);
+      setSharedSession(session);
+    } catch (error) {
+      setSessionSource("demo");
+      setApiError(toErrorMessage(error));
+    } finally {
+      setSyncStatus("ready");
+      setStep("wife");
+    }
+  }
+
+  async function submitSecondPass(nextReactions: ReactionState): Promise<void> {
+    if (sessionSource !== "api" || sharedSession === null) {
+      return;
+    }
+
+    setSyncStatus("saving");
+    setApiError(null);
+
+    try {
+      const session = await submitSessionReactions(sharedSession.sessionId, {
+        participantId: participantIds[1],
+        reactions: reactionsPayload(nextReactions),
+      });
+      setSharedSession(session);
+    } catch (error) {
+      setSessionSource("demo");
+      setApiError(toErrorMessage(error));
+    } finally {
+      setSyncStatus("ready");
+    }
   }
 
   return (
@@ -134,6 +277,13 @@ export function PassThePhoneWizard({
         <strong>{setupLoad.setup.defaults.shortlistSize} picks</strong>
       </section>
 
+      <SessionSyncStrip
+        source={sessionSource}
+        status={syncStatus}
+        apiError={apiError}
+        sessionId={sharedSession?.sessionId}
+      />
+
       <nav className="flowTabs" aria-label="Pass the phone steps">
         {stepOrder.map((item, index) => (
           <button
@@ -142,6 +292,7 @@ export function PassThePhoneWizard({
             className={item === step ? "flowTab flowTabActive" : "flowTab"}
             onClick={() => setStep(item)}
             aria-current={item === step ? "step" : undefined}
+            disabled={isSyncing}
           >
             <span>{index + 1}</span>
             {stepLabels[item]}
@@ -160,7 +311,8 @@ export function PassThePhoneWizard({
           setupLoad={setupLoad}
           sessionMode={sessionMode}
           onSessionModeChange={setSessionMode}
-          onStart={() => setStep("founder")}
+          isSyncing={isSyncing}
+          onStart={startSession}
         />
       ) : null}
 
@@ -172,6 +324,7 @@ export function PassThePhoneWizard({
           total={demoCandidates.length}
           candidate={demoCandidates[founderIndex]}
           selectedReaction={founderReactions[demoCandidates[founderIndex].id]}
+          isSyncing={isSyncing}
           onReaction={recordReaction}
           onBack={() => {
             if (founderIndex === 0) {
@@ -189,8 +342,9 @@ export function PassThePhoneWizard({
           founderLabel={founderLabel}
           wifeLabel={wifeLabel}
           founderReactions={founderReactions}
+          isSyncing={isSyncing}
           onBack={() => setStep("founder")}
-          onContinue={() => setStep("wife")}
+          onContinue={continueAfterHandoff}
         />
       ) : null}
 
@@ -202,6 +356,7 @@ export function PassThePhoneWizard({
           total={demoCandidates.length}
           candidate={demoCandidates[wifeIndex]}
           selectedReaction={wifeReactions[demoCandidates[wifeIndex].id]}
+          isSyncing={isSyncing}
           onReaction={recordReaction}
           onBack={() => {
             if (wifeIndex === 0) {
@@ -235,6 +390,7 @@ function SetupStep({
   setupLoad,
   sessionMode,
   onSessionModeChange,
+  isSyncing,
   onStart,
 }: {
   founderLabel: string;
@@ -242,6 +398,7 @@ function SetupStep({
   setupLoad: SetupLoadResult;
   sessionMode: SessionMode;
   onSessionModeChange: (mode: SessionMode) => void;
+  isSyncing: boolean;
   onStart: () => void;
 }) {
   return (
@@ -277,8 +434,13 @@ function SetupStep({
         </div>
       </div>
 
-      <button type="button" className="primaryAction" onClick={onStart}>
-        Start first pass
+      <button
+        type="button"
+        className="primaryAction"
+        onClick={onStart}
+        disabled={isSyncing}
+      >
+        {isSyncing ? "Starting session..." : "Start first pass"}
       </button>
     </section>
   );
@@ -291,6 +453,7 @@ function ReactionStep({
   total,
   candidate,
   selectedReaction,
+  isSyncing,
   onReaction,
   onBack,
 }: {
@@ -300,11 +463,12 @@ function ReactionStep({
   total: number;
   candidate: DemoCandidate;
   selectedReaction: ReactionValue | undefined;
+  isSyncing: boolean;
   onReaction: (
     actor: "founder" | "wife",
     candidateId: string,
     reaction: ReactionValue,
-  ) => void;
+  ) => void | Promise<void>;
   onBack: () => void;
 }) {
   return (
@@ -353,13 +517,19 @@ function ReactionStep({
                 : `reactionButton reactionButton${reaction}`
             }
             onClick={() => onReaction(actor, candidate.id, reaction)}
+            disabled={isSyncing}
           >
             {reactionLabels[reaction]}
           </button>
         ))}
       </div>
 
-      <button type="button" className="secondaryButton fullWidthButton" onClick={onBack}>
+      <button
+        type="button"
+        className="secondaryButton fullWidthButton"
+        onClick={onBack}
+        disabled={isSyncing}
+      >
         Back
       </button>
     </section>
@@ -370,14 +540,16 @@ function HandoffStep({
   founderLabel,
   wifeLabel,
   founderReactions,
+  isSyncing,
   onBack,
   onContinue,
 }: {
   founderLabel: string;
   wifeLabel: string;
   founderReactions: ReactionState;
+  isSyncing: boolean;
   onBack: () => void;
-  onContinue: () => void;
+  onContinue: () => void | Promise<void>;
 }) {
   const counts = countReactions(founderReactions);
 
@@ -404,12 +576,61 @@ function HandoffStep({
       </div>
 
       <div className="bottomActions inlineActions">
-        <button type="button" className="secondaryButton" onClick={onBack}>
+        <button
+          type="button"
+          className="secondaryButton"
+          onClick={onBack}
+          disabled={isSyncing}
+        >
           Back
         </button>
-        <button type="button" onClick={onContinue}>
-          Start second pass
+        <button type="button" onClick={onContinue} disabled={isSyncing}>
+          {isSyncing ? "Saving handoff..." : "Start second pass"}
         </button>
+      </div>
+    </section>
+  );
+}
+
+function SessionSyncStrip({
+  source,
+  status,
+  apiError,
+  sessionId,
+}: {
+  source: SessionSource;
+  status: SyncStatus;
+  apiError: string | null;
+  sessionId: string | undefined;
+}) {
+  const label =
+    status === "saving"
+      ? "Saving"
+      : status === "loading"
+        ? "Loading"
+        : source === "api"
+          ? "API mode"
+          : "Demo mode";
+  const detail =
+    status === "saving"
+      ? "Saving this step to the session API."
+      : status === "loading"
+        ? "Loading the next session state from the API."
+        : source === "api"
+          ? sessionId
+            ? `Backend session ${sessionId} is active.`
+            : "The next session will try the backend API first."
+          : "Local fixture scoring is active for this review.";
+
+  return (
+    <section
+      className={apiError ? "syncStrip syncStripWarning" : "syncStrip"}
+      aria-label="Session sync status"
+      role="status"
+    >
+      <div>
+        <span>{label}</span>
+        <p>{apiError ?? detail}</p>
       </div>
     </section>
   );
@@ -520,12 +741,14 @@ function rankCandidates({
   sessionMode,
   founderReactions,
   wifeReactions,
+  rerankedSourceMovieIds,
 }: {
   sessionMode: SessionMode;
   founderReactions: ReactionState;
   wifeReactions: ReactionState;
+  rerankedSourceMovieIds: string[];
 }): RankedCandidate[] {
-  return demoCandidates
+  const localRanked = demoCandidates
     .map((candidate) => {
       const founderReaction = founderReactions[candidate.id];
       const wifeReaction = wifeReactions[candidate.id];
@@ -563,6 +786,22 @@ function rankCandidates({
 
       return first.baseRank - second.baseRank;
     });
+
+  if (rerankedSourceMovieIds.length === 0) {
+    return localRanked;
+  }
+
+  const apiRankById = new Map(
+    rerankedSourceMovieIds.map((sourceMovieId, index) => [sourceMovieId, index]),
+  );
+
+  return localRanked
+    .slice()
+    .sort(
+      (first, second) =>
+        (apiRankById.get(first.id) ?? Number.MAX_SAFE_INTEGER) -
+        (apiRankById.get(second.id) ?? Number.MAX_SAFE_INTEGER),
+    );
 }
 
 function reactionScore(reaction: ReactionValue | undefined) {
@@ -593,4 +832,19 @@ function countReactions(reactions: ReactionState): Record<ReactionValue, number>
     no: Object.values(reactions).filter((reaction) => reaction === "no").length,
     seen: Object.values(reactions).filter((reaction) => reaction === "seen").length,
   };
+}
+
+function reactionsPayload(reactions: ReactionState) {
+  return demoCandidates.map((candidate) => ({
+    sourceMovieId: candidate.id,
+    reactionLabel: reactions[candidate.id] ?? "maybe",
+  }));
+}
+
+function toErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return `${error.message} Continuing in demo mode.`;
+  }
+
+  return "Session API failed. Continuing in demo mode.";
 }
