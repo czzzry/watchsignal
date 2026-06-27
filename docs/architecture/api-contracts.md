@@ -41,6 +41,40 @@ Examples:
 - outcome capture
 - post-watch feedback
 
+## Offline Recommendation Shortlist Contract
+
+The first recommendation API boundary is intentionally offline and fixture-backed.
+It does not call live TMDb, scraping, LLMs, or paid provider services.
+It exposes the deterministic demo couple shortlist in the shape the local web app can later consume when live provider integration exists.
+
+Expected endpoint:
+
+- `GET /recommendations/shortlist`
+
+Expected response:
+
+```json
+[
+  {
+    "sourceMovieId": "fixture:shared-time-loop",
+    "title": "Shared Time Loop",
+    "candidateRank": 1,
+    "releaseYear": 2024,
+    "runtimeMin": 108,
+    "genres": ["Comedy", "Sci-Fi"],
+    "providerNames": ["Prime Video"],
+    "fitBucket": "compromise",
+    "groupScore": 0.67,
+    "whyShort": "Interesting Safe Pick. Fits compromise mode with signal from Comedy, Sci-Fi. Husband: 0.67; Wife: 0.67.",
+    "isInterestingPick": true
+  }
+]
+```
+
+The response always returns five Safe Pick fixture candidates in stable rank order.
+The route is a provider-shaped boundary, not a live provider integration.
+Later TMDb and availability adapters should replace the fixture source behind this API without changing the web-facing shortlist fields unless the product contract changes.
+
 ## Debug History Contract
 
 Debug history exposes read-only evidence for inspecting a saved local session.

@@ -8,6 +8,7 @@ The raw rows are converted into domain `Candidate` values by `apps/api/src/movie
 That adapter maps provider buckets, language fields, watched flags, and the Safe Pick classifier result into the domain shape used by scoring.
 The same adapter can also produce a ranked five-title shortlist from fixture rows.
 That path mirrors the intended future boundary: a provider or title adapter emits domain candidates, the recommender ranks them, and the session UI receives a shortlist rather than provider-specific payloads.
+The backend API exposes this path through `GET /recommendations/shortlist` as an offline provider-shaped contract before live TMDb or provider integration exists.
 
 Six candidates are Safe Picks on Prime Video Germany.
 Five pass through English audio metadata and one passes through verified English subtitle metadata.
