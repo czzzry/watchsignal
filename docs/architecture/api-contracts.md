@@ -26,7 +26,7 @@ Examples:
 - `POST /sessions`
 - `GET /sessions/{session_id}`
 - `POST /sessions/{session_id}/reactions`
-- `POST /sessions/{session_id}/rerank`
+- `POST /sessions/{session_id}/advance-handoff`
 - `POST /sessions/{session_id}/outcome`
 
 ## MVP Contract Priorities
@@ -84,6 +84,56 @@ The list response is an array of the save response shape.
 Feedback labels are normalized to `loved`, `fine`, or `no`.
 Invalid labels, blank ids, and blank filter values return `400`.
 Duplicate feedback for the same household, session, participant, and source movie updates the existing row.
+
+## Shared Session Contract
+
+Shared sessions are the backend contract for the pass-the-phone wizard.
+The API returns the same browser-friendly session shape from every session route so the frontend can replace local state with the response after each transition.
+
+Expected endpoints:
+
+- `POST /sessions`
+- `GET /sessions/{session_id}`
+- `PUT /sessions/{session_id}`
+- `POST /sessions/{session_id}/reactions`
+- `POST /sessions/{session_id}/advance-handoff`
+
+Expected response shape:
+
+```json
+{
+  "sessionId": "session-1",
+  "householdId": "default-household",
+  "activeMode": "compromise",
+  "participantIds": ["husband", "wife"],
+  "state": "reranked",
+  "shortlist": [
+    { "sourceMovieId": "tmdb:1", "title": "First Pick", "candidateRank": 1 }
+  ],
+  "founderReactions": [
+    { "sourceMovieId": "tmdb:1", "reactionLabel": "interested" }
+  ],
+  "wifeReactions": [
+    { "sourceMovieId": "tmdb:1", "reactionLabel": "maybe" }
+  ],
+  "rerankedSourceMovieIds": ["tmdb:1"],
+  "rerankedShortlist": [
+    { "sourceMovieId": "tmdb:1", "title": "First Pick", "candidateRank": 1 }
+  ],
+  "bestPickSourceMovieId": "tmdb:1"
+}
+```
+
+`shortlist` always contains the original five-title candidate order.
+`rerankedSourceMovieIds` and `rerankedShortlist` are empty until the second reaction pass completes.
+After reranking, `rerankedShortlist` contains the same title objects as `shortlist`, ordered for the result screen.
+This lets the frontend render the final recommendation without joining ids back to titles.
+
+The create request requires exactly two participant ids and exactly five shortlist items.
+FastAPI request validation returns `422` for malformed payload shape, including a shortlist that is too short or too long.
+Domain validation returns `400` for incomplete onboarding, duplicate shortlist ids, missing reactions, duplicate reaction ids that leave another shortlist item unreached, or reactions that do not match the shortlist.
+Wrong participant submissions and invalid state transitions return `409`.
+Missing sessions return `404`.
 
 ## Setup Contract Draft
 

@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi import HTTPException
 from fastapi.routing import APIRoute
+from pydantic import ValidationError
 
 from movie_night_mediator.api.main import (
     CreateSharedSessionPayload,
@@ -67,6 +68,40 @@ class SharedSessionApiTest(unittest.TestCase):
             self.assertEqual(payload_to_dict(after_wife)["state"], "reranked")
             self.assertEqual(payload_to_dict(loaded), payload_to_dict(after_wife))
             self.assertEqual(payload_to_dict(loaded)["bestPickSourceMovieId"], "tmdb:1")
+            self.assertEqual(
+                payload_to_dict(loaded)["rerankedSourceMovieIds"],
+                ["tmdb:1", "tmdb:2", "tmdb:5", "tmdb:3", "tmdb:4"],
+            )
+            self.assertEqual(
+                payload_to_dict(loaded)["rerankedShortlist"],
+                [
+                    {
+                        "sourceMovieId": "tmdb:1",
+                        "title": "First Pick",
+                        "candidateRank": 1,
+                    },
+                    {
+                        "sourceMovieId": "tmdb:2",
+                        "title": "Second Pick",
+                        "candidateRank": 2,
+                    },
+                    {
+                        "sourceMovieId": "tmdb:5",
+                        "title": "Fifth Pick",
+                        "candidateRank": 5,
+                    },
+                    {
+                        "sourceMovieId": "tmdb:3",
+                        "title": "Third Pick",
+                        "candidateRank": 3,
+                    },
+                    {
+                        "sourceMovieId": "tmdb:4",
+                        "title": "Fourth Pick",
+                        "candidateRank": 4,
+                    },
+                ],
+            )
 
     def test_session_api_blocks_start_when_onboarding_is_incomplete(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -103,6 +138,136 @@ class SharedSessionApiTest(unittest.TestCase):
                 routes["post_handoff"]("session-api-1")
 
             self.assertEqual(raised.exception.status_code, 409)
+
+    def test_session_api_rejects_invalid_shortlist_length(self) -> None:
+        payload = dict(GENERIC_CREATE_SESSION_PAYLOAD)
+        payload["shortlist"] = payload["shortlist"][:4]
+
+        with self.assertRaises(ValidationError) as raised:
+            CreateSharedSessionPayload(**payload)
+
+        self.assertIn("shortlist", str(raised.exception))
+
+    def test_session_api_rejects_wrong_participant_during_founder_pass(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "sessions.sqlite3"
+            routes = session_route_endpoints(
+                create_app(
+                    onboarding_store=complete_onboarding_store(database_path),
+                    session_store=SQLiteSessionStore(database_path=database_path),
+                )
+            )
+            routes["post_session"](
+                CreateSharedSessionPayload(**GENERIC_CREATE_SESSION_PAYLOAD)
+            )
+
+            with self.assertRaises(HTTPException) as raised:
+                routes["post_reactions"](
+                    "session-api-1",
+                    SubmitSessionReactionsPayload(
+                        participantId="wife",
+                        reactions=reaction_payloads(
+                            ["maybe", "maybe", "maybe", "maybe", "maybe"]
+                        ),
+                    ),
+                )
+
+            self.assertEqual(raised.exception.status_code, 409)
+            self.assertIn("Founder reaction pass is active", raised.exception.detail)
+
+    def test_session_api_rejects_wrong_participant_during_wife_pass(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "sessions.sqlite3"
+            routes = session_route_endpoints(
+                create_app(
+                    onboarding_store=complete_onboarding_store(database_path),
+                    session_store=SQLiteSessionStore(database_path=database_path),
+                )
+            )
+            routes["post_session"](
+                CreateSharedSessionPayload(**GENERIC_CREATE_SESSION_PAYLOAD)
+            )
+            routes["post_reactions"](
+                "session-api-1",
+                SubmitSessionReactionsPayload(
+                    participantId="husband",
+                    reactions=reaction_payloads(
+                        ["maybe", "maybe", "maybe", "maybe", "maybe"]
+                    ),
+                ),
+            )
+            routes["post_handoff"]("session-api-1")
+
+            with self.assertRaises(HTTPException) as raised:
+                routes["post_reactions"](
+                    "session-api-1",
+                    SubmitSessionReactionsPayload(
+                        participantId="husband",
+                        reactions=reaction_payloads(
+                            ["interested", "maybe", "maybe", "maybe", "maybe"]
+                        ),
+                    ),
+                )
+
+            self.assertEqual(raised.exception.status_code, 409)
+            self.assertIn("Wife reaction pass is active", raised.exception.detail)
+
+    def test_session_api_rejects_duplicate_and_missing_reaction_ids(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "sessions.sqlite3"
+            routes = session_route_endpoints(
+                create_app(
+                    onboarding_store=complete_onboarding_store(database_path),
+                    session_store=SQLiteSessionStore(database_path=database_path),
+                )
+            )
+            routes["post_session"](
+                CreateSharedSessionPayload(**GENERIC_CREATE_SESSION_PAYLOAD)
+            )
+            reactions = reaction_payloads(
+                ["maybe", "maybe", "maybe", "maybe", "maybe"]
+            )
+            reactions[4]["sourceMovieId"] = reactions[0]["sourceMovieId"]
+
+            with self.assertRaises(HTTPException) as raised:
+                routes["post_reactions"](
+                    "session-api-1",
+                    SubmitSessionReactionsPayload(
+                        participantId="husband",
+                        reactions=reactions,
+                    ),
+                )
+
+            self.assertEqual(raised.exception.status_code, 400)
+            self.assertIn("Reaction source movie ids", raised.exception.detail)
+
+    def test_session_api_rejects_missing_reaction_id(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "sessions.sqlite3"
+            routes = session_route_endpoints(
+                create_app(
+                    onboarding_store=complete_onboarding_store(database_path),
+                    session_store=SQLiteSessionStore(database_path=database_path),
+                )
+            )
+            routes["post_session"](
+                CreateSharedSessionPayload(**GENERIC_CREATE_SESSION_PAYLOAD)
+            )
+            reactions = reaction_payloads(
+                ["maybe", "maybe", "maybe", "maybe", "maybe"]
+            )[:4]
+
+            with self.assertRaises(HTTPException) as raised:
+                routes["post_reactions"](
+                    "session-api-1",
+                    SubmitSessionReactionsPayload(
+                        participantId="husband",
+                        reactions=reactions,
+                    ),
+                )
+
+            self.assertEqual(raised.exception.status_code, 400)
+            self.assertIn("Each shortlist item", raised.exception.detail)
 
 
 GENERIC_CREATE_SESSION_PAYLOAD = {
