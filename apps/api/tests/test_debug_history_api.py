@@ -9,12 +9,14 @@ from movie_night_mediator.api.main import (
     CreateSharedSessionPayload,
     PostWatchFeedbackPayload,
     RecommendationShortlistRequestPayload,
+    SaveSessionOutcomePayload,
     SubmitSessionReactionsPayload,
     create_app,
 )
 from movie_night_mediator.app.onboarding import SQLiteOnboardingStore
 from movie_night_mediator.domain import (
     OnboardingConstraints,
+    OutcomeSelectionOrigin,
     ParticipantOnboarding,
     RecommendationSnapshot,
     RecommendationSnapshotCandidate,
@@ -23,6 +25,7 @@ from movie_night_mediator.domain import (
 )
 from movie_night_mediator.storage import (
     SQLiteFeedbackStore,
+    SQLiteOutcomeStore,
     SQLiteRecommendationSnapshotStore,
     SQLiteSessionStore,
 )
@@ -113,6 +116,7 @@ class DebugHistoryApiTest(unittest.TestCase):
                 create_app(
                     onboarding_store=complete_onboarding_store(database_path),
                     feedback_store=SQLiteFeedbackStore(database_path=database_path),
+                    outcome_store=SQLiteOutcomeStore(database_path=database_path),
                     session_store=SQLiteSessionStore(database_path=database_path),
                 )
             )
@@ -147,6 +151,17 @@ class DebugHistoryApiTest(unittest.TestCase):
                     freeTextNote="Worked tonight.",
                 )
             )
+            routes["post_outcome"](
+                "debug-session-1",
+                SaveSessionOutcomePayload(
+                    householdId="default-household",
+                    outcomeType="watched_recommended",
+                    selectedSourceMovieId="tmdb:1",
+                    selectedTitle="Arrival",
+                    selectionOrigin=OutcomeSelectionOrigin.RERANKED_SHORTLIST,
+                    notes="Easy yes.",
+                ),
+            )
 
             response = payload_to_dict(routes["get_debug"]("debug-session-1"))
 
@@ -167,6 +182,16 @@ class DebugHistoryApiTest(unittest.TestCase):
             self.assertEqual(response["rerankedSourceMovieIds"][0], "tmdb:1")
             self.assertEqual(response["bestPickSourceMovieId"], "tmdb:1")
             self.assertEqual(
+                response["sessionOutcome"],
+                {
+                    "outcomeType": "watched_recommended",
+                    "selectedSourceMovieId": "tmdb:1",
+                    "selectedTitle": "Arrival",
+                    "selectionOrigin": "reranked_shortlist",
+                    "hasNotes": True,
+                },
+            )
+            self.assertEqual(
                 response["postWatchFeedback"],
                 [
                     {
@@ -177,6 +202,7 @@ class DebugHistoryApiTest(unittest.TestCase):
                     }
                 ],
             )
+            self.assertNotIn("session_outcome", response["unavailableEvidence"])
             self.assertIn("candidate_inputs", response["unavailableEvidence"])
             self.assertIn("group_scores", response["unavailableEvidence"])
             self.assertIsNone(response["recommendationSnapshot"])
@@ -378,6 +404,7 @@ def debug_route_endpoints(app):
         "post_session": routes[("POST", "/sessions")],
         "post_reactions": routes[("POST", "/sessions/{session_id}/reactions")],
         "post_handoff": routes[("POST", "/sessions/{session_id}/advance-handoff")],
+        "post_outcome": routes[("POST", "/sessions/{session_id}/outcome")],
         "post_feedback": routes[("POST", "/feedback/post-watch")],
         "get_debug": routes[("GET", "/debug/history/sessions/{session_id}")],
     }

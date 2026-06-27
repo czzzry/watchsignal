@@ -11,6 +11,7 @@ from movie_night_mediator.domain.models import (
     RecommendationResult,
     RankedCandidate,
     ScoringRequest,
+    SessionOutcome,
     SessionReaction,
     SessionShortlistItem,
     SharedMovieNightSession,
@@ -116,6 +117,15 @@ class DebugPersistedFeedback:
 
 
 @dataclass(frozen=True)
+class DebugPersistedOutcome:
+    outcome_type: str
+    selected_source_movie_id: str | None
+    selected_title: str | None
+    selection_origin: str | None
+    has_notes: bool
+
+
+@dataclass(frozen=True)
 class DebugPersistedSessionEvidence:
     session_id: str
     household_id: str
@@ -127,6 +137,7 @@ class DebugPersistedSessionEvidence:
     wife_reactions: tuple[DebugPersistedReaction, ...]
     reranked_source_movie_ids: tuple[str, ...]
     best_pick_source_movie_id: str | None
+    session_outcome: DebugPersistedOutcome | None
     post_watch_feedback: tuple[DebugPersistedFeedback, ...]
     unavailable_evidence: tuple[str, ...]
     recommendation_snapshot: RecommendationSnapshot | None = None
@@ -173,6 +184,7 @@ def build_debug_session_snapshot(
 def build_persisted_session_evidence(
     *,
     session: SharedMovieNightSession,
+    outcome: SessionOutcome | None = None,
     feedback: tuple[PostWatchFeedback, ...] = (),
     recommendation_snapshot: RecommendationSnapshot | None = None,
 ) -> DebugPersistedSessionEvidence:
@@ -191,9 +203,10 @@ def build_persisted_session_evidence(
         ),
         reranked_source_movie_ids=session.reranked_source_movie_ids,
         best_pick_source_movie_id=session.best_pick_source_movie_id,
+        session_outcome=_persisted_outcome(outcome) if outcome is not None else None,
         post_watch_feedback=tuple(_persisted_feedback(row) for row in feedback),
         recommendation_snapshot=recommendation_snapshot,
-        unavailable_evidence=_unavailable_evidence(recommendation_snapshot),
+        unavailable_evidence=_unavailable_evidence(recommendation_snapshot, outcome),
     )
 
 
@@ -206,19 +219,27 @@ def _service_constraint(
 
 def _unavailable_evidence(
     recommendation_snapshot: RecommendationSnapshot | None,
+    outcome: SessionOutcome | None,
 ) -> tuple[str, ...]:
-    if recommendation_snapshot is None:
-        return (
-            "recommendation_scoring_request",
-            "candidate_inputs",
-            "hard_filter_results",
-            "per_person_scores",
-            "group_scores",
-            "fit_buckets",
-            "safe_pick_flags",
-        )
+    unavailable = []
+    if outcome is None:
+        unavailable.append("session_outcome")
 
-    unavailable = ["recommendation_scoring_request"]
+    if recommendation_snapshot is None:
+        unavailable.extend(
+            (
+                "recommendation_scoring_request",
+                "candidate_inputs",
+                "hard_filter_results",
+                "per_person_scores",
+                "group_scores",
+                "fit_buckets",
+                "safe_pick_flags",
+            )
+        )
+        return tuple(unavailable)
+
+    unavailable.append("recommendation_scoring_request")
     if not recommendation_snapshot.candidate_inputs:
         unavailable.append("candidate_inputs")
 
@@ -269,6 +290,20 @@ def _persisted_feedback(row: PostWatchFeedback) -> DebugPersistedFeedback:
         source_movie_id=row.source_movie_id,
         feedback_label=row.feedback_label,
         has_free_text_note=row.free_text_note is not None,
+    )
+
+
+def _persisted_outcome(outcome: SessionOutcome) -> DebugPersistedOutcome:
+    return DebugPersistedOutcome(
+        outcome_type=outcome.outcome_type.value,
+        selected_source_movie_id=outcome.selected_source_movie_id,
+        selected_title=outcome.selected_title,
+        selection_origin=(
+            outcome.selection_origin.value
+            if outcome.selection_origin is not None
+            else None
+        ),
+        has_notes=outcome.notes is not None,
     )
 
 

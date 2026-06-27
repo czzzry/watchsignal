@@ -12,7 +12,9 @@ from movie_night_mediator.app.debug_history import (
     build_persisted_session_evidence,
 )
 from movie_night_mediator.app.feedback import PostWatchFeedbackService
+from movie_night_mediator.app.history import SessionHistoryService
 from movie_night_mediator.app.onboarding import SQLiteOnboardingStore
+from movie_night_mediator.app.outcome import SessionOutcomeService
 from movie_night_mediator.app.recommendation_snapshot import (
     RecommendationSnapshotService,
 )
@@ -35,10 +37,13 @@ from movie_night_mediator.domain import (
     BackfillTasteLabel,
     MediaType,
     OnboardingConstraints,
+    OutcomeSelectionOrigin,
     ParticipantOnboarding,
     PostWatchFeedback,
     RecommendationSnapshot,
     SessionMode,
+    SessionOutcome,
+    SessionOutcomeType,
     SessionReaction,
     SessionReactionLabel,
     SessionShortlistItem,
@@ -53,6 +58,7 @@ from movie_night_mediator.domain import (
 from movie_night_mediator.storage import (
     SQLiteBackfillStore,
     SQLiteFeedbackStore,
+    SQLiteOutcomeStore,
     SQLiteRecommendationSnapshotStore,
     SQLiteSessionStore,
 )
@@ -162,6 +168,24 @@ class PostWatchFeedbackResponsePayload(BaseModel):
     freeTextNote: str | None = None
 
 
+class SessionOutcomePayload(BaseModel):
+    sessionId: str
+    outcomeType: SessionOutcomeType
+    selectedSourceMovieId: str | None = None
+    selectedTitle: str | None = None
+    selectionOrigin: OutcomeSelectionOrigin | None = None
+    notes: str | None = None
+
+
+class SaveSessionOutcomePayload(BaseModel):
+    householdId: str = Field(default=DEFAULT_HOUSEHOLD_ID, min_length=1)
+    outcomeType: SessionOutcomeType
+    selectedSourceMovieId: str | None = None
+    selectedTitle: str | None = None
+    selectionOrigin: OutcomeSelectionOrigin | None = None
+    notes: str | None = None
+
+
 class SessionShortlistItemPayload(BaseModel):
     sourceMovieId: str = Field(min_length=1)
     title: str = Field(min_length=1)
@@ -262,6 +286,14 @@ class DebugHistoryFeedbackPayload(BaseModel):
     hasFreeTextNote: bool
 
 
+class DebugHistoryOutcomePayload(BaseModel):
+    outcomeType: str
+    selectedSourceMovieId: str | None = None
+    selectedTitle: str | None = None
+    selectionOrigin: str | None = None
+    hasNotes: bool
+
+
 class DebugHistoryUserScorePayload(BaseModel):
     userId: str
     score: float
@@ -311,9 +343,27 @@ class DebugHistorySessionPayload(BaseModel):
     wifeReactions: list[DebugHistoryReactionPayload]
     rerankedSourceMovieIds: list[str]
     bestPickSourceMovieId: str | None = None
+    sessionOutcome: DebugHistoryOutcomePayload | None = None
     postWatchFeedback: list[DebugHistoryFeedbackPayload]
     recommendationSnapshot: DebugHistoryRecommendationSnapshotPayload | None = None
     unavailableEvidence: list[str]
+
+
+class RecentSessionFeedbackPayload(BaseModel):
+    userId: str
+    feedbackLabel: str
+
+
+class RecentSessionSummaryPayload(BaseModel):
+    sessionId: str
+    activeMode: str
+    state: str
+    participantIds: list[str]
+    bestPickSourceMovieId: str | None = None
+    bestPickTitle: str | None = None
+    outcomeType: str | None = None
+    outcomeTitle: str | None = None
+    feedback: list[RecentSessionFeedbackPayload]
 
 
 def create_app(
@@ -321,6 +371,7 @@ def create_app(
     onboarding_store: SQLiteOnboardingStore | None = None,
     backfill_store: SQLiteBackfillStore | None = None,
     feedback_store: SQLiteFeedbackStore | None = None,
+    outcome_store: SQLiteOutcomeStore | None = None,
     session_store: SQLiteSessionStore | None = None,
     recommendation_snapshot_store: SQLiteRecommendationSnapshotStore | None = None,
 ) -> FastAPI:
@@ -331,13 +382,29 @@ def create_app(
     )
     resolved_setup_store = setup_store or SQLiteSetupStore()
     resolved_onboarding_store = onboarding_store or SQLiteOnboardingStore()
-    backfill_service = ManualBackfillService(backfill_store or SQLiteBackfillStore())
+    resolved_backfill_store = backfill_store or SQLiteBackfillStore()
+    resolved_session_store = session_store or SQLiteSessionStore()
+    resolved_outcome_store = outcome_store or SQLiteOutcomeStore()
+    backfill_service = ManualBackfillService(resolved_backfill_store)
     feedback_service = PostWatchFeedbackService(
-        store=feedback_store or SQLiteFeedbackStore()
+        store=feedback_store or SQLiteFeedbackStore(),
+        session_store=resolved_session_store,
+        outcome_store=resolved_outcome_store,
+        backfill_service=backfill_service,
     )
     session_service = SharedSessionService(
-        session_store=session_store or SQLiteSessionStore(),
+        session_store=resolved_session_store,
         onboarding_store=resolved_onboarding_store,
+    )
+    outcome_service = SessionOutcomeService(
+        store=resolved_outcome_store,
+        session_store=resolved_session_store,
+        backfill_service=backfill_service,
+    )
+    history_service = SessionHistoryService(
+        session_store=resolved_session_store,
+        outcome_service=outcome_service,
+        feedback_service=feedback_service,
     )
     resolved_recommendation_snapshot_store = (
         recommendation_snapshot_store or SQLiteRecommendationSnapshotStore()
@@ -522,6 +589,50 @@ def create_app(
             for feedback in feedback_records
         ]
 
+    @app.get(
+        "/history/sessions",
+        response_model=list[RecentSessionSummaryPayload],
+        tags=["history"],
+    )
+    def get_recent_sessions(
+        householdId: str = DEFAULT_HOUSEHOLD_ID,
+        limit: int = Query(default=6, ge=1, le=20),
+    ) -> list[RecentSessionSummaryPayload]:
+        return [
+            _recent_session_summary_to_payload(summary)
+            for summary in history_service.list_recent_sessions(
+                household_id=householdId,
+                limit=limit,
+            )
+        ]
+
+    @app.post(
+        "/sessions/{session_id}/outcome",
+        response_model=SessionOutcomePayload,
+        response_model_exclude_none=True,
+        tags=["sessions"],
+    )
+    def post_session_outcome(
+        session_id: str,
+        payload: SaveSessionOutcomePayload,
+    ) -> SessionOutcomePayload:
+        try:
+            outcome = outcome_service.save_outcome(
+                household_id=payload.householdId,
+                session_id=session_id,
+                outcome_type=payload.outcomeType,
+                selected_source_movie_id=payload.selectedSourceMovieId,
+                selected_title=payload.selectedTitle,
+                selection_origin=payload.selectionOrigin,
+                notes=payload.notes,
+            )
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+
+        return _session_outcome_to_payload(outcome)
+
     @app.post(
         "/sessions",
         response_model=SharedSessionPayload,
@@ -634,11 +745,16 @@ def create_app(
             household_id=session.household_id,
             session_id=session.session_id,
         )
+        outcome = outcome_service.load_outcome(
+            household_id=session.household_id,
+            session_id=session.session_id,
+        )
         recommendation_snapshot = resolved_recommendation_snapshot_store.load_snapshot(
             session.session_id
         )
         evidence = build_persisted_session_evidence(
             session=session,
+            outcome=outcome,
             feedback=feedback_records,
             recommendation_snapshot=recommendation_snapshot,
         )
@@ -876,6 +992,41 @@ def _post_watch_feedback_to_payload(
     )
 
 
+def _session_outcome_to_payload(
+    outcome: SessionOutcome,
+) -> SessionOutcomePayload:
+    return SessionOutcomePayload(
+        sessionId=outcome.session_id,
+        outcomeType=outcome.outcome_type,
+        selectedSourceMovieId=outcome.selected_source_movie_id,
+        selectedTitle=outcome.selected_title,
+        selectionOrigin=outcome.selection_origin,
+        notes=outcome.notes,
+    )
+
+
+def _recent_session_summary_to_payload(
+    summary,
+) -> RecentSessionSummaryPayload:
+    return RecentSessionSummaryPayload(
+        sessionId=summary.session_id,
+        activeMode=summary.active_mode,
+        state=summary.state,
+        participantIds=list(summary.participant_ids),
+        bestPickSourceMovieId=summary.best_pick_source_movie_id,
+        bestPickTitle=summary.best_pick_title,
+        outcomeType=summary.outcome.outcome_type.value if summary.outcome is not None else None,
+        outcomeTitle=summary.outcome.selected_title if summary.outcome is not None else None,
+        feedback=[
+            RecentSessionFeedbackPayload(
+                userId=feedback.user_id,
+                feedbackLabel=feedback.feedback_label,
+            )
+            for feedback in summary.feedback
+        ],
+    )
+
+
 def _payload_to_session_shortlist_item(
     payload: SessionShortlistItemPayload,
 ) -> SessionShortlistItem:
@@ -988,6 +1139,17 @@ def _debug_history_session_to_payload(
         ],
         rerankedSourceMovieIds=list(evidence.reranked_source_movie_ids),
         bestPickSourceMovieId=evidence.best_pick_source_movie_id,
+        sessionOutcome=(
+            DebugHistoryOutcomePayload(
+                outcomeType=evidence.session_outcome.outcome_type,
+                selectedSourceMovieId=evidence.session_outcome.selected_source_movie_id,
+                selectedTitle=evidence.session_outcome.selected_title,
+                selectionOrigin=evidence.session_outcome.selection_origin,
+                hasNotes=evidence.session_outcome.has_notes,
+            )
+            if evidence.session_outcome is not None
+            else None
+        ),
         postWatchFeedback=[
             DebugHistoryFeedbackPayload(
                 userId=feedback.user_id,

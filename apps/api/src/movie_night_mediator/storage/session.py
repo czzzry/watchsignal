@@ -239,6 +239,33 @@ class SQLiteSessionStore:
             ),
         )
 
+    def list_sessions(
+        self,
+        *,
+        household_id: str,
+        limit: int = 10,
+    ) -> tuple[SharedMovieNightSession, ...]:
+        self.initialize_schema()
+        with closing(self._connect()) as connection:
+            rows = connection.execute(
+                """
+                SELECT session_id
+                FROM shared_sessions
+                WHERE household_id = ?
+                ORDER BY updated_at DESC, session_id DESC
+                LIMIT ?
+                """,
+                (household_id, limit),
+            ).fetchall()
+
+        sessions = []
+        for row in rows:
+            session = self.load_session(row["session_id"])
+            if session is not None:
+                sessions.append(session)
+
+        return tuple(sessions)
+
     def initialize_schema(self) -> None:
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
         with closing(self._connect()) as connection:

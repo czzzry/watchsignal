@@ -12,16 +12,25 @@ import {
 import {
   advanceSessionHandoff,
   createSharedSession,
+  getRecentSessions,
   getSessionDebugHistory,
   loadRecommendationShortlist,
+  submitPostWatchFeedback,
+  submitSessionOutcome,
   submitSessionReactions,
   toApiSessionMode,
   type DebugHistoryReactionPayload,
   type DebugHistoryCandidateInputPayload,
   type DebugHistoryRecommendationCandidatePayload,
   type DebugHistorySessionPayload,
+  type PostWatchFeedbackPayload,
+  type RecentSessionSummaryPayload,
+  type SavePostWatchFeedbackRequest,
+  type SaveSessionOutcomeRequest,
   type ShortlistCandidatePayload,
   type SharedSessionPayload,
+  type SessionOutcomePayload,
+  type SessionOutcomeType,
 } from "./session-client";
 
 type ApiHealth = {
@@ -38,6 +47,8 @@ type PassThePhoneWizardProps = {
 type WizardStep = "setup" | "founder" | "handoff" | "wife" | "results";
 
 type ReactionState = Record<string, ReactionValue | undefined>;
+type FeedbackState = Record<string, "loved" | "fine" | "no" | undefined>;
+type FeedbackNoteState = Record<string, string>;
 
 type SessionSource = "api" | "demo";
 
@@ -59,6 +70,12 @@ const sessionModeLabels: Record<SessionMode, string> = {
   compromise: "Compromise",
   "founder-first": "Founder first",
   "wife-first": "Wife first",
+};
+
+const feedbackLabels: Record<"loved" | "fine" | "no", string> = {
+  loved: "Loved",
+  fine: "Fine",
+  no: "No",
 };
 
 const fallbackPosterUrl =
@@ -96,6 +113,19 @@ export function PassThePhoneWizard({
   const [debugHistoryStatus, setDebugHistoryStatus] =
     useState<DebugHistoryStatus>("idle");
   const [debugHistoryMessage, setDebugHistoryMessage] = useState<string | null>(
+    null,
+  );
+  const [recentSessions, setRecentSessions] = useState<RecentSessionSummaryPayload[]>([]);
+  const [recentSessionsStatus, setRecentSessionsStatus] =
+    useState<DebugHistoryStatus>("idle");
+  const [recentSessionsMessage, setRecentSessionsMessage] = useState<string | null>(
+    null,
+  );
+  const [selectedHistory, setSelectedHistory] =
+    useState<DebugHistorySessionPayload | null>(null);
+  const [selectedHistoryStatus, setSelectedHistoryStatus] =
+    useState<DebugHistoryStatus>("idle");
+  const [selectedHistoryMessage, setSelectedHistoryMessage] = useState<string | null>(
     null,
   );
   const participantIds = [profiles[0]?.id || "husband", profiles[1]?.id || "wife"];
@@ -383,6 +413,14 @@ export function PassThePhoneWizard({
           onSessionModeChange={setSessionMode}
           isSyncing={isSyncing}
           onStart={startSession}
+          recentSessions={recentSessions}
+          recentSessionsStatus={recentSessionsStatus}
+          recentSessionsMessage={recentSessionsMessage}
+          selectedHistory={selectedHistory}
+          selectedHistoryStatus={selectedHistoryStatus}
+          selectedHistoryMessage={selectedHistoryMessage}
+          onLoadRecentSessions={loadRecentSessions}
+          onSelectRecentSession={loadRecentSessionDetail}
         />
       ) : null}
 
@@ -461,6 +499,7 @@ export function PassThePhoneWizard({
         <ResultsStep
           founderLabel={founderLabel}
           wifeLabel={wifeLabel}
+          participantIds={participantIds}
           rankedCandidates={rankedCandidates}
           founderReactions={founderReactions}
           wifeReactions={wifeReactions}
@@ -498,6 +537,45 @@ export function PassThePhoneWizard({
       setDebugHistoryMessage(toDebugHistoryErrorMessage(error));
     }
   }
+
+  async function loadRecentSessions(): Promise<void> {
+    if (!apiHealth.connected) {
+      setRecentSessions([]);
+      setRecentSessionsStatus("failed");
+      setRecentSessionsMessage(
+        "Recent history is only available when the backend API is connected.",
+      );
+      return;
+    }
+
+    setRecentSessionsStatus("loading");
+    setRecentSessionsMessage(null);
+
+    try {
+      const sessions = await getRecentSessions("default-household", 6);
+      setRecentSessions(sessions);
+      setRecentSessionsStatus("ready");
+    } catch (error) {
+      setRecentSessions([]);
+      setRecentSessionsStatus("failed");
+      setRecentSessionsMessage(toDebugHistoryErrorMessage(error));
+    }
+  }
+
+  async function loadRecentSessionDetail(sessionId: string): Promise<void> {
+    setSelectedHistoryStatus("loading");
+    setSelectedHistoryMessage(null);
+
+    try {
+      const history = await getSessionDebugHistory(sessionId);
+      setSelectedHistory(history);
+      setSelectedHistoryStatus("ready");
+    } catch (error) {
+      setSelectedHistory(null);
+      setSelectedHistoryStatus("failed");
+      setSelectedHistoryMessage(toDebugHistoryErrorMessage(error));
+    }
+  }
 }
 
 function SetupStep({
@@ -508,6 +586,14 @@ function SetupStep({
   onSessionModeChange,
   isSyncing,
   onStart,
+  recentSessions,
+  recentSessionsStatus,
+  recentSessionsMessage,
+  selectedHistory,
+  selectedHistoryStatus,
+  selectedHistoryMessage,
+  onLoadRecentSessions,
+  onSelectRecentSession,
 }: {
   founderLabel: string;
   wifeLabel: string;
@@ -516,6 +602,14 @@ function SetupStep({
   onSessionModeChange: (mode: SessionMode) => void;
   isSyncing: boolean;
   onStart: () => void;
+  recentSessions: RecentSessionSummaryPayload[];
+  recentSessionsStatus: DebugHistoryStatus;
+  recentSessionsMessage: string | null;
+  selectedHistory: DebugHistorySessionPayload | null;
+  selectedHistoryStatus: DebugHistoryStatus;
+  selectedHistoryMessage: string | null;
+  onLoadRecentSessions: () => void | Promise<void>;
+  onSelectRecentSession: (sessionId: string) => void | Promise<void>;
 }) {
   return (
     <section className="wizardPanel sessionPanel" aria-labelledby="setup-heading">
@@ -558,6 +652,17 @@ function SetupStep({
       >
         {isSyncing ? "Starting session..." : "Start first pass"}
       </button>
+
+      <RecentSessionsPanel
+        sessions={recentSessions}
+        status={recentSessionsStatus}
+        message={recentSessionsMessage}
+        selectedHistory={selectedHistory}
+        selectedHistoryStatus={selectedHistoryStatus}
+        selectedHistoryMessage={selectedHistoryMessage}
+        onLoad={onLoadRecentSessions}
+        onSelect={onSelectRecentSession}
+      />
     </section>
   );
 }
@@ -733,6 +838,133 @@ function SessionRecoveryStep({
   );
 }
 
+function RecentSessionsPanel({
+  sessions,
+  status,
+  message,
+  selectedHistory,
+  selectedHistoryStatus,
+  selectedHistoryMessage,
+  onLoad,
+  onSelect,
+}: {
+  sessions: RecentSessionSummaryPayload[];
+  status: DebugHistoryStatus;
+  message: string | null;
+  selectedHistory: DebugHistorySessionPayload | null;
+  selectedHistoryStatus: DebugHistoryStatus;
+  selectedHistoryMessage: string | null;
+  onLoad: () => void | Promise<void>;
+  onSelect: (sessionId: string) => void | Promise<void>;
+}) {
+  return (
+    <section className="debugHistoryPanel" aria-labelledby="recent-history-heading">
+      <div className="debugHistoryHeader">
+        <div>
+          <p className="eyebrow">Recent sessions</p>
+          <h3 id="recent-history-heading">Household history</h3>
+        </div>
+        <button
+          type="button"
+          className="secondaryButton compactButton"
+          onClick={onLoad}
+          disabled={status === "loading"}
+        >
+          {status === "loading" ? "Loading..." : sessions.length > 0 ? "Refresh" : "Load"}
+        </button>
+      </div>
+
+      {message ? <p className="debugMessage">{message}</p> : null}
+
+      {sessions.length > 0 ? (
+        <div className="recentSessionList">
+          {sessions.map((session) => (
+            <article key={session.sessionId} className="recentSessionCard">
+              <div className="recentSessionMeta">
+                <strong>{session.bestPickTitle ?? "No best pick yet"}</strong>
+                <span>{session.outcomeTitle ?? session.outcomeType ?? "No outcome saved"}</span>
+              </div>
+              <p className="recentSessionDetail">
+                {session.participantIds.join(" + ")} · {session.activeMode} · {session.state}
+              </p>
+              <p className="recentSessionDetail">
+                {session.feedback.length > 0
+                  ? session.feedback
+                      .map((feedback) => `${feedback.userId}: ${feedback.feedbackLabel}`)
+                      .join(" · ")
+                  : "No post-watch feedback yet"}
+              </p>
+              <button
+                type="button"
+                className="secondaryButton compactButton"
+                onClick={() => onSelect(session.sessionId)}
+                disabled={selectedHistoryStatus === "loading"}
+              >
+                View details
+              </button>
+            </article>
+          ))}
+        </div>
+      ) : null}
+
+      {selectedHistoryMessage ? <p className="debugMessage">{selectedHistoryMessage}</p> : null}
+
+      {selectedHistory ? (
+        <div className="debugHistoryBody">
+          <dl className="debugFacts">
+            <div>
+              <dt>State</dt>
+              <dd>{selectedHistory.state}</dd>
+            </div>
+            <div>
+              <dt>Participants</dt>
+              <dd>{selectedHistory.participantIds.join(", ")}</dd>
+            </div>
+            <div>
+              <dt>Best pick</dt>
+              <dd>
+                {titleForSourceMovieId(
+                  selectedHistory.shortlist,
+                  selectedHistory.bestPickSourceMovieId,
+                ) ?? selectedHistory.bestPickSourceMovieId ?? "No pick yet"}
+              </dd>
+            </div>
+          </dl>
+
+          <DebugList
+            label="Session outcome"
+            items={
+              selectedHistory.sessionOutcome
+                ? [
+                    [
+                      selectedHistory.sessionOutcome.outcomeType,
+                      selectedHistory.sessionOutcome.selectedTitle,
+                      selectedHistory.sessionOutcome.selectionOrigin,
+                      selectedHistory.sessionOutcome.hasNotes ? "notes saved" : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · "),
+                  ]
+                : []
+            }
+          />
+          <DebugReactionList label="Founder reactions" reactions={selectedHistory.founderReactions} />
+          <DebugReactionList label="Wife reactions" reactions={selectedHistory.wifeReactions} />
+          <DebugList
+            label="Post-watch feedback"
+            items={selectedHistory.postWatchFeedback.map(
+              (feedback) =>
+                `${feedback.userId}: ${feedback.sourceMovieId} = ${feedback.feedbackLabel}${
+                  feedback.hasFreeTextNote ? " (note)" : ""
+                }`,
+            )}
+          />
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function SessionSyncStrip({
   source,
   status,
@@ -780,6 +1012,7 @@ function SessionSyncStrip({
 function ResultsStep({
   founderLabel,
   wifeLabel,
+  participantIds,
   rankedCandidates,
   founderReactions,
   wifeReactions,
@@ -794,6 +1027,7 @@ function ResultsStep({
 }: {
   founderLabel: string;
   wifeLabel: string;
+  participantIds: string[];
   rankedCandidates: RankedCandidate[];
   founderReactions: ReactionState;
   wifeReactions: ReactionState;
@@ -807,6 +1041,13 @@ function ResultsStep({
   onReset: () => void;
 }) {
   const bestPick = rankedCandidates[0];
+  const [outcomeType, setOutcomeType] = useState<SessionOutcomeType | null>(null);
+  const [otherPickId, setOtherPickId] = useState<string | null>(null);
+  const [outcomeNote, setOutcomeNote] = useState("");
+  const [savedOutcome, setSavedOutcome] = useState<SessionOutcomePayload | null>(null);
+  const [feedbackState, setFeedbackState] = useState<FeedbackState>({});
+  const [feedbackNotes, setFeedbackNotes] = useState<FeedbackNoteState>({});
+  const [savedFeedback, setSavedFeedback] = useState<PostWatchFeedbackPayload[]>([]);
 
   if (!bestPick) {
     return (
@@ -817,6 +1058,92 @@ function ResultsStep({
         onAction={onReset}
       />
     );
+  }
+
+  const watchedTitleSourceId =
+    savedOutcome?.selectedSourceMovieId ??
+    (outcomeType === "watched_recommended"
+      ? bestPick.id
+      : outcomeType === "watched_other"
+        ? otherPickId
+        : null);
+  const watchedTitle =
+    watchedTitleSourceId !== null
+      ? rankedCandidates.find((candidate) => candidate.id === watchedTitleSourceId) ?? null
+      : null;
+  const canPersist = sessionSource === "api" && sharedSession !== null;
+  const canSaveOutcome =
+    canPersist &&
+    outcomeType !== null &&
+    (outcomeType !== "watched_other" || otherPickId !== null);
+  const feedbackReady =
+    watchedTitleSourceId !== null &&
+    participantIds.every((participantId) => feedbackState[participantId] !== undefined);
+
+  async function handleSaveOutcome(): Promise<void> {
+    if (!canPersist || sharedSession === null || outcomeType === null) {
+      return;
+    }
+
+    const selectedCandidate =
+      outcomeType === "watched_recommended"
+        ? bestPick
+        : outcomeType === "watched_other"
+          ? rankedCandidates.find((candidate) => candidate.id === otherPickId) ?? null
+          : null;
+
+    const payload: SaveSessionOutcomeRequest =
+      outcomeType === "watched_nothing"
+        ? {
+            householdId: sharedSession.householdId,
+            outcomeType,
+            notes: outcomeNote || null,
+          }
+        : {
+            householdId: sharedSession.householdId,
+            outcomeType,
+            selectedSourceMovieId: selectedCandidate?.id ?? null,
+            selectedTitle: selectedCandidate?.title ?? null,
+            selectionOrigin:
+              outcomeType === "watched_recommended"
+                ? "pick_for_us"
+                : "reranked_shortlist",
+            notes: outcomeNote || null,
+          };
+
+    try {
+      const outcome = await submitSessionOutcome(sharedSession.sessionId, payload);
+      setSavedOutcome(outcome);
+      setSavedFeedback([]);
+      await onLoadDebugHistory();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async function handleSaveFeedback(): Promise<void> {
+    if (!canPersist || sharedSession === null || watchedTitleSourceId === null || !feedbackReady) {
+      return;
+    }
+
+    try {
+      const feedback = await Promise.all(
+        participantIds.map((participantId) =>
+          submitPostWatchFeedback({
+            householdId: sharedSession.householdId,
+            sessionId: sharedSession.sessionId,
+            userId: participantId,
+            sourceMovieId: watchedTitleSourceId,
+            feedbackLabel: feedbackState[participantId]!,
+            freeTextNote: feedbackNotes[participantId]?.trim() || null,
+          } satisfies SavePostWatchFeedbackRequest),
+        ),
+      );
+      setSavedFeedback(feedback);
+      await onLoadDebugHistory();
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   return (
@@ -866,6 +1193,164 @@ function ResultsStep({
           </article>
         ))}
       </div>
+
+      {!canPersist ? (
+        <p className="debugMessage">
+          Outcome and post-watch feedback save only for backend-backed sessions.
+        </p>
+      ) : null}
+
+      <section className="outcomePanel" aria-labelledby="outcome-heading">
+        <div className="sectionHeading">
+          <p className="eyebrow">After the movie</p>
+          <h3 id="outcome-heading">What actually happened?</h3>
+          <p>Save tonight's real outcome so the app can learn from more than shortlist taps.</p>
+        </div>
+
+        <div className="outcomeOptionGrid" role="group" aria-label="Outcome type">
+          <button
+            type="button"
+            className={outcomeType === "watched_recommended" ? "segment segmentActive" : "segment"}
+            onClick={() => {
+              setOutcomeType("watched_recommended");
+              setOtherPickId(null);
+              setSavedOutcome(null);
+              setSavedFeedback([]);
+            }}
+          >
+            Watched best pick
+          </button>
+          <button
+            type="button"
+            className={outcomeType === "watched_other" ? "segment segmentActive" : "segment"}
+            onClick={() => {
+              setOutcomeType("watched_other");
+              setSavedOutcome(null);
+              setSavedFeedback([]);
+            }}
+          >
+            Watched another shortlist title
+          </button>
+          <button
+            type="button"
+            className={outcomeType === "watched_nothing" ? "segment segmentActive" : "segment"}
+            onClick={() => {
+              setOutcomeType("watched_nothing");
+              setOtherPickId(null);
+              setSavedOutcome(null);
+              setSavedFeedback([]);
+            }}
+          >
+            Watched nothing
+          </button>
+        </div>
+
+        {outcomeType === "watched_other" ? (
+          <div className="outcomeChoiceList" role="group" aria-label="Other watched shortlist title">
+            {rankedCandidates
+              .filter((candidate) => candidate.id !== bestPick.id)
+              .map((candidate) => (
+                <button
+                  key={candidate.id}
+                  type="button"
+                  className={otherPickId === candidate.id ? "secondaryButton choiceButton choiceButtonActive" : "secondaryButton choiceButton"}
+                  onClick={() => {
+                    setOtherPickId(candidate.id);
+                    setSavedOutcome(null);
+                    setSavedFeedback([]);
+                  }}
+                >
+                  {candidate.title}
+                </button>
+              ))}
+          </div>
+        ) : null}
+
+        <label className="noteField">
+          <span>Optional note</span>
+          <textarea
+            value={outcomeNote}
+            onChange={(event) => setOutcomeNote(event.target.value)}
+            rows={3}
+            placeholder="Anything worth remembering about tonight?"
+          />
+        </label>
+
+        <div className="bottomActions inlineActions">
+          <button
+            type="button"
+            className="primaryAction"
+            onClick={handleSaveOutcome}
+            disabled={!canSaveOutcome}
+          >
+            {savedOutcome ? "Outcome saved" : "Save outcome"}
+          </button>
+        </div>
+      </section>
+
+      {savedOutcome && savedOutcome.outcomeType !== "watched_nothing" && watchedTitle ? (
+        <section className="outcomePanel" aria-labelledby="feedback-heading">
+          <div className="sectionHeading">
+            <p className="eyebrow">Post-watch feedback</p>
+            <h3 id="feedback-heading">How did each of you feel?</h3>
+            <p>These are separate from the shortlist reactions and count as real taste signal.</p>
+          </div>
+
+          <div className="feedbackGrid">
+            {participantIds.map((participantId, index) => {
+              const personLabel = index === 0 ? founderLabel : wifeLabel;
+
+              return (
+                <article key={participantId} className="feedbackCard">
+                  <h4>{personLabel}</h4>
+                  <div className="outcomeOptionGrid" role="group" aria-label={`${personLabel} feedback`}>
+                    {(Object.keys(feedbackLabels) as Array<keyof typeof feedbackLabels>).map((label) => (
+                      <button
+                        key={label}
+                        type="button"
+                        className={feedbackState[participantId] === label ? "segment segmentActive" : "segment"}
+                        onClick={() =>
+                          setFeedbackState((current) => ({
+                            ...current,
+                            [participantId]: label,
+                          }))
+                        }
+                      >
+                        {feedbackLabels[label]}
+                      </button>
+                    ))}
+                  </div>
+                  <label className="noteField">
+                    <span>Optional note</span>
+                    <textarea
+                      value={feedbackNotes[participantId] ?? ""}
+                      onChange={(event) =>
+                        setFeedbackNotes((current) => ({
+                          ...current,
+                          [participantId]: event.target.value,
+                        }))
+                      }
+                      rows={3}
+                      placeholder={`Anything ${personLabel.toLowerCase()} wants remembered?`}
+                    />
+                  </label>
+                </article>
+              );
+            })}
+          </div>
+
+          <div className="bottomActions inlineActions">
+            <button
+              type="button"
+              className="primaryAction"
+              onClick={handleSaveFeedback}
+              disabled={!feedbackReady}
+            >
+              {savedFeedback.length === participantIds.length ? "Feedback saved" : "Save feedback"}
+            </button>
+          </div>
+        </section>
+      ) : null}
 
       <DebugHistoryPanel
         source={sessionSource}
@@ -946,6 +1431,24 @@ function DebugHistoryPanel({
           </dl>
 
           <DebugList
+            label="Session outcome"
+            items={
+              history.sessionOutcome
+                ? [
+                    [
+                      history.sessionOutcome.outcomeType,
+                      history.sessionOutcome.selectedTitle,
+                      history.sessionOutcome.selectionOrigin,
+                      history.sessionOutcome.hasNotes ? "notes saved" : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · "),
+                  ]
+                : []
+            }
+          />
+
+          <DebugList
             label="Reranked order"
             items={history.rerankedSourceMovieIds.map((sourceMovieId) => {
               const title = titleForSourceMovieId(history.shortlist, sourceMovieId);
@@ -961,6 +1464,15 @@ function DebugHistoryPanel({
           <DebugReactionList
             label="Wife reactions"
             reactions={history.wifeReactions}
+          />
+          <DebugList
+            label="Post-watch feedback"
+            items={history.postWatchFeedback.map(
+              (feedback) =>
+                `${feedback.userId}: ${feedback.sourceMovieId} = ${feedback.feedbackLabel}${
+                  feedback.hasFreeTextNote ? " (note)" : ""
+                }`,
+            )}
           />
           <DebugRecommendationSnapshot history={history} />
           <DebugList

@@ -55,21 +55,45 @@ It checks the setup, handoff, and results screens for horizontal overflow at pho
 ## Backend-Backed Debug History
 
 The default mode intentionally avoids backend writes.
-For a future isolated backend run, start the API against a temporary database and the web app against that API, then run:
+For a real end-to-end local run, set `MOBILE_UX_SMOKE_EXPECT_API=1` and let the script manage the backend automatically:
+
+```sh
+MOBILE_UX_SMOKE_EXPECT_API=1 pnpm smoke:ux:mobile
+```
+
+In that mode the script:
+
+- starts FastAPI on a temporary localhost port
+- points it at a temporary SQLite database
+- seeds just enough onboarding for the two default profiles
+- starts the web app against that temporary API
+- saves a `watched_recommended` session outcome from the result screen
+- saves per-person post-watch feedback from the result screen
+- clicks the debug history `Load` button and verifies persisted evidence headings
+- returns to setup, loads recent household history, and opens the latest session detail
+
+The temporary database is removed during cleanup.
+
+If you want to point the smoke at an already running local web app instead, you can still do that:
 
 ```sh
 MOBILE_UX_SMOKE_URL=http://127.0.0.1:3000 MOBILE_UX_SMOKE_EXPECT_API=1 pnpm smoke:ux:mobile
 ```
 
-That opt-in mode clicks the debug history `Load` button and verifies persisted evidence headings.
-Only use it with a test or temporary backend database.
+In that case, the script assumes your running app is already connected to a suitable local API and database.
+
+To exercise the alternate branch where the couple watches another shortlist title instead of the best pick:
+
+```sh
+MOBILE_UX_SMOKE_EXPECT_API=1 MOBILE_UX_SMOKE_OUTCOME=other pnpm smoke:ux:mobile
+```
 
 ## Expected Permission Needs For AFK Runs
 
 No network access is required beyond localhost.
 Filesystem writes are limited to the repo's normal build artifacts and a temporary browser profile under the system temp directory.
 The script launches local processes for Next.js and the selected local browser.
-If the backend-backed mode is used, the AFK run also needs permission to start the local FastAPI server against an isolated test database.
+If the backend-backed mode is used without `MOBILE_UX_SMOKE_URL`, the AFK run also needs permission to start the local FastAPI server against an isolated temporary database.
 
 ## Expected Output
 

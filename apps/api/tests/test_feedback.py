@@ -2,9 +2,24 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from movie_night_mediator.app.backfill import ManualBackfillService
 from movie_night_mediator.app.feedback import PostWatchFeedbackService
+from movie_night_mediator.app.outcome import SessionOutcomeService
 from movie_night_mediator.domain import DEFAULT_HOUSEHOLD_ID
-from movie_night_mediator.storage import SQLiteFeedbackStore
+from movie_night_mediator.domain import (
+    OutcomeSelectionOrigin,
+    SessionMode,
+    SessionOutcomeType,
+    SessionShortlistItem,
+    SharedMovieNightSession,
+    SharedSessionState,
+)
+from movie_night_mediator.storage import (
+    SQLiteBackfillStore,
+    SQLiteFeedbackStore,
+    SQLiteOutcomeStore,
+    SQLiteSessionStore,
+)
 
 
 class PostWatchFeedbackServiceTest(unittest.TestCase):
@@ -126,6 +141,89 @@ class PostWatchFeedbackServiceTest(unittest.TestCase):
                     source_movie_id="tmdb:603",
                     feedback_label="five stars",
                 )
+
+    def test_feedback_updates_participant_watched_history_when_outcome_exists(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "feedback.sqlite3"
+            session_store = SQLiteSessionStore(database_path=database_path)
+            session_store.save_session(reranked_session())
+            backfill_service = ManualBackfillService(
+                SQLiteBackfillStore(database_path=database_path)
+            )
+            SessionOutcomeService(
+                store=SQLiteOutcomeStore(database_path=database_path),
+                session_store=session_store,
+                backfill_service=backfill_service,
+            ).save_outcome(
+                household_id=DEFAULT_HOUSEHOLD_ID,
+                session_id="session-1",
+                outcome_type=SessionOutcomeType.WATCHED_RECOMMENDED,
+                selected_source_movie_id="tmdb:603",
+                selected_title="The Matrix",
+                selection_origin=OutcomeSelectionOrigin.RERANKED_SHORTLIST,
+            )
+            service = PostWatchFeedbackService(
+                store=SQLiteFeedbackStore(database_path=database_path),
+                session_store=session_store,
+                outcome_store=SQLiteOutcomeStore(database_path=database_path),
+                backfill_service=backfill_service,
+            )
+
+            service.save_feedback(
+                household_id=DEFAULT_HOUSEHOLD_ID,
+                session_id="session-1",
+                user_id="profile-1",
+                source_movie_id="tmdb:603",
+                feedback_label="loved",
+            )
+
+            watched_titles = backfill_service.list_watched_titles(DEFAULT_HOUSEHOLD_ID)
+            participant_records = [
+                record
+                for record in watched_titles
+                if record.participant_id == "profile-1"
+            ]
+            self.assertEqual(len(participant_records), 1)
+            self.assertEqual(participant_records[0].entry.raw_title, "The Matrix")
+            self.assertEqual(participant_records[0].taste_label.value, "loved")
+
+
+def reranked_session() -> SharedMovieNightSession:
+    return SharedMovieNightSession(
+        session_id="session-1",
+        household_id=DEFAULT_HOUSEHOLD_ID,
+        active_mode=SessionMode.COMPROMISE,
+        participant_ids=("profile-1", "profile-2"),
+        state=SharedSessionState.RERANKED,
+        shortlist=(
+            SessionShortlistItem(
+                source_movie_id="tmdb:603",
+                title="The Matrix",
+                candidate_rank=1,
+            ),
+            SessionShortlistItem(
+                source_movie_id="tmdb:13",
+                title="Arrival",
+                candidate_rank=2,
+            ),
+            SessionShortlistItem(
+                source_movie_id="tmdb:14",
+                title="Knives Out",
+                candidate_rank=3,
+            ),
+            SessionShortlistItem(
+                source_movie_id="tmdb:15",
+                title="Past Lives",
+                candidate_rank=4,
+            ),
+            SessionShortlistItem(
+                source_movie_id="tmdb:16",
+                title="Edge of Tomorrow",
+                candidate_rank=5,
+            ),
+        ),
+        reranked_source_movie_ids=("tmdb:603", "tmdb:13", "tmdb:14", "tmdb:15", "tmdb:16"),
+    )
 
 
 if __name__ == "__main__":

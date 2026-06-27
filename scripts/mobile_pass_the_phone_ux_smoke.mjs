@@ -12,6 +12,7 @@ const browserCandidates = getBrowserCandidates();
 
 const startedProcesses = [];
 let chromeProfileDir = null;
+let backendTempDir = null;
 
 main().catch(async (error) => {
   console.error(error instanceof Error ? error.message : String(error));
@@ -20,8 +21,14 @@ main().catch(async (error) => {
 });
 
 async function main() {
+  const useBackendMode = process.env.MOBILE_UX_SMOKE_EXPECT_API === "1";
+  const outcomeMode = process.env.MOBILE_UX_SMOKE_OUTCOME === "other" ? "other" : "recommended";
   const targetUrl = process.env.MOBILE_UX_SMOKE_URL;
-  const webUrl = targetUrl || (await startWebServer());
+  const startedApi = !targetUrl && useBackendMode ? await startApiServer() : null;
+  if (startedApi) {
+    await seedBackendOnboarding(startedApi.apiUrl);
+  }
+  const webUrl = targetUrl || (await startWebServer(startedApi?.apiUrl));
   const chrome = await startChrome();
   const browser = await connectToChrome(chrome.debuggingUrl);
   const tab = await createMobileTab(browser, webUrl);
@@ -56,10 +63,35 @@ async function main() {
       throw error;
     }
 
-    if (process.env.MOBILE_UX_SMOKE_EXPECT_API === "1") {
-      await clickButton(tab, "Load");
+    if (useBackendMode) {
+      if (outcomeMode === "other") {
+        await clickButton(tab, "Watched another shortlist title");
+        await clickFirstButtonInContainer(tab, ".outcomeChoiceList");
+      } else {
+        await clickButton(tab, "Watched best pick");
+      }
+      await clickButton(tab, "Save outcome");
+      await clickButtonInSection(tab, "Husband", "Loved");
+      await clickButtonInSection(tab, "Wife", "Fine");
+      await clickButton(tab, "Save feedback");
+      await waitForText(
+        tab,
+        outcomeMode === "other" ? "watched_other" : "watched_recommended",
+        "debug history outcome",
+      );
+      await waitForDebugListItems(tab, "Post-watch feedback", [
+        "loved",
+        "fine",
+      ]);
       await waitForText(tab, "Reranked order", "debug history load");
       await waitForText(tab, "Founder reactions", "debug history reactions");
+      await clickButton(tab, "Start another session");
+      await waitForText(tab, "Household history", "setup history panel");
+      await clickButton(tab, "Load");
+      await waitForText(tab, "View details", "recent sessions history card");
+      await clickButton(tab, "View details");
+      await waitForText(tab, "Session outcome", "recent session detail");
+      await waitForText(tab, "Post-watch feedback", "recent session detail");
     } else {
       await waitForText(
         tab,
@@ -74,17 +106,22 @@ async function main() {
     console.log(`Browser: ${chrome.browserInstall.label}`);
     console.log("Viewport: 390x844 mobile");
     console.log(
-      process.env.MOBILE_UX_SMOKE_EXPECT_API === "1"
+      useBackendMode
         ? "Debug history mode: backend-backed load"
         : "Debug history mode: demo fallback, no backend writes",
     );
+    if (useBackendMode) {
+      console.log(
+        `Outcome mode: ${outcomeMode === "other" ? "watched_other shortlist title" : "watched_recommended best pick"}`,
+      );
+    }
   } finally {
     await browser.close();
     await cleanup();
   }
 }
 
-async function startWebServer() {
+async function startWebServer(apiBaseUrl = null) {
   const port = await getFreePort();
   const fallbackApiPort = await getFreePort();
   const packageRunner = await resolvePackageRunner();
@@ -106,7 +143,7 @@ async function startWebServer() {
       cwd: repoRoot,
       env: {
         ...process.env,
-        API_BASE_URL: `http://127.0.0.1:${fallbackApiPort}`,
+        API_BASE_URL: apiBaseUrl || `http://127.0.0.1:${fallbackApiPort}`,
         NEXT_TELEMETRY_DISABLED: "1",
         PNPM_HOME: join(repoRoot, ".tools", "pnpm"),
         XDG_CACHE_HOME: join(repoRoot, ".tools", "cache"),
@@ -123,6 +160,87 @@ async function startWebServer() {
   const url = `http://127.0.0.1:${port}`;
   await waitForHttp(url, "web app");
   return url;
+}
+
+async function startApiServer() {
+  const uvBinary = join(repoRoot, ".tools", "uv", "bin", "uv");
+  if (!existsSync(uvBinary)) {
+    throw new Error(
+      "Local uv runner was not found at .tools/uv/bin/uv, so backend-backed UX smoke cannot start FastAPI automatically.",
+    );
+  }
+
+  const port = await getFreePort();
+  backendTempDir = await mkdtemp(join(tmpdir(), "movie-night-api-ux-"));
+  const databasePath = join(backendTempDir, "mobile-ux.sqlite3");
+  const child = spawn(
+    uvBinary,
+    [
+      "run",
+      "uvicorn",
+      "movie_night_mediator.api.main:app",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      String(port),
+    ],
+    {
+      cwd: join(repoRoot, "apps", "api"),
+      env: {
+        ...process.env,
+        MOVIE_NIGHT_MEDIATOR_SQLITE_PATH: databasePath,
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+  startedProcesses.push(child);
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk) => process.stdout.write(prefixLines(chunk, "api")));
+  child.stderr.on("data", (chunk) => process.stderr.write(prefixLines(chunk, "api")));
+
+  const apiUrl = `http://127.0.0.1:${port}`;
+  await waitForHttp(`${apiUrl}/health`, "api health");
+  return { apiUrl };
+}
+
+async function seedBackendOnboarding(apiBaseUrl) {
+  const setup = await getJson(new URL("/setup", apiBaseUrl));
+  const profiles = Array.isArray(setup?.profiles) ? setup.profiles : [];
+  if (profiles.length < 2) {
+    throw new Error("Backend-backed UX smoke could not load two setup profiles.");
+  }
+
+  for (const profile of profiles.slice(0, 2)) {
+    if (
+      typeof profile !== "object" ||
+      profile === null ||
+      typeof profile.id !== "string"
+    ) {
+      throw new Error("Backend-backed UX smoke found an invalid setup profile.");
+    }
+
+    await putJson(new URL(`/onboarding/${encodeURIComponent(profile.id)}`, apiBaseUrl), {
+      profileId: profile.id,
+      lovedTitleEntries: [unresolvedTitleEntry("Loved seed")],
+      fineTitleEntries: [unresolvedTitleEntry("Fine seed")],
+      noTitleEntries: [unresolvedTitleEntry("No seed")],
+      constraints: {
+        horrorExclusion: false,
+        subtitleIntolerance: false,
+      },
+      isComplete: true,
+    });
+  }
+}
+
+function unresolvedTitleEntry(rawTitle) {
+  return {
+    rawTitle,
+    status: "unresolved",
+    candidate: null,
+    unresolvedReason: "mobile_ux_smoke_seed",
+  };
 }
 
 async function ensureWebBuild(packageRunner) {
@@ -317,6 +435,112 @@ async function clickButton(tab, label) {
   });
 }
 
+async function clickButtonInSection(tab, sectionHeading, label) {
+  const rect = await waitForValue(
+    async () =>
+      evaluate(tab, (wantedHeading, wantedLabel) => {
+        const normalize = (value) => value.replace(/\s+/g, " ").trim();
+        const headings = [...document.querySelectorAll("h4")];
+        const heading = headings.find(
+          (candidate) => normalize(candidate.textContent || "") === wantedHeading,
+        );
+        if (!heading) {
+          return null;
+        }
+
+        const section = heading.closest("article");
+        if (!section) {
+          return null;
+        }
+
+        const button = [...section.querySelectorAll("button")].find((candidate) => {
+          const text = normalize(candidate.textContent || "");
+          return text === wantedLabel && !candidate.disabled;
+        });
+        if (!button) {
+          return null;
+        }
+
+        button.scrollIntoView({ block: "center", inline: "center" });
+        const bounds = button.getBoundingClientRect();
+        return {
+          x: bounds.left + bounds.width / 2,
+          y: bounds.top + bounds.height / 2,
+        };
+      }, sectionHeading, label),
+    `enabled button "${label}" in section "${sectionHeading}"`,
+  );
+
+  await tab.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    x: rect.x,
+    y: rect.y,
+    button: "none",
+  });
+  await tab.send("Input.dispatchMouseEvent", {
+    type: "mousePressed",
+    x: rect.x,
+    y: rect.y,
+    button: "left",
+    clickCount: 1,
+  });
+  await tab.send("Input.dispatchMouseEvent", {
+    type: "mouseReleased",
+    x: rect.x,
+    y: rect.y,
+    button: "left",
+    clickCount: 1,
+  });
+}
+
+async function clickFirstButtonInContainer(tab, selector) {
+  const rect = await waitForValue(
+    async () =>
+      evaluate(tab, (wantedSelector) => {
+        const container = document.querySelector(wantedSelector);
+        if (!container) {
+          return null;
+        }
+
+        const button = [...container.querySelectorAll("button")].find(
+          (candidate) => !candidate.disabled,
+        );
+        if (!button) {
+          return null;
+        }
+
+        button.scrollIntoView({ block: "center", inline: "center" });
+        const bounds = button.getBoundingClientRect();
+        return {
+          x: bounds.left + bounds.width / 2,
+          y: bounds.top + bounds.height / 2,
+        };
+      }, selector),
+    `enabled button in container "${selector}"`,
+  );
+
+  await tab.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    x: rect.x,
+    y: rect.y,
+    button: "none",
+  });
+  await tab.send("Input.dispatchMouseEvent", {
+    type: "mousePressed",
+    x: rect.x,
+    y: rect.y,
+    button: "left",
+    clickCount: 1,
+  });
+  await tab.send("Input.dispatchMouseEvent", {
+    type: "mouseReleased",
+    x: rect.x,
+    y: rect.y,
+    button: "left",
+    clickCount: 1,
+  });
+}
+
 async function assertButtonDisabled(tab, label, context) {
   const disabled = await evaluate(tab, (wantedLabel) => {
     const normalize = (value) => value.replace(/\s+/g, " ").trim();
@@ -352,6 +576,39 @@ async function waitForRankedShortlist(tab) {
         return rankedList.querySelectorAll("article").length > 0;
       }),
     'ranked shortlist content on results screen',
+  );
+}
+
+async function waitForDebugListItems(tab, label, expectedFragments) {
+  await waitForValue(
+    async () =>
+      evaluate(tab, (wantedLabel, fragments) => {
+        const normalize = (value) => value.replace(/\s+/g, " ").trim().toLowerCase();
+        const headings = [...document.querySelectorAll("h4")];
+        const heading = headings.find(
+          (candidate) => normalize(candidate.textContent || "") === normalize(wantedLabel),
+        );
+        if (!heading) {
+          return false;
+        }
+
+        const block = heading.closest(".debugListBlock");
+        if (!block) {
+          return false;
+        }
+
+        const items = [...block.querySelectorAll("li")].map((item) =>
+          normalize(item.textContent || ""),
+        );
+        if (items.length < fragments.length) {
+          return false;
+        }
+
+        return fragments.every((fragment) =>
+          items.some((item) => item.includes(normalize(fragment))),
+        );
+      }, label, expectedFragments),
+    `debug list "${label}" contents`,
   );
 }
 
@@ -462,6 +719,20 @@ async function getJson(url) {
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`HTTP ${response.status} while reading ${url}.`);
+  }
+  return response.json();
+}
+
+async function putJson(url, body) {
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status} while writing ${url}.`);
   }
   return response.json();
 }
@@ -737,6 +1008,9 @@ async function cleanup() {
   }
   if (chromeProfileDir) {
     await rm(chromeProfileDir, { recursive: true, force: true });
+  }
+  if (backendTempDir) {
+    await rm(backendTempDir, { recursive: true, force: true });
   }
 }
 

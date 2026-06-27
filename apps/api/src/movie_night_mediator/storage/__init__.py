@@ -1,6 +1,7 @@
 from movie_night_mediator.storage.backfill import SQLiteBackfillStore
 from movie_night_mediator.storage.feedback import SQLiteFeedbackStore
 from movie_night_mediator.storage.in_memory import InMemoryStore
+from movie_night_mediator.storage.outcome import SQLiteOutcomeStore
 from movie_night_mediator.storage.recommendation_snapshot import (
     SQLiteRecommendationSnapshotStore,
 )
@@ -14,6 +15,7 @@ __all__ = [
     "SQLiteBackfillStore",
     "SQLiteFeedbackStore",
     "SQLiteHouseholdStore",
+    "SQLiteOutcomeStore",
     "SQLiteRecommendationSnapshotStore",
     "SQLiteSessionStore",
     "SQLiteSettings",

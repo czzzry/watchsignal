@@ -48,6 +48,68 @@ export type SessionReactionPayload = {
   reactionLabel: ReactionValue;
 };
 
+export type SessionOutcomeType =
+  | "watched_recommended"
+  | "watched_other"
+  | "watched_nothing";
+
+export type OutcomeSelectionOrigin =
+  | "pick_for_us"
+  | "reranked_shortlist"
+  | "manual_other_choice";
+
+export type SessionOutcomePayload = {
+  sessionId: string;
+  outcomeType: SessionOutcomeType;
+  selectedSourceMovieId?: string | null;
+  selectedTitle?: string | null;
+  selectionOrigin?: OutcomeSelectionOrigin | null;
+  notes?: string | null;
+};
+
+export type SaveSessionOutcomeRequest = {
+  householdId: string;
+  outcomeType: SessionOutcomeType;
+  selectedSourceMovieId?: string | null;
+  selectedTitle?: string | null;
+  selectionOrigin?: OutcomeSelectionOrigin | null;
+  notes?: string | null;
+};
+
+export type SavePostWatchFeedbackRequest = {
+  householdId: string;
+  sessionId: string;
+  userId: string;
+  sourceMovieId: string;
+  feedbackLabel: "loved" | "fine" | "no";
+  freeTextNote?: string | null;
+};
+
+export type PostWatchFeedbackPayload = {
+  sessionId: string;
+  userId: string;
+  sourceMovieId: string;
+  feedbackLabel: "loved" | "fine" | "no";
+  freeTextNote?: string | null;
+};
+
+export type RecentSessionFeedbackPayload = {
+  userId: string;
+  feedbackLabel: string;
+};
+
+export type RecentSessionSummaryPayload = {
+  sessionId: string;
+  activeMode: string;
+  state: string;
+  participantIds: string[];
+  bestPickSourceMovieId: string | null;
+  bestPickTitle: string | null;
+  outcomeType: string | null;
+  outcomeTitle: string | null;
+  feedback: RecentSessionFeedbackPayload[];
+};
+
 export type DebugHistorySessionPayload = {
   sessionId: string;
   householdId: string;
@@ -59,6 +121,7 @@ export type DebugHistorySessionPayload = {
   wifeReactions: DebugHistoryReactionPayload[];
   rerankedSourceMovieIds: string[];
   bestPickSourceMovieId: string | null;
+  sessionOutcome: DebugHistoryOutcomePayload | null;
   postWatchFeedback: DebugHistoryFeedbackPayload[];
   recommendationSnapshot: DebugHistoryRecommendationSnapshotPayload | null;
   unavailableEvidence: string[];
@@ -75,6 +138,14 @@ export type DebugHistoryFeedbackPayload = {
   sourceMovieId: string;
   feedbackLabel: string;
   hasFreeTextNote: boolean;
+};
+
+export type DebugHistoryOutcomePayload = {
+  outcomeType: string;
+  selectedSourceMovieId: string | null;
+  selectedTitle: string | null;
+  selectionOrigin: string | null;
+  hasNotes: boolean;
 };
 
 export type DebugHistoryUserScorePayload = {
@@ -190,6 +261,30 @@ export async function getSessionDebugHistory(
   return getJson(
     `/api/session/${encodeURIComponent(sessionId)}/debug-history`,
   );
+}
+
+export async function submitSessionOutcome(
+  sessionId: string,
+  request: SaveSessionOutcomeRequest,
+): Promise<SessionOutcomePayload> {
+  return postJson(`/api/session/${encodeURIComponent(sessionId)}/outcome`, request);
+}
+
+export async function submitPostWatchFeedback(
+  request: SavePostWatchFeedbackRequest,
+): Promise<PostWatchFeedbackPayload> {
+  return postJson("/api/feedback/post-watch", request);
+}
+
+export async function getRecentSessions(
+  householdId: string,
+  limit = 6,
+): Promise<RecentSessionSummaryPayload[]> {
+  const query = new URLSearchParams({
+    householdId,
+    limit: String(limit),
+  });
+  return getJson(`/api/history/sessions?${query.toString()}`);
 }
 
 async function postJson<TResponse>(

@@ -582,6 +582,84 @@ input:focus-visible {
   font-weight: 750;
 }
 
+.outcomePanel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: #ffffff;
+  display: grid;
+  gap: 12px;
+}
+
+.outcomeOptionGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.outcomeChoiceList {
+  display: grid;
+  gap: 8px;
+}
+
+.choiceButton {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.choiceButtonActive {
+  border-color: var(--accent);
+  background: var(--soft-blue);
+  color: var(--accent);
+}
+
+.feedbackGrid {
+  display: grid;
+  gap: 10px;
+}
+
+.feedbackCard {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--panel-strong);
+  display: grid;
+  gap: 10px;
+}
+
+.feedbackCard h4 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.noteField {
+  display: grid;
+  gap: 6px;
+}
+
+.noteField span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.noteField textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font: inherit;
+  resize: vertical;
+  min-height: 84px;
+  background: #ffffff;
+  color: var(--ink);
+}
+
+.noteField textarea::placeholder {
+  color: var(--muted);
+}
+
 .debugHistoryPanel {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -669,6 +747,43 @@ input:focus-visible {
   overflow-wrap: anywhere;
 }
 
+.recentSessionList {
+  display: grid;
+  gap: 10px;
+}
+
+.recentSessionCard {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: #ffffff;
+  display: grid;
+  gap: 8px;
+}
+
+.recentSessionMeta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.recentSessionMeta strong,
+.recentSessionMeta span,
+.recentSessionDetail {
+  overflow-wrap: anywhere;
+}
+
+.recentSessionMeta strong {
+  font-size: 0.96rem;
+}
+
+.recentSessionMeta span,
+.recentSessionDetail {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
 .bottomActions {
   display: grid;
   grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
@@ -688,5 +803,9 @@ input:focus-visible {
 
   .reactionGrid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .feedbackGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

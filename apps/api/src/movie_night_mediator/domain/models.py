@@ -75,6 +75,18 @@ class WatchedStatusScope(StrEnum):
     GLOBAL = "global"
 
 
+class SessionOutcomeType(StrEnum):
+    WATCHED_RECOMMENDED = "watched_recommended"
+    WATCHED_OTHER = "watched_other"
+    WATCHED_NOTHING = "watched_nothing"
+
+
+class OutcomeSelectionOrigin(StrEnum):
+    PICK_FOR_US = "pick_for_us"
+    RERANKED_SHORTLIST = "reranked_shortlist"
+    MANUAL_OTHER_CHOICE = "manual_other_choice"
+
+
 @dataclass(frozen=True)
 class HouseholdDefaults:
     default_region: str = "DE"
@@ -677,3 +689,46 @@ class PostWatchFeedback:
     source_movie_id: str
     feedback_label: str
     free_text_note: str | None = None
+
+
+@dataclass(frozen=True)
+class SessionOutcome:
+    session_id: str
+    outcome_type: SessionOutcomeType
+    selected_source_movie_id: str | None = None
+    selected_title: str | None = None
+    selection_origin: OutcomeSelectionOrigin | None = None
+    notes: str | None = None
+
+    def __post_init__(self) -> None:
+        normalized_session_id = self.session_id.strip()
+        normalized_source_movie_id = (
+            self.selected_source_movie_id.strip()
+            if self.selected_source_movie_id is not None
+            else None
+        )
+        normalized_title = (
+            self.selected_title.strip() if self.selected_title is not None else None
+        )
+        normalized_notes = self.notes.strip() if self.notes is not None else None
+
+        if not normalized_session_id:
+            raise ValueError("Session outcomes require a session id.")
+
+        if self.outcome_type == SessionOutcomeType.WATCHED_NOTHING:
+            if normalized_source_movie_id is not None:
+                raise ValueError("Watched-nothing outcomes cannot include a selected source movie id.")
+            if normalized_title is not None:
+                raise ValueError("Watched-nothing outcomes cannot include a selected title.")
+            if self.selection_origin is not None:
+                raise ValueError("Watched-nothing outcomes cannot include a selection origin.")
+        else:
+            if not normalized_title:
+                raise ValueError("Watched outcomes require a selected title.")
+            if self.selection_origin is None:
+                raise ValueError("Watched outcomes require a selection origin.")
+
+        object.__setattr__(self, "session_id", normalized_session_id)
+        object.__setattr__(self, "selected_source_movie_id", normalized_source_movie_id)
+        object.__setattr__(self, "selected_title", normalized_title)
+        object.__setattr__(self, "notes", normalized_notes)
