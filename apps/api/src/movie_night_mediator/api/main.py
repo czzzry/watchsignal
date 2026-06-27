@@ -23,6 +23,10 @@ from movie_night_mediator.app.setup import (
     SetupProfile,
     SetupState,
 )
+from movie_night_mediator.app.shortlist import (
+    OfflineShortlistItem,
+    get_offline_demo_shortlist,
+)
 from movie_night_mediator.domain import (
     DEFAULT_HOUSEHOLD_ID,
     BackfillTasteLabel,
@@ -161,6 +165,20 @@ class SessionShortlistItemPayload(BaseModel):
     candidateRank: int = Field(ge=1)
 
 
+class RecommendationShortlistItemPayload(BaseModel):
+    sourceMovieId: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    candidateRank: int = Field(ge=1)
+    releaseYear: int | None = None
+    runtimeMin: int | None = None
+    genres: list[str]
+    providerNames: list[str]
+    fitBucket: str = Field(min_length=1)
+    groupScore: float
+    whyShort: str = Field(min_length=1)
+    isInterestingPick: bool
+
+
 class SessionReactionPayload(BaseModel):
     sourceMovieId: str = Field(min_length=1)
     reactionLabel: SessionReactionLabel
@@ -288,6 +306,17 @@ def create_app(
     @app.get("/health", tags=["system"])
     def health() -> dict[str, str]:
         return {"status": "ok", "service": "movie-night-mediator-api"}
+
+    @app.get(
+        "/recommendations/shortlist",
+        response_model=list[RecommendationShortlistItemPayload],
+        tags=["recommendations"],
+    )
+    def get_recommendation_shortlist() -> list[RecommendationShortlistItemPayload]:
+        return [
+            _offline_shortlist_item_to_payload(item)
+            for item in get_offline_demo_shortlist()
+        ]
 
     @app.get("/setup", response_model=SetupStatePayload, tags=["setup"])
     def get_setup() -> SetupStatePayload:
@@ -563,6 +592,24 @@ def _validate_profile_uniqueness(profiles: list[SetupProfilePayload]) -> None:
     profile_ids = [profile.id for profile in profiles]
     if len(set(profile_ids)) != len(profile_ids):
         raise HTTPException(status_code=400, detail="Profile ids must be unique.")
+
+
+def _offline_shortlist_item_to_payload(
+    item: OfflineShortlistItem,
+) -> RecommendationShortlistItemPayload:
+    return RecommendationShortlistItemPayload(
+        sourceMovieId=item.source_movie_id,
+        title=item.title,
+        candidateRank=item.candidate_rank,
+        releaseYear=item.release_year,
+        runtimeMin=item.runtime_min,
+        genres=list(item.genres),
+        providerNames=list(item.provider_names),
+        fitBucket=item.fit_bucket,
+        groupScore=item.group_score,
+        whyShort=item.why_short,
+        isInterestingPick=item.is_interesting_pick,
+    )
 
 
 def _payload_to_setup_state(payload: SetupStatePayload) -> SetupState:
