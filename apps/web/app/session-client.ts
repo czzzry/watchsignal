@@ -25,17 +25,22 @@ export type SessionShortlistItemPayload = {
 
 export type ShortlistCandidatePayload = SessionShortlistItemPayload & {
   year?: number | null;
+  releaseYear?: number | null;
   runtime?: string | null;
+  runtimeMin?: number | null;
   posterUrl?: string | null;
   safePickStatus?: string | null;
   availability?: string | null;
+  providerNames?: string[];
   languageAccess?: string | null;
   tone?: string | null;
   reason?: string | null;
+  whyShort?: string | null;
   fitBucket?: string | null;
   groupScore?: number | null;
   founderScore?: number | null;
   wifeScore?: number | null;
+  isInterestingPick?: boolean | null;
 };
 
 export type SessionReactionPayload = {
@@ -99,6 +104,7 @@ export type DebugHistoryRecommendationSnapshotPayload = {
 };
 
 export type CreateSessionRequest = {
+  sessionId?: string;
   householdId: string;
   activeMode: ApiSessionMode;
   participantIds: string[];
@@ -106,6 +112,7 @@ export type CreateSessionRequest = {
 };
 
 export type LoadShortlistRequest = {
+  sessionId: string;
   householdId: string;
   activeMode: ApiSessionMode;
   participantIds: string[];
@@ -264,7 +271,9 @@ function parseShortlistCandidate(
       numberValue(candidate.candidate_rank) ??
       1,
     year: numberValue(candidate.year),
+    releaseYear: numberValue(candidate.releaseYear),
     runtime: stringValue(candidate.runtime),
+    runtimeMin: numberValue(candidate.runtimeMin),
     posterUrl:
       stringValue(candidate.posterUrl) ??
       stringValue(candidate.poster_url),
@@ -272,6 +281,7 @@ function parseShortlistCandidate(
       stringValue(candidate.safePickStatus) ??
       stringValue(candidate.safe_pick_status),
     availability: stringValue(candidate.availability),
+    providerNames: stringArrayValue(candidate.providerNames),
     languageAccess:
       stringValue(candidate.languageAccess) ??
       stringValue(candidate.language_access),
@@ -280,6 +290,7 @@ function parseShortlistCandidate(
       stringValue(candidate.reason) ??
       stringValue(candidate.whyShort) ??
       stringValue(candidate.why_short),
+    whyShort: stringValue(candidate.whyShort),
     fitBucket:
       stringValue(candidate.fitBucket) ??
       stringValue(candidate.fit_bucket),
@@ -292,6 +303,10 @@ function parseShortlistCandidate(
     wifeScore:
       numberValue(candidate.wifeScore) ??
       numberValue(candidate.wife_score),
+    isInterestingPick:
+      typeof candidate.isInterestingPick === "boolean"
+        ? candidate.isInterestingPick
+        : null,
   };
 }
 
@@ -301,6 +316,16 @@ function stringValue(value: unknown): string | null {
 
 function numberValue(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function stringArrayValue(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter(
+    (item): item is string => typeof item === "string" && item.trim().length > 0,
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

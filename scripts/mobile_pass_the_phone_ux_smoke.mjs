@@ -2,6 +2,7 @@
 
 import { createServer } from "node:net";
 import { mkdtemp, rm } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
@@ -88,15 +89,25 @@ async function startWebServer() {
   const port = await getFreePort();
   const fallbackApiPort = await getFreePort();
   const packageRunner = await resolvePackageRunner();
+  const serverScript = resolveWebServerScript();
   const child = spawn(
     packageRunner.command,
-    [...packageRunner.args, "--dir", "apps/web", "dev", "--port", String(port)],
+    [
+      ...packageRunner.args,
+      "--dir",
+      "apps/web",
+      serverScript,
+      "--port",
+      String(port),
+    ],
     {
       cwd: repoRoot,
       env: {
         ...process.env,
         API_BASE_URL: `http://127.0.0.1:${fallbackApiPort}`,
         NEXT_TELEMETRY_DISABLED: "1",
+        PNPM_HOME: join(repoRoot, ".tools", "pnpm"),
+        XDG_CACHE_HOME: join(repoRoot, ".tools", "cache"),
       },
       stdio: ["ignore", "pipe", "pipe"],
     },
@@ -112,7 +123,34 @@ async function startWebServer() {
   return url;
 }
 
+function resolveWebServerScript() {
+  if (process.env.MOBILE_UX_SMOKE_SERVER === "dev") {
+    return "dev";
+  }
+
+  if (existsSync(join(repoRoot, "apps", "web", ".next"))) {
+    return "start";
+  }
+
+  return "dev";
+}
+
 async function resolvePackageRunner() {
+  const localPnpm = join(
+    repoRoot,
+    ".tools",
+    "npm-cache",
+    "_npx",
+    "a1a38f5f0f780954",
+    "node_modules",
+    "pnpm",
+    "bin",
+    "pnpm.cjs",
+  );
+  if (existsSync(localPnpm)) {
+    return { command: process.execPath, args: [localPnpm] };
+  }
+
   const pnpm = await resolveCommand("pnpm");
   if (pnpm) {
     return { command: pnpm, args: [] };
@@ -142,6 +180,7 @@ async function startChrome() {
       "--no-default-browser-check",
       "--disable-background-networking",
       "--disable-extensions",
+      "--disable-gpu",
       "about:blank",
     ],
     { stdio: ["ignore", "ignore", "pipe"] },
@@ -155,7 +194,7 @@ async function startChrome() {
   });
 
   const debuggingUrl = `http://127.0.0.1:${port}`;
-  await waitForHttp(`${debuggingUrl}/json/version`, "Chrome DevTools");
+  await waitForHttp(`${debuggingUrl}/json/version`, "Chrome DevTools", 90_000);
   return { debuggingUrl };
 }
 

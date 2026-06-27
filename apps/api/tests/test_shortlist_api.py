@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+import tempfile
 import unittest
+from pathlib import Path
 
 from fastapi.routing import APIRoute
 
 from movie_night_mediator.api.main import (
+    RecommendationShortlistRequestPayload,
     RecommendationShortlistItemPayload,
     create_app,
 )
 from movie_night_mediator.app.shortlist import get_offline_demo_shortlist
+from movie_night_mediator.storage import SQLiteRecommendationSnapshotStore
 
 
 class ShortlistApiTest(unittest.TestCase):
@@ -69,22 +73,50 @@ class ShortlistApiTest(unittest.TestCase):
         schema = create_app().openapi()
 
         self.assertIn("/recommendations/shortlist", schema["paths"])
+        self.assertIn("post", schema["paths"]["/recommendations/shortlist"])
         self.assertIn(
             "RecommendationShortlistItemPayload",
             schema["components"]["schemas"],
         )
 
+    def test_post_recommendation_shortlist_saves_snapshot_for_session(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            snapshot_store = SQLiteRecommendationSnapshotStore(
+                database_path=Path(directory) / "shortlist-snapshot.sqlite3"
+            )
+            post_shortlist = recommendation_shortlist_endpoint(
+                create_app(recommendation_snapshot_store=snapshot_store),
+                method="POST",
+            )
 
-def recommendation_shortlist_endpoint(app):
+            payload = post_shortlist(
+                RecommendationShortlistRequestPayload(sessionId="tonight-session")
+            )
+
+            snapshot = snapshot_store.load_snapshot("tonight-session")
+
+            self.assertEqual(len(payload), 5)
+            self.assertIsNotNone(snapshot)
+            assert snapshot is not None
+            self.assertEqual(snapshot.session_id, "tonight-session")
+            self.assertEqual(
+                snapshot.candidates[0].source_movie_id,
+                payload[0].sourceMovieId,
+            )
+
+
+def recommendation_shortlist_endpoint(app, method: str = "GET"):
     for route in app.routes:
         if (
             isinstance(route, APIRoute)
             and route.path == "/recommendations/shortlist"
-            and "GET" in route.methods
+            and method in route.methods
         ):
             return route.endpoint
 
-    raise AssertionError("GET /recommendations/shortlist route was not registered.")
+    raise AssertionError(
+        f"{method} /recommendations/shortlist route was not registered."
+    )
 
 
 if __name__ == "__main__":

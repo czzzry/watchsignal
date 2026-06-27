@@ -13,6 +13,9 @@ from movie_night_mediator.app.debug_history import (
 )
 from movie_night_mediator.app.feedback import PostWatchFeedbackService
 from movie_night_mediator.app.onboarding import SQLiteOnboardingStore
+from movie_night_mediator.app.recommendation_snapshot import (
+    RecommendationSnapshotService,
+)
 from movie_night_mediator.app.session import (
     SessionTransitionError,
     SharedSessionService,
@@ -179,6 +182,10 @@ class RecommendationShortlistItemPayload(BaseModel):
     isInterestingPick: bool
 
 
+class RecommendationShortlistRequestPayload(BaseModel):
+    sessionId: str = Field(min_length=1)
+
+
 class SessionReactionPayload(BaseModel):
     sourceMovieId: str = Field(min_length=1)
     reactionLabel: SessionReactionLabel
@@ -302,6 +309,9 @@ def create_app(
     resolved_recommendation_snapshot_store = (
         recommendation_snapshot_store or SQLiteRecommendationSnapshotStore()
     )
+    recommendation_snapshot_service = RecommendationSnapshotService(
+        resolved_recommendation_snapshot_store
+    )
 
     @app.get("/health", tags=["system"])
     def health() -> dict[str, str]:
@@ -316,6 +326,22 @@ def create_app(
         return [
             _offline_shortlist_item_to_payload(item)
             for item in get_offline_demo_shortlist()
+        ]
+
+    @app.post(
+        "/recommendations/shortlist",
+        response_model=list[RecommendationShortlistItemPayload],
+        tags=["recommendations"],
+    )
+    def post_recommendation_shortlist(
+        payload: RecommendationShortlistRequestPayload,
+    ) -> list[RecommendationShortlistItemPayload]:
+        return [
+            _offline_shortlist_item_to_payload(item)
+            for item in get_offline_demo_shortlist(
+                session_id=payload.sessionId,
+                snapshot_service=recommendation_snapshot_service,
+            )
         ]
 
     @app.get("/setup", response_model=SetupStatePayload, tags=["setup"])

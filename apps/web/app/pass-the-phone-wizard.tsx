@@ -157,7 +157,9 @@ export function PassThePhoneWizard({
     setApiError(null);
 
     try {
+      const sessionId = createSessionId();
       const shortlistResponse = await loadRecommendationShortlist({
+        sessionId,
         householdId: "default-household",
         activeMode: toApiSessionMode(sessionMode),
         participantIds,
@@ -167,6 +169,7 @@ export function PassThePhoneWizard({
       setSessionCandidates(candidates);
 
       const session = await createSharedSession({
+        sessionId,
         householdId: "default-household",
         activeMode: toApiSessionMode(sessionMode),
         participantIds,
@@ -1127,22 +1130,31 @@ function toSessionCandidate(
   );
   const rank = candidate.candidateRank || index + 1;
   const groupScore = candidate.groupScore ?? 72;
+  const runtime =
+    candidate.runtime ??
+    (candidate.runtimeMin ? formatRuntime(candidate.runtimeMin) : null);
+  const availability =
+    candidate.availability ??
+    (candidate.providerNames && candidate.providerNames.length > 0
+      ? `${candidate.providerNames.join(", ")} fixture`
+      : null);
 
   return {
     id: candidate.sourceMovieId,
     title: candidate.title,
-    year: candidate.year ?? fixture?.year ?? new Date().getFullYear(),
-    runtime: candidate.runtime ?? fixture?.runtime ?? "Runtime check needed",
+    year:
+      candidate.year ??
+      candidate.releaseYear ??
+      fixture?.year ??
+      new Date().getFullYear(),
+    runtime: runtime ?? fixture?.runtime ?? "Runtime check needed",
     posterUrl: candidate.posterUrl ?? fixture?.posterUrl ?? fallbackPosterUrl,
     safePickStatus: toSafePickStatus(candidate.safePickStatus),
-    availability:
-      candidate.availability ??
-      fixture?.availability ??
-      "Availability check needed",
+    availability: availability ?? fixture?.availability ?? "Availability check needed",
     languageAccess:
       candidate.languageAccess ??
       fixture?.languageAccess ??
-      "Language access check needed",
+      "English audio/subtitle fixture",
     tone: candidate.tone ?? candidate.fitBucket ?? fixture?.tone ?? "Balanced pick",
     reason:
       candidate.reason ??
@@ -1160,6 +1172,25 @@ function toSafePickStatus(
   value: string | null | undefined,
 ): DemoCandidate["safePickStatus"] {
   return value === "Needs Quick Check" ? "Needs Quick Check" : "Safe Pick";
+}
+
+function createSessionId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `session-${Date.now().toString(36)}`;
+}
+
+function formatRuntime(runtimeMin: number): string {
+  const hours = Math.floor(runtimeMin / 60);
+  const minutes = runtimeMin % 60;
+
+  if (hours === 0) {
+    return `${minutes}m`;
+  }
+
+  return `${hours}h ${minutes}m`;
 }
 
 function titleForSourceMovieId(
