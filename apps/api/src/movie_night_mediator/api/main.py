@@ -7,6 +7,10 @@ from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from movie_night_mediator.app.backfill import ManualBackfillService
+from movie_night_mediator.app.debug_history import (
+    DebugPersistedSessionEvidence,
+    build_persisted_session_evidence,
+)
 from movie_night_mediator.app.feedback import PostWatchFeedbackService
 from movie_night_mediator.app.onboarding import SQLiteOnboardingStore
 from movie_night_mediator.app.session import (
@@ -189,6 +193,40 @@ class SharedSessionPayload(BaseModel):
     rerankedSourceMovieIds: list[str]
     rerankedShortlist: list[SessionShortlistItemPayload]
     bestPickSourceMovieId: str | None = None
+
+
+class DebugHistoryShortlistItemPayload(BaseModel):
+    sourceMovieId: str
+    title: str
+    candidateRank: int
+
+
+class DebugHistoryReactionPayload(BaseModel):
+    participantId: str
+    sourceMovieId: str
+    reactionLabel: str
+
+
+class DebugHistoryFeedbackPayload(BaseModel):
+    userId: str
+    sourceMovieId: str
+    feedbackLabel: str
+    hasFreeTextNote: bool
+
+
+class DebugHistorySessionPayload(BaseModel):
+    sessionId: str
+    householdId: str
+    activeMode: str
+    state: str
+    participantIds: list[str]
+    shortlist: list[DebugHistoryShortlistItemPayload]
+    founderReactions: list[DebugHistoryReactionPayload]
+    wifeReactions: list[DebugHistoryReactionPayload]
+    rerankedSourceMovieIds: list[str]
+    bestPickSourceMovieId: str | None = None
+    postWatchFeedback: list[DebugHistoryFeedbackPayload]
+    unavailableEvidence: list[str]
 
 
 def create_app(
@@ -461,6 +499,26 @@ def create_app(
 
         return _shared_session_to_payload(session)
 
+    @app.get(
+        "/debug/history/sessions/{session_id}",
+        response_model=DebugHistorySessionPayload,
+        tags=["debug"],
+    )
+    def get_debug_history_session(session_id: str) -> DebugHistorySessionPayload:
+        session = session_service.load_session(session_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="Shared session not found.")
+
+        feedback_records = feedback_service.list_feedback(
+            household_id=session.household_id,
+            session_id=session.session_id,
+        )
+        evidence = build_persisted_session_evidence(
+            session=session,
+            feedback=feedback_records,
+        )
+        return _debug_history_session_to_payload(evidence)
+
     return app
 
 
@@ -727,6 +785,54 @@ def _shared_session_to_payload(
             for item in reranked_shortlist
         ],
         bestPickSourceMovieId=session.best_pick_source_movie_id,
+    )
+
+
+def _debug_history_session_to_payload(
+    evidence: DebugPersistedSessionEvidence,
+) -> DebugHistorySessionPayload:
+    return DebugHistorySessionPayload(
+        sessionId=evidence.session_id,
+        householdId=evidence.household_id,
+        activeMode=evidence.active_mode,
+        state=evidence.state,
+        participantIds=list(evidence.participant_ids),
+        shortlist=[
+            DebugHistoryShortlistItemPayload(
+                sourceMovieId=item.source_movie_id,
+                title=item.title,
+                candidateRank=item.candidate_rank,
+            )
+            for item in evidence.shortlist
+        ],
+        founderReactions=[
+            DebugHistoryReactionPayload(
+                participantId=reaction.participant_id,
+                sourceMovieId=reaction.source_movie_id,
+                reactionLabel=reaction.reaction_label,
+            )
+            for reaction in evidence.founder_reactions
+        ],
+        wifeReactions=[
+            DebugHistoryReactionPayload(
+                participantId=reaction.participant_id,
+                sourceMovieId=reaction.source_movie_id,
+                reactionLabel=reaction.reaction_label,
+            )
+            for reaction in evidence.wife_reactions
+        ],
+        rerankedSourceMovieIds=list(evidence.reranked_source_movie_ids),
+        bestPickSourceMovieId=evidence.best_pick_source_movie_id,
+        postWatchFeedback=[
+            DebugHistoryFeedbackPayload(
+                userId=feedback.user_id,
+                sourceMovieId=feedback.source_movie_id,
+                feedbackLabel=feedback.feedback_label,
+                hasFreeTextNote=feedback.has_free_text_note,
+            )
+            for feedback in evidence.post_watch_feedback
+        ],
+        unavailableEvidence=list(evidence.unavailable_evidence),
     )
 
 
