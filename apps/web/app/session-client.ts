@@ -23,6 +23,21 @@ export type SessionShortlistItemPayload = {
   candidateRank: number;
 };
 
+export type ShortlistCandidatePayload = SessionShortlistItemPayload & {
+  year?: number | null;
+  runtime?: string | null;
+  posterUrl?: string | null;
+  safePickStatus?: string | null;
+  availability?: string | null;
+  languageAccess?: string | null;
+  tone?: string | null;
+  reason?: string | null;
+  fitBucket?: string | null;
+  groupScore?: number | null;
+  founderScore?: number | null;
+  wifeScore?: number | null;
+};
+
 export type SessionReactionPayload = {
   sourceMovieId: string;
   reactionLabel: ReactionValue;
@@ -90,6 +105,17 @@ export type CreateSessionRequest = {
   shortlist: SessionShortlistItemPayload[];
 };
 
+export type LoadShortlistRequest = {
+  householdId: string;
+  activeMode: ApiSessionMode;
+  participantIds: string[];
+  shortlistSize: number;
+};
+
+export type LoadShortlistResponse = {
+  shortlist: ShortlistCandidatePayload[];
+};
+
 export type SubmitReactionsRequest = {
   participantId: string;
   reactions: SessionReactionPayload[];
@@ -111,6 +137,19 @@ export async function createSharedSession(
   request: CreateSessionRequest,
 ): Promise<SharedSessionPayload> {
   return postJson("/api/session", request);
+}
+
+export async function loadRecommendationShortlist(
+  request: LoadShortlistRequest,
+): Promise<LoadShortlistResponse> {
+  const payload = await postJson<unknown>("/api/recommendations/shortlist", request);
+  const shortlist = parseShortlistPayload(payload);
+
+  if (shortlist.length === 0) {
+    throw new Error("Recommendation API returned an empty shortlist.");
+  }
+
+  return { shortlist };
 }
 
 export async function submitSessionReactions(
@@ -180,4 +219,90 @@ function parseApiError(payload: unknown, status: number): string {
   }
 
   return `Session API returned HTTP ${status}.`;
+}
+
+function parseShortlistPayload(payload: unknown): ShortlistCandidatePayload[] {
+  const candidate =
+    isRecord(payload) && Array.isArray(payload.shortlist)
+      ? payload.shortlist
+      : isRecord(payload) && Array.isArray(payload.candidates)
+        ? payload.candidates
+        : Array.isArray(payload)
+          ? payload
+          : [];
+
+  return candidate
+    .map(parseShortlistCandidate)
+    .filter(
+      (item): item is ShortlistCandidatePayload => item !== null,
+    )
+    .sort((first, second) => first.candidateRank - second.candidateRank);
+}
+
+function parseShortlistCandidate(
+  candidate: unknown,
+): ShortlistCandidatePayload | null {
+  if (!isRecord(candidate)) {
+    return null;
+  }
+
+  const sourceMovieId =
+    stringValue(candidate.sourceMovieId) ??
+    stringValue(candidate.source_movie_id) ??
+    stringValue(candidate.id);
+  const title = stringValue(candidate.title);
+
+  if (!sourceMovieId || !title) {
+    return null;
+  }
+
+  return {
+    sourceMovieId,
+    title,
+    candidateRank:
+      numberValue(candidate.candidateRank) ??
+      numberValue(candidate.candidate_rank) ??
+      1,
+    year: numberValue(candidate.year),
+    runtime: stringValue(candidate.runtime),
+    posterUrl:
+      stringValue(candidate.posterUrl) ??
+      stringValue(candidate.poster_url),
+    safePickStatus:
+      stringValue(candidate.safePickStatus) ??
+      stringValue(candidate.safe_pick_status),
+    availability: stringValue(candidate.availability),
+    languageAccess:
+      stringValue(candidate.languageAccess) ??
+      stringValue(candidate.language_access),
+    tone: stringValue(candidate.tone) ?? stringValue(candidate.fitBucket),
+    reason:
+      stringValue(candidate.reason) ??
+      stringValue(candidate.whyShort) ??
+      stringValue(candidate.why_short),
+    fitBucket:
+      stringValue(candidate.fitBucket) ??
+      stringValue(candidate.fit_bucket),
+    groupScore:
+      numberValue(candidate.groupScore) ??
+      numberValue(candidate.group_score),
+    founderScore:
+      numberValue(candidate.founderScore) ??
+      numberValue(candidate.founder_score),
+    wifeScore:
+      numberValue(candidate.wifeScore) ??
+      numberValue(candidate.wife_score),
+  };
+}
+
+function stringValue(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function numberValue(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
