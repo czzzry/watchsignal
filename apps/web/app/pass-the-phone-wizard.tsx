@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { SetupLoadResult } from "./setup-api";
 import {
   demoCandidates,
@@ -12,9 +12,12 @@ import {
 import {
   advanceSessionHandoff,
   createSharedSession,
+  getOnboardingCompletion,
+  getProfileOnboarding,
   getRecentSessions,
   getSessionDebugHistory,
   loadRecommendationShortlist,
+  saveProfileOnboarding,
   submitPostWatchFeedback,
   submitSessionOutcome,
   submitSessionReactions,
@@ -23,7 +26,9 @@ import {
   type DebugHistoryCandidateInputPayload,
   type DebugHistoryRecommendationCandidatePayload,
   type DebugHistorySessionPayload,
+  type OnboardingCompletionPayload,
   type PostWatchFeedbackPayload,
+  type ParticipantOnboardingPayload,
   type RecentSessionSummaryPayload,
   type SavePostWatchFeedbackRequest,
   type SaveSessionOutcomeRequest,
@@ -47,14 +52,47 @@ type PassThePhoneWizardProps = {
 type WizardStep = "setup" | "founder" | "handoff" | "wife" | "results";
 
 type ReactionState = Record<string, ReactionValue | undefined>;
+type SeenMemoryValue = "loved" | "fine" | "no" | "forget";
+type SeenMemoryState = Record<string, SeenMemoryValue | undefined>;
 type FeedbackState = Record<string, "loved" | "fine" | "no" | undefined>;
 type FeedbackNoteState = Record<string, string>;
+type OnboardingDraft = {
+  lovedTitleEntries: ParticipantOnboardingPayload["lovedTitleEntries"];
+  fineTitleEntries: ParticipantOnboardingPayload["fineTitleEntries"];
+  noTitleEntries: ParticipantOnboardingPayload["noTitleEntries"];
+  manualLoved: string;
+  manualFine: string;
+  manualNo: string;
+};
 
 type SessionSource = "api" | "demo";
 
 type SyncStatus = "ready" | "saving" | "loading";
 
 type DebugHistoryStatus = "idle" | "loading" | "ready" | "failed";
+type OnboardingStatus = "idle" | "loading" | "ready" | "saving" | "failed";
+
+type ReviewTag = "bug" | "confusing" | "ugly" | "good";
+type PeopleMode = "couple" | "founder" | "wife";
+type LanguageMode = "english" | "subtitles-ok" | "anything";
+
+type ReviewNote = {
+  id: string;
+  createdAt: string;
+  step: WizardStep;
+  tag: ReviewTag;
+  text: string;
+};
+
+type SeenMemoryPromptState = {
+  actor: "founder" | "wife";
+  candidate: DemoCandidate;
+} | null;
+
+type OnboardingPromptState = {
+  profileId: string;
+  profileLabel: string;
+} | null;
 
 const stepOrder: WizardStep[] = ["setup", "founder", "handoff", "wife", "results"];
 
@@ -72,14 +110,41 @@ const sessionModeLabels: Record<SessionMode, string> = {
   "wife-first": "Wife first",
 };
 
+const peopleModeLabels: Record<PeopleMode, string> = {
+  couple: "Husband + Wife",
+  founder: "Husband",
+  wife: "Wife",
+};
+
+const languageModeLabels: Record<LanguageMode, string> = {
+  english: "English",
+  "subtitles-ok": "Foreign + English subtitles",
+  anything: "No rules",
+};
+
 const feedbackLabels: Record<"loved" | "fine" | "no", string> = {
   loved: "Loved",
   fine: "Fine",
   no: "No",
 };
 
+const seenMemoryLabels: Record<SeenMemoryValue, string> = {
+  loved: "Loved it",
+  fine: "Ok",
+  no: "Hated it",
+  forget: "I forget",
+};
+
 const fallbackPosterUrl =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 342 513'%3E%3Crect width='342' height='513' fill='%23e1eef2'/%3E%3Crect x='42' y='78' width='258' height='357' rx='18' fill='%23ffffff' stroke='%23245f73' stroke-width='8'/%3E%3Ccircle cx='126' cy='184' r='32' fill='%23245f73'/%3E%3Ccircle cx='216' cy='184' r='32' fill='%23245f73'/%3E%3Cpath d='M102 306h138' stroke='%23245f73' stroke-width='16' stroke-linecap='round'/%3E%3C/svg%3E";
+
+function handlePosterFallback(event: {
+  currentTarget: HTMLImageElement;
+}): void {
+  if (event.currentTarget.src !== fallbackPosterUrl) {
+    event.currentTarget.src = fallbackPosterUrl;
+  }
+}
 
 export function PassThePhoneWizard({
   apiHealth,
@@ -92,18 +157,38 @@ export function PassThePhoneWizard({
   const wifeLabel = profiles[1]?.label || "Wife";
   const [step, setStep] = useState<WizardStep>("setup");
   const [sessionMode, setSessionMode] = useState<SessionMode>("compromise");
+  const [peopleMode, setPeopleMode] = useState<PeopleMode>("couple");
+  const [languageMode, setLanguageMode] = useState<LanguageMode>("english");
   const [founderIndex, setFounderIndex] = useState(0);
   const [wifeIndex, setWifeIndex] = useState(0);
   const [sessionCandidates, setSessionCandidates] =
     useState<DemoCandidate[]>(demoCandidates);
   const [founderReactions, setFounderReactions] = useState<ReactionState>({});
   const [wifeReactions, setWifeReactions] = useState<ReactionState>({});
+  const [founderSeenMemories, setFounderSeenMemories] = useState<SeenMemoryState>({});
+  const [wifeSeenMemories, setWifeSeenMemories] = useState<SeenMemoryState>({});
+  const [seenMemoryPrompt, setSeenMemoryPrompt] =
+    useState<SeenMemoryPromptState>(null);
+  const [onboardingCompletion, setOnboardingCompletion] =
+    useState<OnboardingCompletionPayload | null>(null);
+  const [onboardingStatus, setOnboardingStatus] =
+    useState<OnboardingStatus>(apiHealth.connected ? "loading" : "ready");
+  const [onboardingMessage, setOnboardingMessage] = useState<string | null>(
+    null,
+  );
+  const [onboardingPrompt, setOnboardingPrompt] =
+    useState<OnboardingPromptState>(null);
+  const [onboardingDraft, setOnboardingDraft] = useState<OnboardingDraft | null>(null);
   const [sessionSource, setSessionSource] = useState<SessionSource>(
     apiHealth.connected ? "api" : "demo",
   );
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("ready");
+  const [showLaunchSting, setShowLaunchSting] = useState(true);
+  const [reviewMode, setReviewMode] = useState(false);
   const [apiError, setApiError] = useState<string | null>(
-    apiHealth.connected ? null : "API is disconnected, so this review is using demo data.",
+    apiHealth.connected
+      ? null
+      : "Live session sync is unavailable, so tonight is running in local mode.",
   );
   const [sharedSession, setSharedSession] = useState<SharedSessionPayload | null>(
     null,
@@ -128,14 +213,30 @@ export function PassThePhoneWizard({
   const [selectedHistoryMessage, setSelectedHistoryMessage] = useState<string | null>(
     null,
   );
-  const participantIds = [profiles[0]?.id || "husband", profiles[1]?.id || "wife"];
+  const rawParticipantIds = [profiles[0]?.id || "husband", profiles[1]?.id || "wife"];
+  const isCoupleSession = peopleMode === "couple";
+  const participantIds =
+    peopleMode === "couple"
+      ? rawParticipantIds
+      : peopleMode === "founder"
+        ? [rawParticipantIds[0]]
+        : [rawParticipantIds[1]];
   const founderCandidate = sessionCandidates[founderIndex];
   const wifeCandidate = sessionCandidates[wifeIndex];
+  const firstPassActor: "founder" | "wife" =
+    peopleMode === "wife" ? "wife" : "founder";
+  const firstPassLabel = peopleMode === "wife" ? wifeLabel : founderLabel;
+  const firstPassCandidate =
+    firstPassActor === "founder" ? founderCandidate : wifeCandidate;
+  const activeStepOrder: WizardStep[] = isCoupleSession
+    ? stepOrder
+    : ["setup", "founder", "results"];
 
   const rankedCandidates = useMemo(
     () =>
       rankCandidates({
         sessionMode,
+        peopleMode,
         candidates: sessionCandidates,
         founderReactions,
         wifeReactions,
@@ -144,11 +245,51 @@ export function PassThePhoneWizard({
             ? sharedSession.rerankedSourceMovieIds
             : [],
       }),
-    [founderReactions, sessionCandidates, sessionMode, sharedSession, wifeReactions],
+    [
+      founderReactions,
+      peopleMode,
+      sessionCandidates,
+      sessionMode,
+      sharedSession,
+      wifeReactions,
+    ],
   );
 
-  const currentStepIndex = stepOrder.indexOf(step);
+  const currentStepIndex = activeStepOrder.indexOf(step);
   const isSyncing = syncStatus !== "ready";
+  const onboardingBusy = onboardingStatus === "loading" || onboardingStatus === "saving";
+  const sessionDateLabel = formatSessionDate(new Date());
+  const isOnboardingRequired = apiHealth.connected
+    ? isCoupleSession
+      ? onboardingCompletion?.sharedRecommendationLocked ?? onboardingStatus !== "ready"
+      : onboardingCompletion
+        ? onboardingCompletion.incompleteProfileIds.includes(participantIds[0])
+        : onboardingStatus !== "ready"
+    : false;
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setShowLaunchSting(false);
+    }, 2200);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setReviewMode(params.get("review") === "1");
+  }, []);
+
+  useEffect(() => {
+    if (!apiHealth.connected) {
+      setOnboardingCompletion(null);
+      setOnboardingStatus("ready");
+      setOnboardingMessage(null);
+      return;
+    }
+
+    void refreshOnboardingCompletion();
+  }, [apiHealth.connected, participantIds.join("|"), isCoupleSession]);
 
   function resetSession() {
     setStep("setup");
@@ -157,6 +298,9 @@ export function PassThePhoneWizard({
     setSessionCandidates(demoCandidates);
     setFounderReactions({});
     setWifeReactions({});
+    setFounderSeenMemories({});
+    setWifeSeenMemories({});
+    setSeenMemoryPrompt(null);
     setSharedSession(null);
     setDebugHistory(null);
     setDebugHistoryStatus("idle");
@@ -164,16 +308,284 @@ export function PassThePhoneWizard({
     setSyncStatus("ready");
     setSessionSource(apiHealth.connected ? "api" : "demo");
     setApiError(
-      apiHealth.connected ? null : "API is disconnected, so this review is using demo data.",
+      apiHealth.connected
+        ? null
+        : "Live session sync is unavailable, so tonight is running in local mode.",
     );
   }
 
+  async function refreshOnboardingCompletion(): Promise<OnboardingCompletionPayload | null> {
+    if (!apiHealth.connected) {
+      return null;
+    }
+
+    setOnboardingStatus("loading");
+    setOnboardingMessage(null);
+
+    try {
+      const completion = await getOnboardingCompletion(participantIds);
+      setOnboardingCompletion(completion);
+      setOnboardingStatus("ready");
+      return completion;
+    } catch (error) {
+      setOnboardingCompletion(null);
+      setOnboardingStatus("failed");
+      setOnboardingMessage(toOnboardingErrorMessage(error));
+      return null;
+    }
+  }
+
+  async function beginOnboarding(profileId?: string): Promise<void> {
+    if (!apiHealth.connected) {
+      return;
+    }
+
+    const targetProfileId =
+      profileId ??
+      (isCoupleSession
+        ? onboardingCompletion?.incompleteProfileIds[0]
+        : participantIds[0]) ??
+      participantIds[0];
+    const profile = profiles.find((item) => item.id === targetProfileId);
+
+    if (!profile) {
+      return;
+    }
+
+    setOnboardingStatus("loading");
+    setOnboardingMessage(null);
+
+    try {
+      const onboarding = await getProfileOnboarding(targetProfileId);
+      setOnboardingDraft(toOnboardingDraft(onboarding));
+      setOnboardingPrompt({
+        profileId: targetProfileId,
+        profileLabel: profile.label,
+      });
+      setOnboardingStatus("ready");
+    } catch (error) {
+      setOnboardingPrompt(null);
+      setOnboardingDraft(null);
+      setOnboardingStatus("failed");
+      setOnboardingMessage(toOnboardingErrorMessage(error));
+    }
+  }
+
+  async function saveOnboardingProfile(): Promise<void> {
+    if (!onboardingPrompt || !onboardingDraft) {
+      return;
+    }
+
+    const lovedTitleEntries = onboardingDraft.lovedTitleEntries;
+    const fineTitleEntries = onboardingDraft.fineTitleEntries;
+    const noTitleEntries = onboardingDraft.noTitleEntries;
+
+    if (
+      lovedTitleEntries.length === 0 ||
+      fineTitleEntries.length === 0 ||
+      noTitleEntries.length === 0
+    ) {
+      setOnboardingMessage("Each person needs at least one Loved, Ok, and No seed.");
+      return;
+    }
+
+    setOnboardingStatus("saving");
+    setOnboardingMessage(null);
+
+    try {
+      await saveProfileOnboarding(onboardingPrompt.profileId, {
+        profileId: onboardingPrompt.profileId,
+        lovedTitleEntries,
+        fineTitleEntries,
+        noTitleEntries,
+        constraints: {
+          horrorExclusion: false,
+          subtitleIntolerance: false,
+        },
+        isComplete: true,
+      });
+
+      const completion = await refreshOnboardingCompletion();
+      const nextIncomplete = completion?.incompleteProfileIds[0] ?? null;
+
+      if (nextIncomplete) {
+        await beginOnboarding(nextIncomplete);
+        return;
+      }
+
+      setOnboardingPrompt(null);
+      setOnboardingDraft(null);
+      setOnboardingStatus("ready");
+    } catch (error) {
+      setOnboardingStatus("failed");
+      setOnboardingMessage(toOnboardingErrorMessage(error));
+    }
+  }
+
+  function cancelOnboarding(): void {
+    setOnboardingPrompt(null);
+    setOnboardingDraft(null);
+    setOnboardingMessage(null);
+  }
+
+  function addSuggestedSeed(
+    bucket: "loved" | "fine" | "no",
+    candidate: DemoCandidate,
+  ): void {
+    setOnboardingDraft((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const entry = toResolvedTitleEntry(candidate);
+      const nextDraft = removeSeedFromDraft(current, candidate.id);
+
+      if (bucket === "loved") {
+        return {
+          ...nextDraft,
+          lovedTitleEntries: prependUniqueEntry(nextDraft.lovedTitleEntries, entry),
+        };
+      }
+
+      if (bucket === "fine") {
+        return {
+          ...nextDraft,
+          fineTitleEntries: prependUniqueEntry(nextDraft.fineTitleEntries, entry),
+        };
+      }
+
+      return {
+        ...nextDraft,
+        noTitleEntries: prependUniqueEntry(nextDraft.noTitleEntries, entry),
+      };
+    });
+  }
+
+  function updateManualSeed(
+    bucket: "loved" | "fine" | "no",
+    value: string,
+  ): void {
+    setOnboardingDraft((current) => {
+      if (!current) {
+        return current;
+      }
+
+      if (bucket === "loved") {
+        return { ...current, manualLoved: value };
+      }
+
+      if (bucket === "fine") {
+        return { ...current, manualFine: value };
+      }
+
+      return { ...current, manualNo: value };
+    });
+  }
+
+  function addManualSeed(bucket: "loved" | "fine" | "no"): void {
+    setOnboardingDraft((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const rawTitle =
+        bucket === "loved"
+          ? current.manualLoved
+          : bucket === "fine"
+            ? current.manualFine
+            : current.manualNo;
+      const trimmed = rawTitle.trim();
+
+      if (!trimmed) {
+        return current;
+      }
+
+      const nextDraft = removeUnresolvedSeedFromDraft(current, trimmed);
+      const entry = {
+        rawTitle: trimmed,
+        status: "unresolved" as const,
+        unresolvedReason: "Manual seed entry added from onboarding.",
+      };
+
+      if (bucket === "loved") {
+        return {
+          ...nextDraft,
+          lovedTitleEntries: prependUniqueEntry(nextDraft.lovedTitleEntries, entry),
+          manualLoved: "",
+        };
+      }
+
+      if (bucket === "fine") {
+        return {
+          ...nextDraft,
+          fineTitleEntries: prependUniqueEntry(nextDraft.fineTitleEntries, entry),
+          manualFine: "",
+        };
+      }
+
+      return {
+        ...nextDraft,
+        noTitleEntries: prependUniqueEntry(nextDraft.noTitleEntries, entry),
+        manualNo: "",
+      };
+    });
+  }
+
+  function removeDraftSeed(
+    bucket: "loved" | "fine" | "no",
+    key: string,
+  ): void {
+    setOnboardingDraft((current) => {
+      if (!current) {
+        return current;
+      }
+
+      if (bucket === "loved") {
+        return {
+          ...current,
+          lovedTitleEntries: current.lovedTitleEntries.filter(
+            (entry) => entryKey(entry) !== key,
+          ),
+        };
+      }
+
+      if (bucket === "fine") {
+        return {
+          ...current,
+          fineTitleEntries: current.fineTitleEntries.filter(
+            (entry) => entryKey(entry) !== key,
+          ),
+        };
+      }
+
+      return {
+        ...current,
+        noTitleEntries: current.noTitleEntries.filter((entry) => entryKey(entry) !== key),
+      };
+    });
+  }
+
   async function startSession() {
+    if (apiHealth.connected) {
+      const completion =
+        onboardingCompletion ??
+        (await refreshOnboardingCompletion());
+
+      if (completion?.sharedRecommendationLocked) {
+        setOnboardingMessage("Finish both people's setup before starting tonight's picks.");
+        await beginOnboarding(completion.incompleteProfileIds[0]);
+        return;
+      }
+    }
+
     setFounderIndex(0);
     setWifeIndex(0);
     setSessionCandidates(demoCandidates);
     setFounderReactions({});
     setWifeReactions({});
+    setFounderSeenMemories({});
+    setWifeSeenMemories({});
+    setSeenMemoryPrompt(null);
     setSharedSession(null);
     setDebugHistory(null);
     setDebugHistoryStatus("idle");
@@ -181,7 +593,7 @@ export function PassThePhoneWizard({
 
     if (!apiHealth.connected) {
       setSessionSource("demo");
-      setApiError("API is disconnected, so this review is using demo data.");
+      setApiError("Live session sync is unavailable, so tonight is running in local mode.");
       setStep("founder");
       return;
     }
@@ -255,8 +667,8 @@ export function PassThePhoneWizard({
       setFounderReactions(nextReactions);
 
       if (founderIndex === sessionCandidates.length - 1) {
-        await submitFirstPass(nextReactions);
-        setStep("handoff");
+        await submitActorPass("founder", nextReactions);
+        setStep(isCoupleSession ? "handoff" : "results");
         return;
       }
 
@@ -268,7 +680,7 @@ export function PassThePhoneWizard({
     setWifeReactions(nextReactions);
 
     if (wifeIndex === sessionCandidates.length - 1) {
-      await submitSecondPass(nextReactions);
+      await submitActorPass("wife", nextReactions);
       setStep("results");
       return;
     }
@@ -276,8 +688,63 @@ export function PassThePhoneWizard({
     setWifeIndex((current) => current + 1);
   }
 
-  async function submitFirstPass(nextReactions: ReactionState): Promise<void> {
+  async function recordSeenMemory(
+    actor: "founder" | "wife",
+    candidate: DemoCandidate,
+    memory: SeenMemoryValue,
+  ): Promise<void> {
+    if (actor === "founder") {
+      setFounderSeenMemories((current) => ({ ...current, [candidate.id]: memory }));
+    } else {
+      setWifeSeenMemories((current) => ({ ...current, [candidate.id]: memory }));
+    }
+
+    setSeenMemoryPrompt(null);
+
+    if (!apiHealth.connected || memory === "forget") {
+      return;
+    }
+
+    setSyncStatus("saving");
+    setApiError(null);
+
+    try {
+      const profileId = actor === "founder" ? participantIds[0] : participantIds[1];
+      const onboarding = await getProfileOnboarding(profileId);
+      await saveProfileOnboarding(
+        profileId,
+        mergeSeenMemoryIntoOnboarding(onboarding, candidate, memory),
+      );
+    } catch (error) {
+      setApiError(`${toSeenMemoryErrorMessage(error)} This note is only local for now.`);
+    } finally {
+      setSyncStatus("ready");
+    }
+  }
+
+  function participantIdForActor(actor: "founder" | "wife"): string | null {
+    if (peopleMode === "couple") {
+      return actor === "founder" ? participantIds[0] : participantIds[1];
+    }
+
+    if (peopleMode === "founder") {
+      return actor === "founder" ? participantIds[0] : null;
+    }
+
+    return actor === "wife" ? participantIds[0] : null;
+  }
+
+  async function submitActorPass(
+    actor: "founder" | "wife",
+    nextReactions: ReactionState,
+  ): Promise<void> {
     if (sessionSource !== "api" || sharedSession === null) {
+      return;
+    }
+
+    const participantId = participantIdForActor(actor);
+
+    if (!participantId) {
       return;
     }
 
@@ -286,7 +753,7 @@ export function PassThePhoneWizard({
 
     try {
       const session = await submitSessionReactions(sharedSession.sessionId, {
-        participantId: participantIds[0],
+        participantId,
         reactions: reactionsPayload(sessionCandidates, nextReactions),
       });
       setSharedSession(session);
@@ -323,85 +790,24 @@ export function PassThePhoneWizard({
     }
   }
 
-  async function submitSecondPass(nextReactions: ReactionState): Promise<void> {
-    if (sessionSource !== "api" || sharedSession === null) {
-      return;
-    }
-
-    setSyncStatus("saving");
-    setApiError(null);
-
-    try {
-      const session = await submitSessionReactions(sharedSession.sessionId, {
-        participantId: participantIds[1],
-        reactions: reactionsPayload(sessionCandidates, nextReactions),
-      });
-      setSharedSession(session);
-    } catch (error) {
-      setSessionSource("demo");
-      setDebugHistoryStatus("failed");
-      setDebugHistoryMessage("Debug evidence is unavailable because the session fell back to demo mode.");
-      setApiError(toErrorMessage(error));
-    } finally {
-      setSyncStatus("ready");
-    }
-  }
 
   return (
     <main className="appShell">
-      <header className="topBar">
-        <div>
-          <p className="eyebrow">Movie Night Mediator</p>
-          <h1>Tonight</h1>
-        </div>
-        <div
-          className={
-            apiHealth.connected
-              ? "connectionPill connectionPillConnected"
-              : "connectionPill connectionPillDisconnected"
-          }
-          role="status"
-          aria-label={`FastAPI health ${apiHealth.label}`}
-          title={apiHealth.detail}
-        >
-          <span aria-hidden="true" />
-          <strong>{apiHealth.label}</strong>
-        </div>
-      </header>
+      {showLaunchSting ? <LaunchSting /> : null}
 
-      <section className="statusStrip" aria-label="Current setup status">
-        <div>
-          <span>{setupLoad.source === "backend" ? "Setup ready" : "Demo setup"}</span>
-          <p>{setupLoad.detail}</p>
-        </div>
-        <strong>{setupLoad.setup.defaults.shortlistSize} picks</strong>
-      </section>
+      {step !== "setup" && step !== "founder" && step !== "wife" && step !== "results" ? (
+        <header className="topBar">
+          <div className="topBarCopy">
+            <p className="eyebrow">Movie Night Mediator</p>
+            <h1>{sessionDateLabel}</h1>
+            <p className="topBarDetail">
+              {stepHeadline(step, founderLabel, wifeLabel, peopleMode)}
+            </p>
+          </div>
+        </header>
+      ) : null}
 
-      <SessionSyncStrip
-        source={sessionSource}
-        status={syncStatus}
-        apiError={apiError}
-        sessionId={sharedSession?.sessionId}
-      />
-
-      <nav className="flowTabs" aria-label="Pass the phone steps">
-        {stepOrder.map((item, index) => (
-          <button
-            key={item}
-            type="button"
-            className={item === step ? "flowTab flowTabActive" : "flowTab"}
-            onClick={() => setStep(item)}
-            aria-current={item === step ? "step" : undefined}
-            disabled={isSyncing}
-          >
-            <span>{index + 1}</span>
-            {stepLabels[item]}
-          </button>
-        ))}
-      </nav>
-
-      <div className="progressRail" aria-hidden="true">
-        <span style={{ width: `${((currentStepIndex + 1) / stepOrder.length) * 100}%` }} />
+      <div className="shellStatus">
       </div>
 
       {step === "setup" ? (
@@ -409,10 +815,21 @@ export function PassThePhoneWizard({
           founderLabel={founderLabel}
           wifeLabel={wifeLabel}
           setupLoad={setupLoad}
+          apiHealth={apiHealth}
           sessionMode={sessionMode}
           onSessionModeChange={setSessionMode}
+          peopleMode={peopleMode}
+          onPeopleModeChange={setPeopleMode}
+          languageMode={languageMode}
+          onLanguageModeChange={setLanguageMode}
           isSyncing={isSyncing}
+          onboardingBusy={onboardingBusy}
+          onboardingRequired={isOnboardingRequired}
+          onboardingCompletion={onboardingCompletion}
+          onboardingMessage={onboardingMessage}
+          onboardingPrompt={onboardingPrompt}
           onStart={startSession}
+          onBeginOnboarding={() => beginOnboarding()}
           recentSessions={recentSessions}
           recentSessionsStatus={recentSessionsStatus}
           recentSessionsMessage={recentSessionsMessage}
@@ -421,27 +838,47 @@ export function PassThePhoneWizard({
           selectedHistoryMessage={selectedHistoryMessage}
           onLoadRecentSessions={loadRecentSessions}
           onSelectRecentSession={loadRecentSessionDetail}
+          reviewMode={reviewMode}
         />
       ) : null}
 
       {step === "founder" ? (
-        founderCandidate ? (
+        firstPassCandidate ? (
           <ReactionStep
-            actorLabel={founderLabel}
-            actor="founder"
-            index={founderIndex}
+            actorLabel={firstPassLabel}
+            actor={firstPassActor}
+            index={firstPassActor === "founder" ? founderIndex : wifeIndex}
             total={sessionCandidates.length}
-            candidate={founderCandidate}
-            selectedReaction={founderReactions[founderCandidate.id]}
+            candidate={firstPassCandidate}
+            selectedReaction={
+              firstPassActor === "founder"
+                ? founderReactions[firstPassCandidate.id]
+                : wifeReactions[firstPassCandidate.id]
+            }
+            seenMemory={
+              firstPassActor === "founder"
+                ? founderSeenMemories[firstPassCandidate.id]
+                : wifeSeenMemories[firstPassCandidate.id]
+            }
             isSyncing={isSyncing}
             onReaction={recordReaction}
+            onSeenIt={() =>
+              setSeenMemoryPrompt({
+                actor: firstPassActor,
+                candidate: firstPassCandidate,
+              })
+            }
             onBack={() => {
-              if (founderIndex === 0) {
+              if ((firstPassActor === "founder" ? founderIndex : wifeIndex) === 0) {
                 setStep("setup");
                 return;
               }
 
-              setFounderIndex((current) => current - 1);
+              if (firstPassActor === "founder") {
+                setFounderIndex((current) => current - 1);
+              } else {
+                setWifeIndex((current) => current - 1);
+              }
             }}
           />
         ) : (
@@ -454,18 +891,19 @@ export function PassThePhoneWizard({
         )
       ) : null}
 
-      {step === "handoff" ? (
+      {step === "handoff" && isCoupleSession ? (
         <HandoffStep
           founderLabel={founderLabel}
           wifeLabel={wifeLabel}
           founderReactions={founderReactions}
+          founderSeenMemories={founderSeenMemories}
           isSyncing={isSyncing}
           onBack={() => setStep("founder")}
           onContinue={continueAfterHandoff}
         />
       ) : null}
 
-      {step === "wife" ? (
+      {step === "wife" && isCoupleSession ? (
         wifeCandidate ? (
           <ReactionStep
             actorLabel={wifeLabel}
@@ -474,8 +912,12 @@ export function PassThePhoneWizard({
             total={sessionCandidates.length}
             candidate={wifeCandidate}
             selectedReaction={wifeReactions[wifeCandidate.id]}
+            seenMemory={wifeSeenMemories[wifeCandidate.id]}
             isSyncing={isSyncing}
             onReaction={recordReaction}
+            onSeenIt={() =>
+              setSeenMemoryPrompt({ actor: "wife", candidate: wifeCandidate })
+            }
             onBack={() => {
               if (wifeIndex === 0) {
                 setStep("handoff");
@@ -500,6 +942,7 @@ export function PassThePhoneWizard({
           founderLabel={founderLabel}
           wifeLabel={wifeLabel}
           participantIds={participantIds}
+          peopleMode={peopleMode}
           rankedCandidates={rankedCandidates}
           founderReactions={founderReactions}
           wifeReactions={wifeReactions}
@@ -511,8 +954,43 @@ export function PassThePhoneWizard({
           debugHistoryMessage={debugHistoryMessage}
           onLoadDebugHistory={loadDebugHistory}
           onReset={resetSession}
+          reviewMode={reviewMode}
         />
       ) : null}
+
+      {seenMemoryPrompt ? (
+        <SeenMemoryDialog
+          actorLabel={
+            seenMemoryPrompt.actor === "founder" ? founderLabel : wifeLabel
+          }
+          candidate={seenMemoryPrompt.candidate}
+          isSaving={isSyncing}
+          onChoose={(memory) =>
+            recordSeenMemory(
+              seenMemoryPrompt.actor,
+              seenMemoryPrompt.candidate,
+              memory,
+            )
+          }
+          onClose={() => setSeenMemoryPrompt(null)}
+        />
+      ) : null}
+
+      {onboardingPrompt && onboardingDraft ? (
+        <OnboardingDialog
+          profileLabel={onboardingPrompt.profileLabel}
+          draft={onboardingDraft}
+          isSaving={onboardingBusy}
+          onAddSuggested={addSuggestedSeed}
+          onUpdateManual={updateManualSeed}
+          onAddManual={addManualSeed}
+          onRemoveEntry={removeDraftSeed}
+          onSave={saveOnboardingProfile}
+          onClose={cancelOnboarding}
+        />
+      ) : null}
+
+      {reviewMode ? <ReviewNotesWidget currentStep={step} /> : null}
     </main>
   );
 
@@ -582,10 +1060,21 @@ function SetupStep({
   founderLabel,
   wifeLabel,
   setupLoad,
+  apiHealth,
   sessionMode,
   onSessionModeChange,
+  peopleMode,
+  onPeopleModeChange,
+  languageMode,
+  onLanguageModeChange,
   isSyncing,
+  onboardingBusy,
+  onboardingRequired,
+  onboardingCompletion,
+  onboardingMessage,
+  onboardingPrompt,
   onStart,
+  onBeginOnboarding,
   recentSessions,
   recentSessionsStatus,
   recentSessionsMessage,
@@ -594,14 +1083,26 @@ function SetupStep({
   selectedHistoryMessage,
   onLoadRecentSessions,
   onSelectRecentSession,
+  reviewMode,
 }: {
   founderLabel: string;
   wifeLabel: string;
   setupLoad: SetupLoadResult;
+  apiHealth: ApiHealth;
   sessionMode: SessionMode;
   onSessionModeChange: (mode: SessionMode) => void;
+  peopleMode: PeopleMode;
+  onPeopleModeChange: (mode: PeopleMode) => void;
+  languageMode: LanguageMode;
+  onLanguageModeChange: (mode: LanguageMode) => void;
   isSyncing: boolean;
+  onboardingBusy: boolean;
+  onboardingRequired: boolean;
+  onboardingCompletion: OnboardingCompletionPayload | null;
+  onboardingMessage: string | null;
+  onboardingPrompt: OnboardingPromptState;
   onStart: () => void;
+  onBeginOnboarding: () => void | Promise<void>;
   recentSessions: RecentSessionSummaryPayload[];
   recentSessionsStatus: DebugHistoryStatus;
   recentSessionsMessage: string | null;
@@ -610,60 +1111,408 @@ function SetupStep({
   selectedHistoryMessage: string | null;
   onLoadRecentSessions: () => void | Promise<void>;
   onSelectRecentSession: (sessionId: string) => void | Promise<void>;
+  reviewMode: boolean;
 }) {
+  const [expandedControl, setExpandedControl] = useState<"people" | "language" | null>(
+    null,
+  );
+  const sessionDateLabel = formatSessionDate(new Date());
+  const completedCount = onboardingCompletion?.completedProfileIds.length ?? 0;
+  const totalCount = onboardingCompletion?.requiredProfileIds.length ?? 2;
+  const isCoupleSession = peopleMode === "couple";
+  const selectedPeopleLabel = peopleModeLabels[peopleMode];
+  const selectedLanguageLabel = languageModeLabels[languageMode];
+  const selectedLanguageDisplayLabel = languageMode === "english"
+    ? "English audio & subtitles"
+    : selectedLanguageLabel;
+  const availabilityDisplayLabel = setupLoad.setup.defaults.availabilityRegion.includes("Prime Video")
+    ? "Prime Video"
+    : setupLoad.setup.defaults.availabilityRegion;
+  const missingLabels =
+    onboardingCompletion?.incompleteProfileIds
+      .map(
+        (profileId) =>
+          setupLoad.setup.profiles.find((profile) => profile.id === profileId)?.label ??
+          profileId,
+      )
+      .join(" + ") ?? "";
+  const missingCount = onboardingCompletion?.incompleteProfileIds.length ?? 0;
+  const heroEyebrow = onboardingRequired ? "Onboarding" : null;
+  const heroHeading = onboardingRequired
+    ? isCoupleSession
+      ? "Set up both people first"
+      : `Set up ${selectedPeopleLabel.toLowerCase()} first`
+    : "Ready for tonight?";
+  const heroLead = onboardingRequired
+    ? `Before the app can make real shared picks, ${missingLabels || selectedPeopleLabel} ${
+        missingCount === 1 ? "still needs" : "still need"
+      } a quick taste setup.`
+    : isCoupleSession
+      ? "One shared phone. Five quick reactions each. We only shortlist movies you can actually start tonight."
+      : "A faster solo flow. Five quick calls, then one clean pick for tonight.";
+  const primaryLabel = onboardingRequired
+    ? onboardingPrompt
+      ? `Continue ${onboardingPrompt.profileLabel}'s setup`
+      : completedCount === 0
+        ? "Set up tastes"
+        : "Finish setup"
+    : isSyncing
+      ? "Building tonight's picks..."
+      : "Start first pass";
+  const primaryAction = onboardingRequired ? onBeginOnboarding : onStart;
+  const primaryDisabled = onboardingRequired ? onboardingBusy : isSyncing;
+  const summaryLine = onboardingRequired
+    ? `${completedCount} of ${totalCount} ready`
+    : "Step 1 of 3";
+  const utilityLine = onboardingRequired
+    ? missingLabels || (isCoupleSession ? "Both profiles complete" : `${selectedPeopleLabel} ready`)
+    : isCoupleSession
+      ? "We'll take turns. No duplicates."
+      : "One fast pass. No doom-scrolling.";
+  const dateLabel = new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  }).format(new Date());
+  const heroTitle = onboardingRequired
+    ? isCoupleSession
+      ? "Before tonight, tune both tastes."
+      : `Before tonight, tune ${selectedPeopleLabel.toLowerCase()}.`
+    : isCoupleSession
+      ? "Tonight,\nwe pick together."
+      : `Tonight,\n${selectedPeopleLabel.toLowerCase()} picks clean.`;
+  const footerLine = onboardingRequired
+    ? "Three seed calls is enough to unlock a better shortlist."
+    : isCoupleSession
+      ? "We'll take turns. No duplicates. Keep it fun."
+      : "One fast pass. No doom-scrolling.";
+  const setupLead = onboardingRequired
+    ? heroLead
+    : "Let's find the perfect movie for a great night in.";
+
   return (
-    <section className="wizardPanel sessionPanel" aria-labelledby="setup-heading">
-      <div className="sectionHeading">
-        <p className="eyebrow">Pass the phone</p>
-        <h2 id="setup-heading">Start a shared session</h2>
-        <p>
-          {founderLabel} reacts first, then hands the phone to {wifeLabel}.
-        </p>
-      </div>
+    <section className="wizardPanel heroPanel cinematicHeroPanel" aria-labelledby="setup-heading">
+      <div className="startupStage">
+        <div className="startupCinematicHeader">
+          {heroEyebrow ? <p className="eyebrow startupHeroEyebrow">{heroEyebrow}</p> : null}
+          <p className="startupDateLine">
+            {dateLabel}
+            <span className="startupDateDot" aria-hidden="true" />
+          </p>
+          <h2 id="setup-heading" className="startupDisplayTitle">
+            {heroTitle.split("\n").map((line) => (
+              <span key={line} className="startupDisplayLine">
+                {line.includes("together.") || line.includes("clean.") ? (
+                  <>
+                    {line.split(" ").slice(0, -1).join(" ")}{" "}
+                    <em>{line.split(" ").slice(-1)[0]}</em>
+                  </>
+                ) : (
+                  line
+                )}
+              </span>
+            ))}
+          </h2>
+          <p className="heroLead">{setupLead}</p>
+        </div>
 
-      <div className="sessionSummaryGrid">
-        <SummaryTile label="People" value={`${founderLabel} + ${wifeLabel}`} />
-        <SummaryTile label="Watchability" value={setupLoad.setup.defaults.availabilityRegion} />
-        <SummaryTile label="Language" value={setupLoad.setup.defaults.languageAccess} />
-        <SummaryTile label="Shortlist" value="Five quick reactions each" />
-      </div>
+        <div className="startupHeroScene">
+          <div className="startupSceneGlow" aria-hidden="true" />
+          <div className="startupSceneVignette" aria-hidden="true" />
+          <div className="startupSceneHorizon" aria-hidden="true" />
+          <div
+            className={onboardingRequired ? "heroVisual startupOrbWrap heroVisualSetup" : "heroVisual startupOrbWrap heroVisualReady"}
+            aria-hidden="true"
+          >
+            <div className={onboardingRequired ? "heroSignal heroSignalSetup" : "heroSignal heroSignalReady"}>
+              {onboardingRequired ? <div className="heroSignalCore" /> : <StartupConceptHero />}
+            </div>
+          </div>
 
-      <div className="modeBlock">
-        <p className="controlLabel">Tonight's mode</p>
-        <div className="segmentedControl" role="group" aria-label="Session mode">
-          {(Object.keys(sessionModeLabels) as SessionMode[]).map((mode) => (
+          <div className="startupBoardShell">
+            {!onboardingRequired ? (
+              <div className="startupBoardHeader startupBoardHeaderReady">
+                <p className="startupBoardKicker">Tonight&apos;s setup</p>
+                <span className="startupBoardHint">Startable tonight</span>
+              </div>
+            ) : (
+              <div className="startupBoardHeader">
+                <div>
+                  <p className="startupBoardKicker">Tonight&apos;s setup</p>
+                  <strong>{summaryLine}</strong>
+                </div>
+                <span className="startupBoardHint">Taste seed needed</span>
+              </div>
+            )}
+
+            <div className="startupControlBoard">
+              <div className="startupControlRow">
+                <button
+                  type="button"
+                  className="startupRowSummaryButton"
+                  onClick={() =>
+                    setExpandedControl((current) => (current === "people" ? null : "people"))
+                  }
+                  aria-expanded={expandedControl === "people"}
+                >
+                  <span className="startupRowSummaryMain">
+                    <SetupControlIcon kind="people" />
+                    <span className="startupControlLabelGroup">
+                      <span>People</span>
+                    </span>
+                  </span>
+                  <span className="startupRowSummarySecondary">
+                    <strong className="startupControlValue">{selectedPeopleLabel}</strong>
+                  </span>
+                </button>
+                {expandedControl === "people" ? (
+                  <div className="startupInlineOptions" role="group" aria-label="People mode">
+                    {(Object.keys(peopleModeLabels) as PeopleMode[]).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        className={mode === peopleMode ? "startupOptionPill startupOptionPillActive" : "startupOptionPill"}
+                        onClick={() => onPeopleModeChange(mode)}
+                      >
+                        {peopleModeLabels[mode]}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="startupControlRow">
+                <button
+                  type="button"
+                  className="startupRowSummaryButton"
+                  onClick={() =>
+                    setExpandedControl((current) => (current === "language" ? null : "language"))
+                  }
+                  aria-expanded={expandedControl === "language"}
+                >
+                  <span className="startupRowSummaryMain">
+                    <SetupControlIcon kind="language" />
+                    <span className="startupControlLabelGroup">
+                      <span>Language</span>
+                    </span>
+                  </span>
+                  <span className="startupRowSummarySecondary">
+                    <strong className="startupControlValue startupControlValueLong">{selectedLanguageDisplayLabel}</strong>
+                  </span>
+                </button>
+                {expandedControl === "language" ? (
+                  <div className="startupInlineOptions" role="group" aria-label="Language mode">
+                    {(Object.keys(languageModeLabels) as LanguageMode[]).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        className={mode === languageMode ? "startupOptionPill startupOptionPillActive" : "startupOptionPill"}
+                        onClick={() => onLanguageModeChange(mode)}
+                      >
+                        {languageModeLabels[mode]}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="startupControlRow startupControlRowStatic">
+                <div className="startupRowSummaryStatic startupRowSummaryStaticAvailability">
+                  <span className="startupRowSummaryMain">
+                    <SetupControlIcon kind="availability" />
+                    <span className="startupControlLabelGroup">
+                      <span>Availability</span>
+                    </span>
+                  </span>
+                  <strong className="startupControlValue">{availabilityDisplayLabel}</strong>
+                  <span className="startupRowSummaryAction">Change</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="startupBoardFooter startupBoardFooterStandalone">
+            <div className="startupMicroProgress startupMicroProgressInline" aria-hidden="true">
+              <p className="startupMicroProgressLabel">{summaryLine}</p>
+              <div className="startupMicroProgressTrack">
+                <span className="startupMicroProgressFill" />
+              </div>
+            </div>
+
             <button
-              key={mode}
               type="button"
-              className={mode === sessionMode ? "segment segmentActive" : "segment"}
-              onClick={() => onSessionModeChange(mode)}
+              className="primaryAction heroAction startupPrimaryButton"
+              onClick={primaryAction}
+              disabled={primaryDisabled}
             >
-              {sessionModeLabels[mode]}
+              <span>{primaryLabel}</span>
+              {!onboardingRequired ? <span className="startupPrimaryArrow" aria-hidden="true">→</span> : null}
             </button>
-          ))}
+
+            <p className="startupFooterNote">
+              {onboardingRequired ? footerLine : utilityLine}
+            </p>
+          </div>
         </div>
       </div>
 
-      <button
-        type="button"
-        className="primaryAction"
-        onClick={onStart}
-        disabled={isSyncing}
-      >
-        {isSyncing ? "Starting session..." : "Start first pass"}
-      </button>
+      {onboardingMessage ? (
+        <p className="setupCallout">{onboardingMessage}</p>
+      ) : null}
 
-      <RecentSessionsPanel
-        sessions={recentSessions}
-        status={recentSessionsStatus}
-        message={recentSessionsMessage}
-        selectedHistory={selectedHistory}
-        selectedHistoryStatus={selectedHistoryStatus}
-        selectedHistoryMessage={selectedHistoryMessage}
-        onLoad={onLoadRecentSessions}
-        onSelect={onSelectRecentSession}
-      />
+      <details className="disclosurePanel startupDisclosure">
+        <summary>{onboardingRequired ? "How setup works" : "Adjust tonight's mode"}</summary>
+        <div className="disclosureBody">
+          <p className="disclosureText">
+            {onboardingRequired
+              ? "Each person needs one Loved, one Ok, and one No seed. Suggested titles are there to make this fast, and you can type your own if needed."
+              : "The first pass is just triage. If you have already seen something, save that memory first, then still answer whether it fits tonight."}
+          </p>
+          <div className="sessionSummaryGrid">
+            <SummaryTile
+              label="Backend"
+              value={
+                apiHealth.connected
+                  ? onboardingRequired
+                    ? "Waiting for onboarding"
+                    : "Ready"
+                  : "Demo fallback"
+              }
+            />
+            <SummaryTile label="People" value={selectedPeopleLabel} />
+            <SummaryTile label="Language" value={selectedLanguageLabel} />
+            <SummaryTile
+              label={onboardingRequired ? "Need" : "Shortlist"}
+              value={onboardingRequired ? "Loved + Ok + No for each person" : "Five reactions each"}
+            />
+            <SummaryTile
+              label="Mode"
+              value={isCoupleSession ? sessionModeLabels[sessionMode] : "Solo picker"}
+            />
+          </div>
+
+          <div className="modeBlock">
+            <p className="controlLabel">People</p>
+            <div className="segmentedControl" role="group" aria-label="People mode">
+              {(Object.keys(peopleModeLabels) as PeopleMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className={mode === peopleMode ? "segment segmentActive" : "segment"}
+                  onClick={() => onPeopleModeChange(mode)}
+                >
+                  {peopleModeLabels[mode]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="modeBlock">
+            <p className="controlLabel">Language</p>
+            <div className="segmentedControl" role="group" aria-label="Language mode">
+              {(Object.keys(languageModeLabels) as LanguageMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className={mode === languageMode ? "segment segmentActive" : "segment"}
+                  onClick={() => onLanguageModeChange(mode)}
+                >
+                  {languageModeLabels[mode]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {!onboardingRequired && isCoupleSession ? (
+            <div className="modeBlock">
+              <p className="controlLabel">Tonight's mode</p>
+              <div className="segmentedControl" role="group" aria-label="Session mode">
+                {(Object.keys(sessionModeLabels) as SessionMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    className={mode === sessionMode ? "segment segmentActive" : "segment"}
+                    onClick={() => onSessionModeChange(mode)}
+                  >
+                    {sessionModeLabels[mode]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </details>
+
+      {reviewMode ? (
+        <details className="disclosurePanel startupDisclosure">
+          <summary>Recent nights</summary>
+          <div className="disclosureBody">
+            <RecentSessionsPanel
+              sessions={recentSessions}
+              status={recentSessionsStatus}
+              message={recentSessionsMessage}
+              selectedHistory={selectedHistory}
+              selectedHistoryStatus={selectedHistoryStatus}
+              selectedHistoryMessage={selectedHistoryMessage}
+              onLoad={onLoadRecentSessions}
+              onSelect={onSelectRecentSession}
+            />
+          </div>
+        </details>
+      ) : null}
     </section>
+  );
+}
+
+function SetupControlIcon({
+  kind,
+}: {
+  kind: "people" | "language" | "availability";
+}) {
+  if (kind === "people") {
+    return (
+      <span className="startupControlIcon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <circle cx="9" cy="8" r="3.2" />
+          <circle cx="15.5" cy="9.2" r="2.6" />
+          <path d="M4.5 18.2c0-2.6 2.4-4.7 5.5-4.7s5.5 2.1 5.5 4.7" />
+          <path d="M13.2 18.2c.2-1.8 1.8-3.2 3.8-3.2 1.1 0 2.1.4 2.8 1.1" />
+        </svg>
+      </span>
+    );
+  }
+
+  if (kind === "language") {
+    return (
+      <span className="startupControlIcon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="8" />
+          <path d="M4.5 12h15" />
+          <path d="M12 4c2.4 2.1 3.8 5 3.8 8s-1.4 5.9-3.8 8c-2.4-2.1-3.8-5-3.8-8S9.6 6.1 12 4Z" />
+        </svg>
+      </span>
+    );
+  }
+
+  return (
+    <span className="startupControlIcon" aria-hidden="true">
+      <svg viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="8" />
+        <path d="M12 7.2v5.1l3.1 1.8" />
+      </svg>
+    </span>
+  );
+}
+
+function StartupConceptHero() {
+  return (
+    <div className="startupConceptHero" role="img" aria-label="Glowing particle sculpture">
+      <img
+        className="startupConceptHeroImage"
+        src="/concept-startup-hero-scene-v2.png"
+        alt=""
+      />
+    </div>
   );
 }
 
@@ -674,8 +1523,10 @@ function ReactionStep({
   total,
   candidate,
   selectedReaction,
+  seenMemory,
   isSyncing,
   onReaction,
+  onSeenIt,
   onBack,
 }: {
   actorLabel: string;
@@ -684,75 +1535,418 @@ function ReactionStep({
   total: number;
   candidate: DemoCandidate;
   selectedReaction: ReactionValue | undefined;
+  seenMemory: SeenMemoryValue | undefined;
   isSyncing: boolean;
   onReaction: (
     actor: "founder" | "wife",
     candidateId: string,
     reaction: ReactionValue,
   ) => void | Promise<void>;
+  onSeenIt: () => void;
   onBack: () => void;
 }) {
+  const confidenceScore = candidate.taste.founder && candidate.taste.wife
+    ? Math.round((candidate.taste.founder + candidate.taste.wife) / 2)
+    : 87;
+  const accentCopy =
+    actorLabel === "Wife" ? "Your turn" : `${actorLabel} first`;
+  const reactionSummary = candidate.hook ?? candidate.reason;
+  const reactionDetail = candidate.whyNow ?? candidate.languageAccess;
   return (
-    <section className="wizardPanel reactionPanel" aria-labelledby="reaction-heading">
-      <div className="reactionMeta">
-        <p className="eyebrow">{actorLabel}'s pass</p>
-        <strong>
-          {index + 1} of {total}
-        </strong>
+    <section className="wizardPanel reactionPanel cinematicReactionPanel" aria-labelledby="reaction-heading">
+      <div className="reactionChrome">
+        <button
+          type="button"
+          className="secondaryButton chromeIconButton"
+          onClick={onBack}
+          disabled={isSyncing}
+          aria-label="Back"
+        >
+          &larr;
+        </button>
+        <div className="reactionProgressInline">
+          <div className="reactionProgressInlineTrack">
+            <span
+              className="reactionProgressInlineFill"
+              style={{ width: `${((index + 1) / total) * 100}%` }}
+            />
+          </div>
+          <span>{index + 1} of {total}</span>
+        </div>
+        <div className="chromeGhostDot" aria-hidden="true">
+          ...
+        </div>
       </div>
 
       <article className="movieCard">
-        <img src={candidate.posterUrl} alt="" className="posterImage" />
+        <div className="posterFrame">
+          <img
+            src={candidate.posterUrl}
+            alt=""
+            className="posterImage"
+            onError={handlePosterFallback}
+          />
+        </div>
         <div className="movieDetails">
-          <span className="safePill">{candidate.safePickStatus}</span>
-          <h2 id="reaction-heading">{candidate.title}</h2>
+          <div className="movieSignalRow movieSignalRowTight">
+            <span className="safePill">{candidate.safePickStatus}</span>
+            {candidate.criticScore ? (
+              <span className="criticScorePill" aria-label="Critic score">
+                Critics {candidate.criticScore}%
+              </span>
+            ) : null}
+            <span className="criticScorePill" aria-label="Fast confidence cue">
+              Signal {confidenceScore}
+            </span>
+          </div>
+          <h2>{candidate.title}</h2>
           <p className="movieFacts">
-            {candidate.year} · {candidate.runtime}
+            {candidate.year} · {candidate.runtime} · {candidate.tone}
           </p>
-          <p>{candidate.reason}</p>
-          <dl className="movieSignals">
-            <div>
-              <dt>Access</dt>
-              <dd>{candidate.availability}</dd>
+          {candidate.topCast.length > 0 ? (
+            <div className="castChips" aria-label="Top cast">
+              {candidate.topCast.slice(0, 3).map((name) => (
+                <span key={name} className="castChip">
+                  {name}
+                </span>
+              ))}
             </div>
-            <div>
-              <dt>Language</dt>
-              <dd>{candidate.languageAccess}</dd>
+          ) : null}
+          <div className="movieReasonRow">
+            <p className="movieReason movieReasonLead">{reactionSummary}</p>
+            <button type="button" className="ghostInlineButton" disabled={isSyncing}>
+              More
+            </button>
+          </div>
+          <p className="movieReason movieReasonSubtle">{reactionDetail}</p>
+          {seenMemory ? (
+            <div className="seenMemoryBanner" aria-label="Seen memory">
+              Already seen: {seenMemoryLabels[seenMemory]}
             </div>
-            <div>
-              <dt>Tone</dt>
-              <dd>{candidate.tone}</dd>
-            </div>
-          </dl>
+          ) : null}
         </div>
       </article>
 
-      <div className="reactionGrid" role="group" aria-label={`Reaction for ${candidate.title}`}>
+      <div className="reactionStageFooter">
+        <p className="reactionTurnEyebrow">{accentCopy}</p>
+        <p className="reactionTurnPrompt">{actorLabel}, what do you think?</p>
+      </div>
+
+      <div className="reactionActionDock" role="group" aria-label={`Reaction for ${candidate.title}`}>
         {(Object.keys(reactionLabels) as ReactionValue[]).map((reaction) => (
           <button
             key={reaction}
             type="button"
             className={
               selectedReaction === reaction
-                ? `reactionButton reactionButton${reaction} reactionButtonActive`
-                : `reactionButton reactionButton${reaction}`
+                ? `reactionOrbButton reactionOrbButton${reaction} reactionOrbButtonActive`
+                : `reactionOrbButton reactionOrbButton${reaction}`
             }
             onClick={() => onReaction(actor, candidate.id, reaction)}
             disabled={isSyncing}
           >
-            {reactionLabels[reaction]}
+            <span className="reactionOrbIcon" aria-hidden="true">
+              {reaction === "interested" ? "♥" : reaction === "maybe" ? "•" : "×"}
+            </span>
+            <span className="reactionOrbLabel">{reactionLabels[reaction]}</span>
+          </button>
+        ))}
+        <button
+          type="button"
+          className={
+            seenMemory
+              ? "reactionOrbButton reactionOrbButtonseen reactionOrbButtonMemoryActive"
+              : "reactionOrbButton reactionOrbButtonseen"
+          }
+          onClick={onSeenIt}
+          disabled={isSyncing}
+        >
+          <span className="reactionOrbIcon" aria-hidden="true">◌</span>
+          <span className="reactionOrbLabel">
+            {seenMemory ? "Seen saved" : "Seen before"}
+          </span>
+        </button>
+      </div>
+
+      <p className="memoryHint memoryHintCentered">
+        {seenMemory
+          ? `Seen memory saved: ${seenMemoryLabels[seenMemory]}. Still rate tonight-fit separately.`
+          : "Save a memory note if you have already seen it, then still rate tonight-fit separately."}
+      </p>
+    </section>
+  );
+}
+
+function LaunchSting() {
+  return (
+    <div className="launchSting" aria-hidden="true">
+      <div className="launchStingCard">
+        <div className="launchTv">
+          <div className="launchStatic" />
+        </div>
+        <div className="launchCopy">
+          <p className="eyebrow">Movie Night Mediator</p>
+          <h2>Tuning tonight&apos;s signal</h2>
+          <p>One clear pick. No endless scrolling.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FlowProgress({
+  currentStep,
+  currentStepIndex,
+  totalSteps,
+}: {
+  currentStep: WizardStep;
+  currentStepIndex: number;
+  totalSteps: number;
+}) {
+  const macroStepMap: Record<WizardStep, { index: number; total: number }> = {
+    setup: { index: 1, total: 3 },
+    founder: { index: 2, total: 3 },
+    handoff: { index: 2, total: 3 },
+    wife: { index: 2, total: 3 },
+    results: { index: 3, total: 3 },
+  };
+  const macro = macroStepMap[currentStep];
+  const progress = currentStep === "setup"
+    ? (macro.index / macro.total) * 100
+    : ((currentStepIndex + 1) / totalSteps) * 100;
+  const currentLabel = currentStep === "setup" ? macro.index : currentStepIndex + 1;
+  const totalLabel = currentStep === "setup" ? macro.total : totalSteps;
+
+  return (
+    <section className="flowProgressBar" aria-label="Pass the phone progress">
+      <div className="flowProgressMeta">
+        <strong>{stepLabels[currentStep]}</strong>
+        <span>
+          Step {currentLabel} of {totalLabel}
+        </span>
+      </div>
+      <div className="flowProgressTrack">
+        <div className="flowProgressFill" style={{ width: `${progress}%` }} />
+      </div>
+    </section>
+  );
+}
+
+function SeenMemoryDialog({
+  actorLabel,
+  candidate,
+  isSaving,
+  onChoose,
+  onClose,
+}: {
+  actorLabel: string;
+  candidate: DemoCandidate;
+  isSaving: boolean;
+  onChoose: (memory: SeenMemoryValue) => void | Promise<void>;
+  onClose: () => void;
+}) {
+  return (
+    <div className="dialogScrim" role="presentation">
+      <section className="dialogCard" role="dialog" aria-modal="true" aria-labelledby="seen-memory-heading">
+        <div className="sectionHeading">
+          <p className="eyebrow">Seen it</p>
+          <h3 id="seen-memory-heading">{candidate.title}</h3>
+          <p>
+            Save what {actorLabel} remembers about this movie, then come back and still rate whether it fits tonight.
+          </p>
+        </div>
+
+        <div className="memoryChoiceGrid" role="group" aria-label={`Memory for ${candidate.title}`}>
+          {(Object.keys(seenMemoryLabels) as SeenMemoryValue[]).map((memory) => (
+            <button
+              key={memory}
+              type="button"
+              className="secondaryButton memoryChoiceButton"
+              onClick={() => onChoose(memory)}
+              disabled={isSaving}
+            >
+              {seenMemoryLabels[memory]}
+            </button>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          className="secondaryButton fullWidthButton"
+          onClick={onClose}
+          disabled={isSaving}
+        >
+          Cancel
+        </button>
+      </section>
+    </div>
+  );
+}
+
+function OnboardingDialog({
+  profileLabel,
+  draft,
+  isSaving,
+  onAddSuggested,
+  onUpdateManual,
+  onAddManual,
+  onRemoveEntry,
+  onSave,
+  onClose,
+}: {
+  profileLabel: string;
+  draft: OnboardingDraft;
+  isSaving: boolean;
+  onAddSuggested: (bucket: "loved" | "fine" | "no", candidate: DemoCandidate) => void;
+  onUpdateManual: (bucket: "loved" | "fine" | "no", value: string) => void;
+  onAddManual: (bucket: "loved" | "fine" | "no") => void;
+  onRemoveEntry: (bucket: "loved" | "fine" | "no", key: string) => void;
+  onSave: () => void | Promise<void>;
+  onClose: () => void;
+}) {
+  return (
+    <div className="dialogScrim" role="presentation">
+      <section
+        className="dialogCard onboardingDialogCard"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="onboarding-heading"
+      >
+        <div className="sectionHeading">
+          <p className="eyebrow">Taste setup</p>
+          <h3 id="onboarding-heading">{profileLabel}</h3>
+          <p>
+            Add at least one Loved, one Ok, and one No seed.
+            Use the quick picks below or type titles manually.
+          </p>
+        </div>
+
+        <p className="onboardingHint">
+          Tap a saved chip to remove it.
+          This is just enough setup to get the shared recommender off the ground.
+        </p>
+
+        <div className="onboardingSections">
+          <OnboardingBucket
+            title="Loved"
+            bucket="loved"
+            entries={draft.lovedTitleEntries}
+            manualValue={draft.manualLoved}
+            onAddSuggested={onAddSuggested}
+            onUpdateManual={onUpdateManual}
+            onAddManual={onAddManual}
+            onRemoveEntry={onRemoveEntry}
+          />
+          <OnboardingBucket
+            title="Ok"
+            bucket="fine"
+            entries={draft.fineTitleEntries}
+            manualValue={draft.manualFine}
+            onAddSuggested={onAddSuggested}
+            onUpdateManual={onUpdateManual}
+            onAddManual={onAddManual}
+            onRemoveEntry={onRemoveEntry}
+          />
+          <OnboardingBucket
+            title="No"
+            bucket="no"
+            entries={draft.noTitleEntries}
+            manualValue={draft.manualNo}
+            onAddSuggested={onAddSuggested}
+            onUpdateManual={onUpdateManual}
+            onAddManual={onAddManual}
+            onRemoveEntry={onRemoveEntry}
+          />
+        </div>
+
+        <div className="reviewActions">
+          <button
+            type="button"
+            className="secondaryButton"
+            onClick={onClose}
+            disabled={isSaving}
+          >
+            Later
+          </button>
+          <button type="button" onClick={onSave} disabled={isSaving}>
+            {isSaving ? "Saving..." : "Save and continue"}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function OnboardingBucket({
+  title,
+  bucket,
+  entries,
+  manualValue,
+  onAddSuggested,
+  onUpdateManual,
+  onAddManual,
+  onRemoveEntry,
+}: {
+  title: string;
+  bucket: "loved" | "fine" | "no";
+  entries: ParticipantOnboardingPayload["lovedTitleEntries"];
+  manualValue: string;
+  onAddSuggested: (bucket: "loved" | "fine" | "no", candidate: DemoCandidate) => void;
+  onUpdateManual: (bucket: "loved" | "fine" | "no", value: string) => void;
+  onAddManual: (bucket: "loved" | "fine" | "no") => void;
+  onRemoveEntry: (bucket: "loved" | "fine" | "no", key: string) => void;
+}) {
+  const suggestions = suggestedSeedsForBucket(bucket);
+
+  return (
+    <section className="onboardingBucket">
+      <div className="onboardingBucketHeader">
+        <strong>{title}</strong>
+        <span>{entries.length} saved</span>
+      </div>
+
+      <p className="bucketHint">{bucketHint(bucket)}</p>
+
+      <div className="selectedSeedList">
+        {entries.length > 0 ? (
+          entries.map((entry) => (
+            <button
+              key={entryKey(entry)}
+              type="button"
+              className="selectedSeedChip"
+              onClick={() => onRemoveEntry(bucket, entryKey(entry))}
+            >
+              {entry.rawTitle}
+            </button>
+          ))
+        ) : (
+          <p className="seedPlaceholder">Pick one or type one.</p>
+        )}
+      </div>
+
+      <div className="suggestionGrid">
+        {suggestions.map((candidate) => (
+          <button
+            key={`${bucket}-${candidate.id}`}
+            type="button"
+            className="secondaryButton suggestionChip"
+            onClick={() => onAddSuggested(bucket, candidate)}
+          >
+            {candidate.title}
           </button>
         ))}
       </div>
 
-      <button
-        type="button"
-        className="secondaryButton fullWidthButton"
-        onClick={onBack}
-        disabled={isSyncing}
-      >
-        Back
-      </button>
+      <div className="manualSeedRow">
+        <input
+          value={manualValue}
+          onChange={(event) => onUpdateManual(bucket, event.target.value)}
+          placeholder={`Type a ${title.toLowerCase()} movie`}
+        />
+        <button type="button" className="secondaryButton compactButton" onClick={() => onAddManual(bucket)}>
+          Add
+        </button>
+      </div>
     </section>
   );
 }
@@ -761,6 +1955,7 @@ function HandoffStep({
   founderLabel,
   wifeLabel,
   founderReactions,
+  founderSeenMemories,
   isSyncing,
   onBack,
   onContinue,
@@ -768,32 +1963,45 @@ function HandoffStep({
   founderLabel: string;
   wifeLabel: string;
   founderReactions: ReactionState;
+  founderSeenMemories: SeenMemoryState;
   isSyncing: boolean;
   onBack: () => void;
   onContinue: () => void | Promise<void>;
 }) {
   const counts = countReactions(founderReactions);
+  const seenCount = countSeenMemories(founderSeenMemories);
 
   return (
     <section className="wizardPanel handoffPanel" aria-labelledby="handoff-heading">
       <div className="handoffHero" aria-hidden="true">
-        <span>{founderLabel.slice(0, 1)}</span>
-        <strong>{wifeLabel.slice(0, 1)}</strong>
+        <div className="handoffPhone">
+          <div className="handoffPhoneGlow" />
+          <div className="handoffPhoneScreen">
+            <span>{founderLabel.slice(0, 1)}</span>
+            <strong>{wifeLabel.slice(0, 1)}</strong>
+          </div>
+        </div>
       </div>
       <div className="sectionHeading centerText">
         <p className="eyebrow">Handoff</p>
         <h2 id="handoff-heading">Pass the phone to {wifeLabel}</h2>
         <p>
-          {founderLabel}'s reactions are saved for this session.{" "}
+          {founderLabel}&apos;s calls are locked in.
+          {" "}
           {wifeLabel} gets the same five titles without seeing the first pass.
         </p>
+      </div>
+
+      <div className="handoffInstructionCard">
+        <span>Keep the reveal clean</span>
+        <p>Hand it over now, let {wifeLabel} react solo, and we&apos;ll show the overlap only at the end.</p>
       </div>
 
       <div className="handoffStats">
         <SummaryTile label="Interested" value={String(counts.interested)} />
         <SummaryTile label="Maybe" value={String(counts.maybe)} />
         <SummaryTile label="No" value={String(counts.no)} />
-        <SummaryTile label="Seen" value={String(counts.seen)} />
+        <SummaryTile label="Seen noted" value={String(seenCount)} />
       </div>
 
       <div className="bottomActions inlineActions">
@@ -993,7 +2201,7 @@ function SessionSyncStrip({
           ? sessionId
             ? `Backend session ${sessionId} is active.`
             : "The next session will try the backend API first."
-          : "Local fixture scoring is active for this review.";
+          : "Local movie-night scoring is active for now.";
 
   return (
     <section
@@ -1009,10 +2217,194 @@ function SessionSyncStrip({
   );
 }
 
+function ReviewNotesWidget({
+  currentStep,
+}: {
+  currentStep: WizardStep;
+}) {
+  const storageKey = "movie-night-review-notes";
+  const [open, setOpen] = useState(false);
+  const [tag, setTag] = useState<ReviewTag>("confusing");
+  const [text, setText] = useState("");
+  const [notes, setNotes] = useState<ReviewNote[]>([]);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(storageKey);
+      if (!saved) {
+        return;
+      }
+
+      const parsed = JSON.parse(saved) as ReviewNote[];
+      if (Array.isArray(parsed)) {
+        setNotes(parsed);
+      }
+    } catch {
+      // ignore local review-note parse failures
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(storageKey, JSON.stringify(notes));
+  }, [notes]);
+
+  function addNote() {
+    const trimmed = text.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    setNotes((current) => [
+      {
+        id: createSessionId(),
+        createdAt: new Date().toISOString(),
+        step: currentStep,
+        tag,
+        text: trimmed,
+      },
+      ...current,
+    ]);
+    setText("");
+    setCopied(false);
+    setOpen(true);
+  }
+
+  async function copyNotes() {
+    if (notes.length === 0) {
+      return;
+    }
+
+    const payload = notes
+      .map((note) => `[${note.tag}] ${stepLabels[note.step]} - ${note.text}`)
+      .join("\n");
+    await navigator.clipboard.writeText(payload);
+    setCopied(true);
+  }
+
+  function clearNotes() {
+    setNotes([]);
+    setCopied(false);
+  }
+
+  return (
+    <div className={open ? "reviewWidget reviewWidgetOpen" : "reviewWidget"}>
+      <button
+        type="button"
+        className="reviewLauncher"
+        onClick={() => setOpen((current) => !current)}
+      >
+        {open ? "Hide notes" : "Review notes"}
+      </button>
+
+      {open ? (
+        <section className="reviewPanelCard" aria-label="Review notes">
+          <div className="reviewPanelHeader">
+            <div>
+              <p className="eyebrow">Testing notes</p>
+              <h3>Comment while you review</h3>
+            </div>
+            <span className="reviewStepPill">{stepLabels[currentStep]}</span>
+          </div>
+
+          <div className="reviewTagRow" role="group" aria-label="Review note type">
+            {(["bug", "confusing", "ugly", "good"] as ReviewTag[]).map((item) => (
+              <button
+                key={item}
+                type="button"
+                className={tag === item ? "reviewTagButton reviewTagButtonActive" : "reviewTagButton"}
+                onClick={() => setTag(item)}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+
+          <label className="noteField">
+            <span>What did you notice?</span>
+            <textarea
+              value={text}
+              onChange={(event) => setText(event.target.value)}
+              rows={4}
+              placeholder="Example: Seen did nothing on the second card."
+            />
+          </label>
+
+          <div className="reviewActions">
+            <button type="button" className="secondaryButton" onClick={copyNotes} disabled={notes.length === 0}>
+              {copied ? "Copied" : "Copy notes"}
+            </button>
+            <button type="button" onClick={addNote}>
+              Save note
+            </button>
+          </div>
+
+          {notes.length > 0 ? (
+            <>
+              <div className="reviewNotesHeader">
+                <h4>Saved notes</h4>
+                <button type="button" className="secondaryButton compactButton" onClick={clearNotes}>
+                  Clear
+                </button>
+              </div>
+              <div className="reviewNotesList">
+                {notes.map((note) => (
+                  <article key={note.id} className="reviewNoteCard">
+                    <div className="reviewNoteMeta">
+                      <strong>{note.tag}</strong>
+                      <span>{stepLabels[note.step]}</span>
+                    </div>
+                    <p>{note.text}</p>
+                  </article>
+                ))}
+              </div>
+            </>
+          ) : null}
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+function stepHeadline(
+  step: WizardStep,
+  founderLabel: string,
+  wifeLabel: string,
+  peopleMode: PeopleMode,
+): string {
+  switch (step) {
+    case "setup":
+      return "One shared phone, one clear next step.";
+    case "founder":
+      return peopleMode === "wife"
+        ? `${wifeLabel} is choosing now.`
+        : `${founderLabel} is choosing first.`;
+    case "handoff":
+      return `Time to hand the phone to ${wifeLabel}.`;
+    case "wife":
+      return `${wifeLabel} gets the same five titles.`;
+    case "results":
+      return peopleMode === "couple"
+        ? "Tonight's strongest shared pick."
+        : "Tonight's strongest solo pick.";
+    default:
+      return "";
+  }
+}
+
+function formatSessionDate(date: Date): string {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  }).format(date);
+}
+
 function ResultsStep({
   founderLabel,
   wifeLabel,
   participantIds,
+  peopleMode,
   rankedCandidates,
   founderReactions,
   wifeReactions,
@@ -1024,10 +2416,12 @@ function ResultsStep({
   debugHistoryMessage,
   onLoadDebugHistory,
   onReset,
+  reviewMode,
 }: {
   founderLabel: string;
   wifeLabel: string;
   participantIds: string[];
+  peopleMode: PeopleMode;
   rankedCandidates: RankedCandidate[];
   founderReactions: ReactionState;
   wifeReactions: ReactionState;
@@ -1039,6 +2433,7 @@ function ResultsStep({
   debugHistoryMessage: string | null;
   onLoadDebugHistory: () => void | Promise<void>;
   onReset: () => void;
+  reviewMode: boolean;
 }) {
   const bestPick = rankedCandidates[0];
   const [outcomeType, setOutcomeType] = useState<SessionOutcomeType | null>(null);
@@ -1048,6 +2443,15 @@ function ResultsStep({
   const [feedbackState, setFeedbackState] = useState<FeedbackState>({});
   const [feedbackNotes, setFeedbackNotes] = useState<FeedbackNoteState>({});
   const [savedFeedback, setSavedFeedback] = useState<PostWatchFeedbackPayload[]>([]);
+  const participantEntries =
+    peopleMode === "couple"
+      ? [
+          { id: participantIds[0], label: founderLabel, actor: "founder" as const },
+          { id: participantIds[1], label: wifeLabel, actor: "wife" as const },
+        ]
+      : peopleMode === "founder"
+        ? [{ id: participantIds[0], label: founderLabel, actor: "founder" as const }]
+        : [{ id: participantIds[0], label: wifeLabel, actor: "wife" as const }];
 
   if (!bestPick) {
     return (
@@ -1079,6 +2483,15 @@ function ResultsStep({
   const feedbackReady =
     watchedTitleSourceId !== null &&
     participantIds.every((participantId) => feedbackState[participantId] !== undefined);
+  const matchTier = toMatchTier(bestPick.score);
+  const sharedWhy = describeSharedWhy({
+    candidate: bestPick,
+    founderReaction: founderReactions[bestPick.id],
+    wifeReaction: wifeReactions[bestPick.id],
+    peopleMode,
+    founderLabel,
+    wifeLabel,
+  });
 
   async function handleSaveOutcome(): Promise<void> {
     if (!canPersist || sharedSession === null || outcomeType === null) {
@@ -1147,221 +2560,296 @@ function ResultsStep({
   }
 
   return (
-    <section className="wizardPanel resultsPanel" aria-labelledby="results-heading">
-      <div className="sectionHeading">
-        <p className="eyebrow">Best pick</p>
-        <h2 id="results-heading">{bestPick.title}</h2>
-        <p>
-          {sessionModeLabels[sessionMode]} mode chose the title with the strongest shared
-          signal after both reaction passes.
-        </p>
+    <section className="wizardPanel resultsPanel cinematicResultsPanel" aria-labelledby="results-heading">
+      <div className="resultsTopChrome" aria-hidden="true">
+        <div className="resultsTopIcon">&larr;</div>
+        <div className="resultsTopStatus">{peopleMode === "couple" ? "It's a match!" : "Best pick"}</div>
+        <div className="resultsTopIcon">↗</div>
       </div>
 
-      <article className="winnerCard">
-        <img src={bestPick.posterUrl} alt="" className="winnerPoster" />
-        <div>
-          <span className="safePill">{bestPick.safePickStatus}</span>
-          <p className="winnerScore">{bestPick.score} shared score</p>
-          <p>{bestPick.reason}</p>
-          <div className="reactionPair">
-            <ReactionBadge
-              label={founderLabel}
-              value={founderReactions[bestPick.id]}
-            />
-            <ReactionBadge label={wifeLabel} value={wifeReactions[bestPick.id]} />
-          </div>
-        </div>
-      </article>
+        <div className="sectionHeading resultsHeading resultsHeadingCentered">
+        <h2 id="results-heading">Tonight&apos;s pick</h2>
+      </div>
 
-      <div className="rankedList" aria-label="Reranked shortlist">
-        {rankedCandidates.map((candidate, index) => (
-          <article key={candidate.id} className="rankedItem">
-            <strong>{index + 1}</strong>
-            <div>
-              <h3>{candidate.title}</h3>
-              <p>
-                {candidate.score} points · {candidate.safePickStatus}
-              </p>
-              <div className="reactionPair">
-                <ReactionBadge
-                  label={founderLabel}
-                  value={founderReactions[candidate.id]}
-                />
-                <ReactionBadge label={wifeLabel} value={wifeReactions[candidate.id]} />
+      <section className="winnerReveal">
+        <article className="winnerPosterCard">
+          <img
+            src={bestPick.posterUrl}
+            alt=""
+            className="winnerPosterTall"
+            onError={handlePosterFallback}
+          />
+        </article>
+
+        <div className={`matchPulse matchPulse${matchTier} resultsPulse`}>
+          <span className="matchPulseLabel">Shared score</span>
+          <strong>{bestPick.score}</strong>
+        </div>
+
+        <div className="winnerRevealMeta">
+          <h3>{bestPick.title}</h3>
+          <p>
+            {bestPick.year} · {bestPick.runtime} · {bestPick.genres.slice(0, 2).join(", ")}
+          </p>
+        </div>
+
+        <div className="sharedWhyCard resultsSharedWhy">
+          <span>Why this won</span>
+          <p>{sharedWhy}</p>
+        </div>
+
+        <p className="resultsPeopleLabel">How you both felt</p>
+        <div className={peopleMode === "couple" ? "resultsPeopleRow resultsPeopleRowCouple" : "resultsPeopleRow"}>
+          {peopleMode === "couple" && participantEntries[0] ? (
+            <div key={participantEntries[0].id} className="resultsPerson">
+              <div className="resultsPersonAvatar">{participantEntries[0].label.slice(0, 1)}</div>
+              <div className="resultsPersonMeta">
+                <strong>{participantEntries[0].label}</strong>
+                <span>
+                  {participantEntries[0].actor === "founder"
+                    ? founderReactions[bestPick.id]
+                      ? reactionLabels[founderReactions[bestPick.id]!]
+                      : "No vote"
+                    : wifeReactions[bestPick.id]
+                      ? reactionLabels[wifeReactions[bestPick.id]!]
+                      : "No vote"}
+                </span>
               </div>
             </div>
-          </article>
-        ))}
-      </div>
-
-      {!canPersist ? (
-        <p className="debugMessage">
-          Outcome and post-watch feedback save only for backend-backed sessions.
-        </p>
-      ) : null}
-
-      <section className="outcomePanel" aria-labelledby="outcome-heading">
-        <div className="sectionHeading">
-          <p className="eyebrow">After the movie</p>
-          <h3 id="outcome-heading">What actually happened?</h3>
-          <p>Save tonight's real outcome so the app can learn from more than shortlist taps.</p>
-        </div>
-
-        <div className="outcomeOptionGrid" role="group" aria-label="Outcome type">
-          <button
-            type="button"
-            className={outcomeType === "watched_recommended" ? "segment segmentActive" : "segment"}
-            onClick={() => {
-              setOutcomeType("watched_recommended");
-              setOtherPickId(null);
-              setSavedOutcome(null);
-              setSavedFeedback([]);
-            }}
-          >
-            Watched best pick
-          </button>
-          <button
-            type="button"
-            className={outcomeType === "watched_other" ? "segment segmentActive" : "segment"}
-            onClick={() => {
-              setOutcomeType("watched_other");
-              setSavedOutcome(null);
-              setSavedFeedback([]);
-            }}
-          >
-            Watched another shortlist title
-          </button>
-          <button
-            type="button"
-            className={outcomeType === "watched_nothing" ? "segment segmentActive" : "segment"}
-            onClick={() => {
-              setOutcomeType("watched_nothing");
-              setOtherPickId(null);
-              setSavedOutcome(null);
-              setSavedFeedback([]);
-            }}
-          >
-            Watched nothing
-          </button>
-        </div>
-
-        {outcomeType === "watched_other" ? (
-          <div className="outcomeChoiceList" role="group" aria-label="Other watched shortlist title">
-            {rankedCandidates
-              .filter((candidate) => candidate.id !== bestPick.id)
-              .map((candidate) => (
-                <button
-                  key={candidate.id}
-                  type="button"
-                  className={otherPickId === candidate.id ? "secondaryButton choiceButton choiceButtonActive" : "secondaryButton choiceButton"}
-                  onClick={() => {
-                    setOtherPickId(candidate.id);
-                    setSavedOutcome(null);
-                    setSavedFeedback([]);
-                  }}
-                >
-                  {candidate.title}
-                </button>
-              ))}
-          </div>
-        ) : null}
-
-        <label className="noteField">
-          <span>Optional note</span>
-          <textarea
-            value={outcomeNote}
-            onChange={(event) => setOutcomeNote(event.target.value)}
-            rows={3}
-            placeholder="Anything worth remembering about tonight?"
-          />
-        </label>
-
-        <div className="bottomActions inlineActions">
-          <button
-            type="button"
-            className="primaryAction"
-            onClick={handleSaveOutcome}
-            disabled={!canSaveOutcome}
-          >
-            {savedOutcome ? "Outcome saved" : "Save outcome"}
-          </button>
+          ) : null}
+          {peopleMode === "couple" ? (
+            <div className="resultsHeartLockup" aria-hidden="true">
+              ♥
+            </div>
+          ) : null}
+          {(peopleMode === "couple" ? participantEntries.slice(1) : participantEntries).map((participant) => (
+            <div key={participant.id} className="resultsPerson">
+              <div className="resultsPersonAvatar">{participant.label.slice(0, 1)}</div>
+              <div className="resultsPersonMeta">
+                <strong>{participant.label}</strong>
+                <span>
+                  {participant.actor === "founder"
+                    ? founderReactions[bestPick.id]
+                      ? reactionLabels[founderReactions[bestPick.id]!]
+                      : "No vote"
+                    : wifeReactions[bestPick.id]
+                      ? reactionLabels[wifeReactions[bestPick.id]!]
+                      : "No vote"}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
-      {savedOutcome && savedOutcome.outcomeType !== "watched_nothing" && watchedTitle ? (
-        <section className="outcomePanel" aria-labelledby="feedback-heading">
-          <div className="sectionHeading">
-            <p className="eyebrow">Post-watch feedback</p>
-            <h3 id="feedback-heading">How did each of you feel?</h3>
-            <p>These are separate from the shortlist reactions and count as real taste signal.</p>
-          </div>
+      <section className="resultsBackupsSection" aria-labelledby="backups-heading">
+        <p id="backups-heading" className="resultsBackupsLabel">Backups we also liked</p>
+        <div className="backupStrip" aria-label="Reranked shortlist">
+          {rankedCandidates.slice(1).map((candidate) => (
+            <article key={candidate.id} className="backupCard backupCardCompact">
+              <img
+                src={candidate.posterUrl}
+                alt=""
+                className="backupPoster backupPosterCompact"
+                loading="eager"
+                decoding="sync"
+                onError={handlePosterFallback}
+              />
+              <div className="backupMeta backupMetaCompact">
+                <strong>{candidate.title}</strong>
+                <span>{candidate.score}%</span>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
 
-          <div className="feedbackGrid">
-            {participantIds.map((participantId, index) => {
-              const personLabel = index === 0 ? founderLabel : wifeLabel;
+      <div className="resultsActionRow" role="group" aria-label="Results actions">
+        <button type="button" className="secondaryButton resultsSecondaryAction" onClick={onReset}>
+          Start new night
+        </button>
+        <button type="button" className="resultsPrimaryAction" disabled>
+          Add to watchlist
+        </button>
+      </div>
 
-              return (
-                <article key={participantId} className="feedbackCard">
-                  <h4>{personLabel}</h4>
-                  <div className="outcomeOptionGrid" role="group" aria-label={`${personLabel} feedback`}>
-                    {(Object.keys(feedbackLabels) as Array<keyof typeof feedbackLabels>).map((label) => (
-                      <button
-                        key={label}
-                        type="button"
-                        className={feedbackState[participantId] === label ? "segment segmentActive" : "segment"}
-                        onClick={() =>
-                          setFeedbackState((current) => ({
-                            ...current,
-                            [participantId]: label,
-                          }))
-                        }
-                      >
-                        {feedbackLabels[label]}
-                      </button>
-                    ))}
-                  </div>
-                  <label className="noteField">
-                    <span>Optional note</span>
-                    <textarea
-                      value={feedbackNotes[participantId] ?? ""}
-                      onChange={(event) =>
-                        setFeedbackNotes((current) => ({
-                          ...current,
-                          [participantId]: event.target.value,
-                        }))
-                      }
-                      rows={3}
-                      placeholder={`Anything ${personLabel.toLowerCase()} wants remembered?`}
-                    />
-                  </label>
-                </article>
-              );
-            })}
-          </div>
+      {!canPersist ? <p className="debugMessage quietCallout">Outcome saving only works when the backend session stays connected.</p> : null}
 
-          <div className="bottomActions inlineActions">
-            <button
-              type="button"
-              className="primaryAction"
-              onClick={handleSaveFeedback}
-              disabled={!feedbackReady}
-            >
-              {savedFeedback.length === participantIds.length ? "Feedback saved" : "Save feedback"}
-            </button>
+      <details className="disclosurePanel outcomeDisclosure">
+        <summary>Save what happened after</summary>
+        <div className="disclosureBody">
+          <section className="outcomePanel" aria-labelledby="outcome-heading">
+            <div className="sectionHeading">
+              <p className="eyebrow">After the movie</p>
+              <h3 id="outcome-heading">What actually happened?</h3>
+              <p>Save tonight&apos;s real outcome so the app can learn from more than shortlist taps.</p>
+            </div>
+
+            <div className="outcomeOptionGrid" role="group" aria-label="Outcome type">
+              <button
+                type="button"
+                className={outcomeType === "watched_recommended" ? "segment segmentActive" : "segment"}
+                onClick={() => {
+                  setOutcomeType("watched_recommended");
+                  setOtherPickId(null);
+                  setSavedOutcome(null);
+                  setSavedFeedback([]);
+                }}
+              >
+                Watched best pick
+              </button>
+              <button
+                type="button"
+                className={outcomeType === "watched_other" ? "segment segmentActive" : "segment"}
+                onClick={() => {
+                  setOutcomeType("watched_other");
+                  setSavedOutcome(null);
+                  setSavedFeedback([]);
+                }}
+              >
+                Watched another shortlist title
+              </button>
+              <button
+                type="button"
+                className={outcomeType === "watched_nothing" ? "segment segmentActive" : "segment"}
+                onClick={() => {
+                  setOutcomeType("watched_nothing");
+                  setOtherPickId(null);
+                  setSavedOutcome(null);
+                  setSavedFeedback([]);
+                }}
+              >
+                Watched nothing
+              </button>
+            </div>
+
+            {outcomeType === "watched_other" ? (
+              <div className="outcomeChoiceList" role="group" aria-label="Other watched shortlist title">
+                {rankedCandidates
+                  .filter((candidate) => candidate.id !== bestPick.id)
+                  .map((candidate) => (
+                    <button
+                      key={candidate.id}
+                      type="button"
+                      className={otherPickId === candidate.id ? "secondaryButton choiceButton choiceButtonActive" : "secondaryButton choiceButton"}
+                      onClick={() => {
+                        setOtherPickId(candidate.id);
+                        setSavedOutcome(null);
+                        setSavedFeedback([]);
+                      }}
+                    >
+                      {candidate.title}
+                    </button>
+                  ))}
+              </div>
+            ) : null}
+
+            <label className="noteField">
+              <span>Optional note</span>
+              <textarea
+                value={outcomeNote}
+                onChange={(event) => setOutcomeNote(event.target.value)}
+                rows={3}
+                placeholder="Anything worth remembering about tonight?"
+              />
+            </label>
+
+            <div className="bottomActions inlineActions">
+              <button
+                type="button"
+                className="primaryAction"
+                onClick={handleSaveOutcome}
+                disabled={!canSaveOutcome}
+              >
+                {savedOutcome ? "Outcome saved" : "Save outcome"}
+              </button>
+            </div>
+          </section>
+
+          {savedOutcome && savedOutcome.outcomeType !== "watched_nothing" && watchedTitle ? (
+            <section className="outcomePanel" aria-labelledby="feedback-heading">
+              <div className="sectionHeading">
+                <p className="eyebrow">Post-watch feedback</p>
+                <h3 id="feedback-heading">How did each of you feel?</h3>
+                <p>These are separate from the shortlist reactions and count as real taste signal.</p>
+              </div>
+
+              <div className="feedbackGrid">
+                {participantEntries.map((participant) => {
+                  const participantId = participant.id;
+                  const personLabel = participant.label;
+
+                  return (
+                    <article key={participantId} className="feedbackCard">
+                      <h4>{personLabel}</h4>
+                      <div className="outcomeOptionGrid" role="group" aria-label={`${personLabel} feedback`}>
+                        {(Object.keys(feedbackLabels) as Array<keyof typeof feedbackLabels>).map((label) => (
+                          <button
+                            key={label}
+                            type="button"
+                            className={feedbackState[participantId] === label ? "segment segmentActive" : "segment"}
+                            onClick={() =>
+                              setFeedbackState((current) => ({
+                                ...current,
+                                [participantId]: label,
+                              }))
+                            }
+                          >
+                            {feedbackLabels[label]}
+                          </button>
+                        ))}
+                      </div>
+                      <label className="noteField">
+                        <span>Optional note</span>
+                        <textarea
+                          value={feedbackNotes[participantId] ?? ""}
+                          onChange={(event) =>
+                            setFeedbackNotes((current) => ({
+                              ...current,
+                              [participantId]: event.target.value,
+                            }))
+                          }
+                          rows={3}
+                          placeholder={`Anything ${personLabel.toLowerCase()} wants remembered?`}
+                        />
+                      </label>
+                    </article>
+                  );
+                })}
+              </div>
+
+              <div className="bottomActions inlineActions">
+                <button
+                  type="button"
+                  className="primaryAction"
+                  onClick={handleSaveFeedback}
+                  disabled={!feedbackReady}
+                >
+                  {savedFeedback.length === participantIds.length ? "Feedback saved" : "Save feedback"}
+                </button>
+              </div>
+            </section>
+          ) : null}
+        </div>
+      </details>
+
+      {reviewMode ? (
+        <details className="disclosurePanel">
+          <summary>Session evidence</summary>
+          <div className="disclosureBody">
+            <DebugHistoryPanel
+              source={sessionSource}
+              session={sharedSession}
+              history={debugHistory}
+              status={debugHistoryStatus}
+              message={debugHistoryMessage}
+              onLoad={onLoadDebugHistory}
+            />
           </div>
-        </section>
+        </details>
       ) : null}
 
-      <DebugHistoryPanel
-        source={sessionSource}
-        session={sharedSession}
-        history={debugHistory}
-        status={debugHistoryStatus}
-        message={debugHistoryMessage}
-        onLoad={onLoadDebugHistory}
-      />
-
-      <button type="button" className="primaryAction" onClick={onReset}>
+      <button type="button" className="primaryAction resultsRestartAction" onClick={onReset}>
         Start another session
       </button>
     </section>
@@ -1634,12 +3122,14 @@ type RankedCandidate = DemoCandidate & {
 
 function rankCandidates({
   sessionMode,
+  peopleMode,
   candidates,
   founderReactions,
   wifeReactions,
   rerankedSourceMovieIds,
 }: {
   sessionMode: SessionMode;
+  peopleMode: PeopleMode;
   candidates: DemoCandidate[];
   founderReactions: ReactionState;
   wifeReactions: ReactionState;
@@ -1651,8 +3141,6 @@ function rankCandidates({
       const wifeReaction = wifeReactions[candidate.id];
       const founderScore = candidate.taste.founder + reactionScore(founderReaction);
       const wifeScore = candidate.taste.wife + reactionScore(wifeReaction);
-      const seenPenalty =
-        founderReaction === "seen" || wifeReaction === "seen" ? 100 : 0;
       const noPenalty =
         founderReaction === "no" || wifeReaction === "no"
           ? sessionMode === "compromise"
@@ -1661,18 +3149,26 @@ function rankCandidates({
           : 0;
       const statusPenalty = candidate.safePickStatus === "Needs Quick Check" ? 14 : 0;
       const modeScore =
-        sessionMode === "founder-first"
-          ? founderScore * 0.58 + wifeScore * 0.42
-          : sessionMode === "wife-first"
-            ? founderScore * 0.42 + wifeScore * 0.58
-            : Math.min(founderScore, wifeScore) * 0.65 +
-              ((founderScore + wifeScore) / 2) * 0.35;
+        peopleMode === "founder"
+          ? founderScore
+          : peopleMode === "wife"
+            ? wifeScore
+            : sessionMode === "founder-first"
+              ? founderScore * 0.58 + wifeScore * 0.42
+              : sessionMode === "wife-first"
+                ? founderScore * 0.42 + wifeScore * 0.58
+                : Math.min(founderScore, wifeScore) * 0.65 +
+                  ((founderScore + wifeScore) / 2) * 0.35;
 
       return {
         ...candidate,
         score: Math.max(
           0,
-          Math.round(modeScore - statusPenalty - noPenalty - seenPenalty),
+          Math.round(
+            modeScore -
+              statusPenalty -
+              (peopleMode === "couple" ? noPenalty : 0),
+          ),
         ),
       };
     })
@@ -1701,6 +3197,56 @@ function rankCandidates({
     );
 }
 
+function toMatchTier(score: number): "Epic" | "Strong" | "Warm" {
+  if (score >= 95) {
+    return "Epic";
+  }
+
+  if (score >= 85) {
+    return "Strong";
+  }
+
+  return "Warm";
+}
+
+function describeSharedWhy({
+  candidate,
+  founderReaction,
+  wifeReaction,
+  peopleMode,
+  founderLabel,
+  wifeLabel,
+}: {
+  candidate: RankedCandidate;
+  founderReaction: ReactionValue | undefined;
+  wifeReaction: ReactionValue | undefined;
+  peopleMode: PeopleMode;
+  founderLabel: string;
+  wifeLabel: string;
+}): string {
+  if (peopleMode !== "couple") {
+    if (candidate.whyNow) {
+      return candidate.whyNow;
+    }
+
+    return `${candidate.title} rises because it matches the pace and tone this session leaned toward tonight.`;
+  }
+
+  if (founderReaction === "interested" && wifeReaction === "interested") {
+    return `${founderLabel} and ${wifeLabel} both pushed this up, and the ${candidate.tone.toLowerCase()} energy makes it easy to start right now.`;
+  }
+
+  if (founderReaction === "interested" || wifeReaction === "interested") {
+    return `One of you really wanted this, the other didn’t block it, and ${candidate.title} still looks like a strong shared bet for tonight.`;
+  }
+
+  if (candidate.criticScore && candidate.criticScore >= 94) {
+    return `Neither of you spiked hard on it, but the trust signal is high and ${candidate.title} still looks like the cleanest overlap.`;
+  }
+
+  return `This one balances tonight’s overlap best: approachable pace, strong payoff, and fewer reasons for either of you to bounce off.`;
+}
+
 function reactionScore(reaction: ReactionValue | undefined) {
   if (reaction === "interested") {
     return 18;
@@ -1714,10 +3260,6 @@ function reactionScore(reaction: ReactionValue | undefined) {
     return -34;
   }
 
-  if (reaction === "seen") {
-    return -45;
-  }
-
   return 0;
 }
 
@@ -1727,8 +3269,149 @@ function countReactions(reactions: ReactionState): Record<ReactionValue, number>
       .length,
     maybe: Object.values(reactions).filter((reaction) => reaction === "maybe").length,
     no: Object.values(reactions).filter((reaction) => reaction === "no").length,
-    seen: Object.values(reactions).filter((reaction) => reaction === "seen").length,
   };
+}
+
+function countSeenMemories(seenMemories: SeenMemoryState): number {
+  return Object.values(seenMemories).filter((memory) => memory !== undefined).length;
+}
+
+function mergeSeenMemoryIntoOnboarding(
+  onboarding: ParticipantOnboardingPayload,
+  candidate: DemoCandidate,
+  memory: Exclude<SeenMemoryValue, "forget">,
+): ParticipantOnboardingPayload {
+  const nextLoved = removeTitleEntry(onboarding.lovedTitleEntries, candidate.id);
+  const nextFine = removeTitleEntry(onboarding.fineTitleEntries, candidate.id);
+  const nextNo = removeTitleEntry(onboarding.noTitleEntries, candidate.id);
+  const entry = toResolvedTitleEntry(candidate);
+
+  if (memory === "loved") {
+    nextLoved.unshift(entry);
+  } else if (memory === "fine") {
+    nextFine.unshift(entry);
+  } else {
+    nextNo.unshift(entry);
+  }
+
+  return {
+    ...onboarding,
+    lovedTitleEntries: nextLoved,
+    fineTitleEntries: nextFine,
+    noTitleEntries: nextNo,
+  };
+}
+
+function removeTitleEntry(
+  entries: ParticipantOnboardingPayload["lovedTitleEntries"],
+  sourceId: string,
+) {
+  return entries.filter((entry) => entry.candidate?.sourceId !== sourceId);
+}
+
+function toResolvedTitleEntry(candidate: DemoCandidate) {
+  return {
+    rawTitle: candidate.title,
+    status: "resolved" as const,
+    candidate: {
+      source: "tmdb",
+      sourceId: candidate.id,
+      title: candidate.title,
+      mediaType: "movie" as const,
+      releaseYear: candidate.year,
+      overview: candidate.reason,
+    },
+  };
+}
+
+function toOnboardingDraft(
+  onboarding: ParticipantOnboardingPayload,
+): OnboardingDraft {
+  return {
+    lovedTitleEntries: onboarding.lovedTitleEntries,
+    fineTitleEntries: onboarding.fineTitleEntries,
+    noTitleEntries: onboarding.noTitleEntries,
+    manualLoved: "",
+    manualFine: "",
+    manualNo: "",
+  };
+}
+
+function suggestedSeedsForBucket(
+  bucket: "loved" | "fine" | "no",
+): DemoCandidate[] {
+  if (bucket === "loved") {
+    return [
+      demoCandidates.find((candidate) => candidate.id === "arrival"),
+      demoCandidates.find((candidate) => candidate.id === "knives-out"),
+    ].filter((candidate): candidate is DemoCandidate => candidate !== undefined);
+  }
+
+  if (bucket === "fine") {
+    return [
+      demoCandidates.find((candidate) => candidate.id === "the-grand-budapest-hotel"),
+      demoCandidates.find((candidate) => candidate.id === "edge-of-tomorrow"),
+    ].filter((candidate): candidate is DemoCandidate => candidate !== undefined);
+  }
+
+  return [
+    demoCandidates.find((candidate) => candidate.id === "past-lives"),
+  ].filter((candidate): candidate is DemoCandidate => candidate !== undefined);
+}
+
+function bucketHint(bucket: "loved" | "fine" | "no"): string {
+  if (bucket === "loved") {
+    return "A movie they would happily watch again.";
+  }
+
+  if (bucket === "fine") {
+    return "Something they thought was decent, not special.";
+  }
+
+  return "A clear no from past experience.";
+}
+
+function removeSeedFromDraft(
+  draft: OnboardingDraft,
+  sourceId: string,
+): OnboardingDraft {
+  return {
+    ...draft,
+    lovedTitleEntries: removeTitleEntry(draft.lovedTitleEntries, sourceId),
+    fineTitleEntries: removeTitleEntry(draft.fineTitleEntries, sourceId),
+    noTitleEntries: removeTitleEntry(draft.noTitleEntries, sourceId),
+  };
+}
+
+function removeUnresolvedSeedFromDraft(
+  draft: OnboardingDraft,
+  rawTitle: string,
+): OnboardingDraft {
+  const normalizedTitle = rawTitle.trim().toLowerCase();
+  const keepEntry = (
+    entry: ParticipantOnboardingPayload["lovedTitleEntries"][number],
+  ) => !(entry.candidate == null && entry.rawTitle.trim().toLowerCase() === normalizedTitle);
+
+  return {
+    ...draft,
+    lovedTitleEntries: draft.lovedTitleEntries.filter(keepEntry),
+    fineTitleEntries: draft.fineTitleEntries.filter(keepEntry),
+    noTitleEntries: draft.noTitleEntries.filter(keepEntry),
+  };
+}
+
+function prependUniqueEntry(
+  entries: ParticipantOnboardingPayload["lovedTitleEntries"],
+  entry: ParticipantOnboardingPayload["lovedTitleEntries"][number],
+) {
+  const key = entryKey(entry);
+  return [entry, ...entries.filter((currentEntry) => entryKey(currentEntry) !== key)];
+}
+
+function entryKey(
+  entry: ParticipantOnboardingPayload["lovedTitleEntries"][number],
+): string {
+  return entry.candidate?.sourceId ?? `raw:${entry.rawTitle.trim().toLowerCase()}`;
 }
 
 function reactionsPayload(
@@ -1758,7 +3441,7 @@ function toSessionCandidate(
   const availability =
     candidate.availability ??
     (candidate.providerNames && candidate.providerNames.length > 0
-      ? `${candidate.providerNames.join(", ")} fixture`
+      ? `${candidate.providerNames.join(", ")}`
       : null);
 
   return {
@@ -1771,17 +3454,25 @@ function toSessionCandidate(
       new Date().getFullYear(),
     runtime: runtime ?? fixture?.runtime ?? "Runtime check needed",
     posterUrl: candidate.posterUrl ?? fixture?.posterUrl ?? fallbackPosterUrl,
+    topCast:
+      candidate.topCast?.slice(0, 3) ??
+      fixture?.topCast ??
+      [],
+    genres: fixture?.genres ?? [],
+    criticScore: fixture?.criticScore,
     safePickStatus: toSafePickStatus(candidate.safePickStatus),
     availability: availability ?? fixture?.availability ?? "Availability check needed",
     languageAccess:
       candidate.languageAccess ??
       fixture?.languageAccess ??
-      "English audio/subtitle fixture",
+      "Audio and subtitle details need a quick check",
     tone: candidate.tone ?? candidate.fitBucket ?? fixture?.tone ?? "Balanced pick",
     reason:
       candidate.reason ??
       fixture?.reason ??
-      "Recommended by the backend shortlist for tonight's shared session.",
+      "Picked for tonight's shortlist based on the current household setup.",
+    hook: fixture?.hook,
+    whyNow: fixture?.whyNow,
     baseRank: rank,
     taste: {
       founder: candidate.founderScore ?? fixture?.taste.founder ?? groupScore,
@@ -1839,10 +3530,30 @@ function toErrorMessage(error: unknown): string {
 
 function toSessionCreationErrorMessage(error: unknown): string {
   if (error instanceof Error) {
+    if (error.message.includes("completed onboarding")) {
+      return "Shared profile setup is not wired into the phone flow yet, so this round is using the same shortlist in local mode.";
+    }
+
     return error.message;
   }
 
   return "Session setup could not be saved to the API.";
+}
+
+function toSeenMemoryErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Seen-memory save failed.";
+}
+
+function toOnboardingErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Onboarding could not be loaded.";
 }
 
 function toDebugHistoryErrorMessage(error: unknown): string {

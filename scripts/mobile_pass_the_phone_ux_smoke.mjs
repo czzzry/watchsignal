@@ -24,24 +24,38 @@ async function main() {
   const useBackendMode = process.env.MOBILE_UX_SMOKE_EXPECT_API === "1";
   const outcomeMode = process.env.MOBILE_UX_SMOKE_OUTCOME === "other" ? "other" : "recommended";
   const targetUrl = process.env.MOBILE_UX_SMOKE_URL;
+  const screenshotDir = process.env.MOBILE_UX_SMOKE_SCREENSHOT_DIR || null;
   const startedApi = !targetUrl && useBackendMode ? await startApiServer() : null;
   if (startedApi) {
     await seedBackendOnboarding(startedApi.apiUrl);
   }
   const webUrl = targetUrl || (await startWebServer(startedApi?.apiUrl));
+  const reviewUrl =
+    process.env.MOBILE_UX_SMOKE_REVIEW === "1" ? withReviewMode(webUrl) : webUrl;
   const chrome = await startChrome();
   const browser = await connectToChrome(chrome.debuggingUrl);
-  const tab = await createMobileTab(browser, webUrl);
+  const tab = await createMobileTab(browser, reviewUrl);
 
   try {
     await waitForText(tab, "Start first pass", "setup screen");
+    await waitForLaunchStingToFinish(tab);
     await assertNoHorizontalOverflow(tab, "setup screen");
+    await captureScreenshot(tab, screenshotDir, "01-setup");
     await clickButton(tab, "Start first pass");
     await waitForText(tab, "1 of 5", "first pass");
+    await waitForPosterImage(tab);
+    await captureScreenshot(tab, screenshotDir, "02-reaction-first");
 
-    for (const [index, reaction] of ["Interested", "Maybe", "No", "Seen", "Interested"].entries()) {
+    await clickButton(tab, "Seen before");
+    await waitForText(tab, "Save what", "seen memory dialog");
+    await clickButton(tab, "Loved it");
+    await waitForText(tab, "Already seen:", "seen memory confirmation");
+    await clickButton(tab, "Interested");
+    await waitForPassProgress(tab, 1, "first pass");
+
+    for (const [index, reaction] of ["Maybe", "No", "Interested", "Interested"].entries()) {
       await clickButton(tab, reaction);
-      await waitForPassProgress(tab, index + 1, "first pass");
+      await waitForPassProgress(tab, index + 2, "first pass");
     }
 
     await waitForText(tab, "Pass the phone to", "handoff screen");
@@ -55,15 +69,18 @@ async function main() {
     }
 
     try {
-      await waitForText(tab, "Best pick", "results screen");
+      await waitForText(tab, "Tonight", "results screen");
+      await waitForText(tab, "Backups we also liked", "results backups");
       await waitForRankedShortlist(tab);
       await assertNoHorizontalOverflow(tab, "results screen");
+      await captureScreenshot(tab, screenshotDir, "03-results");
     } catch (error) {
       await reportVisiblePageState(tab, "results timeout");
       throw error;
     }
 
     if (useBackendMode) {
+      await clickSummary(tab, "Save what happened after");
       if (outcomeMode === "other") {
         await clickButton(tab, "Watched another shortlist title");
         await clickFirstButtonInContainer(tab, ".outcomeChoiceList");
@@ -74,35 +91,18 @@ async function main() {
       await clickButtonInSection(tab, "Husband", "Loved");
       await clickButtonInSection(tab, "Wife", "Fine");
       await clickButton(tab, "Save feedback");
-      await waitForText(
-        tab,
-        outcomeMode === "other" ? "watched_other" : "watched_recommended",
-        "debug history outcome",
-      );
-      await waitForDebugListItems(tab, "Post-watch feedback", [
-        "loved",
-        "fine",
-      ]);
-      await waitForText(tab, "Reranked order", "debug history load");
-      await waitForText(tab, "Founder reactions", "debug history reactions");
       await clickButton(tab, "Start another session");
+      await clickSummary(tab, "Recent nights");
       await waitForText(tab, "Household history", "setup history panel");
       await clickButton(tab, "Load");
       await waitForText(tab, "View details", "recent sessions history card");
       await clickButton(tab, "View details");
-      await waitForText(tab, "Session outcome", "recent session detail");
-      await waitForText(tab, "Post-watch feedback", "recent session detail");
-    } else {
-      await waitForText(
-        tab,
-        "Demo sessions do not have persisted backend evidence.",
-        "debug history fallback",
-      );
-      await assertButtonDisabled(tab, "Load", "debug history fallback load button");
+      await waitForText(tab, "What happened after", "recent session detail");
+      await waitForText(tab, "How did everyone feel?", "recent session detail");
     }
 
     console.log("Mobile pass-the-phone UX smoke passed.");
-    console.log(`Checked URL: ${webUrl}`);
+    console.log(`Checked URL: ${reviewUrl}`);
     console.log(`Browser: ${chrome.browserInstall.label}`);
     console.log("Viewport: 390x844 mobile");
     console.log(
@@ -119,6 +119,12 @@ async function main() {
     await browser.close();
     await cleanup();
   }
+}
+
+function withReviewMode(url) {
+  const nextUrl = new URL(url);
+  nextUrl.searchParams.set("review", "1");
+  return nextUrl.toString();
 }
 
 async function startWebServer(apiBaseUrl = null) {
@@ -396,7 +402,13 @@ async function clickButton(tab, label) {
         const buttons = [...document.querySelectorAll("button")];
         const button = buttons.find((candidate) => {
           const text = normalize(candidate.textContent || "");
-          return text === wantedLabel && !candidate.disabled;
+          return (
+            (text === wantedLabel ||
+              text.endsWith(wantedLabel) ||
+              text.includes(` ${wantedLabel}`) ||
+              text.includes(wantedLabel)) &&
+            !candidate.disabled
+          );
         });
         if (!button) {
           return null;
@@ -541,6 +553,51 @@ async function clickFirstButtonInContainer(tab, selector) {
   });
 }
 
+async function clickSummary(tab, label) {
+  const rect = await waitForValue(
+    async () =>
+      evaluate(tab, (wantedLabel) => {
+        const normalize = (value) => value.replace(/\s+/g, " ").trim();
+        const summaries = [...document.querySelectorAll("summary")];
+        const summary = summaries.find((candidate) => {
+          const text = normalize(candidate.textContent || "");
+          return text === wantedLabel;
+        });
+        if (!summary) {
+          return null;
+        }
+        summary.scrollIntoView({ block: "center", inline: "center" });
+        const bounds = summary.getBoundingClientRect();
+        return {
+          x: bounds.left + bounds.width / 2,
+          y: bounds.top + bounds.height / 2,
+        };
+      }, label),
+    `summary "${label}"`,
+  );
+
+  await tab.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    x: rect.x,
+    y: rect.y,
+    button: "none",
+  });
+  await tab.send("Input.dispatchMouseEvent", {
+    type: "mousePressed",
+    x: rect.x,
+    y: rect.y,
+    button: "left",
+    clickCount: 1,
+  });
+  await tab.send("Input.dispatchMouseEvent", {
+    type: "mouseReleased",
+    x: rect.x,
+    y: rect.y,
+    button: "left",
+    clickCount: 1,
+  });
+}
+
 async function assertButtonDisabled(tab, label, context) {
   const disabled = await evaluate(tab, (wantedLabel) => {
     const normalize = (value) => value.replace(/\s+/g, " ").trim();
@@ -562,6 +619,37 @@ async function waitForText(tab, text, context) {
         return document.body.innerText.toLowerCase().includes(expected);
       }, expected),
     `text "${text}" on ${context}`,
+  );
+}
+
+async function waitForLaunchStingToFinish(tab) {
+  await waitForValue(
+    async () =>
+      evaluate(tab, () => {
+        const sting = document.querySelector(".launchSting");
+        if (!sting) {
+          return true;
+        }
+        const styles = window.getComputedStyle(sting);
+        return styles.visibility === "hidden" || Number(styles.opacity) < 0.05;
+      }),
+    "launch sting to finish",
+    5_000,
+  );
+}
+
+async function waitForPosterImage(tab) {
+  await waitForValue(
+    async () =>
+      evaluate(tab, () => {
+        const image = document.querySelector(".posterImage");
+        if (!(image instanceof HTMLImageElement)) {
+          return false;
+        }
+        return image.complete && image.naturalWidth > 0;
+      }),
+    "poster image to load",
+    10_000,
   );
 }
 
@@ -641,6 +729,22 @@ async function reportVisiblePageState(tab, label) {
       `[ux-debug] ${label} could not capture page state: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
+}
+
+async function captureScreenshot(tab, directory, filename) {
+  if (!directory) {
+    return;
+  }
+
+  await evaluate(tab, () => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  });
+  const pagePath = join(directory, `${filename}.png`);
+  const result = await tab.send("Page.captureScreenshot", {
+    format: "png",
+  });
+  const buffer = Buffer.from(result.data, "base64");
+  await import("node:fs/promises").then((fs) => fs.writeFile(pagePath, buffer));
 }
 
 async function waitForPassProgress(tab, completedIndex, context) {
@@ -1007,10 +1111,26 @@ async function cleanup() {
     }
   }
   if (chromeProfileDir) {
-    await rm(chromeProfileDir, { recursive: true, force: true });
+    await removeTempDir(chromeProfileDir);
+    chromeProfileDir = null;
   }
   if (backendTempDir) {
-    await rm(backendTempDir, { recursive: true, force: true });
+    await removeTempDir(backendTempDir);
+    backendTempDir = null;
+  }
+}
+
+async function removeTempDir(path) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await rm(path, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      if (error?.code !== "ENOTEMPTY" || attempt === 2) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
   }
 }
 

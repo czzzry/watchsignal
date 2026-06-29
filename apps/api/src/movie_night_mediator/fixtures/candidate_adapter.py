@@ -40,6 +40,7 @@ class FixtureCandidate:
     poster_url: str | None = None
     tone: str | None = None
     reason: str | None = None
+    top_cast: tuple[str, ...] = ()
     provider_availability: tuple[FixtureProviderAvailability, ...] = ()
     original_language: str = "en"
     spoken_languages: tuple[str, ...] = ("en",)

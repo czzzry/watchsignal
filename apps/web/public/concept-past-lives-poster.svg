@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 342 513" role="img" aria-label="Past Lives poster">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#17324a" />
+      <stop offset="100%" stop-color="#070a12" />
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="26%" r="60%">
+      <stop offset="0%" stop-color="#a7d1ff" stop-opacity="0.92" />
+      <stop offset="100%" stop-color="#a7d1ff" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <rect width="342" height="513" rx="28" fill="url(#bg)" />
+  <rect width="342" height="513" rx="28" fill="url(#glow)" opacity="0.55" />
+  <rect x="20" y="20" width="302" height="473" rx="22" fill="none" stroke="rgba(255,255,255,0.18)" />
+  <text x="171" y="90" fill="rgba(239,247,255,0.96)" font-family="Arial,Helvetica,sans-serif" font-size="25" letter-spacing="5" text-anchor="middle">PAST LIVES</text>
+  <circle cx="118" cy="230" r="80" fill="rgba(255,255,255,0.08)" />
+  <circle cx="222" cy="214" r="64" fill="rgba(255,255,255,0.13)" />
+  <rect x="56" y="356" width="230" height="86" rx="18" fill="rgba(0,0,0,0.2)" />
+  <text x="90" y="462" fill="rgba(255,255,255,0.82)" font-family="Arial,Helvetica,sans-serif" font-size="16">Romance · Drama</text>
+</svg>

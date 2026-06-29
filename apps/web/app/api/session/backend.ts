@@ -4,12 +4,27 @@ export async function postBackendSession(
   path: string,
   body: unknown,
 ): Promise<Response> {
+  return sendBackendSession("POST", path, body);
+}
+
+export async function putBackendSession(
+  path: string,
+  body: unknown,
+): Promise<Response> {
+  return sendBackendSession("PUT", path, body);
+}
+
+async function sendBackendSession(
+  method: "POST" | "PUT",
+  path: string,
+  body: unknown,
+): Promise<Response> {
   const apiBaseUrl = process.env.API_BASE_URL ?? DEFAULT_API_BASE_URL;
   const url = new URL(path, apiBaseUrl);
 
   try {
     const response = await fetch(url, {
-      method: "POST",
+      method,
       headers: {
         "Content-Type": "application/json",
       },

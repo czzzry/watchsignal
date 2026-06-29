@@ -32,6 +32,7 @@ export type ShortlistCandidatePayload = SessionShortlistItemPayload & {
   safePickStatus?: string | null;
   availability?: string | null;
   providerNames?: string[];
+  topCast?: string[];
   languageAccess?: string | null;
   tone?: string | null;
   reason?: string | null;
@@ -46,6 +47,46 @@ export type ShortlistCandidatePayload = SessionShortlistItemPayload & {
 export type SessionReactionPayload = {
   sourceMovieId: string;
   reactionLabel: ReactionValue;
+};
+
+export type TitleResolutionCandidatePayload = {
+  source: string;
+  sourceId: string;
+  title: string;
+  mediaType: "movie" | "tv";
+  releaseYear?: number | null;
+  overview?: string;
+  originalLanguage?: string | null;
+  popularity?: number | null;
+};
+
+export type TitleResolutionEntryPayload = {
+  rawTitle: string;
+  status: "resolved" | "unresolved";
+  candidate?: TitleResolutionCandidatePayload | null;
+  unresolvedReason?: string | null;
+};
+
+export type OnboardingConstraintsPayload = {
+  horrorExclusion: boolean;
+  subtitleIntolerance: boolean;
+};
+
+export type ParticipantOnboardingPayload = {
+  profileId: string;
+  lovedTitleEntries: TitleResolutionEntryPayload[];
+  fineTitleEntries: TitleResolutionEntryPayload[];
+  noTitleEntries: TitleResolutionEntryPayload[];
+  constraints: OnboardingConstraintsPayload;
+  isComplete: boolean;
+};
+
+export type OnboardingCompletionPayload = {
+  requiredProfileIds: string[];
+  completedProfileIds: string[];
+  incompleteProfileIds: string[];
+  sharedRecommendationLocked: boolean;
+  sharedRecommendationUnlocked: boolean;
 };
 
 export type SessionOutcomeType =
@@ -287,12 +328,56 @@ export async function getRecentSessions(
   return getJson(`/api/history/sessions?${query.toString()}`);
 }
 
+export async function getProfileOnboarding(
+  profileId: string,
+): Promise<ParticipantOnboardingPayload> {
+  return getJson(`/api/onboarding/${encodeURIComponent(profileId)}`);
+}
+
+export async function getOnboardingCompletion(
+  requiredProfileIds: string[],
+): Promise<OnboardingCompletionPayload> {
+  const query = new URLSearchParams();
+  requiredProfileIds.forEach((profileId) => {
+    query.append("requiredProfileIds", profileId);
+  });
+  return getJson(`/api/onboarding/completion?${query.toString()}`);
+}
+
+export async function saveProfileOnboarding(
+  profileId: string,
+  request: ParticipantOnboardingPayload,
+): Promise<ParticipantOnboardingPayload> {
+  return putJson(`/api/onboarding/${encodeURIComponent(profileId)}`, request);
+}
+
 async function postJson<TResponse>(
   url: string,
   body: unknown,
 ): Promise<TResponse> {
   const response = await fetch(url, {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  const payload = (await response.json().catch(() => null)) as unknown;
+
+  if (!response.ok) {
+    throw new Error(parseApiError(payload, response.status));
+  }
+
+  return payload as TResponse;
+}
+
+async function putJson<TResponse>(
+  url: string,
+  body: unknown,
+): Promise<TResponse> {
+  const response = await fetch(url, {
+    method: "PUT",
     headers: {
       "Content-Type": "application/json",
     },
@@ -393,6 +478,9 @@ function parseShortlistCandidate(
       stringValue(candidate.safe_pick_status),
     availability: stringValue(candidate.availability),
     providerNames: stringArrayValue(candidate.providerNames),
+    topCast:
+      stringArrayValue(candidate.topCast) ||
+      stringArrayValue(candidate.top_cast),
     languageAccess:
       stringValue(candidate.languageAccess) ??
       stringValue(candidate.language_access),

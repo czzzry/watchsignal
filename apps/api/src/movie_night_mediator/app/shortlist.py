@@ -45,6 +45,7 @@ class OfflineShortlistItem:
     provider_names: tuple[str, ...]
     provider_availability: tuple[OfflineShortlistProviderAvailability, ...]
     poster_url: str | None
+    top_cast: tuple[str, ...]
     safe_pick_status: str
     availability: str
     language_access: str
@@ -125,6 +126,7 @@ def get_offline_demo_shortlist(
                     for availability in fixture.provider_availability
                 ),
                 poster_url=fixture.poster_url,
+                top_cast=fixture.top_cast,
                 safe_pick_status=_safe_pick_status_label(
                     domain_candidate.safety_status
                 ),

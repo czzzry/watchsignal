@@ -211,6 +211,7 @@ class RecommendationShortlistItemPayload(BaseModel):
     providerNames: list[str]
     providerAvailability: list[RecommendationProviderAvailabilityPayload]
     posterUrl: str | None = None
+    topCast: list[str] = Field(default_factory=list)
     safePickStatus: str = Field(min_length=1)
     availability: str = Field(min_length=1)
     languageAccess: str = Field(min_length=1)
@@ -792,6 +793,7 @@ def _offline_shortlist_item_to_payload(
             for availability in item.provider_availability
         ],
         posterUrl=item.poster_url,
+        topCast=list(item.top_cast),
         safePickStatus=item.safe_pick_status,
         availability=item.availability,
         languageAccess=item.language_access,
