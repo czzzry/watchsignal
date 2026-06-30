@@ -88,6 +88,33 @@ To exercise the alternate branch where the couple watches another shortlist titl
 MOBILE_UX_SMOKE_EXPECT_API=1 MOBILE_UX_SMOKE_OUTCOME=other pnpm smoke:ux:mobile
 ```
 
+## Live TMDb Shortlist Mode
+
+The backend-backed web flow uses the demo-safe shortlist source unless the web server is started with an explicit live-source switch.
+To have the phone flow request live TMDb candidates through the backend, set:
+
+```sh
+MOVIE_NIGHT_RECOMMENDATION_SOURCE=live_tmdb
+```
+
+For a live local run, start FastAPI with TMDb credentials available and start the web app with both `API_BASE_URL` and `MOVIE_NIGHT_RECOMMENDATION_SOURCE=live_tmdb`.
+The setting is read by the Next.js API route and is not exposed to the browser as a public client variable.
+Live mode automatically uses a longer backend proxy timeout because the TMDb candidate fetch can take longer than demo fixture loading.
+Set `API_REQUEST_TIMEOUT_MS` if a local environment needs a different timeout.
+If TMDb credentials are missing or the live source fails, the UI will surface the backend error and continue using the local fallback behavior.
+
+When the package manager tries to perform registry verification in an offline or restricted sandbox, you can start the already-installed web server directly and point the smoke at it:
+
+```sh
+API_BASE_URL=http://127.0.0.1:8000 MOVIE_NIGHT_RECOMMENDATION_SOURCE=live_tmdb API_REQUEST_TIMEOUT_MS=15000 NEXT_TELEMETRY_DISABLED=1 node node_modules/.pnpm/next@16.2.9_react-dom@19.2.7_react@19.2.7__react@19.2.7/node_modules/next/dist/bin/next dev --port 3100
+```
+
+Then run the browser smoke against the running app:
+
+```sh
+MOBILE_UX_SMOKE_URL=http://127.0.0.1:3100 MOBILE_UX_SMOKE_EXPECT_API=1 node scripts/mobile_pass_the_phone_ux_smoke.mjs
+```
+
 ## Expected Permission Needs For AFK Runs
 
 No network access is required beyond localhost.
