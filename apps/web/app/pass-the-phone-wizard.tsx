@@ -1230,21 +1230,6 @@ function SetupStep({
           </div>
 
           <div className="startupBoardShell">
-            {!onboardingRequired ? (
-              <div className="startupBoardHeader startupBoardHeaderReady">
-                <p className="startupBoardKicker">Tonight&apos;s setup</p>
-                <span className="startupBoardHint">Startable tonight</span>
-              </div>
-            ) : (
-              <div className="startupBoardHeader">
-                <div>
-                  <p className="startupBoardKicker">Tonight&apos;s setup</p>
-                  <strong>{summaryLine}</strong>
-                </div>
-                <span className="startupBoardHint">Taste seed needed</span>
-              </div>
-            )}
-
             <div className="startupControlBoard">
               <div className="startupControlRow">
                 <button
@@ -1612,13 +1597,15 @@ function ReactionStep({
               ))}
             </div>
           ) : null}
-          <div className="movieReasonRow">
+          <div className="movieReasonBlock">
             <p className="movieReason movieReasonLead">{reactionSummary}</p>
-            <button type="button" className="ghostInlineButton" disabled={isSyncing}>
-              More
-            </button>
+            <p className="movieReason movieReasonSubtle">{reactionDetail}</p>
+            <div className="movieReasonActions">
+              <button type="button" className="ghostInlineButton" disabled={isSyncing}>
+                More
+              </button>
+            </div>
           </div>
-          <p className="movieReason movieReasonSubtle">{reactionDetail}</p>
           {seenMemory ? (
             <div className="seenMemoryBanner" aria-label="Seen memory">
               Already seen: {seenMemoryLabels[seenMemory]}
@@ -1626,11 +1613,6 @@ function ReactionStep({
           ) : null}
         </div>
       </article>
-
-      <div className="reactionStageFooter">
-        <p className="reactionTurnEyebrow">{accentCopy}</p>
-        <p className="reactionTurnPrompt">{actorLabel}, what do you think?</p>
-      </div>
 
       <div className="reactionActionDock" role="group" aria-label={`Reaction for ${candidate.title}`}>
         {(Object.keys(reactionLabels) as ReactionValue[]).map((reaction) => (
@@ -1646,7 +1628,7 @@ function ReactionStep({
             disabled={isSyncing}
           >
             <span className="reactionOrbIcon" aria-hidden="true">
-              {reaction === "interested" ? "♥" : reaction === "maybe" ? "•" : "×"}
+              <ReactionChoiceIcon kind={reaction} />
             </span>
             <span className="reactionOrbLabel">{reactionLabels[reaction]}</span>
           </button>
@@ -1661,11 +1643,19 @@ function ReactionStep({
           onClick={onSeenIt}
           disabled={isSyncing}
         >
-          <span className="reactionOrbIcon" aria-hidden="true">◌</span>
+          <span className="reactionOrbIcon" aria-hidden="true">
+            <ReactionChoiceIcon kind="seen" />
+          </span>
           <span className="reactionOrbLabel">
             {seenMemory ? "Seen saved" : "Seen before"}
           </span>
         </button>
+      </div>
+
+      <div className="reactionStageFooter">
+        <div className="reactionTurnGlowBar" aria-hidden="true" />
+        <p className="reactionTurnEyebrow">{accentCopy}</p>
+        <p className="reactionTurnPrompt">{actorLabel}, what do you think?</p>
       </div>
 
       <p className="memoryHint memoryHintCentered">
@@ -1677,18 +1667,80 @@ function ReactionStep({
   );
 }
 
+function ReactionChoiceIcon({
+  kind,
+}: {
+  kind: ReactionValue | "seen";
+}) {
+  if (kind === "interested") {
+    return (
+      <svg viewBox="0 0 32 32">
+        <path d="M16 26.2 7.4 18.3C2.8 14 .6 8.4 5.1 5.3c3.1-2.1 7.2-.7 9 2.1L16 10.2l1.9-2.8c1.8-2.8 5.9-4.2 9-2.1 4.5 3.1 2.3 8.7-2.3 13L16 26.2Z" />
+      </svg>
+    );
+  }
+
+  if (kind === "maybe") {
+    return (
+      <svg viewBox="0 0 32 32">
+        <path d="M12.1 24.8 6.6 19.7C3.1 16.5 1.7 12.3 5 10c2.2-1.5 5.1-.6 6.4 1.4l.7 1 .7-1c1.3-2 4.2-2.9 6.4-1.4 3.3 2.3 1.9 6.5-1.6 9.7l-5.5 5.1Z" />
+        <path d="M22.2 18.2 18.9 15c-2.2-2.1-3-4.8-.9-6.2 1.4-1 3.3-.4 4.1.9l.1.2.2-.2c.8-1.3 2.7-1.9 4.1-.9 2.1 1.4 1.3 4.1-.9 6.2l-3.4 3.2Z" />
+      </svg>
+    );
+  }
+
+  if (kind === "no") {
+    return (
+      <svg viewBox="0 0 32 32">
+        <path d="M9 9 23 23M23 9 9 23" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 32 32">
+      <path d="M3.8 16s4.6-7.3 12.2-7.3S28.2 16 28.2 16 23.6 23.3 16 23.3 3.8 16 3.8 16Z" />
+      <circle cx="16" cy="16" r="4.1" />
+    </svg>
+  );
+}
+
+function HeartPulseIcon() {
+  return (
+    <svg viewBox="0 0 48 48" aria-hidden="true">
+      <path d="M24 37.6 13.2 27.7C7.4 22.4 5 15.9 10.2 12.3c3.8-2.6 8.5-.8 10.7 2.6L24 19.1l3.1-4.2c2.2-3.4 6.9-5.2 10.7-2.6 5.2 3.6 2.8 10.1-3 15.4L24 37.6Z" />
+    </svg>
+  );
+}
+
+function RedoIcon() {
+  return (
+    <svg className="buttonIcon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4.8 8.2A8 8 0 1 1 4 12.7" />
+      <path d="M4.8 8.2V4.4" />
+      <path d="M4.8 8.2h4" />
+    </svg>
+  );
+}
+
+function BookmarkIcon() {
+  return (
+    <svg className="buttonIcon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M7 4.8c0-1 .8-1.8 1.8-1.8h6.4c1 0 1.8.8 1.8 1.8v15.1l-5-3.1-5 3.1V4.8Z" />
+    </svg>
+  );
+}
+
 function LaunchSting() {
   return (
     <div className="launchSting" aria-hidden="true">
       <div className="launchStingCard">
-        <div className="launchTv">
-          <div className="launchStatic" />
-        </div>
-        <div className="launchCopy">
-          <p className="eyebrow">Movie Night Mediator</p>
-          <h2>Tuning tonight&apos;s signal</h2>
-          <p>One clear pick. No endless scrolling.</p>
-        </div>
+        <img
+          className="launchReferenceImage"
+          src="/reference-launch-screen.png"
+          alt=""
+          draggable={false}
+        />
       </div>
     </div>
   );
@@ -2581,9 +2633,11 @@ function ResultsStep({
           />
         </article>
 
-        <div className={`matchPulse matchPulse${matchTier} resultsPulse`}>
+        <div className={`matchPulse matchPulse${matchTier} resultsPulse`} aria-label={`Shared score ${bestPick.score}%`}>
+          <span className="scoreSparkle" aria-hidden="true">✦</span>
           <span className="matchPulseLabel">Shared score</span>
-          <strong>{bestPick.score}</strong>
+          <strong>{bestPick.score}%</strong>
+          <span className="scoreSparkle" aria-hidden="true">✦</span>
         </div>
 
         <div className="winnerRevealMeta">
@@ -2599,14 +2653,14 @@ function ResultsStep({
         </div>
 
         <p className="resultsPeopleLabel">How you both felt</p>
-        <div className={peopleMode === "couple" ? "resultsPeopleRow resultsPeopleRowCouple" : "resultsPeopleRow"}>
-          {peopleMode === "couple" && participantEntries[0] ? (
-            <div key={participantEntries[0].id} className="resultsPerson">
-              <div className="resultsPersonAvatar">{participantEntries[0].label.slice(0, 1)}</div>
+        <div className={peopleMode === "couple" ? "resultsPeoplePanel resultsPeoplePanelCouple" : "resultsPeoplePanel"}>
+          {(peopleMode === "couple" ? participantEntries.slice(0, 1) : participantEntries).map((participant) => (
+            <div key={participant.id} className="resultsPerson">
+              <div className="resultsPersonAvatar">{participant.label.slice(0, 1)}</div>
               <div className="resultsPersonMeta">
-                <strong>{participantEntries[0].label}</strong>
+                <strong>{participant.label}</strong>
                 <span>
-                  {participantEntries[0].actor === "founder"
+                  {participant.actor === "founder"
                     ? founderReactions[bestPick.id]
                       ? reactionLabels[founderReactions[bestPick.id]!]
                       : "No vote"
@@ -2616,13 +2670,13 @@ function ResultsStep({
                 </span>
               </div>
             </div>
-          ) : null}
+          ))}
           {peopleMode === "couple" ? (
             <div className="resultsHeartLockup" aria-hidden="true">
-              ♥
+              <HeartPulseIcon />
             </div>
           ) : null}
-          {(peopleMode === "couple" ? participantEntries.slice(1) : participantEntries).map((participant) => (
+          {(peopleMode === "couple" ? participantEntries.slice(1) : []).map((participant) => (
             <div key={participant.id} className="resultsPerson">
               <div className="resultsPersonAvatar">{participant.label.slice(0, 1)}</div>
               <div className="resultsPersonMeta">
@@ -2666,10 +2720,12 @@ function ResultsStep({
 
       <div className="resultsActionRow" role="group" aria-label="Results actions">
         <button type="button" className="secondaryButton resultsSecondaryAction" onClick={onReset}>
-          Start new night
+          <RedoIcon />
+          <span>Start new night</span>
         </button>
         <button type="button" className="resultsPrimaryAction" disabled>
-          Add to watchlist
+          <span>Add to watchlist</span>
+          <BookmarkIcon />
         </button>
       </div>
 

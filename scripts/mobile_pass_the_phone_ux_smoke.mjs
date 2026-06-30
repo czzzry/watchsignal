@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { createServer } from "node:net";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { platform, tmpdir } from "node:os";
 import { join } from "node:path";
@@ -38,6 +38,9 @@ async function main() {
 
   try {
     await waitForText(tab, "Start first pass", "setup screen");
+    if (process.env.MOBILE_UX_SMOKE_CAPTURE_LAUNCH === "1") {
+      await captureScreenshot(tab, screenshotDir, "00-launch");
+    }
     await waitForLaunchStingToFinish(tab);
     await assertNoHorizontalOverflow(tab, "setup screen");
     await captureScreenshot(tab, screenshotDir, "01-setup");
@@ -739,6 +742,7 @@ async function captureScreenshot(tab, directory, filename) {
   await evaluate(tab, () => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
   });
+  await mkdir(directory, { recursive: true });
   const pagePath = join(directory, `${filename}.png`);
   const result = await tab.send("Page.captureScreenshot", {
     format: "png",
