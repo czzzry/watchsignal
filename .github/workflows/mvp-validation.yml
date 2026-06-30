@@ -57,7 +57,13 @@ jobs:
             echo "Could not find Playwright Chromium binary."
             exit 1
           fi
-          echo "MOBILE_UX_SMOKE_BROWSER_BIN=$BROWSER_BIN" >> "$GITHUB_ENV"
+          mkdir -p .tools
+          cat > .tools/chrome-ci-wrapper <<EOF
+          #!/usr/bin/env bash
+          exec "$BROWSER_BIN" --no-sandbox --disable-dev-shm-usage "\$@"
+          EOF
+          chmod +x .tools/chrome-ci-wrapper
+          echo "MOBILE_UX_SMOKE_BROWSER_BIN=$PWD/.tools/chrome-ci-wrapper" >> "$GITHUB_ENV"
 
       - name: Run demo mobile UX smoke
         run: pnpm smoke:ux:mobile
