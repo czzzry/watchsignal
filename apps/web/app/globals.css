@@ -1,3 +1,4 @@
+/* Foundation */
 :root {
   color-scheme: dark;
   --bg: #04070c;
@@ -164,6 +165,7 @@ summary:focus-visible {
   backdrop-filter: blur(18px);
 }
 
+/* Launch sting */
 .launchSting {
   position: fixed;
   inset: 0;
@@ -497,6 +499,7 @@ summary:focus-visible {
   font-weight: 420;
 }
 
+/* Startup screen */
 .startupStage {
   display: grid;
   gap: 0;
@@ -1343,6 +1346,7 @@ summary:focus-visible {
   color: var(--accent-ink);
 }
 
+/* Reaction screen */
 .reactionMeta {
   display: flex;
   align-items: end;
@@ -2074,6 +2078,7 @@ summary:focus-visible {
   line-height: 1.2;
 }
 
+/* Handoff screen */
 .handoffHero {
   min-height: 248px;
   border-radius: 28px;
@@ -2241,6 +2246,7 @@ summary:focus-visible {
   text-align: center;
 }
 
+/* Cinematic screen shells */
 .cinematicHeroPanel,
 .cinematicReactionPanel,
 .cinematicHandoffPanel,
@@ -2282,6 +2288,7 @@ summary:focus-visible {
   gap: 8px;
 }
 
+/* Results screen */
 .resultsHeading h2 {
   font-size: 1.62rem;
   line-height: 0.98;
@@ -2942,6 +2949,7 @@ summary:focus-visible {
   padding-bottom: 0;
 }
 
+/* Review mode */
 .reviewWidget {
   position: fixed;
   right: 14px;
