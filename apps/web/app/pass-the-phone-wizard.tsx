@@ -276,6 +276,10 @@ export function PassThePhoneWizard({
   }, []);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [step, founderIndex, wifeIndex]);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setReviewMode(params.get("review") === "1");
   }, []);
@@ -1736,11 +1740,24 @@ function LaunchSting() {
     <div className="launchSting" aria-hidden="true">
       <div className="launchStingCard">
         <img
-          className="launchReferenceImage"
-          src="/reference-launch-screen.png"
+          className="launchOrbArt"
+          src="/concept-startup-hero-scene-v2.png"
           alt=""
           draggable={false}
         />
+        <div className="launchStingCopy">
+          <p>Movie Night</p>
+          <h2>Mediator</h2>
+          <span>Tonight, we pick together.</span>
+        </div>
+        <div className="launchStingMark">
+          <img
+            src="/concept-startup-hero-scene-v2.png"
+            alt=""
+            draggable={false}
+          />
+          <span>Pass the phone</span>
+        </div>
       </div>
     </div>
   );
