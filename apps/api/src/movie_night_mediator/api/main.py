@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
+
+from movie_night_mediator.adapters import (
+    TmdbCandidateSource,
+    TmdbCandidateSourceError,
+)
 
 from movie_night_mediator.app.backfill import ManualBackfillService
 from movie_night_mediator.app.debug_history import (
@@ -30,17 +35,22 @@ from movie_night_mediator.app.setup import (
 )
 from movie_night_mediator.app.shortlist import (
     OfflineShortlistItem,
+    get_candidate_source_shortlist_items,
     get_offline_demo_shortlist,
 )
 from movie_night_mediator.domain import (
+    AudienceMode,
+    CandidateSource,
     DEFAULT_HOUSEHOLD_ID,
     BackfillTasteLabel,
+    HouseholdDefaults,
     MediaType,
     OnboardingConstraints,
     OutcomeSelectionOrigin,
     ParticipantOnboarding,
     PostWatchFeedback,
     RecommendationSnapshot,
+    SessionContext,
     SessionMode,
     SessionOutcome,
     SessionOutcomeType,
@@ -54,6 +64,10 @@ from movie_night_mediator.domain import (
     TitleResolutionStatus,
     WatchedStatusScope,
     WatchedTitleBackfill,
+)
+from movie_night_mediator.fixtures.demo_couple import (
+    DEMO_HUSBAND_PROFILE,
+    DEMO_WIFE_PROFILE,
 )
 from movie_night_mediator.storage import (
     SQLiteBackfillStore,
@@ -230,6 +244,7 @@ class RecommendationShortlistItemPayload(BaseModel):
 
 class RecommendationShortlistRequestPayload(BaseModel):
     sessionId: str = Field(min_length=1)
+    source: Literal["demo", "live_tmdb"] = "demo"
 
 
 class SessionReactionPayload(BaseModel):
@@ -375,6 +390,7 @@ def create_app(
     outcome_store: SQLiteOutcomeStore | None = None,
     session_store: SQLiteSessionStore | None = None,
     recommendation_snapshot_store: SQLiteRecommendationSnapshotStore | None = None,
+    candidate_source: CandidateSource | None = None,
 ) -> FastAPI:
     app = FastAPI(
         title="Movie Night Mediator API",
@@ -437,6 +453,16 @@ def create_app(
     def post_recommendation_shortlist(
         payload: RecommendationShortlistRequestPayload,
     ) -> list[RecommendationShortlistItemPayload]:
+        if payload.source == "live_tmdb":
+            return [
+                _offline_shortlist_item_to_payload(item)
+                for item in _live_candidate_shortlist_items(
+                    session_id=payload.sessionId,
+                    candidate_source=candidate_source,
+                    snapshot_service=recommendation_snapshot_service,
+                )
+            ]
+
         return [
             _offline_shortlist_item_to_payload(item)
             for item in get_offline_demo_shortlist(
@@ -762,6 +788,41 @@ def create_app(
         return _debug_history_session_to_payload(evidence)
 
     return app
+
+
+def _live_candidate_shortlist_items(
+    *,
+    session_id: str,
+    candidate_source: CandidateSource | None,
+    snapshot_service: RecommendationSnapshotService,
+) -> tuple[OfflineShortlistItem, ...]:
+    try:
+        resolved_candidate_source = candidate_source or TmdbCandidateSource()
+        shortlist = get_candidate_source_shortlist_items(
+            resolved_candidate_source,
+            session=SessionContext(
+                session_id=session_id,
+                audience_mode=AudienceMode.SHARED,
+                viewer_user_ids=("husband", "wife"),
+                region="DE",
+                service_constraint="Prime Video",
+            ),
+            household_defaults=HouseholdDefaults(),
+            users=(DEMO_HUSBAND_PROFILE, DEMO_WIFE_PROFILE),
+            limit=5,
+            candidate_limit=20,
+            snapshot_service=snapshot_service,
+        )
+    except TmdbCandidateSourceError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    if len(shortlist) != 5:
+        raise HTTPException(
+            status_code=502,
+            detail="Live candidate source did not produce a five-title shortlist.",
+        )
+
+    return shortlist
 
 
 def _validate_profile_uniqueness(profiles: list[SetupProfilePayload]) -> None:

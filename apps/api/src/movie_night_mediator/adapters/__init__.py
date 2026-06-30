@@ -9,6 +9,7 @@ from movie_night_mediator.adapters.tmdb_candidate_source import (
     TMDB_READ_ACCESS_TOKEN_ENV_VAR,
     TmdbCandidateSource,
     TmdbCandidateSourceConfig,
+    TmdbCandidateSourceError,
     TmdbCredentialsMissingError,
 )
 
@@ -20,6 +21,7 @@ __all__ = [
     "TMDB_READ_ACCESS_TOKEN_ENV_VAR",
     "TmdbCandidateSource",
     "TmdbCandidateSourceConfig",
+    "TmdbCandidateSourceError",
     "TmdbCredentialsMissingError",
     "normalize_title_query",
 ]

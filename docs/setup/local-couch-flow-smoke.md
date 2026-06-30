@@ -12,6 +12,15 @@ From the repo root:
 python3 scripts/couch_flow_smoke.py
 ```
 
+To prove the backend-backed couch flow with live-shaped recommendation candidates and persisted recommendation snapshots, run:
+
+```sh
+python3 scripts/couch_flow_smoke.py --live-fake-candidates
+```
+
+This mode still does not call TMDb.
+It uses a deterministic fake candidate source through the same API path that the live TMDb source uses.
+
 If the plain interpreter does not have the API dependencies active, run it with the backend environment instead:
 
 ```sh
@@ -43,6 +52,8 @@ It submits the second pass of reactions for `wife`.
 It verifies the reranked result and best pick.
 It saves one post-watch feedback row.
 It verifies debug history evidence for the persisted session, reactions, rerank, best pick, post-watch feedback, and currently unavailable score inputs.
+With `--live-fake-candidates`, it also creates the session shortlist through `POST /recommendations/shortlist` with `source=live_tmdb`.
+That mode verifies persisted candidate inputs and group scores in debug history instead of marking those fields unavailable.
 
 ## Expected Output
 

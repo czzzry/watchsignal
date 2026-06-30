@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 import sys
 import tempfile
 from pathlib import Path
@@ -31,18 +32,28 @@ from movie_night_mediator.api.main import (
     CreateSharedSessionPayload,
     ParticipantOnboardingPayload,
     PostWatchFeedbackPayload,
+    RecommendationShortlistRequestPayload,
     SaveSessionOutcomePayload,
     SetupStatePayload,
     SubmitSessionReactionsPayload,
     create_app,
 )
-from movie_night_mediator.domain import OutcomeSelectionOrigin
+from movie_night_mediator.domain import (
+    Candidate,
+    HouseholdDefaults,
+    MediaType,
+    OutcomeSelectionOrigin,
+    ProviderAccessType,
+    ProviderAvailability,
+    SessionContext,
+)
 from movie_night_mediator.app.onboarding import SQLiteOnboardingStore
 from movie_night_mediator.app.setup import SQLiteSetupStore
 from movie_night_mediator.storage import (
     SQLiteBackfillStore,
     SQLiteFeedbackStore,
     SQLiteOutcomeStore,
+    SQLiteRecommendationSnapshotStore,
     SQLiteSessionStore,
 )
 
@@ -60,6 +71,7 @@ SHORTLIST = [
 
 
 def main() -> int:
+    args = parse_args()
     with tempfile.TemporaryDirectory(prefix="movie-night-couch-smoke-") as directory:
         database_path = Path(directory) / "smoke.sqlite3"
         app = create_app(
@@ -69,9 +81,18 @@ def main() -> int:
             feedback_store=SQLiteFeedbackStore(database_path=database_path),
             outcome_store=SQLiteOutcomeStore(database_path=database_path),
             session_store=SQLiteSessionStore(database_path=database_path),
+            recommendation_snapshot_store=SQLiteRecommendationSnapshotStore(
+                database_path=database_path
+            ),
+            candidate_source=FakeCandidateSource()
+            if args.live_fake_candidates
+            else None,
         )
 
-        run_smoke(route_endpoints(app))
+        run_smoke(
+            route_endpoints(app),
+            use_live_fake_candidates=args.live_fake_candidates,
+        )
 
         print("Couch flow smoke passed.")
         print(f"Temporary SQLite DB was isolated at: {database_path}")
@@ -79,7 +100,26 @@ def main() -> int:
     return 0
 
 
-def run_smoke(routes: dict[str, Any]) -> None:
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run the local pass-the-phone couch flow smoke."
+    )
+    parser.add_argument(
+        "--live-fake-candidates",
+        action="store_true",
+        help=(
+            "Build the session shortlist through the live-candidate API path "
+            "using a deterministic fake candidate source."
+        ),
+    )
+    return parser.parse_args()
+
+
+def run_smoke(
+    routes: dict[str, Any],
+    *,
+    use_live_fake_candidates: bool,
+) -> None:
     expect_equal(
         routes["health"](),
         {"status": "ok", "service": "movie-night-mediator-api"},
@@ -87,6 +127,11 @@ def run_smoke(routes: dict[str, Any]) -> None:
     )
     seed_setup(routes)
     seed_onboarding(routes)
+    shortlist = (
+        fetch_live_fake_shortlist(routes)
+        if use_live_fake_candidates
+        else list(SHORTLIST)
+    )
 
     created = payload_to_dict(
         call_route(
@@ -96,7 +141,7 @@ def run_smoke(routes: dict[str, Any]) -> None:
                 householdId=HOUSEHOLD_ID,
                 activeMode="compromise",
                 participantIds=PARTICIPANT_IDS,
-                shortlist=SHORTLIST,
+                shortlist=shortlist,
             ),
         )
     )
@@ -109,6 +154,7 @@ def run_smoke(routes: dict[str, Any]) -> None:
             SubmitSessionReactionsPayload(
                 participantId="husband",
                 reactions=reaction_payloads(
+                    shortlist,
                     ["maybe", "interested", "no", "seen", "maybe"]
                 ),
             ),
@@ -126,6 +172,7 @@ def run_smoke(routes: dict[str, Any]) -> None:
             SubmitSessionReactionsPayload(
                 participantId="wife",
                 reactions=reaction_payloads(
+                    shortlist,
                     ["interested", "maybe", "no", "seen", "interested"]
                 ),
             ),
@@ -147,7 +194,7 @@ def run_smoke(routes: dict[str, Any]) -> None:
                 householdId=HOUSEHOLD_ID,
                 outcomeType="watched_recommended",
                 selectedSourceMovieId="tmdb:1",
-                selectedTitle="First Pick",
+                selectedTitle=shortlist[0]["title"],
                 selectionOrigin=OutcomeSelectionOrigin.RERANKED_SHORTLIST,
                 notes="Couch flow smoke watched the recommended pick.",
             ),
@@ -187,7 +234,11 @@ def run_smoke(routes: dict[str, Any]) -> None:
     )
 
     debug_history = payload_to_dict(call_route(routes["get_debug"], SESSION_ID))
-    assert_debug_history(debug_history)
+    assert_debug_history(
+        debug_history,
+        shortlist=shortlist,
+        expect_recommendation_snapshot=use_live_fake_candidates,
+    )
 
 
 def seed_setup(routes: dict[str, Any]) -> None:
@@ -259,17 +310,50 @@ def unresolved_entry(raw_title: str) -> dict[str, str]:
     }
 
 
-def reaction_payloads(labels: list[str]) -> list[dict[str, str]]:
+def fetch_live_fake_shortlist(routes: dict[str, Any]) -> list[dict[str, Any]]:
+    payload = call_route(
+        routes["post_shortlist"],
+        RecommendationShortlistRequestPayload(
+            sessionId=SESSION_ID,
+            source="live_tmdb",
+        ),
+    )
+    shortlist = payload_to_dict(payload)
+    expect_equal(len(shortlist), 5, "live fake shortlist length")
+    expect_equal(
+        [item["sourceMovieId"] for item in shortlist],
+        [f"tmdb:{index}" for index in range(1, 6)],
+        "live fake shortlist ids",
+    )
+    return [
+        {
+            "sourceMovieId": item["sourceMovieId"],
+            "title": item["title"],
+            "candidateRank": item["candidateRank"],
+        }
+        for item in shortlist
+    ]
+
+
+def reaction_payloads(
+    shortlist: list[dict[str, Any]],
+    labels: list[str],
+) -> list[dict[str, str]]:
     return [
         {
             "sourceMovieId": item["sourceMovieId"],
             "reactionLabel": label,
         }
-        for item, label in zip(SHORTLIST, labels, strict=True)
+        for item, label in zip(shortlist, labels, strict=True)
     ]
 
 
-def assert_debug_history(debug_history: dict[str, Any]) -> None:
+def assert_debug_history(
+    debug_history: dict[str, Any],
+    *,
+    shortlist: list[dict[str, Any]],
+    expect_recommendation_snapshot: bool,
+) -> None:
     expect_equal(debug_history["sessionId"], SESSION_ID, "debug session id")
     expect_equal(debug_history["state"], "reranked", "debug state")
     expect_equal(debug_history["participantIds"], PARTICIPANT_IDS, "debug participants")
@@ -278,7 +362,7 @@ def assert_debug_history(debug_history: dict[str, Any]) -> None:
         debug_history["founderReactions"][1],
         {
             "participantId": "husband",
-            "sourceMovieId": "tmdb:2",
+            "sourceMovieId": shortlist[1]["sourceMovieId"],
             "reactionLabel": "interested",
         },
         "debug founder reaction",
@@ -317,7 +401,7 @@ def assert_debug_history(debug_history: dict[str, Any]) -> None:
         {
             "outcomeType": "watched_recommended",
             "selectedSourceMovieId": "tmdb:1",
-            "selectedTitle": "First Pick",
+            "selectedTitle": shortlist[0]["title"],
             "selectionOrigin": "reranked_shortlist",
             "hasNotes": True,
         },
@@ -325,16 +409,31 @@ def assert_debug_history(debug_history: dict[str, Any]) -> None:
     )
     if "session_outcome" in debug_history["unavailableEvidence"]:
         raise AssertionError("debug unavailable evidence should not include session_outcome")
-    expect_in(
-        "candidate_inputs",
-        debug_history["unavailableEvidence"],
-        "debug unavailable evidence",
-    )
-    expect_in(
-        "group_scores",
-        debug_history["unavailableEvidence"],
-        "debug unavailable evidence",
-    )
+    if expect_recommendation_snapshot:
+        snapshot = debug_history["recommendationSnapshot"]
+        if snapshot is None:
+            raise AssertionError("debug history should include recommendation snapshot")
+        expect_equal(len(snapshot["candidateInputs"]), 5, "debug candidate inputs")
+        expect_equal(len(snapshot["candidates"]), 5, "debug group scores")
+        if "candidate_inputs" in debug_history["unavailableEvidence"]:
+            raise AssertionError(
+                "debug unavailable evidence should not include candidate_inputs"
+            )
+        if "group_scores" in debug_history["unavailableEvidence"]:
+            raise AssertionError(
+                "debug unavailable evidence should not include group_scores"
+            )
+    else:
+        expect_in(
+            "candidate_inputs",
+            debug_history["unavailableEvidence"],
+            "debug unavailable evidence",
+        )
+        expect_in(
+            "group_scores",
+            debug_history["unavailableEvidence"],
+            "debug unavailable evidence",
+        )
 
 
 def route_endpoints(app) -> dict[str, Any]:
@@ -351,6 +450,7 @@ def route_endpoints(app) -> dict[str, Any]:
         "put_setup": routes[("PUT", "/setup")],
         "put_onboarding": routes[("PUT", "/onboarding/{profile_id}")],
         "get_completion": routes[("GET", "/onboarding/completion")],
+        "post_shortlist": routes[("POST", "/recommendations/shortlist")],
         "post_session": routes[("POST", "/sessions")],
         "post_reactions": routes[("POST", "/sessions/{session_id}/reactions")],
         "post_handoff": routes[("POST", "/sessions/{session_id}/advance-handoff")],
@@ -369,7 +469,10 @@ def call_route(route, *args):
         ) from error
 
 
-def payload_to_dict(payload) -> dict[str, Any]:
+def payload_to_dict(payload) -> Any:
+    if isinstance(payload, list):
+        return [payload_to_dict(item) for item in payload]
+
     if hasattr(payload, "model_dump"):
         return payload.model_dump(mode="json")
 
@@ -384,6 +487,38 @@ def expect_equal(actual: Any, expected: Any, label: str) -> None:
 def expect_in(member: Any, container: Any, label: str) -> None:
     if member not in container:
         raise AssertionError(f"{label}: expected {member!r} in {container!r}")
+
+
+class FakeCandidateSource:
+    def fetch_candidates(
+        self,
+        *,
+        session: SessionContext,
+        household_defaults: HouseholdDefaults,
+        limit: int = 20,
+    ) -> tuple[Candidate, ...]:
+        return tuple(
+            Candidate(
+                source_movie_id=f"tmdb:{index}",
+                title=f"Live Pick {index}",
+                media_type=MediaType.MOVIE,
+                release_year=2020 + index,
+                runtime_min=95 + index,
+                genres=("Drama", "Sci-Fi"),
+                overview=f"Live overview {index}.",
+                providers=("Amazon Prime Video",),
+                provider_availability=(
+                    ProviderAvailability(
+                        provider_name="Amazon Prime Video",
+                        access_type=ProviderAccessType.FLATRATE,
+                        region="DE",
+                    ),
+                ),
+                original_language="en",
+                spoken_languages=("en",),
+            )
+            for index in range(1, min(limit, 5) + 1)
+        )
 
 
 if __name__ == "__main__":

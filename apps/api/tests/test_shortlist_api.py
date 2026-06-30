@@ -12,6 +12,14 @@ from movie_night_mediator.api.main import (
     create_app,
 )
 from movie_night_mediator.app.shortlist import get_offline_demo_shortlist
+from movie_night_mediator.domain import (
+    Candidate,
+    HouseholdDefaults,
+    MediaType,
+    ProviderAccessType,
+    ProviderAvailability,
+    SessionContext,
+)
 from movie_night_mediator.storage import SQLiteRecommendationSnapshotStore
 
 
@@ -171,6 +179,43 @@ class ShortlistApiTest(unittest.TestCase):
                 snapshot_store.load_snapshot("demo-shared-session"),
             )
 
+    def test_post_recommendation_shortlist_can_use_live_candidate_source(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            snapshot_store = SQLiteRecommendationSnapshotStore(
+                database_path=Path(directory) / "live-shortlist-snapshot.sqlite3"
+            )
+            post_shortlist = recommendation_shortlist_endpoint(
+                create_app(
+                    recommendation_snapshot_store=snapshot_store,
+                    candidate_source=FakeCandidateSource(),
+                ),
+                method="POST",
+            )
+
+            payload = post_shortlist(
+                RecommendationShortlistRequestPayload(
+                    sessionId="live-session",
+                    source="live_tmdb",
+                )
+            )
+
+            snapshot = snapshot_store.load_snapshot("live-session")
+
+            self.assertEqual(len(payload), 5)
+            self.assertEqual(
+                [item.sourceMovieId for item in payload],
+                [f"tmdb:{index}" for index in range(1, 6)],
+            )
+            self.assertEqual(payload[0].providerNames, ["Amazon Prime Video"])
+            self.assertEqual(payload[0].safePickStatus, "Safe Pick")
+            self.assertEqual(payload[0].availability, "Amazon Prime Video DE flatrate")
+            self.assertTrue(payload[0].whyShort)
+            self.assertIsNotNone(snapshot)
+            assert snapshot is not None
+            self.assertEqual(snapshot.session_id, "live-session")
+            self.assertEqual(len(snapshot.candidate_inputs), 5)
+            self.assertEqual(snapshot.candidate_inputs[0].source_movie_id, "tmdb:1")
+
 
 def recommendation_shortlist_endpoint(app, method: str = "GET"):
     for route in app.routes:
@@ -184,6 +229,38 @@ def recommendation_shortlist_endpoint(app, method: str = "GET"):
     raise AssertionError(
         f"{method} /recommendations/shortlist route was not registered."
     )
+
+
+class FakeCandidateSource:
+    def fetch_candidates(
+        self,
+        *,
+        session: SessionContext,
+        household_defaults: HouseholdDefaults,
+        limit: int = 20,
+    ) -> tuple[Candidate, ...]:
+        return tuple(
+            Candidate(
+                source_movie_id=f"tmdb:{index}",
+                title=f"Live Pick {index}",
+                media_type=MediaType.MOVIE,
+                release_year=2020 + index,
+                runtime_min=95 + index,
+                genres=("Drama", "Sci-Fi"),
+                overview=f"Live overview {index}.",
+                providers=("Amazon Prime Video",),
+                provider_availability=(
+                    ProviderAvailability(
+                        provider_name="Amazon Prime Video",
+                        access_type=ProviderAccessType.FLATRATE,
+                        region="DE",
+                    ),
+                ),
+                original_language="en",
+                spoken_languages=("en",),
+            )
+            for index in range(1, min(limit, 5) + 1)
+        )
 
 
 if __name__ == "__main__":
