@@ -4,11 +4,18 @@ from dataclasses import dataclass, replace
 
 from movie_night_mediator.app.recommendation_snapshot import (
     RecommendationSnapshotService,
+    SnapshottingRecommendationService,
 )
 from movie_night_mediator.domain.models import (
+    CandidateSource,
     CandidateSafety,
+    HouseholdDefaults,
     MediaType,
     ProviderAvailability,
+    RankedCandidate,
+    ScoringRequest,
+    SessionContext,
+    UserProfile,
 )
 from movie_night_mediator.fixtures.demo_couple import (
     DEMO_CANDIDATE_FIXTURES,
@@ -22,6 +29,7 @@ from movie_night_mediator.fixtures.candidate_adapter import (
     fixture_candidates_to_domain,
     fixture_candidates_to_shortlist,
 )
+from movie_night_mediator.scoring import HeuristicScorer
 
 
 @dataclass(frozen=True)
@@ -149,6 +157,39 @@ def get_offline_demo_shortlist(
         )
 
     return tuple(shortlist_items)
+
+
+def get_candidate_source_shortlist(
+    candidate_source: CandidateSource,
+    *,
+    session: SessionContext,
+    household_defaults: HouseholdDefaults,
+    users: tuple[UserProfile, ...],
+    limit: int = 5,
+    candidate_limit: int = 20,
+    scorer: HeuristicScorer | None = None,
+    snapshot_service: RecommendationSnapshotService | None = None,
+) -> tuple[RankedCandidate, ...]:
+    candidates = candidate_source.fetch_candidates(
+        session=session,
+        household_defaults=household_defaults,
+        limit=candidate_limit,
+    )
+    request = ScoringRequest(
+        session=session,
+        household_defaults=household_defaults,
+        users=users,
+        candidates=candidates,
+    )
+    resolved_scorer = scorer or HeuristicScorer()
+    if snapshot_service is None:
+        result = resolved_scorer.score(request)
+    else:
+        result = SnapshottingRecommendationService(
+            scorer=resolved_scorer,
+            snapshot_service=snapshot_service,
+        ).score_and_save_snapshot(request)
+    return result.ranked_candidates[:limit]
 
 
 def _format_runtime_label(runtime_min: int | None) -> str | None:
