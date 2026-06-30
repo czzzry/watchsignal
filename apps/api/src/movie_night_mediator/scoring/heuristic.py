@@ -13,6 +13,14 @@ from movie_night_mediator.domain.models import (
     UserProfile,
 )
 
+PRIME_VIDEO_PROVIDER_ALIASES = frozenset(
+    {
+        "prime video",
+        "amazon prime video",
+        "amazon prime",
+    }
+)
+
 
 class HeuristicScorer:
     """Small, replaceable V1 scorer for the first vertical slice."""
@@ -115,13 +123,35 @@ class HeuristicScorer:
             if candidate.already_watched:
                 return False
         service = request.session.service_constraint or request.household_defaults.default_service
-        if service and service not in candidate.providers:
+        if service and not self._provider_matches_service(
+            candidate.providers,
+            service=service,
+        ):
             return False
         if request.session.requested_media_type != candidate.media_type:
             return False
         if any(user.horror_exclusion for user in users) and "Horror" in candidate.genres:
             return False
         return True
+
+    def _provider_matches_service(
+        self,
+        providers: tuple[str, ...],
+        *,
+        service: str,
+    ) -> bool:
+        normalized_service = self._normalize_provider(service)
+        normalized_providers = {
+            self._normalize_provider(provider) for provider in providers
+        }
+        if normalized_service in normalized_providers:
+            return True
+        if normalized_service in PRIME_VIDEO_PROVIDER_ALIASES:
+            return bool(normalized_providers & PRIME_VIDEO_PROVIDER_ALIASES)
+        return False
+
+    def _normalize_provider(self, provider: str) -> str:
+        return " ".join(provider.casefold().split())
 
     def _is_rankable_candidate(
         self,

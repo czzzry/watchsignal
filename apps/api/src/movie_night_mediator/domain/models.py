@@ -522,6 +522,19 @@ class Candidate:
     is_interesting_safe_pick: bool = False
 
 
+@runtime_checkable
+class CandidateSource(Protocol):
+    def fetch_candidates(
+        self,
+        *,
+        session: SessionContext,
+        household_defaults: HouseholdDefaults,
+        limit: int = 20,
+    ) -> tuple[Candidate, ...]:
+        """Return raw candidates for scoring without deciding the final shortlist."""
+        ...
+
+
 @dataclass(frozen=True)
 class WatchabilityClassification:
     source_movie_id: str
