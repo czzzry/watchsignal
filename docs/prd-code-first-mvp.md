@@ -16,7 +16,8 @@ The primary MVP interaction mode is pass-the-phone.
 The founder starts a shared movie-night session, reacts to a five-title shortlist, hands the phone to the second participant, and then the app reranks the shortlist and recommends a best pick.
 
 The implementation uses a Next.js frontend, a FastAPI backend, SQLite persistence, TMDb metadata, and a replaceable Python scoring module.
-The app should use live TMDb before it is considered MVP-usable.
+The current MVP completion pass may close a local demo-complete baseline before live TMDb candidate sourcing exists.
+The app should use live TMDb candidate sourcing before it is considered live-usable outside fixture/demo mode.
 Fixture candidates remain valuable for tests and autonomous-agent work.
 The app should recommend Safe Picks by default and show uncertain options only as Needs Quick Check.
 Safe Picks must not overclaim provider-specific audio or subtitle certainty that TMDb cannot prove.
@@ -87,7 +88,11 @@ Kun Cheng GNHF can later execute bounded issues once each issue has clear owners
 - `apps/api` contains the FastAPI backend, SQLite persistence, and Python recommendation core.
 - SQLite is the MVP source of truth.
 - TMDb is the first metadata source.
-- Live TMDb is required before the MVP is considered usable.
+- Live TMDb candidate sourcing is required before the app is considered live-usable outside fixture/demo mode.
+- Local demo-complete MVP closure can happen first when it is clearly labeled as fixture-backed.
+- Live poster provider integration is separate from live candidate sourcing.
+- Live critic-score provider integration is separate from live candidate sourcing.
+- Richer live availability verification is separate from live candidate sourcing.
 - Fixture candidates remain available for tests, local demos, and agent work.
 - The app uses pragmatic REST APIs with FastAPI-generated OpenAPI contracts.
 - FastAPI/Pydantic models are the source of truth for API request and response schemas.

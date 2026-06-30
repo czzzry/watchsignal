@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 342 513" role="img" aria-label="Past Lives poster concept">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#a9d7ff" />
+      <stop offset="48%" stop-color="#264665" />
+      <stop offset="100%" stop-color="#07101a" />
+    </linearGradient>
+    <radialGradient id="city" cx="52%" cy="34%" r="58%">
+      <stop offset="0%" stop-color="#f4f0dc" stop-opacity="0.72" />
+      <stop offset="100%" stop-color="#f4f0dc" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <rect width="342" height="513" rx="26" fill="url(#bg)" />
+  <rect width="342" height="513" rx="26" fill="url(#city)" />
+  <rect x="18" y="18" width="306" height="477" rx="22" fill="none" stroke="#e6f4ff" stroke-opacity="0.24" />
+  <text x="171" y="82" fill="#f5fbff" font-family="Georgia, 'Times New Roman', serif" font-size="42" font-weight="700" letter-spacing="2" text-anchor="middle">PAST</text>
+  <text x="171" y="124" fill="#f5fbff" font-family="Georgia, 'Times New Roman', serif" font-size="42" font-weight="700" letter-spacing="2" text-anchor="middle">LIVES</text>
+  <g transform="translate(0 176)">
+    <rect x="42" y="92" width="24" height="136" fill="#07101a" opacity="0.58" />
+    <rect x="76" y="54" width="30" height="174" fill="#07101a" opacity="0.5" />
+    <rect x="226" y="70" width="32" height="158" fill="#07101a" opacity="0.52" />
+    <rect x="270" y="100" width="24" height="128" fill="#07101a" opacity="0.56" />
+    <path d="M0 230 C72 194 123 194 171 230 C219 266 270 266 342 230 V337 H0 Z" fill="#06101a" opacity="0.86" />
+    <path d="M44 220 C96 184 133 184 171 220 C209 256 246 256 298 220" fill="none" stroke="#d8efff" stroke-opacity="0.42" stroke-width="3" />
+    <circle cx="128" cy="208" r="20" fill="#f5e7d7" />
+    <path d="M96 304 C101 244 155 244 160 304 Z" fill="#152a40" />
+    <circle cx="214" cy="208" r="20" fill="#f5e7d7" />
+    <path d="M182 304 C187 244 241 244 246 304 Z" fill="#3a5874" />
+  </g>
+  <rect x="72" y="426" width="198" height="38" rx="15" fill="#07101a" opacity="0.7" />
+  <text x="171" y="451" fill="#d9efff" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="700" letter-spacing="2" text-anchor="middle">ROMANCE · DRAMA</text>
+</svg>

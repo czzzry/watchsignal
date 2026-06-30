@@ -19,3 +19,4 @@ apps/api/.venv/
 *.sqlite
 *.sqlite3
 .DS_Store
+/.treehouse

@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 342 513" role="img" aria-label="Knives Out poster concept">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6f2617" />
+      <stop offset="48%" stop-color="#231018" />
+      <stop offset="100%" stop-color="#07080d" />
+    </linearGradient>
+    <radialGradient id="halo" cx="50%" cy="31%" r="46%">
+      <stop offset="0%" stop-color="#ffd17a" stop-opacity="0.95" />
+      <stop offset="62%" stop-color="#d45530" stop-opacity="0.28" />
+      <stop offset="100%" stop-color="#07080d" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="knife" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fff7d5" />
+      <stop offset="48%" stop-color="#bfb7aa" />
+      <stop offset="100%" stop-color="#4d4040" />
+    </linearGradient>
+  </defs>
+  <rect width="342" height="513" rx="26" fill="url(#bg)" />
+  <rect width="342" height="513" rx="26" fill="url(#halo)" />
+  <rect x="18" y="18" width="306" height="477" rx="22" fill="none" stroke="#ffe2a8" stroke-opacity="0.24" />
+  <text x="171" y="58" fill="#fff1c5" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" letter-spacing="5" text-anchor="middle">A FAMILY MYSTERY</text>
+  <text x="171" y="106" fill="#fff5d7" font-family="Georgia, 'Times New Roman', serif" font-size="39" font-weight="700" text-anchor="middle">KNIVES</text>
+  <text x="171" y="143" fill="#fff5d7" font-family="Georgia, 'Times New Roman', serif" font-size="39" font-weight="700" text-anchor="middle">OUT</text>
+  <g transform="translate(171 258)">
+    <circle r="110" fill="#160b0d" opacity="0.52" />
+    <g opacity="0.92">
+      <path d="M0-106 C12-62 13-23 3 82 L-3 82 C-13-23-12-62 0-106Z" fill="url(#knife)" />
+      <path d="M0-106 C12-62 13-23 3 82 L-3 82 C-13-23-12-62 0-106Z" fill="url(#knife)" transform="rotate(32)" />
+      <path d="M0-106 C12-62 13-23 3 82 L-3 82 C-13-23-12-62 0-106Z" fill="url(#knife)" transform="rotate(64)" />
+      <path d="M0-106 C12-62 13-23 3 82 L-3 82 C-13-23-12-62 0-106Z" fill="url(#knife)" transform="rotate(96)" />
+      <path d="M0-106 C12-62 13-23 3 82 L-3 82 C-13-23-12-62 0-106Z" fill="url(#knife)" transform="rotate(128)" />
+      <path d="M0-106 C12-62 13-23 3 82 L-3 82 C-13-23-12-62 0-106Z" fill="url(#knife)" transform="rotate(160)" />
+      <path d="M0-106 C12-62 13-23 3 82 L-3 82 C-13-23-12-62 0-106Z" fill="url(#knife)" transform="rotate(192)" />
+      <path d="M0-106 C12-62 13-23 3 82 L-3 82 C-13-23-12-62 0-106Z" fill="url(#knife)" transform="rotate(224)" />
+      <path d="M0-106 C12-62 13-23 3 82 L-3 82 C-13-23-12-62 0-106Z" fill="url(#knife)" transform="rotate(256)" />
+      <path d="M0-106 C12-62 13-23 3 82 L-3 82 C-13-23-12-62 0-106Z" fill="url(#knife)" transform="rotate(288)" />
+      <path d="M0-106 C12-62 13-23 3 82 L-3 82 C-13-23-12-62 0-106Z" fill="url(#knife)" transform="rotate(320)" />
+    </g>
+    <circle r="48" fill="#12090b" stroke="#ffd17a" stroke-opacity="0.38" stroke-width="2" />
+    <path d="M-28 24 C-22-18 22-18 28 24 Z" fill="#2b1111" />
+    <circle cx="-17" cy="-9" r="9" fill="#f0d2a0" />
+    <circle cx="17" cy="-9" r="9" fill="#f0d2a0" />
+  </g>
+  <rect x="40" y="404" width="262" height="44" rx="16" fill="#09080b" opacity="0.72" />
+  <text x="171" y="431" fill="#ffdba0" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" letter-spacing="2" text-anchor="middle">MYSTERY · COMEDY · CRIME</text>
+</svg>

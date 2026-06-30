@@ -1,5 +1,7 @@
 import unittest
 
+from fastapi.routing import APIRoute
+
 from movie_night_mediator.api.main import create_app
 
 
@@ -17,6 +19,21 @@ class ApiHealthTest(unittest.TestCase):
 
         self.assertEqual(schema["info"]["title"], "Movie Night Mediator API")
         self.assertIn("/health", schema["paths"])
+
+    def test_health_route_returns_ok_payload(self) -> None:
+        app = create_app()
+        health_route = next(
+            route
+            for route in app.routes
+            if isinstance(route, APIRoute) and route.path == "/health"
+        )
+
+        payload = health_route.endpoint()
+
+        self.assertEqual(
+            payload,
+            {"status": "ok", "service": "movie-night-mediator-api"},
+        )
 
 
 if __name__ == "__main__":

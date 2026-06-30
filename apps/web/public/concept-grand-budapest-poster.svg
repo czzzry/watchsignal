@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 342 513" role="img" aria-label="Grand Budapest Hotel poster concept">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffd3e7" />
+      <stop offset="48%" stop-color="#b14d83" />
+      <stop offset="100%" stop-color="#261021" />
+    </linearGradient>
+    <linearGradient id="hotel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff3d2" />
+      <stop offset="100%" stop-color="#df8f9d" />
+    </linearGradient>
+  </defs>
+  <rect width="342" height="513" rx="26" fill="url(#bg)" />
+  <rect x="18" y="18" width="306" height="477" rx="22" fill="none" stroke="#fff6dd" stroke-opacity="0.34" />
+  <text x="171" y="61" fill="#4c1634" font-family="Georgia, 'Times New Roman', serif" font-size="21" font-weight="700" letter-spacing="3" text-anchor="middle">THE GRAND</text>
+  <text x="171" y="101" fill="#fff9e8" font-family="Georgia, 'Times New Roman', serif" font-size="31" font-weight="700" letter-spacing="2" text-anchor="middle">BUDAPEST</text>
+  <text x="171" y="132" fill="#fff9e8" font-family="Georgia, 'Times New Roman', serif" font-size="24" font-weight="700" letter-spacing="5" text-anchor="middle">HOTEL</text>
+  <g transform="translate(38 172)">
+    <path d="M20 80 H246 L226 270 H40 Z" fill="url(#hotel)" stroke="#fff8de" stroke-opacity="0.55" stroke-width="2" />
+    <path d="M44 38 H222 L246 80 H20 Z" fill="#8a275f" />
+    <path d="M70 0 H196 L222 38 H44 Z" fill="#fff0c7" />
+    <rect x="87" y="100" width="92" height="170" fill="#70244e" opacity="0.25" />
+    <g fill="#5e1742" opacity="0.7">
+      <rect x="55" y="104" width="25" height="34" rx="4" />
+      <rect x="105" y="104" width="25" height="34" rx="4" />
+      <rect x="156" y="104" width="25" height="34" rx="4" />
+      <rect x="207" y="104" width="25" height="34" rx="4" />
+      <rect x="55" y="158" width="25" height="34" rx="4" />
+      <rect x="105" y="158" width="25" height="34" rx="4" />
+      <rect x="156" y="158" width="25" height="34" rx="4" />
+      <rect x="207" y="158" width="25" height="34" rx="4" />
+    </g>
+    <path d="M112 270 V214 C112 192 154 192 154 214 V270 Z" fill="#4c1634" />
+  </g>
+  <rect x="48" y="426" width="246" height="38" rx="15" fill="#4c1634" opacity="0.72" />
+  <text x="171" y="451" fill="#ffe8b8" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="700" letter-spacing="2" text-anchor="middle">COMEDY · ADVENTURE · CRIME</text>
+</svg>

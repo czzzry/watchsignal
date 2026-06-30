@@ -5,8 +5,9 @@
   "scripts": {
     "dev:web": "pnpm --dir apps/web dev",
     "build:web": "pnpm --dir apps/web build",
-    "test:api": "cd apps/api && ../../.tools/uv/bin/uv run python -m unittest discover -s tests",
-    "compile:api": "cd apps/api && ../../.tools/uv/bin/uv run python -m compileall -q src tests",
+    "smoke:ux:mobile": "node scripts/mobile_pass_the_phone_ux_smoke.mjs",
+    "test:api": "cd apps/api && TOOLS_DIR=../../.tools; if [ ! -x \"$TOOLS_DIR/uv/bin/uv\" ] && [ -x \"../../../../.tools/uv/bin/uv\" ]; then TOOLS_DIR=../../../../.tools; fi; env UV_CACHE_DIR=\"$TOOLS_DIR/uv-cache\" \"$TOOLS_DIR/uv/bin/uv\" run python -m unittest discover -s tests",
+    "compile:api": "cd apps/api && TOOLS_DIR=../../.tools; if [ ! -x \"$TOOLS_DIR/uv/bin/uv\" ] && [ -x \"../../../../.tools/uv/bin/uv\" ]; then TOOLS_DIR=../../../../.tools; fi; env UV_CACHE_DIR=\"$TOOLS_DIR/uv-cache\" \"$TOOLS_DIR/uv/bin/uv\" run python -m compileall -q src tests",
     "check": "pnpm test:api && pnpm compile:api"
   }
 }

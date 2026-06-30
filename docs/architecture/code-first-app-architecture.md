@@ -25,6 +25,10 @@ Instead, it should make the product core testable in normal application code and
 - Movie is the default media type, with TV supported at the intake and recommendation level.
 - TMDb is the first metadata source.
 - Live TMDb is required before the MVP is usable, but fixture candidates are allowed for development and tests.
+- The current MVP completion pass may close a local demo-complete baseline before live candidate sourcing is implemented.
+- The app should not be described as live-usable outside fixture/demo mode until live candidate sourcing is separately approved, implemented, and validated.
+- Live candidate sourcing is a next MVP readiness phase, not MVP plus 1 LLM work.
+- Live poster provider integration, live critic-score provider integration, and richer availability verification are separate concerns from live candidate sourcing.
 - Main recommendations should use Safe Picks by default.
 - Safe Picks are Prime Video Germany, language-compatible, constraint-compatible, and not already watched unless rewatches are allowed.
 - Uncertain availability, audio, or subtitle compatibility may appear only in a secondary Needs Quick Check section.
@@ -98,7 +102,7 @@ The slice should include:
 - shared pass-the-phone session start from the mobile web app
 - husband-first, wife-first, and compromise mode selection
 - fixture-backed candidates before live TMDb
-- live TMDb before MVP is considered usable
+- live TMDb before the app is considered live-usable outside fixture/demo mode
 - Safe Picks as the main recommendation pool
 - heuristic scorer behind the documented scoring contract
 - persisted recommendation result
