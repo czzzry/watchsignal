@@ -15,8 +15,8 @@ Use the `gh` CLI for issue-tracker operations once a GitHub remote is configured
 ## Current repo note
 
 This repository is configured to expect GitHub Issues as the long-term tracker.
-At the moment, there is no GitHub remote configured yet.
-Until a remote exists, issue-publishing skills may need a temporary fallback or may stay blocked at the publish step.
+The current checkout has a GitHub remote configured.
+Publishing issues is still an external service change and should happen only after explicit founder approval.
 
 ## When a skill says "publish to the issue tracker"
 

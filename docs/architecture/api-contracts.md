@@ -56,15 +56,15 @@ Expected response:
 ```json
 [
   {
-    "sourceMovieId": "fixture:shared-time-loop",
-    "title": "Shared Time Loop",
+    "sourceMovieId": "arrival",
+    "title": "Arrival",
     "candidateRank": 1,
     "mediaType": "movie",
-    "year": 2024,
-    "releaseYear": 2024,
-    "runtime": "1h 48m",
-    "runtimeMin": 108,
-    "genres": ["Comedy", "Sci-Fi"],
+    "year": 2016,
+    "releaseYear": 2016,
+    "runtime": "1h 56m",
+    "runtimeMin": 116,
+    "genres": ["Drama", "Sci-Fi"],
     "providerNames": ["Prime Video"],
     "providerAvailability": [
       {
@@ -77,13 +77,13 @@ Expected response:
     "safePickStatus": "Safe Pick",
     "availability": "Prime Video DE flatrate",
     "languageAccess": "English audio",
-    "tone": "Funny, high-concept, easy to start",
-    "reason": "A lively compromise pick with a clear hook and enough momentum for both viewers.",
+    "tone": "Smart, tense, emotional",
+    "reason": "When mysterious spacecraft land around the world, a linguist is recruited to figure out whether the visitors come in peace before fear wins.",
     "fitBucket": "compromise",
-    "groupScore": 0.67,
-    "founderScore": 67,
-    "wifeScore": 67,
-    "whyShort": "Interesting Safe Pick. Fits compromise mode with signal from Comedy, Sci-Fi. Husband: 0.67; Wife: 0.67.",
+    "groupScore": 0.624,
+    "founderScore": 72,
+    "wifeScore": 60,
+    "whyShort": "Interesting Safe Pick. Fits compromise mode with signal from Drama, Sci-Fi. Husband: 0.72; Wife: 0.6.",
     "isInterestingPick": true,
     "originalLanguage": "en",
     "spokenLanguages": ["en"],
@@ -93,6 +93,7 @@ Expected response:
 ```
 
 The response always returns five Safe Pick fixture candidates in stable rank order.
+The accepted local demo order is `arrival`, `knives-out`, `the-grand-budapest-hotel`, `edge-of-tomorrow`, and `past-lives`.
 The route is a provider-shaped boundary, not a live provider integration.
 The payload now includes both display-ready fields and the underlying fixture-backed provider and language fields that produced them.
 This keeps the API inspectable while reducing the amount of fallback logic the phone UI has to invent.

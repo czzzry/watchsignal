@@ -25,6 +25,21 @@ Those handlers proxy to FastAPI through `API_BASE_URL` and avoid making the mobi
 
 This keeps the UI replaceable at the data edge and keeps the fixture data useful as seed and demo data.
 
+## Demo Data Provenance
+
+Local demo mode is fixture-backed.
+It does not fetch live posters, live critic scores, live availability, or LLM-generated explanations.
+
+The poster paths in `apps/web/app/session-fixtures.ts` are local demo assets.
+They are kept so the accepted cinematic mobile flow can be reviewed without a live poster provider.
+
+The critic score values in `apps/web/app/session-fixtures.ts` are hard-coded fixture values.
+They are display confidence cues for the local demo and should not be treated as live Rotten Tomatoes, TMDb, Metacritic, or provider-sourced values.
+
+Candidate view models expose field provenance through `CandidateViewModel.provenance`.
+That model separates API payload values, local demo fixture values, local demo poster assets, generic fallbacks, and unavailable score data.
+The provenance is code-facing for now so the main pass-the-phone flow does not feel like an internal test harness.
+
 ## MVP Behavior
 
 The UI shows the real MVP interaction shape.
@@ -49,3 +64,4 @@ If the session API fails, the visible error is kept on screen and the flow conti
 
 The next frontend step is to replace the fixture shortlist with a recommendation candidate provider once that backend contract is available.
 Until then, `apps/web/app/session-fixtures.ts` remains the stable seed list for local review and API session creation.
+Live poster and critic-score providers remain separate future integrations.

@@ -8,6 +8,18 @@ from typing import Any
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+API_VENV_PYTHON = REPO_ROOT / "apps" / "api" / ".venv" / "bin" / "python"
+if (
+    API_VENV_PYTHON.exists()
+    and Path(sys.executable) != API_VENV_PYTHON
+):
+    import os
+
+    os.execv(
+        API_VENV_PYTHON,
+        [str(API_VENV_PYTHON), str(Path(__file__).resolve()), *sys.argv[1:]],
+    )
+
 API_SRC = REPO_ROOT / "apps" / "api" / "src"
 if str(API_SRC) not in sys.path:
     sys.path.insert(0, str(API_SRC))
@@ -19,15 +31,18 @@ from movie_night_mediator.api.main import (
     CreateSharedSessionPayload,
     ParticipantOnboardingPayload,
     PostWatchFeedbackPayload,
+    SaveSessionOutcomePayload,
     SetupStatePayload,
     SubmitSessionReactionsPayload,
     create_app,
 )
+from movie_night_mediator.domain import OutcomeSelectionOrigin
 from movie_night_mediator.app.onboarding import SQLiteOnboardingStore
 from movie_night_mediator.app.setup import SQLiteSetupStore
 from movie_night_mediator.storage import (
     SQLiteBackfillStore,
     SQLiteFeedbackStore,
+    SQLiteOutcomeStore,
     SQLiteSessionStore,
 )
 
@@ -52,6 +67,7 @@ def main() -> int:
             onboarding_store=SQLiteOnboardingStore(database_path=database_path),
             backfill_store=SQLiteBackfillStore(database_path=database_path),
             feedback_store=SQLiteFeedbackStore(database_path=database_path),
+            outcome_store=SQLiteOutcomeStore(database_path=database_path),
             session_store=SQLiteSessionStore(database_path=database_path),
         )
 
@@ -123,6 +139,26 @@ def run_smoke(routes: dict[str, Any]) -> None:
     )
     expect_equal(second_pass["bestPickSourceMovieId"], "tmdb:1", "best pick")
 
+    outcome = payload_to_dict(
+        call_route(
+            routes["post_outcome"],
+            SESSION_ID,
+            SaveSessionOutcomePayload(
+                householdId=HOUSEHOLD_ID,
+                outcomeType="watched_recommended",
+                selectedSourceMovieId="tmdb:1",
+                selectedTitle="First Pick",
+                selectionOrigin=OutcomeSelectionOrigin.RERANKED_SHORTLIST,
+                notes="Couch flow smoke watched the recommended pick.",
+            ),
+        )
+    )
+    expect_equal(
+        outcome["outcomeType"],
+        "watched_recommended",
+        "saved outcome type",
+    )
+
     payload_to_dict(
         call_route(
             routes["post_feedback"],
@@ -133,6 +169,19 @@ def run_smoke(routes: dict[str, Any]) -> None:
                 sourceMovieId="tmdb:1",
                 feedbackLabel="loved",
                 freeTextNote="Worked tonight.",
+            ),
+        )
+    )
+    payload_to_dict(
+        call_route(
+            routes["post_feedback"],
+            PostWatchFeedbackPayload(
+                sessionId=SESSION_ID,
+                householdId=HOUSEHOLD_ID,
+                userId="husband",
+                sourceMovieId="tmdb:1",
+                feedbackLabel="fine",
+                freeTextNote="Would recommend again.",
             ),
         )
     )
@@ -249,6 +298,12 @@ def assert_debug_history(debug_history: dict[str, Any]) -> None:
         debug_history["postWatchFeedback"],
         [
             {
+                "userId": "husband",
+                "sourceMovieId": "tmdb:1",
+                "feedbackLabel": "fine",
+                "hasFreeTextNote": True,
+            },
+            {
                 "userId": "wife",
                 "sourceMovieId": "tmdb:1",
                 "feedbackLabel": "loved",
@@ -257,6 +312,19 @@ def assert_debug_history(debug_history: dict[str, Any]) -> None:
         ],
         "debug post-watch feedback",
     )
+    expect_equal(
+        debug_history["sessionOutcome"],
+        {
+            "outcomeType": "watched_recommended",
+            "selectedSourceMovieId": "tmdb:1",
+            "selectedTitle": "First Pick",
+            "selectionOrigin": "reranked_shortlist",
+            "hasNotes": True,
+        },
+        "debug session outcome",
+    )
+    if "session_outcome" in debug_history["unavailableEvidence"]:
+        raise AssertionError("debug unavailable evidence should not include session_outcome")
     expect_in(
         "candidate_inputs",
         debug_history["unavailableEvidence"],
@@ -286,6 +354,7 @@ def route_endpoints(app) -> dict[str, Any]:
         "post_session": routes[("POST", "/sessions")],
         "post_reactions": routes[("POST", "/sessions/{session_id}/reactions")],
         "post_handoff": routes[("POST", "/sessions/{session_id}/advance-handoff")],
+        "post_outcome": routes[("POST", "/sessions/{session_id}/outcome")],
         "post_feedback": routes[("POST", "/feedback/post-watch")],
         "get_debug": routes[("GET", "/debug/history/sessions/{session_id}")],
     }

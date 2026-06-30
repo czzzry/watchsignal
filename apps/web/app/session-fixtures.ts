@@ -7,9 +7,17 @@ export type DemoCandidate = {
   title: string;
   year: number;
   runtime: string;
+  /**
+   * Local demo asset path.
+   * Local demo mode does not fetch posters from a live provider.
+   */
   posterUrl: string;
   topCast: string[];
   genres: string[];
+  /**
+   * Hard-coded fixture value used as a display confidence cue.
+   * Local demo mode does not fetch live critic scores.
+   */
   criticScore?: number;
   safePickStatus: "Safe Pick" | "Needs Quick Check";
   availability: string;

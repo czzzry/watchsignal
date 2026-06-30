@@ -36,11 +36,11 @@ class CandidateGenerationAdapterTest(unittest.TestCase):
         self.assertEqual(
             tuple(candidate.source_movie_id for candidate in shortlist),
             (
-                "fixture:shared-time-loop",
-                "fixture:thoughtful-space-walk",
-                "fixture:quiet-investigation",
-                "fixture:gentle-puzzle-box",
-                "fixture:subtitled-family-mystery",
+                "arrival",
+                "knives-out",
+                "the-grand-budapest-hotel",
+                "edge-of-tomorrow",
+                "past-lives",
             ),
         )
         self.assertEqual(

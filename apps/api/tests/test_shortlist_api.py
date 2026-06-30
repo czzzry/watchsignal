@@ -23,11 +23,11 @@ class ShortlistApiTest(unittest.TestCase):
         self.assertEqual(
             tuple(item.source_movie_id for item in shortlist),
             (
-                "fixture:shared-time-loop",
-                "fixture:thoughtful-space-walk",
-                "fixture:quiet-investigation",
-                "fixture:gentle-puzzle-box",
-                "fixture:subtitled-family-mystery",
+                "arrival",
+                "knives-out",
+                "the-grand-budapest-hotel",
+                "edge-of-tomorrow",
+                "past-lives",
             ),
         )
         self.assertEqual(
@@ -38,10 +38,10 @@ class ShortlistApiTest(unittest.TestCase):
             all(item.provider_names == ("Prime Video",) for item in shortlist)
         )
         self.assertEqual(shortlist[0].media_type, "movie")
-        self.assertEqual(shortlist[0].year, 2024)
-        self.assertEqual(shortlist[0].release_year, 2024)
-        self.assertEqual(shortlist[0].runtime, "1h 48m")
-        self.assertEqual(shortlist[0].runtime_min, 108)
+        self.assertEqual(shortlist[0].year, 2016)
+        self.assertEqual(shortlist[0].release_year, 2016)
+        self.assertEqual(shortlist[0].runtime, "1h 56m")
+        self.assertEqual(shortlist[0].runtime_min, 116)
         self.assertIn("Sci-Fi", shortlist[0].genres)
         self.assertEqual(shortlist[0].safe_pick_status, "Safe Pick")
         self.assertEqual(shortlist[0].availability, "Prime Video DE flatrate")
@@ -66,16 +66,16 @@ class ShortlistApiTest(unittest.TestCase):
         self.assertEqual(
             [item.sourceMovieId for item in payload],
             [
-                "fixture:shared-time-loop",
-                "fixture:thoughtful-space-walk",
-                "fixture:quiet-investigation",
-                "fixture:gentle-puzzle-box",
-                "fixture:subtitled-family-mystery",
+                "arrival",
+                "knives-out",
+                "the-grand-budapest-hotel",
+                "edge-of-tomorrow",
+                "past-lives",
             ],
         )
         self.assertEqual([item.candidateRank for item in payload], [1, 2, 3, 4, 5])
         self.assertEqual(payload[0].mediaType, "movie")
-        self.assertEqual(payload[0].year, 2024)
+        self.assertEqual(payload[0].year, 2016)
         self.assertEqual(payload[0].providerNames, ["Prime Video"])
         self.assertEqual(
             payload[0].providerAvailability[0].model_dump(mode="json"),
@@ -91,9 +91,9 @@ class ShortlistApiTest(unittest.TestCase):
         self.assertEqual(payload[0].languageAccess, "English audio")
         self.assertTrue(payload[0].tone)
         self.assertTrue(payload[0].reason)
-        self.assertEqual(payload[0].runtime, "1h 48m")
-        self.assertEqual(payload[0].releaseYear, 2024)
-        self.assertEqual(payload[0].runtimeMin, 108)
+        self.assertEqual(payload[0].runtime, "1h 56m")
+        self.assertEqual(payload[0].releaseYear, 2016)
+        self.assertEqual(payload[0].runtimeMin, 116)
         self.assertEqual(payload[0].fitBucket, "compromise")
         self.assertGreater(payload[0].founderScore or 0, 0)
         self.assertGreater(payload[0].wifeScore or 0, 0)
@@ -103,28 +103,28 @@ class ShortlistApiTest(unittest.TestCase):
         self.assertEqual(payload[0].spokenLanguages, ["en"])
         self.assertFalse(payload[0].englishSubtitlesVerified)
 
-    def test_recommendation_shortlist_route_includes_stable_subtitle_and_score_fields(
+    def test_recommendation_shortlist_route_includes_stable_language_and_score_fields(
         self,
     ) -> None:
         get_shortlist = recommendation_shortlist_endpoint(create_app())
 
         payload = get_shortlist()
-        subtitle_safe_candidate = next(
+        final_candidate = next(
             item
             for item in payload
-            if item.sourceMovieId == "fixture:subtitled-family-mystery"
+            if item.sourceMovieId == "past-lives"
         )
 
-        self.assertEqual(subtitle_safe_candidate.safePickStatus, "Safe Pick")
+        self.assertEqual(final_candidate.safePickStatus, "Safe Pick")
         self.assertEqual(
-            subtitle_safe_candidate.languageAccess,
-            "Verified English subtitles",
+            final_candidate.languageAccess,
+            "English audio",
         )
-        self.assertEqual(subtitle_safe_candidate.originalLanguage, "de")
-        self.assertEqual(subtitle_safe_candidate.spokenLanguages, ["de"])
-        self.assertTrue(subtitle_safe_candidate.englishSubtitlesVerified)
-        self.assertGreater(subtitle_safe_candidate.founderScore or 0, 0)
-        self.assertGreater(subtitle_safe_candidate.wifeScore or 0, 0)
+        self.assertEqual(final_candidate.originalLanguage, "en")
+        self.assertEqual(final_candidate.spokenLanguages, ["en"])
+        self.assertFalse(final_candidate.englishSubtitlesVerified)
+        self.assertGreater(final_candidate.founderScore or 0, 0)
+        self.assertGreater(final_candidate.wifeScore or 0, 0)
 
     def test_openapi_contract_includes_recommendation_shortlist_route(self) -> None:
         schema = create_app().openapi()

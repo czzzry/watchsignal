@@ -154,8 +154,8 @@ async function startWebServer(apiBaseUrl = null) {
         ...process.env,
         API_BASE_URL: apiBaseUrl || `http://127.0.0.1:${fallbackApiPort}`,
         NEXT_TELEMETRY_DISABLED: "1",
-        PNPM_HOME: join(repoRoot, ".tools", "pnpm"),
-        XDG_CACHE_HOME: join(repoRoot, ".tools", "cache"),
+        PNPM_HOME: resolveToolPath("pnpm"),
+        XDG_CACHE_HOME: resolveToolPath("cache"),
       },
       stdio: ["ignore", "pipe", "pipe"],
     },
@@ -172,7 +172,7 @@ async function startWebServer(apiBaseUrl = null) {
 }
 
 async function startApiServer() {
-  const uvBinary = join(repoRoot, ".tools", "uv", "bin", "uv");
+  const uvBinary = resolveToolPath("uv", "bin", "uv");
   if (!existsSync(uvBinary)) {
     throw new Error(
       "Local uv runner was not found at .tools/uv/bin/uv, so backend-backed UX smoke cannot start FastAPI automatically.",
@@ -198,6 +198,7 @@ async function startApiServer() {
       env: {
         ...process.env,
         MOVIE_NIGHT_MEDIATOR_SQLITE_PATH: databasePath,
+        UV_CACHE_DIR: resolveToolPath("uv-cache"),
       },
       stdio: ["ignore", "pipe", "pipe"],
     },
@@ -261,8 +262,8 @@ async function ensureWebBuild(packageRunner) {
       env: {
         ...process.env,
         NEXT_TELEMETRY_DISABLED: "1",
-        PNPM_HOME: join(repoRoot, ".tools", "pnpm"),
-        XDG_CACHE_HOME: join(repoRoot, ".tools", "cache"),
+        PNPM_HOME: resolveToolPath("pnpm"),
+        XDG_CACHE_HOME: resolveToolPath("cache"),
       },
       stdio: ["ignore", "pipe", "pipe"],
     },
@@ -293,8 +294,7 @@ function resolveWebServerScript() {
 
 async function resolvePackageRunner() {
   const localPnpm = join(
-    repoRoot,
-    ".tools",
+    resolveToolPath(),
     "npm-cache",
     "_npx",
     "a1a38f5f0f780954",
@@ -320,6 +320,20 @@ async function resolvePackageRunner() {
   throw new Error(
     "pnpm was not found. Install pnpm or enable Corepack before running the mobile UX smoke.",
   );
+}
+
+function resolveToolPath(...segments) {
+  const localPath = join(repoRoot, ".tools", ...segments);
+  if (existsSync(localPath)) {
+    return localPath;
+  }
+
+  const mainCheckoutPath = join(repoRoot, "..", "..", ".tools", ...segments);
+  if (existsSync(mainCheckoutPath)) {
+    return mainCheckoutPath;
+  }
+
+  return localPath;
 }
 
 async function startChrome() {

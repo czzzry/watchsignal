@@ -18,27 +18,23 @@ class DemoCoupleFixtureTest(unittest.TestCase):
         }
 
         self.assertEqual(
-            classifications["fixture:shared-time-loop"],
+            classifications["arrival"],
             WatchabilityStatus.SAFE_PICK,
         )
         self.assertEqual(
-            classifications["fixture:quiet-investigation"],
+            classifications["knives-out"],
             WatchabilityStatus.SAFE_PICK,
         )
         self.assertEqual(
-            classifications["fixture:subtitled-family-mystery"],
+            classifications["past-lives"],
             WatchabilityStatus.SAFE_PICK,
         )
         self.assertEqual(
-            classifications["fixture:english-dubbed-adventure"],
+            classifications["the-grand-budapest-hotel"],
             WatchabilityStatus.SAFE_PICK,
         )
         self.assertEqual(
-            classifications["fixture:thoughtful-space-walk"],
-            WatchabilityStatus.SAFE_PICK,
-        )
-        self.assertEqual(
-            classifications["fixture:gentle-puzzle-box"],
+            classifications["edge-of-tomorrow"],
             WatchabilityStatus.SAFE_PICK,
         )
         self.assertEqual(
@@ -59,16 +55,22 @@ class DemoCoupleFixtureTest(unittest.TestCase):
             candidate.source_movie_id for candidate in result.ranked_candidates
         )
 
-        self.assertEqual(ranked_ids[0], "fixture:shared-time-loop")
-        self.assertIn("fixture:quiet-investigation", ranked_ids)
-        self.assertIn("fixture:subtitled-family-mystery", ranked_ids)
-        self.assertIn("fixture:english-dubbed-adventure", ranked_ids)
+        self.assertEqual(
+            ranked_ids,
+            (
+                "arrival",
+                "knives-out",
+                "the-grand-budapest-hotel",
+                "edge-of-tomorrow",
+                "past-lives",
+            ),
+        )
         self.assertNotIn("fixture:unverified-language-drama", ranked_ids)
         self.assertNotIn("fixture:already-watched-classic", ranked_ids)
         self.assertNotIn("fixture:rent-only-thriller", ranked_ids)
         self.assertEqual(
             result.interesting_safe_pick.source_movie_id,
-            "fixture:shared-time-loop",
+            "arrival",
         )
         self.assertFalse(result.is_uncertain)
 
