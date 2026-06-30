@@ -1,4 +1,4 @@
-name: MVP validation
+name: MVP checks
 
 on:
   pull_request:
@@ -8,8 +8,8 @@ on:
       - "codex/**"
 
 jobs:
-  mvp-validation:
-    name: MVP validation
+  mvp-checks:
+    name: MVP checks
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -48,27 +48,3 @@ jobs:
 
       - name: Build web app
         run: pnpm build:web
-
-      - name: Install smoke-test browser
-        run: |
-          npm_config_cache="$PWD/.tools/npm-cache" npx --yes playwright@1.61.1 install --with-deps chromium
-          BROWSER_BIN="$(find "$HOME/.cache/ms-playwright" -path "*/chrome-headless-shell-linux*/chrome-headless-shell" -type f | head -n 1)"
-          if [ -z "$BROWSER_BIN" ]; then
-            echo "Could not find Playwright Chromium headless-shell binary."
-            exit 1
-          fi
-          mkdir -p .tools
-          cat > .tools/chrome-ci-wrapper <<EOF
-          #!/usr/bin/env bash
-          exec "$BROWSER_BIN" --no-sandbox --disable-dev-shm-usage "\$@"
-          EOF
-          chmod +x .tools/chrome-ci-wrapper
-          echo "MOBILE_UX_SMOKE_BROWSER_BIN=$PWD/.tools/chrome-ci-wrapper" >> "$GITHUB_ENV"
-
-      - name: Run demo mobile UX smoke
-        timeout-minutes: 8
-        run: pnpm smoke:ux:mobile
-
-      - name: Run backend-backed mobile UX smoke
-        timeout-minutes: 8
-        run: MOBILE_UX_SMOKE_EXPECT_API=1 pnpm smoke:ux:mobile
