@@ -52,7 +52,7 @@ jobs:
       - name: Install smoke-test browser
         run: |
           npm_config_cache="$PWD/.tools/npm-cache" npx --yes playwright@1.61.1 install --with-deps chromium
-          BROWSER_BIN="$(find "$HOME/.cache/ms-playwright" -path "*/chrome-linux/chrome" -type f | head -n 1)"
+          BROWSER_BIN="$(find "$HOME/.cache/ms-playwright" -path "*/chrome-linux*/chrome" -type f | head -n 1)"
           if [ -z "$BROWSER_BIN" ]; then
             echo "Could not find Playwright Chromium binary."
             exit 1
