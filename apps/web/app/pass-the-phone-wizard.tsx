@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { SetupLoadResult } from "./setup-api";
 import {
-  demoCandidates,
   type DemoCandidate,
   type ReactionValue,
   type SessionMode,
@@ -21,6 +20,7 @@ import {
 } from "./pass-the-phone-components";
 import {
   createSessionId,
+  demoCandidateViewModels,
   entryKey,
   formatSessionDate,
   mergeSeenMemoryIntoOnboarding,
@@ -41,6 +41,7 @@ import {
 } from "./pass-the-phone-helpers";
 import type {
   ApiHealth,
+  CandidateViewModel,
   DebugHistoryStatus,
   LanguageMode,
   OnboardingDraft,
@@ -95,7 +96,7 @@ export function PassThePhoneWizard({
   const [founderIndex, setFounderIndex] = useState(0);
   const [wifeIndex, setWifeIndex] = useState(0);
   const [sessionCandidates, setSessionCandidates] =
-    useState<DemoCandidate[]>(demoCandidates);
+    useState<CandidateViewModel[]>(demoCandidateViewModels);
   const [founderReactions, setFounderReactions] = useState<ReactionState>({});
   const [wifeReactions, setWifeReactions] = useState<ReactionState>({});
   const [founderSeenMemories, setFounderSeenMemories] = useState<SeenMemoryState>({});
@@ -232,7 +233,7 @@ export function PassThePhoneWizard({
     setStep("setup");
     setFounderIndex(0);
     setWifeIndex(0);
-    setSessionCandidates(demoCandidates);
+    setSessionCandidates(demoCandidateViewModels);
     setFounderReactions({});
     setWifeReactions({});
     setFounderSeenMemories({});
@@ -517,7 +518,7 @@ export function PassThePhoneWizard({
 
     setFounderIndex(0);
     setWifeIndex(0);
-    setSessionCandidates(demoCandidates);
+    setSessionCandidates(demoCandidateViewModels);
     setFounderReactions({});
     setWifeReactions({});
     setFounderSeenMemories({});
@@ -578,7 +579,7 @@ export function PassThePhoneWizard({
         );
       }
     } catch (error) {
-      setSessionCandidates(demoCandidates);
+      setSessionCandidates(demoCandidateViewModels);
       setSharedSession(null);
       setSessionSource("demo");
       setDebugHistoryStatus("idle");

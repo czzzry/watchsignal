@@ -54,7 +54,17 @@ export type OnboardingPromptState = {
   profileLabel: string;
 } | null;
 
-export type RankedCandidate = DemoCandidate & {
+export type CandidateProvenance = {
+  poster: "api-payload" | "local-demo-asset" | "fallback-placeholder";
+  criticScore: "demo-fixture" | "not-provided";
+  descriptiveCopy: "api-payload" | "local-demo-fixture" | "generic-fallback";
+};
+
+export type CandidateViewModel = DemoCandidate & {
+  provenance: CandidateProvenance;
+};
+
+export type RankedCandidate = CandidateViewModel & {
   score: number;
 };
 

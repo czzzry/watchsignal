@@ -6,6 +6,8 @@ import type {
 } from "./session-client";
 import { demoCandidates, type DemoCandidate, type ReactionValue, type SessionMode } from "./session-fixtures";
 import type {
+  CandidateProvenance,
+  CandidateViewModel,
   OnboardingDraft,
   PeopleMode,
   RankedCandidate,
@@ -18,6 +20,24 @@ import type {
 
 export const fallbackPosterUrl =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 342 513'%3E%3Crect width='342' height='513' fill='%23e1eef2'/%3E%3Crect x='42' y='78' width='258' height='357' rx='18' fill='%23ffffff' stroke='%23245f73' stroke-width='8'/%3E%3Ccircle cx='126' cy='184' r='32' fill='%23245f73'/%3E%3Ccircle cx='216' cy='184' r='32' fill='%23245f73'/%3E%3Cpath d='M102 306h138' stroke='%23245f73' stroke-width='16' stroke-linecap='round'/%3E%3C/svg%3E";
+
+export const demoCandidateViewModels: CandidateViewModel[] = demoCandidates.map(
+  toDemoCandidateViewModel,
+);
+
+export function toDemoCandidateViewModel(
+  candidate: DemoCandidate,
+): CandidateViewModel {
+  return {
+    ...candidate,
+    provenance: {
+      poster: "local-demo-asset",
+      criticScore:
+        candidate.criticScore === undefined ? "not-provided" : "demo-fixture",
+      descriptiveCopy: "local-demo-fixture",
+    },
+  };
+}
 
 export function stepHeadline(
   step: WizardStep,
@@ -63,7 +83,7 @@ export function rankCandidates({
 }: {
   sessionMode: SessionMode;
   peopleMode: PeopleMode;
-  candidates: DemoCandidate[];
+  candidates: CandidateViewModel[];
   founderReactions: ReactionState;
   wifeReactions: ReactionState;
   rerankedSourceMovieIds: string[];
@@ -358,7 +378,7 @@ export function reactionsPayload(
 export function toSessionCandidate(
   candidate: ShortlistCandidatePayload,
   index: number,
-): DemoCandidate {
+): CandidateViewModel {
   const fixture = demoCandidates.find(
     (demoCandidate) =>
       demoCandidate.id === candidate.sourceMovieId ||
@@ -374,6 +394,21 @@ export function toSessionCandidate(
     (candidate.providerNames && candidate.providerNames.length > 0
       ? `${candidate.providerNames.join(", ")}`
       : null);
+
+  const provenance: CandidateProvenance = {
+    poster: candidate.posterUrl
+      ? "api-payload"
+      : fixture?.posterUrl
+        ? "local-demo-asset"
+        : "fallback-placeholder",
+    criticScore: fixture?.criticScore === undefined ? "not-provided" : "demo-fixture",
+    descriptiveCopy:
+      candidate.reason || candidate.whyShort
+        ? "api-payload"
+        : fixture?.reason
+          ? "local-demo-fixture"
+          : "generic-fallback",
+  };
 
   return {
     id: candidate.sourceMovieId,
@@ -409,6 +444,7 @@ export function toSessionCandidate(
       founder: candidate.founderScore ?? fixture?.taste.founder ?? groupScore,
       wife: candidate.wifeScore ?? fixture?.taste.wife ?? groupScore,
     },
+    provenance,
   };
 }
 
