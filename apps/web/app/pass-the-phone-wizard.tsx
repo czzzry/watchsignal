@@ -799,7 +799,7 @@ export function PassThePhoneWizard({
     <main className="appShell">
       {showLaunchSting ? <LaunchSting /> : null}
 
-      {step !== "setup" && step !== "founder" && step !== "wife" && step !== "results" ? (
+      {step !== "setup" && step !== "founder" && step !== "handoff" && step !== "wife" && step !== "results" ? (
         <header className="topBar">
           <div className="topBarCopy">
             <p className="eyebrow">Movie Night Mediator</p>
@@ -2041,7 +2041,7 @@ function HandoffStep({
   const seenCount = countSeenMemories(founderSeenMemories);
 
   return (
-    <section className="wizardPanel handoffPanel" aria-labelledby="handoff-heading">
+    <section className="wizardPanel handoffPanel cinematicHandoffPanel" aria-labelledby="handoff-heading">
       <div className="handoffHero" aria-hidden="true">
         <div className="handoffPhone">
           <div className="handoffPhoneGlow" />
@@ -2673,7 +2673,6 @@ function ResultsStep({
         <div className={peopleMode === "couple" ? "resultsPeoplePanel resultsPeoplePanelCouple" : "resultsPeoplePanel"}>
           {(peopleMode === "couple" ? participantEntries.slice(0, 1) : participantEntries).map((participant) => (
             <div key={participant.id} className="resultsPerson">
-              <div className="resultsPersonAvatar">{participant.label.slice(0, 1)}</div>
               <div className="resultsPersonMeta">
                 <strong>{participant.label}</strong>
                 <span>
@@ -2686,6 +2685,7 @@ function ResultsStep({
                       : "No vote"}
                 </span>
               </div>
+              <div className="resultsPersonAvatar">{participant.label.slice(0, 1)}</div>
             </div>
           ))}
           {peopleMode === "couple" ? (
