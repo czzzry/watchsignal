@@ -7,6 +7,7 @@ from movie_night_mediator.app.recommendation_snapshot import (
     SnapshottingRecommendationService,
 )
 from movie_night_mediator.domain.models import (
+    Candidate,
     CandidateSource,
     CandidateSafety,
     HouseholdDefaults,
@@ -175,6 +176,63 @@ def get_candidate_source_shortlist(
         household_defaults=household_defaults,
         limit=candidate_limit,
     )
+    result = _score_candidate_source_candidates(
+        candidates,
+        session=session,
+        household_defaults=household_defaults,
+        users=users,
+        scorer=scorer,
+        snapshot_service=snapshot_service,
+    )
+    return result[:limit]
+
+
+def get_candidate_source_shortlist_items(
+    candidate_source: CandidateSource,
+    *,
+    session: SessionContext,
+    household_defaults: HouseholdDefaults,
+    users: tuple[UserProfile, ...],
+    limit: int = 5,
+    candidate_limit: int = 20,
+    scorer: HeuristicScorer | None = None,
+    snapshot_service: RecommendationSnapshotService | None = None,
+) -> tuple[OfflineShortlistItem, ...]:
+    candidates = candidate_source.fetch_candidates(
+        session=session,
+        household_defaults=household_defaults,
+        limit=candidate_limit,
+    )
+    ranked_candidates = _score_candidate_source_candidates(
+        candidates,
+        session=session,
+        household_defaults=household_defaults,
+        users=users,
+        scorer=scorer,
+        snapshot_service=snapshot_service,
+    )[:limit]
+    candidates_by_source_id = {
+        candidate.source_movie_id: candidate for candidate in candidates
+    }
+    return tuple(
+        _candidate_source_shortlist_item(
+            ranked,
+            candidates_by_source_id[ranked.source_movie_id],
+        )
+        for ranked in ranked_candidates
+        if ranked.source_movie_id in candidates_by_source_id
+    )
+
+
+def _score_candidate_source_candidates(
+    candidates: tuple[Candidate, ...],
+    *,
+    session: SessionContext,
+    household_defaults: HouseholdDefaults,
+    users: tuple[UserProfile, ...],
+    scorer: HeuristicScorer | None,
+    snapshot_service: RecommendationSnapshotService | None,
+) -> tuple[RankedCandidate, ...]:
     request = ScoringRequest(
         session=session,
         household_defaults=household_defaults,
@@ -189,7 +247,49 @@ def get_candidate_source_shortlist(
             scorer=resolved_scorer,
             snapshot_service=snapshot_service,
         ).score_and_save_snapshot(request)
-    return result.ranked_candidates[:limit]
+    return result.ranked_candidates
+
+
+def _candidate_source_shortlist_item(
+    ranked: RankedCandidate,
+    candidate: Candidate,
+) -> OfflineShortlistItem:
+    return OfflineShortlistItem(
+        source_movie_id=ranked.source_movie_id,
+        title=ranked.title,
+        candidate_rank=ranked.candidate_rank,
+        media_type=candidate.media_type,
+        year=candidate.release_year,
+        release_year=candidate.release_year,
+        runtime=_format_runtime_label(candidate.runtime_min),
+        runtime_min=candidate.runtime_min,
+        genres=candidate.genres,
+        provider_names=candidate.providers,
+        provider_availability=tuple(
+            OfflineShortlistProviderAvailability(
+                provider_name=availability.provider_name,
+                access_type=availability.access_type.value,
+                region=availability.region,
+            )
+            for availability in candidate.provider_availability
+        ),
+        poster_url=None,
+        top_cast=(),
+        safe_pick_status=_safe_pick_status_label(candidate.safety_status),
+        availability=_availability_summary(candidate.provider_availability),
+        language_access=_language_access_summary(candidate),
+        tone=_tone_summary(candidate.genres),
+        reason=ranked.why_short,
+        fit_bucket=ranked.fit_bucket,
+        group_score=ranked.group_score,
+        founder_score=_to_display_score(ranked.user_a_score),
+        wife_score=_to_display_score(ranked.user_b_score),
+        why_short=ranked.why_short,
+        is_interesting_pick=ranked.is_interesting_pick,
+        original_language=candidate.original_language,
+        spoken_languages=candidate.spoken_languages,
+        english_subtitles_verified=candidate.english_subtitles_verified,
+    )
 
 
 def _format_runtime_label(runtime_min: int | None) -> str | None:
