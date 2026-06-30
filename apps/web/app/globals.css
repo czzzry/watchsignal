@@ -547,18 +547,19 @@ summary:focus-visible {
 .startupDisplayTitle {
   margin: 0;
   font-family: "New York", "Iowan Old Style", Georgia, "Times New Roman", serif;
-  font-size: 2.12rem;
-  line-height: 0.98;
+  font-size: clamp(1.86rem, 8vw, 2.12rem);
+  line-height: 1;
   letter-spacing: 0;
   font-weight: 700;
   display: grid;
   gap: 0;
-  max-width: none;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .startupDisplayLine {
   display: block;
-  white-space: nowrap;
+  max-width: 100%;
 }
 
 .startupDisplayTitle em {
@@ -573,7 +574,7 @@ summary:focus-visible {
   position: relative;
   display: grid;
   align-content: start;
-  margin: 6px -20px 0;
+  margin: 6px 0 0;
   padding-top: 0;
   padding-bottom: 0;
   overflow: hidden;
@@ -634,7 +635,7 @@ summary:focus-visible {
 .startupBoardShell {
   position: relative;
   z-index: 2;
-  width: min(calc(100% - 82px), 300px);
+  width: min(100%, 300px);
   justify-self: center;
   margin: -88px 0 0;
   padding: 0;
@@ -696,7 +697,7 @@ summary:focus-visible {
 .startupControlBoard {
   border: 0;
   border-radius: 17px;
-  padding: 6px 14px;
+  padding: 6px 12px;
   background:
     linear-gradient(180deg, rgba(255,255,255,0.026), rgba(255,255,255,0.008)),
     rgba(255,255,255,0.02);
@@ -726,7 +727,7 @@ summary:focus-visible {
   background: transparent;
   color: inherit;
   display: grid;
-  grid-template-columns: minmax(0, 106px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 98px) minmax(0, 1fr);
   align-items: center;
   column-gap: 10px;
   text-align: left;
@@ -736,7 +737,7 @@ summary:focus-visible {
 }
 
 .startupRowSummaryStaticAvailability {
-  grid-template-columns: minmax(0, 106px) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 98px) minmax(0, 1fr) auto;
 }
 
 .startupRowSummaryButton:hover:enabled {
@@ -762,7 +763,7 @@ summary:focus-visible {
 
 .startupRowSummaryAction {
   color: #b78fff;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 560;
   white-space: nowrap;
 }
@@ -855,7 +856,7 @@ summary:focus-visible {
 }
 
 .startupBoardFooterStandalone {
-  width: min(calc(100% - 58px), 300px);
+  width: min(100%, 300px);
   justify-self: center;
   margin-top: 12px;
   padding: 0;
