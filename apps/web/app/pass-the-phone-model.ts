@@ -4,6 +4,12 @@ import type {
 } from "./session-client";
 import type { DemoCandidate, ReactionValue } from "./session-fixtures";
 
+export type ApiHealth = {
+  connected: boolean;
+  label: "Connected" | "Disconnected";
+  detail: string;
+};
+
 export type WizardStep = "setup" | "founder" | "handoff" | "wife" | "results";
 
 export type ReactionState = Record<string, ReactionValue | undefined>;
