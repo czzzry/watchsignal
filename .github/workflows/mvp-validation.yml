@@ -21,7 +21,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
-          cache: pnpm
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -29,7 +28,9 @@ jobs:
           python-version: "3.11"
 
       - name: Enable pnpm
-        run: corepack enable
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.0.0 --activate
 
       - name: Install JavaScript dependencies
         run: pnpm install --frozen-lockfile
