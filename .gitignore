@@ -18,5 +18,6 @@ apps/api/.venv/
 *.db
 *.sqlite
 *.sqlite3
+apps/api/data/taste_lab_seed_queue.generated.json
 .DS_Store
 /.treehouse

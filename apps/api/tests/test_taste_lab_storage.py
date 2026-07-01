@@ -48,7 +48,7 @@ class TasteLabStorageTest(unittest.TestCase):
             ["movielens:2", "movielens:3"],
         )
 
-    def test_havent_seen_is_deprioritized_as_fallback_not_dislike(self) -> None:
+    def test_havent_seen_is_removed_from_queue_without_becoming_dislike(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             service = TasteLabService(
                 SQLiteTasteLabStore(database_path=Path(directory) / "taste-lab.sqlite3")
@@ -79,7 +79,7 @@ class TasteLabStorageTest(unittest.TestCase):
         self.assertFalse(saved[0].is_importable_preference)
         self.assertEqual(
             [candidate.movie.source_movie_id for candidate in next_batch],
-            ["movielens:2", "movielens:3", "movielens:1"],
+            ["movielens:2", "movielens:3"],
         )
 
     def test_ratings_survive_sqlite_round_trip(self) -> None:

@@ -50,16 +50,35 @@ export type TasteLabRatingExportPayload = {
   queueProvenance?: TasteLabQueueProvenancePayload | null;
 };
 
+const DEFAULT_TASTE_LAB_API_BASE_URL = "http://127.0.0.1:8000";
+
 export async function seedTasteLabCandidates(
   householdId: string,
   candidates: TasteLabCandidatePayload[],
 ): Promise<void> {
   const query = new URLSearchParams({ householdId });
-  const response = await fetch(`/api/taste-lab/candidates?${query.toString()}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(candidates),
-  });
+  const response = await fetch(
+    tasteLabApiUrl(`/taste-lab/candidates?${query.toString()}`),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(candidates),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await parseApiError(response));
+  }
+}
+
+export async function seedDefaultTasteLabCandidates(
+  householdId: string,
+): Promise<void> {
+  const query = new URLSearchParams({ householdId });
+  const response = await fetch(
+    tasteLabApiUrl(`/taste-lab/default-candidates?${query.toString()}`),
+    { method: "POST" },
+  );
 
   if (!response.ok) {
     throw new Error(await parseApiError(response));
@@ -76,7 +95,9 @@ export async function getTasteLabQueue(
     limit: String(limit),
   });
   const response = await fetch(
-    `/api/taste-lab/${encodeURIComponent(profileId)}/queue?${query.toString()}`,
+    tasteLabApiUrl(
+      `/taste-lab/${encodeURIComponent(profileId)}/queue?${query.toString()}`,
+    ),
     { method: "GET" },
   );
 
@@ -93,7 +114,7 @@ export async function submitTasteLabRatings(
   ratings: TasteLabRatingInputPayload[],
 ): Promise<TasteLabRatingExportPayload[]> {
   const response = await fetch(
-    `/api/taste-lab/${encodeURIComponent(profileId)}/ratings`,
+    tasteLabApiUrl(`/taste-lab/${encodeURIComponent(profileId)}/ratings`),
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -114,7 +135,9 @@ export async function getTasteLabRatings(
 ): Promise<TasteLabRatingExportPayload[]> {
   const query = new URLSearchParams({ householdId });
   const response = await fetch(
-    `/api/taste-lab/${encodeURIComponent(profileId)}/ratings?${query.toString()}`,
+    tasteLabApiUrl(
+      `/taste-lab/${encodeURIComponent(profileId)}/ratings?${query.toString()}`,
+    ),
     { method: "GET" },
   );
 
@@ -123,6 +146,13 @@ export async function getTasteLabRatings(
   }
 
   return (await response.json()) as TasteLabRatingExportPayload[];
+}
+
+function tasteLabApiUrl(path: string): string {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_TASTE_LAB_API_BASE_URL ?? DEFAULT_TASTE_LAB_API_BASE_URL;
+
+  return new URL(path, baseUrl).toString();
 }
 
 async function parseApiError(response: Response): Promise<string> {

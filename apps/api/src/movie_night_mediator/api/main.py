@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 from typing import Annotated, Literal
 
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from movie_night_mediator.adapters import (
@@ -85,6 +87,7 @@ from movie_night_mediator.taste_lab import (
     TasteLabRatingInput,
     TasteLabRatingLabel,
     TasteLabService,
+    default_taste_lab_candidates,
 )
 
 
@@ -449,12 +452,24 @@ def create_app(
     session_store: SQLiteSessionStore | None = None,
     recommendation_snapshot_store: SQLiteRecommendationSnapshotStore | None = None,
     taste_lab_store: SQLiteTasteLabStore | None = None,
+    taste_lab_seed_queue_path: Path | str | None = None,
     candidate_source: CandidateSource | None = None,
 ) -> FastAPI:
     app = FastAPI(
         title="Movie Night Mediator API",
         version="0.1.0",
         description="Local API for the code-first Movie Night Mediator prototype.",
+    )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=(
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:3109",
+            "http://localhost:3000",
+            "http://localhost:3109",
+        ),
+        allow_methods=("*",),
+        allow_headers=("*",),
     )
     resolved_setup_store = setup_store or SQLiteSetupStore()
     resolved_onboarding_store = onboarding_store or SQLiteOnboardingStore()
@@ -709,6 +724,22 @@ def create_app(
                     _payload_to_taste_lab_candidate(candidate)
                     for candidate in candidates
                 ),
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+
+    @app.post(
+        "/taste-lab/default-candidates",
+        status_code=204,
+        tags=["taste-lab"],
+    )
+    def post_default_taste_lab_candidates(
+        householdId: str = DEFAULT_HOUSEHOLD_ID,
+    ) -> None:
+        try:
+            taste_lab_service.seed_candidates(
+                household_id=householdId,
+                candidates=default_taste_lab_candidates(taste_lab_seed_queue_path),
             )
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error

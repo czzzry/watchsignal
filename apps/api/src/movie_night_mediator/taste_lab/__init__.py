@@ -10,6 +10,9 @@ from movie_night_mediator.taste_lab.export_contract import (
     preference_value_for_label,
     watchsignal_signal_for_label,
 )
+from movie_night_mediator.taste_lab.default_seed_queue import (
+    default_taste_lab_candidates,
+)
 from movie_night_mediator.taste_lab.evaluation import (
     TasteLabEvaluationReport,
     TasteLabEvaluationResult,
@@ -56,6 +59,7 @@ __all__ = [
     "TasteLabStore",
     "WatchSignalTasteSignal",
     "familiarity_for_label",
+    "default_taste_lab_candidates",
     "evaluate_strategy",
     "load_movielens_movies",
     "load_movielens_ratings",

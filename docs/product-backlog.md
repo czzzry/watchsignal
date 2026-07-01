@@ -46,7 +46,25 @@ Candidate work:
 - Show completed count and remaining count in the taste entry UI.
 - Explore faster title search, suggested seed lists, bulk entry, and lighter guided prompts.
 - Improve the onboarding-required screen if it becomes demo-facing or public-facing.
+- Add mature profile selection where each person can enter a name and choose from available avatars.
+- For the full product, consider letting users take a photo or select an existing phone photo as their profile image.
 - Add a manual watched-history backfill path that is fast enough to use casually.
+
+### Taste Lab UX Stabilization
+
+- Fix movie poster loading in the private Taste Lab flow.
+- Make the initial action clear so users do not need to press refresh after seeding the demo queue.
+- Rename or reposition `Save batch` so it reads like a confirmation action at the end of a rating batch.
+- Keep confirmation controls near the bottom of the rating flow, where users expect them after reviewing the cards.
+- Explain whether actions were saved and what will happen after saving.
+- Keep `Haven't seen` as familiarity only, not a taste vote.
+- Remove `Haven't seen` items from the rapid-rating queue after confirmation so users are not asked about the same movie again.
+- Make refresh behavior understandable when no unrated candidates remain.
+- Support the intended loop from the bottom of the page: generate 10 movies, rate them, confirm the batch, then generate the next 10 without scrolling back to the top.
+- Ensure each new generated batch excludes movies already answered, including movies marked `Haven't seen`.
+- Replace the fallback message `Session API is not reachable at http://127.0.0.1:8000. Using the local demo flow.` with clearer user-facing recovery copy.
+- Add a better empty or stalled state when the queue cannot refresh from the API.
+- Treat the current private Taste Lab UI as functionally useful but not mature-product quality.
 
 ### Result Actions And Library
 

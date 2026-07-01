@@ -269,6 +269,7 @@ summary:focus-visible {
 .tasteLabHeader,
 .tasteLabControlPanel,
 .tasteLabQueueHeader,
+.tasteLabBatchFooter,
 .tasteLabStatus {
   border: 1px solid var(--line);
   background: rgba(5, 9, 15, 0.88);
@@ -321,7 +322,7 @@ summary:focus-visible {
 
 .tasteLabProfileTabs button,
 .tasteLabActions button,
-.tasteLabQueueHeader button {
+.tasteLabBatchFooter button {
   min-height: 46px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 16px;
@@ -330,10 +331,14 @@ summary:focus-visible {
 }
 
 .tasteLabProfileTabs button.isActive,
-.tasteLabQueueHeader button {
+.tasteLabBatchFooter button {
   border-color: rgba(120, 240, 255, 0.34);
   background:
     linear-gradient(135deg, rgba(120, 240, 255, 0.24), rgba(191, 143, 255, 0.3));
+}
+
+.tasteLabBatchFooter button:disabled {
+  opacity: 0.54;
 }
 
 .tasteLabStats {
@@ -373,6 +378,20 @@ summary:focus-visible {
 
 .tasteLabQueueHeader h2 {
   font-size: 1.35rem;
+}
+
+.tasteLabBatchFooter {
+  border-radius: 22px;
+  padding: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.tasteLabBatchFooter p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  text-align: center;
 }
 
 .tasteLabStatus {

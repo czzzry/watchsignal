@@ -86,30 +86,13 @@ class TasteLabService:
             household_id=normalized_household_id,
             profile_id=normalized_profile_id,
         )
-        importable_rated_ids = {
-            rating.movie.source_movie_id
-            for rating in ratings
-            if rating.is_importable_preference
-        }
-        unseen_ids = {
-            rating.movie.source_movie_id
-            for rating in ratings
-            if not rating.is_importable_preference
-        }
+        previously_answered_ids = {rating.movie.source_movie_id for rating in ratings}
 
-        primary_candidates = tuple(
+        return tuple(
             candidate
             for candidate in candidates
-            if candidate.movie.source_movie_id not in importable_rated_ids
-            and candidate.movie.source_movie_id not in unseen_ids
-        )
-        fallback_unseen_candidates = tuple(
-            candidate
-            for candidate in candidates
-            if candidate.movie.source_movie_id in unseen_ids
-        )
-
-        return (primary_candidates + fallback_unseen_candidates)[:limit]
+            if candidate.movie.source_movie_id not in previously_answered_ids
+        )[:limit]
 
     def submit_batch(
         self,

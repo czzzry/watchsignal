@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   getTasteLabQueue,
   getTasteLabRatings,
-  seedTasteLabCandidates,
+  seedDefaultTasteLabCandidates,
   submitTasteLabRatings,
   type TasteLabCandidatePayload,
   type TasteLabRatingExportPayload,
@@ -27,7 +27,7 @@ const labels: {
   { value: "liked", label: "Liked", cue: "good fit" },
   { value: "meh", label: "Meh", cue: "neutral" },
   { value: "hated", label: "Hated", cue: "strong no" },
-  { value: "havent_seen", label: "Haven't seen", cue: "skip for now" },
+  { value: "havent_seen", label: "Haven't seen", cue: "not a taste vote" },
 ];
 
 export default function TasteLabPage() {
@@ -51,34 +51,75 @@ export default function TasteLabPage() {
     setBusy(true);
     setStatus("Refreshing the queue.");
     try {
-      const [nextQueue, savedRatings] = await Promise.all([
-        getTasteLabQueue(householdId, nextProfileId, 10),
-        getTasteLabRatings(householdId, nextProfileId),
-      ]);
-      setQueue(nextQueue);
-      setHistory(savedRatings);
-      setRatings({});
+      const { nextQueue, savedRatings } = await loadProfileState(nextProfileId);
       setStatus(
         nextQueue.length > 0
           ? "Queue ready."
-          : "No candidates yet. Seed the demo queue to start.",
+          : savedRatings.length > 0
+            ? `No unrated demo movies remain for ${profileLabel(nextProfileId)}.`
+          : "No candidates yet. Load the high-signal queue to start.",
       );
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Taste Lab could not load.");
+      const nextQueue = localDemoQueue(history);
+      setQueue(nextQueue);
+      setRatings({});
+      setStatus(
+        nextQueue.length > 0
+          ? "API offline. Showing the remaining local demo queue."
+          : "API offline. No local demo candidates remain for this profile.",
+      );
     } finally {
       setBusy(false);
     }
   }
 
-  async function seedDemoQueue() {
+  async function loadProfileState(nextProfileId = profileId): Promise<{
+    nextQueue: TasteLabCandidatePayload[];
+    savedRatings: TasteLabRatingExportPayload[];
+  }> {
+    const [nextQueue, savedRatings] = await Promise.all([
+      getTasteLabQueue(householdId, nextProfileId, 10),
+      getTasteLabRatings(householdId, nextProfileId),
+    ]);
+
+    setQueue(nextQueue);
+    setHistory(savedRatings);
+    setRatings({});
+
+    return { nextQueue, savedRatings };
+  }
+
+  async function seedSmartQueue() {
     setBusy(true);
-    setStatus("Seeding demo candidates.");
+    setStatus("Loading the high-signal queue.");
     try {
-      await seedTasteLabCandidates(householdId, demoTasteLabCandidates);
-      await refresh(profileId);
-      setStatus("Demo queue seeded.");
+      await seedDefaultTasteLabCandidates(householdId);
+      const { nextQueue, savedRatings } = await loadProfileState(profileId);
+      setStatus(
+        nextQueue.length > 0
+          ? "High-signal queue loaded. Rate this batch, then confirm at the bottom."
+          : savedRatings.length > 0
+            ? `All high-signal starter movies are already answered for ${activeProfile.label}. Switch profiles or reset the test data to start over.`
+            : "High-signal queue loaded, but no batch came back.",
+      );
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Demo queue could not be seeded.");
+      const message =
+        error instanceof Error ? error.message : "High-signal queue could not be loaded.";
+      if (message.includes("Taste Lab seed queue artifact is missing")) {
+        setQueue([]);
+        setRatings({});
+        setStatus(message);
+        return;
+      }
+
+      const nextQueue = demoTasteLabCandidates;
+      setQueue(nextQueue);
+      setRatings({});
+      setStatus(
+        nextQueue.length > 0
+          ? "API offline. Loaded the small local fallback queue. Ratings will stay in this browser until the API reconnects."
+          : "API offline. No local demo candidates are available.",
+      );
     } finally {
       setBusy(false);
     }
@@ -103,10 +144,29 @@ export default function TasteLabPage() {
     setStatus("Saving taste signals.");
     try {
       await submitTasteLabRatings(householdId, profileId, selectedRatings);
-      await refresh(profileId);
-      setStatus(`${selectedRatings.length} signal${selectedRatings.length === 1 ? "" : "s"} saved.`);
+      const { nextQueue } = await loadProfileState(profileId);
+      setStatus(
+        nextQueue.length > 0
+          ? `${selectedRatings.length} signal${selectedRatings.length === 1 ? "" : "s"} saved. Next batch is ready.`
+          : `${selectedRatings.length} signal${selectedRatings.length === 1 ? "" : "s"} saved. No unrated demo movies remain for ${activeProfile.label}.`,
+      );
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Ratings could not be saved.");
+      const savedAt = new Date().toISOString();
+      const localRatings = selectedRatings.map((rating) =>
+        localRatingExport(householdId, profileId, rating, savedAt),
+      );
+      const ratedMovieIds = new Set(
+        selectedRatings.map((rating) => rating.movie.sourceMovieId),
+      );
+
+      setHistory((current) => [...localRatings, ...current]);
+      setQueue((current) =>
+        current.filter((candidate) => !ratedMovieIds.has(candidate.movie.sourceMovieId)),
+      );
+      setRatings({});
+      setStatus(
+        `${selectedRatings.length} local signal${selectedRatings.length === 1 ? "" : "s"} captured. API is offline, so this is not permanently saved yet.`,
+      );
     } finally {
       setBusy(false);
     }
@@ -165,11 +225,11 @@ export default function TasteLabPage() {
         </div>
 
         <div className="tasteLabActions">
-          <button type="button" onClick={seedDemoQueue} disabled={busy}>
-            Seed demo queue
+          <button type="button" onClick={seedSmartQueue} disabled={busy}>
+            Load high-signal queue
           </button>
           <button type="button" onClick={() => refresh(profileId)} disabled={busy}>
-            Refresh
+            Check next batch
           </button>
         </div>
       </section>
@@ -179,9 +239,6 @@ export default function TasteLabPage() {
           <p className="eyebrow">{activeProfile.label}'s batch</p>
           <h2>{selectedCount} of {queue.length} selected</h2>
         </div>
-        <button type="button" onClick={submitBatch} disabled={busy || selectedCount === 0}>
-          Save batch
-        </button>
       </section>
 
       <section className="tasteLabStatus" aria-live="polite">
@@ -237,16 +294,88 @@ export default function TasteLabPage() {
           </article>
         ))}
       </section>
+
+      <section className="tasteLabBatchFooter" aria-label="Taste Lab batch actions">
+        {queue.length > 0 ? (
+          <>
+            <button type="button" onClick={submitBatch} disabled={busy || selectedCount === 0}>
+              Confirm ratings
+            </button>
+            <p>
+              {selectedCount === 0
+                ? "Select a reaction for at least one movie, then confirm."
+                : `${selectedCount} selected for ${activeProfile.label}.`}
+            </p>
+          </>
+        ) : (
+          <>
+            <button type="button" onClick={seedSmartQueue} disabled={busy}>
+              Load high-signal queue
+            </button>
+            <p>
+              Use this to start calibration or check whether any unrated starter movies remain.
+            </p>
+          </>
+        )}
+      </section>
     </main>
   );
 }
 
+function profileLabel(profileId: string): string {
+  return profiles.find((profile) => profile.id === profileId)?.label ?? profileId;
+}
+
 function posterUrl(path: string): string {
-  if (path.startsWith("http") || path.startsWith("/")) {
+  if (path.startsWith("http")) {
     return path;
   }
 
   return `https://image.tmdb.org/t/p/w342${path}`;
+}
+
+function localDemoQueue(
+  savedRatings: TasteLabRatingExportPayload[],
+): TasteLabCandidatePayload[] {
+  const ratedMovieIds = new Set(
+    savedRatings.map((rating) => rating.movie.sourceMovieId),
+  );
+
+  return demoTasteLabCandidates.filter(
+    (candidate) => !ratedMovieIds.has(candidate.movie.sourceMovieId),
+  );
+}
+
+function localRatingExport(
+  householdId: string,
+  profileId: string,
+  rating: TasteLabRatingInputPayload,
+  ratedAt: string,
+): TasteLabRatingExportPayload {
+  const preferenceValueByLabel: Record<TasteLabRatingLabel, number | null> = {
+    loved: 2,
+    liked: 1,
+    meh: 0,
+    hated: -2,
+    havent_seen: null,
+  };
+  const isImportablePreference = rating.label !== "havent_seen";
+
+  return {
+    schemaVersion: "taste_lab.rating_export.v1",
+    householdId,
+    profileId,
+    movie: rating.movie,
+    label: rating.label,
+    familiarity: isImportablePreference ? "seen" : "unseen",
+    preferenceValue: preferenceValueByLabel[rating.label],
+    watchsignalTasteSignal: isImportablePreference
+      ? `Local Taste Lab demo: ${rating.label}`
+      : "Local Taste Lab demo: not seen",
+    isImportablePreference,
+    ratedAt,
+    queueProvenance: rating.queueProvenance ?? null,
+  };
 }
 
 function percent(value: number | null | undefined): string {
