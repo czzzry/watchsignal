@@ -10,6 +10,21 @@ from movie_night_mediator.taste_lab.export_contract import (
     preference_value_for_label,
     watchsignal_signal_for_label,
 )
+from movie_night_mediator.taste_lab.evaluation import (
+    TasteLabEvaluationReport,
+    TasteLabEvaluationResult,
+    TasteLabEvaluationRow,
+    TasteLabEvaluationStrategy,
+    evaluate_strategy,
+    run_fixture_evaluation,
+    taste_lab_ratings_to_onboarding_seeds,
+)
+from movie_night_mediator.taste_lab.service import (
+    TasteLabCandidate,
+    TasteLabRatingInput,
+    TasteLabService,
+    TasteLabStore,
+)
 from movie_night_mediator.taste_lab.signal_score import (
     MovieLensMovie,
     MovieLensRating,
@@ -29,13 +44,24 @@ __all__ = [
     "TasteLabFamiliarity",
     "TasteLabMovieIdentity",
     "TasteLabQueueProvenance",
+    "TasteLabCandidate",
+    "TasteLabEvaluationReport",
+    "TasteLabEvaluationResult",
+    "TasteLabEvaluationRow",
+    "TasteLabEvaluationStrategy",
     "TasteLabRatingExport",
+    "TasteLabRatingInput",
     "TasteLabRatingLabel",
+    "TasteLabService",
+    "TasteLabStore",
     "WatchSignalTasteSignal",
     "familiarity_for_label",
+    "evaluate_strategy",
     "load_movielens_movies",
     "load_movielens_ratings",
     "preference_value_for_label",
     "rank_signal_candidates",
+    "run_fixture_evaluation",
+    "taste_lab_ratings_to_onboarding_seeds",
     "watchsignal_signal_for_label",
 ]

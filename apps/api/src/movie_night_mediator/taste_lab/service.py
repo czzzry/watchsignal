@@ -1,0 +1,160 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Protocol
+
+from movie_night_mediator.taste_lab.export_contract import (
+    TasteLabMovieIdentity,
+    TasteLabQueueProvenance,
+    TasteLabRatingExport,
+    TasteLabRatingLabel,
+)
+
+
+@dataclass(frozen=True)
+class TasteLabCandidate:
+    movie: TasteLabMovieIdentity
+    queue_provenance: TasteLabQueueProvenance
+
+
+@dataclass(frozen=True)
+class TasteLabRatingInput:
+    movie: TasteLabMovieIdentity
+    label: TasteLabRatingLabel
+    queue_provenance: TasteLabQueueProvenance | None = None
+    rated_at: str | None = None
+
+
+class TasteLabStore(Protocol):
+    def upsert_candidates(
+        self,
+        *,
+        household_id: str,
+        candidates: tuple[TasteLabCandidate, ...],
+    ) -> None:
+        raise NotImplementedError
+
+    def list_candidates(self, *, household_id: str) -> tuple[TasteLabCandidate, ...]:
+        raise NotImplementedError
+
+    def save_ratings(
+        self,
+        *,
+        ratings: tuple[TasteLabRatingExport, ...],
+    ) -> tuple[TasteLabRatingExport, ...]:
+        raise NotImplementedError
+
+    def list_ratings(
+        self,
+        *,
+        household_id: str,
+        profile_id: str,
+    ) -> tuple[TasteLabRatingExport, ...]:
+        raise NotImplementedError
+
+
+class TasteLabService:
+    def __init__(self, store: TasteLabStore) -> None:
+        self.store = store
+
+    def seed_candidates(
+        self,
+        *,
+        household_id: str,
+        candidates: tuple[TasteLabCandidate, ...],
+    ) -> None:
+        self.store.upsert_candidates(
+            household_id=_require_non_empty(household_id, "household_id"),
+            candidates=candidates,
+        )
+
+    def next_batch(
+        self,
+        *,
+        household_id: str,
+        profile_id: str,
+        limit: int = 10,
+    ) -> tuple[TasteLabCandidate, ...]:
+        if limit < 1:
+            raise ValueError("Taste Lab batch size must be at least 1.")
+
+        normalized_household_id = _require_non_empty(household_id, "household_id")
+        normalized_profile_id = _require_non_empty(profile_id, "profile_id")
+        candidates = self.store.list_candidates(household_id=normalized_household_id)
+        ratings = self.store.list_ratings(
+            household_id=normalized_household_id,
+            profile_id=normalized_profile_id,
+        )
+        importable_rated_ids = {
+            rating.movie.source_movie_id
+            for rating in ratings
+            if rating.is_importable_preference
+        }
+        unseen_ids = {
+            rating.movie.source_movie_id
+            for rating in ratings
+            if not rating.is_importable_preference
+        }
+
+        primary_candidates = tuple(
+            candidate
+            for candidate in candidates
+            if candidate.movie.source_movie_id not in importable_rated_ids
+            and candidate.movie.source_movie_id not in unseen_ids
+        )
+        fallback_unseen_candidates = tuple(
+            candidate
+            for candidate in candidates
+            if candidate.movie.source_movie_id in unseen_ids
+        )
+
+        return (primary_candidates + fallback_unseen_candidates)[:limit]
+
+    def submit_batch(
+        self,
+        *,
+        household_id: str,
+        profile_id: str,
+        ratings: tuple[TasteLabRatingInput, ...],
+    ) -> tuple[TasteLabRatingExport, ...]:
+        if not ratings:
+            raise ValueError("Taste Lab rating batch cannot be empty.")
+
+        normalized_household_id = _require_non_empty(household_id, "household_id")
+        normalized_profile_id = _require_non_empty(profile_id, "profile_id")
+        exports = tuple(
+            TasteLabRatingExport(
+                household_id=normalized_household_id,
+                profile_id=normalized_profile_id,
+                movie=rating.movie,
+                label=rating.label,
+                rated_at=rating.rated_at or _current_timestamp(),
+                queue_provenance=rating.queue_provenance,
+            )
+            for rating in ratings
+        )
+        return self.store.save_ratings(ratings=exports)
+
+    def list_profile_ratings(
+        self,
+        *,
+        household_id: str,
+        profile_id: str,
+    ) -> tuple[TasteLabRatingExport, ...]:
+        return self.store.list_ratings(
+            household_id=_require_non_empty(household_id, "household_id"),
+            profile_id=_require_non_empty(profile_id, "profile_id"),
+        )
+
+
+def _current_timestamp() -> str:
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _require_non_empty(value: str, field_name: str) -> str:
+    normalized_value = value.strip()
+    if not normalized_value:
+        raise ValueError(f"{field_name} cannot be empty.")
+
+    return normalized_value
