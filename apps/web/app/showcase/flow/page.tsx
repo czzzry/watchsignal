@@ -1,7 +1,13 @@
 import { demoCandidates } from "../../session-fixtures";
 
-const arrival = demoCandidates[0];
-const knivesOut = demoCandidates[1];
+const arrival = {
+  ...demoCandidates[0],
+  posterUrl: "https://image.tmdb.org/t/p/w500/x2FJsf1ElAgr63Y3PNPtJrcmpoe.jpg",
+};
+const knivesOut = {
+  ...demoCandidates[1],
+  posterUrl: "https://image.tmdb.org/t/p/w500/pThyQovXQrw2m0s9x82twj48Jq4.jpg",
+};
 
 export const metadata = {
   title: "WatchSignal Flow",
@@ -39,9 +45,18 @@ export default function ShowcaseFlowPage() {
             </div>
             <MovieCard title={arrival.title} posterUrl={arrival.posterUrl} tag="Smart + emotional" />
             <div className="flowActionRow">
-              <span className="flowAction flowActionYes">Interested</span>
-              <span className="flowAction">Maybe</span>
-              <span className="flowAction">No</span>
+              <span className="flowAction flowActionYes">
+                <span className="flowActionIcon" aria-hidden="true">♥</span>
+                Interested
+              </span>
+              <span className="flowAction">
+                <span className="flowActionIcon" aria-hidden="true">●</span>
+                Maybe
+              </span>
+              <span className="flowAction">
+                <span className="flowActionIcon" aria-hidden="true">×</span>
+                No
+              </span>
             </div>
             <div className="flowTap flowTapSandy">tap</div>
           </article>
@@ -53,9 +68,18 @@ export default function ShowcaseFlowPage() {
             </div>
             <MovieCard title={knivesOut.title} posterUrl={knivesOut.posterUrl} tag="Funny + easy yes" />
             <div className="flowActionRow">
-              <span className="flowAction">Interested</span>
-              <span className="flowAction flowActionMaybe">Maybe</span>
-              <span className="flowAction">No</span>
+              <span className="flowAction">
+                <span className="flowActionIcon" aria-hidden="true">♥</span>
+                Interested
+              </span>
+              <span className="flowAction flowActionMaybe">
+                <span className="flowActionIcon" aria-hidden="true">●</span>
+                Maybe
+              </span>
+              <span className="flowAction">
+                <span className="flowActionIcon" aria-hidden="true">×</span>
+                No
+              </span>
             </div>
             <div className="flowTap flowTapRobin">tap</div>
           </article>
