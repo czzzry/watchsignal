@@ -215,6 +215,66 @@ class TasteLabApiTest(unittest.TestCase):
             [f"movielens:{index}" for index in range(11, 21)],
         )
 
+    def test_taste_profile_summary_exposes_watchsignal_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            routes = taste_lab_route_endpoints(
+                create_app(
+                    taste_lab_store=SQLiteTasteLabStore(
+                        database_path=Path(directory) / "taste-lab.sqlite3"
+                    )
+                )
+            )
+            routes["seed_candidates"](
+                [_candidate_payload(1), _candidate_payload(2), _candidate_payload(3)],
+                householdId="household-1",
+            )
+            queue = routes["get_queue"](
+                profile_id="sandy",
+                householdId="household-1",
+                limit=3,
+            )
+
+            routes["post_ratings"](
+                profile_id="sandy",
+                payload=TasteLabSubmitRatingsPayload(
+                    householdId="household-1",
+                    ratings=[
+                        TasteLabRatingInputPayload(
+                            movie=queue[0].movie,
+                            label=TasteLabRatingLabel.LOVED,
+                            queueProvenance=queue[0].queueProvenance,
+                            ratedAt="2026-07-01T12:00:00Z",
+                        ),
+                        TasteLabRatingInputPayload(
+                            movie=queue[1].movie,
+                            label=TasteLabRatingLabel.HAVENT_SEEN,
+                            queueProvenance=queue[1].queueProvenance,
+                            ratedAt="2026-07-01T12:05:00Z",
+                        ),
+                    ],
+                ),
+            )
+            summary = routes["get_taste_profile_summary"](
+                profile_id="sandy",
+                householdId="household-1",
+            )
+            other_summary = routes["get_taste_profile_summary"](
+                profile_id="robin",
+                householdId="household-1",
+            )
+
+        self.assertEqual(summary.profileId, "sandy")
+        self.assertEqual(summary.ratingCount, 2)
+        self.assertEqual(summary.preferenceEvidenceCount, 1)
+        self.assertEqual(summary.familiarityOnlyCount, 1)
+        self.assertEqual(summary.evidence[0].source, "taste_lab")
+        self.assertEqual(summary.evidence[0].watchsignalTasteSignal, "strong_positive")
+        self.assertTrue(summary.evidence[0].isPreferenceEvidence)
+        self.assertEqual(summary.evidence[1].watchsignalTasteSignal, "familiarity_only")
+        self.assertFalse(summary.evidence[1].isPreferenceEvidence)
+        self.assertEqual(other_summary.profileId, "robin")
+        self.assertEqual(other_summary.ratingCount, 0)
+
 
 def taste_lab_route_endpoints(app):
     routes = {}
@@ -231,6 +291,9 @@ def taste_lab_route_endpoints(app):
         "get_queue": routes[("GET", "/taste-lab/{profile_id}/queue")],
         "post_ratings": routes[("POST", "/taste-lab/{profile_id}/ratings")],
         "get_ratings": routes[("GET", "/taste-lab/{profile_id}/ratings")],
+        "get_taste_profile_summary": routes[
+            ("GET", "/taste-profile/{profile_id}/summary")
+        ],
     }
 
 

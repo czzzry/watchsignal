@@ -150,6 +150,49 @@ class OnboardingSeed:
 
 
 @dataclass(frozen=True)
+class ProfileTasteEvidence:
+    source: str
+    source_movie_id: str
+    title: str
+    genres: tuple[str, ...] = ()
+    preference_value: float | None = None
+    familiarity: str | None = None
+    source_label: str | None = None
+    rated_at: str | None = None
+
+    def __post_init__(self) -> None:
+        normalized_source = self.source.strip()
+        normalized_source_movie_id = self.source_movie_id.strip()
+        normalized_title = self.title.strip()
+
+        if not normalized_source:
+            raise ValueError("Profile taste evidence requires a source.")
+
+        if not normalized_source_movie_id:
+            raise ValueError("Profile taste evidence requires a source movie id.")
+
+        if not normalized_title:
+            raise ValueError("Profile taste evidence requires a title.")
+
+        if (
+            self.preference_value is not None
+            and not -1.0 <= self.preference_value <= 1.0
+        ):
+            raise ValueError(
+                "Profile taste evidence preference value must be between -1 and 1."
+            )
+
+        object.__setattr__(self, "source", normalized_source)
+        object.__setattr__(self, "source_movie_id", normalized_source_movie_id)
+        object.__setattr__(self, "title", normalized_title)
+        object.__setattr__(
+            self,
+            "genres",
+            tuple(genre.strip() for genre in self.genres if genre.strip()),
+        )
+
+
+@dataclass(frozen=True)
 class TitleResolutionCandidate:
     source: str
     source_id: str
@@ -360,12 +403,13 @@ class UserProfile:
     role: str
     display_label: str
     onboarding_seeds: tuple[OnboardingSeed, ...] = ()
+    taste_profile_evidence: tuple[ProfileTasteEvidence, ...] = ()
     subtitle_intolerance: bool = False
     horror_exclusion: bool = False
 
     @property
     def is_onboarded(self) -> bool:
-        return bool(self.onboarding_seeds)
+        return bool(self.onboarding_seeds or self.taste_profile_evidence)
 
 
 @dataclass(frozen=True)

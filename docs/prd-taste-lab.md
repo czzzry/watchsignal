@@ -14,6 +14,23 @@ Taste Lab should start as a private calibration tool.
 It may live outside the polished couch-flow app at first.
 It must still produce structured data that can later be imported into WatchSignal or folded into the app itself.
 
+## MVP Plus 1 Outcome Amendment
+
+The MVP plus 1 outcome is not that Taste Lab exists as a standalone mini-app.
+The MVP plus 1 outcome is that a user can use Taste Lab and have their tastes updated in WatchSignal.
+
+Taste Lab should remain private and optional for now.
+Its ratings must still become durable WatchSignal taste data.
+The normal couch-flow app should be able to benefit from those signals without requiring Taste Lab itself to become part of the main user flow.
+
+The minimum outcome improvement is:
+
+> As a user, I can use Taste Lab and have my tastes updated to the WatchSignal app.
+
+This means the next work should prioritize the data path from Taste Lab to WatchSignal recommendations.
+The private Taste Lab route is only the input tool.
+The product win is that WatchSignal recommendations become visibly or explainably influenced by saved Taste Lab signals.
+
 ## Solution
 
 Build Taste Lab as a research-backed rapid rating loop.
@@ -25,6 +42,11 @@ The queue excludes already-rated movies, deprioritizes movies marked `Haven't se
 The first implementation should be deliberately modest.
 It should prove the queue-generation theory before investing in a polished UI.
 The system should be usable as a standalone tool, but all data contracts should be compatible with future WatchSignal ingestion.
+
+After the private rating loop works, the next implementation step is the payoff loop.
+Taste Lab ratings should feed a shared taste-profile read model.
+Recommendation scoring should read that model as an additive signal alongside onboarding, session reactions, watched-history backfill, and post-watch feedback.
+Taste Lab should not directly own the couch flow.
 
 ## User Stories
 
@@ -53,6 +75,9 @@ The system should be usable as a standalone tool, but all data contracts should 
 23. As a future WatchSignal user, I want the app to learn from both Taste Lab ratings and real session behavior, so that the profile improves over time.
 24. As a future WatchSignal user, I want each person's Taste Lab data kept separate, so that the couple profile does not blur individual preferences.
 25. As a future WatchSignal user, I want overlap calibration to use both people's taste signals, so that recommendations target shared enjoyment rather than one person's taste alone.
+26. As a WatchSignal user, I want Taste Lab ratings to update my WatchSignal taste profile, so that calibration effort improves the main app.
+27. As a WatchSignal user, I want recommendations to be influenced by my saved Taste Lab signals, so that the app reflects what it learned from calibration.
+28. As the founder, I want tests or evaluation output that prove Taste Lab data reaches recommendation inputs, so that MVP plus 1 is an outcome improvement rather than a separate tool.
 
 ## Implementation Decisions
 
@@ -74,6 +99,10 @@ The system should be usable as a standalone tool, but all data contracts should 
 - The main WatchSignal couch flow should not depend on Taste Lab being complete.
 - The import path should be additive, so Taste Lab ratings enrich taste data without overwriting existing session feedback.
 - The long-term architecture should allow Taste Lab to become either an internal WatchSignal route or remain a standalone calibration tool.
+- Taste Lab should remain outside the normal couch-flow UI until its recommendation payoff is proven.
+- Taste Lab ratings should feed WatchSignal through a shared taste-profile read model, not through direct coupling between the private route and couch flow.
+- Recommendation scoring should treat Taste Lab ratings as durable profile-level evidence.
+- The app should be able to explain, at least minimally, when saved taste data influenced a recommendation.
 
 ## Testing Decisions
 
@@ -85,6 +114,8 @@ The system should be usable as a standalone tool, but all data contracts should 
 - The first evaluation test should compare at least two strategies, such as popularity-only and hybrid signal score, on a controlled fixture.
 - UI tests can wait until the private Taste Lab route exists.
 - Recommendation-quality claims should require an evaluation harness or a recorded founder review, not only implementation confidence.
+- Tests should prove that Taste Lab ratings can be read as WatchSignal taste-profile inputs.
+- Tests should prove that at least one fixed recommendation scenario changes or is explainably influenced when Taste Lab-derived signals are present.
 
 ## Out of Scope
 
@@ -96,6 +127,8 @@ The system should be usable as a standalone tool, but all data contracts should 
 - Publishing GitHub issues without explicit founder approval.
 - Replacing the existing WatchSignal scoring module in the first slice.
 - Building a complete collaborative-filtering recommender before the offline signal-score spike proves useful.
+- Making Taste Lab a required step in the main couch-flow app.
+- Polishing Taste Lab as a public product surface before proving that its data improves WatchSignal outcomes.
 
 ## Further Notes
 

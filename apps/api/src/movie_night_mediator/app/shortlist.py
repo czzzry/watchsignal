@@ -74,33 +74,34 @@ class OfflineShortlistItem:
 def get_offline_demo_shortlist(
     *,
     session_id: str | None = None,
+    session: SessionContext | None = None,
+    users: tuple[UserProfile, ...] | None = None,
     snapshot_service: RecommendationSnapshotService | None = None,
 ) -> tuple[OfflineShortlistItem, ...]:
     fixtures_by_source_id = {
         fixture.source_movie_id: fixture for fixture in DEMO_CANDIDATE_FIXTURES
     }
+    resolved_session = session or replace(
+        DEMO_SHARED_SESSION,
+        session_id=session_id or DEMO_SHARED_SESSION.session_id,
+    )
+    resolved_users = users or (DEMO_HUSBAND_PROFILE, DEMO_WIFE_PROFILE)
     domain_candidates_by_source_id = {
         candidate.source_movie_id: candidate
         for candidate in fixture_candidates_to_domain(
             DEMO_CANDIDATE_FIXTURES,
-            session=replace(
-                DEMO_SHARED_SESSION,
-                session_id=session_id or DEMO_SHARED_SESSION.session_id,
-            ),
+            session=resolved_session,
             household_defaults=DEMO_HOUSEHOLD_DEFAULTS,
         )
     }
-    if session_id is None and snapshot_service is None:
+    if session_id is None and session is None and users is None and snapshot_service is None:
         ranked_candidates = demo_candidate_shortlist(limit=5)
     else:
         ranked_candidates = fixture_candidates_to_shortlist(
             DEMO_CANDIDATE_FIXTURES,
-            session=replace(
-                DEMO_SHARED_SESSION,
-                session_id=session_id or DEMO_SHARED_SESSION.session_id,
-            ),
+            session=resolved_session,
             household_defaults=DEMO_HOUSEHOLD_DEFAULTS,
-            users=(DEMO_HUSBAND_PROFILE, DEMO_WIFE_PROFILE),
+            users=resolved_users,
             limit=5,
             snapshot_service=snapshot_service,
         )

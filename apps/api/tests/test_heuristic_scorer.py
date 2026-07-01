@@ -7,6 +7,7 @@ from movie_night_mediator.domain.models import (
     HouseholdDefaults,
     MediaType,
     OnboardingSeed,
+    ProfileTasteEvidence,
     ScoringRequest,
     SessionContext,
     SessionMode,
@@ -270,6 +271,108 @@ class HeuristicScorerTest(unittest.TestCase):
         assert result.interesting_safe_pick is not None
         self.assertEqual(result.interesting_safe_pick.title, "Strange Safe Pick")
         self.assertIn("Interesting Safe Pick", result.interesting_safe_pick.why_short)
+
+    def test_taste_profile_evidence_can_rank_without_onboarding_seeds(self) -> None:
+        user = UserProfile(
+            user_id="user_a",
+            role="solo",
+            display_label="Demo viewer",
+            taste_profile_evidence=(
+                ProfileTasteEvidence(
+                    source="taste_lab",
+                    source_movie_id="tmdb:101",
+                    title="Knives Out",
+                    genres=("Mystery", "Comedy"),
+                    preference_value=1.0,
+                    source_label="loved",
+                ),
+                ProfileTasteEvidence(
+                    source="taste_lab",
+                    source_movie_id="tmdb:102",
+                    title="Saw",
+                    genres=("Horror",),
+                    preference_value=-1.0,
+                    source_label="hated",
+                ),
+                ProfileTasteEvidence(
+                    source="taste_lab",
+                    source_movie_id="tmdb:103",
+                    title="The Thin Red Line",
+                    genres=("War",),
+                    preference_value=None,
+                    source_label="haven't seen",
+                ),
+            ),
+        )
+        request = ScoringRequest(
+            session=SessionContext(session_id="session-1"),
+            household_defaults=HouseholdDefaults(),
+            users=(user,),
+            candidates=(
+                Candidate(
+                    source_movie_id="tmdb:1",
+                    title="Mystery Choice",
+                    media_type=MediaType.MOVIE,
+                    genres=("Mystery",),
+                    providers=("Prime Video",),
+                ),
+                Candidate(
+                    source_movie_id="tmdb:2",
+                    title="Horror Choice",
+                    media_type=MediaType.MOVIE,
+                    genres=("Horror",),
+                    providers=("Prime Video",),
+                ),
+            ),
+        )
+
+        result = HeuristicScorer().score(request)
+
+        self.assertFalse(result.is_uncertain)
+        self.assertEqual(result.ranked_candidates[0].title, "Mystery Choice")
+        self.assertEqual(result.ranked_candidates[0].user_a_score, 0.62)
+        self.assertEqual(result.ranked_candidates[1].title, "Horror Choice")
+        self.assertAlmostEqual(result.ranked_candidates[1].user_a_score or 0.0, 0.34)
+        self.assertIn("Taste Lab signals: 2", result.ranked_candidates[0].why_short)
+
+    def test_taste_profile_evidence_respects_profile_boundaries(self) -> None:
+        husband = UserProfile(
+            user_id="husband",
+            role="husband",
+            display_label="Husband",
+            taste_profile_evidence=(
+                ProfileTasteEvidence(
+                    source="taste_lab",
+                    source_movie_id="tmdb:101",
+                    title="The Matrix",
+                    genres=("Action",),
+                    preference_value=1.0,
+                    source_label="loved",
+                ),
+            ),
+        )
+        wife = UserProfile(user_id="wife", role="wife", display_label="Wife")
+        candidates = (
+            Candidate(
+                source_movie_id="tmdb:1",
+                title="Action Choice",
+                media_type=MediaType.MOVIE,
+                genres=("Action",),
+                providers=("Prime Video",),
+            ),
+        )
+
+        result = HeuristicScorer().score(
+            self._shared_request(SessionMode.HUSBAND_FIRST, husband, wife, candidates)
+        )
+
+        self.assertEqual(result.ranked_candidates[0].user_a_score, 0.62)
+        self.assertEqual(result.ranked_candidates[0].user_b_score, 0.5)
+        self.assertIn(
+            "Husband: 0.62, Taste Lab signals: 1",
+            result.ranked_candidates[0].why_short,
+        )
+        self.assertIn("Wife: 0.5", result.ranked_candidates[0].why_short)
 
     def _shared_request(
         self,

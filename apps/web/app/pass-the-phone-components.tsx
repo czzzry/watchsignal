@@ -58,6 +58,7 @@ import {
   type SharedSessionPayload,
   type SessionOutcomePayload,
   type SessionOutcomeType,
+  type TasteProfileSummaryPayload,
 } from "./session-client";
 
 const stepLabels: Record<WizardStep, string> = {
@@ -1494,6 +1495,7 @@ export function ResultsStep({
   sessionSource,
   sharedSession,
   debugHistory,
+  tasteProfileSummaries,
   debugHistoryStatus,
   debugHistoryMessage,
   onLoadDebugHistory,
@@ -1511,6 +1513,7 @@ export function ResultsStep({
   sessionSource: SessionSource;
   sharedSession: SharedSessionPayload | null;
   debugHistory: DebugHistorySessionPayload | null;
+  tasteProfileSummaries: TasteProfileSummaryPayload[];
   debugHistoryStatus: DebugHistoryStatus;
   debugHistoryMessage: string | null;
   onLoadDebugHistory: () => void | Promise<void>;
@@ -1927,6 +1930,7 @@ export function ResultsStep({
               source={sessionSource}
               session={sharedSession}
               history={debugHistory}
+              tasteProfileSummaries={tasteProfileSummaries}
               status={debugHistoryStatus}
               message={debugHistoryMessage}
               onLoad={onLoadDebugHistory}
@@ -1946,6 +1950,7 @@ function DebugHistoryPanel({
   source,
   session,
   history,
+  tasteProfileSummaries,
   status,
   message,
   onLoad,
@@ -1953,6 +1958,7 @@ function DebugHistoryPanel({
   source: SessionSource;
   session: SharedSessionPayload | null;
   history: DebugHistorySessionPayload | null;
+  tasteProfileSummaries: TasteProfileSummaryPayload[];
   status: DebugHistoryStatus;
   message: string | null;
   onLoad: () => void | Promise<void>;
@@ -2048,6 +2054,7 @@ function DebugHistoryPanel({
                 }`,
             )}
           />
+          <DebugTasteProfileSignals summaries={tasteProfileSummaries} />
           <DebugRecommendationSnapshot history={history} />
           <DebugList
             label="Unavailable evidence"
@@ -2056,6 +2063,49 @@ function DebugHistoryPanel({
         </div>
       ) : null}
     </section>
+  );
+}
+
+function DebugTasteProfileSignals({
+  summaries,
+}: {
+  summaries: TasteProfileSummaryPayload[];
+}) {
+  return (
+    <div className="debugListBlock">
+      <h4>Taste profile signals</h4>
+      {summaries.length > 0 ? (
+        <div className="tasteProfileEvidenceGrid">
+          {summaries.map((summary) => {
+            const topSignals = summary.genreSignals.slice(0, 3);
+
+            return (
+              <article key={summary.profileId} className="tasteProfileEvidenceCard">
+                <div>
+                  <strong>{summary.profileId}</strong>
+                  <span>
+                    {summary.preferenceEvidenceCount} taste signals · {summary.familiarityOnlyCount} familiarity only
+                  </span>
+                </div>
+                {topSignals.length > 0 ? (
+                  <ol>
+                    {topSignals.map((signal) => (
+                      <li key={signal.genre}>
+                        {signal.genre}: {formatTasteSignalScore(signal.score)}
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <p>No Taste Lab preference evidence saved yet.</p>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <p>No Taste Lab profile summary loaded yet.</p>
+      )}
+    </div>
   );
 }
 
@@ -2096,6 +2146,14 @@ function DebugRecommendationSnapshot({
       ) : null}
     </div>
   );
+}
+
+function formatTasteSignalScore(score: number): string {
+  if (score > 0) {
+    return `+${score}`;
+  }
+
+  return String(score);
 }
 
 function DebugCandidateInputs({

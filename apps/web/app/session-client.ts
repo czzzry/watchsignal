@@ -228,6 +228,23 @@ export type DebugHistoryRecommendationSnapshotPayload = {
   interestingSafePickId: string | null;
 };
 
+export type TasteGenreSignalPayload = {
+  genre: string;
+  positiveCount: number;
+  neutralCount: number;
+  negativeCount: number;
+  score: number;
+};
+
+export type TasteProfileSummaryPayload = {
+  householdId: string;
+  profileId: string;
+  ratingCount: number;
+  preferenceEvidenceCount: number;
+  familiarityOnlyCount: number;
+  genreSignals: TasteGenreSignalPayload[];
+};
+
 export type CreateSessionRequest = {
   sessionId?: string;
   householdId: string;
@@ -302,6 +319,16 @@ export async function getSessionDebugHistory(
 ): Promise<DebugHistorySessionPayload> {
   return getJson(
     `/api/session/${encodeURIComponent(sessionId)}/debug-history`,
+  );
+}
+
+export async function getTasteProfileSummary(
+  householdId: string,
+  profileId: string,
+): Promise<TasteProfileSummaryPayload> {
+  const query = new URLSearchParams({ householdId });
+  return getJson(
+    `/api/taste-profile/${encodeURIComponent(profileId)}/summary?${query.toString()}`,
   );
 }
 

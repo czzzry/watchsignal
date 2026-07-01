@@ -63,6 +63,7 @@ import {
   getProfileOnboarding,
   getRecentSessions,
   getSessionDebugHistory,
+  getTasteProfileSummary,
   loadRecommendationShortlist,
   saveProfileOnboarding,
   submitSessionReactions,
@@ -71,6 +72,7 @@ import {
   type OnboardingCompletionPayload,
   type RecentSessionSummaryPayload,
   type SharedSessionPayload,
+  type TasteProfileSummaryPayload,
 } from "./session-client";
 
 type PassThePhoneWizardProps = {
@@ -129,6 +131,9 @@ export function PassThePhoneWizard({
   );
   const [debugHistory, setDebugHistory] =
     useState<DebugHistorySessionPayload | null>(null);
+  const [tasteProfileSummaries, setTasteProfileSummaries] = useState<
+    TasteProfileSummaryPayload[]
+  >([]);
   const [debugHistoryStatus, setDebugHistoryStatus] =
     useState<DebugHistoryStatus>("idle");
   const [debugHistoryMessage, setDebugHistoryMessage] = useState<string | null>(
@@ -241,6 +246,7 @@ export function PassThePhoneWizard({
     setSeenMemoryPrompt(null);
     setSharedSession(null);
     setDebugHistory(null);
+    setTasteProfileSummaries([]);
     setDebugHistoryStatus("idle");
     setDebugHistoryMessage(null);
     setSyncStatus("ready");
@@ -526,6 +532,7 @@ export function PassThePhoneWizard({
     setSeenMemoryPrompt(null);
     setSharedSession(null);
     setDebugHistory(null);
+    setTasteProfileSummaries([]);
     setDebugHistoryStatus("idle");
     setDebugHistoryMessage(null);
 
@@ -888,6 +895,7 @@ export function PassThePhoneWizard({
           sessionSource={sessionSource}
           sharedSession={sharedSession}
           debugHistory={debugHistory}
+          tasteProfileSummaries={tasteProfileSummaries}
           debugHistoryStatus={debugHistoryStatus}
           debugHistoryMessage={debugHistoryMessage}
           onLoadDebugHistory={loadDebugHistory}
@@ -935,6 +943,7 @@ export function PassThePhoneWizard({
   async function loadDebugHistory(): Promise<void> {
     if (sessionSource !== "api" || sharedSession === null) {
       setDebugHistory(null);
+      setTasteProfileSummaries([]);
       setDebugHistoryStatus("failed");
       setDebugHistoryMessage("Debug evidence is only available for backend-backed sessions.");
       return;
@@ -945,10 +954,17 @@ export function PassThePhoneWizard({
 
     try {
       const history = await getSessionDebugHistory(sharedSession.sessionId);
+      const summaries = await Promise.all(
+        history.participantIds.map((profileId) =>
+          getTasteProfileSummary(history.householdId, profileId),
+        ),
+      );
       setDebugHistory(history);
+      setTasteProfileSummaries(summaries);
       setDebugHistoryStatus("ready");
     } catch (error) {
       setDebugHistory(null);
+      setTasteProfileSummaries([]);
       setDebugHistoryStatus("failed");
       setDebugHistoryMessage(toDebugHistoryErrorMessage(error));
     }

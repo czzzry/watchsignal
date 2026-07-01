@@ -14,8 +14,8 @@ import {
 
 const householdId = "default-household";
 const profiles = [
-  { id: "sandy", label: "Sandy" },
-  { id: "robin", label: "Robin" },
+  { id: "profile-1", label: "Husband" },
+  { id: "profile-2", label: "Wife" },
 ];
 
 const labels: {

@@ -3217,6 +3217,38 @@ summary:focus-visible {
   padding-left: 20px;
 }
 
+.tasteProfileEvidenceGrid {
+  display: grid;
+  gap: 10px;
+}
+
+.tasteProfileEvidenceCard {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tasteProfileEvidenceCard div {
+  display: grid;
+  gap: 4px;
+}
+
+.tasteProfileEvidenceCard strong {
+  color: var(--ink);
+}
+
+.tasteProfileEvidenceCard span,
+.tasteProfileEvidenceCard p,
+.tasteProfileEvidenceCard li {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.tasteProfileEvidenceCard ol {
+  margin-top: 10px;
+}
+
 .recentSessionMeta span {
   color: var(--muted);
   font-size: 0.84rem;

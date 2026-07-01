@@ -164,18 +164,24 @@ class HeuristicScorer:
         return hard_filter_pass and candidate.safety_status == CandidateSafety.SAFE_PICK
 
     def _score_for_user(self, user: UserProfile, candidate: Candidate) -> float:
-        if not user.onboarding_seeds:
+        if not user.onboarding_seeds and not user.taste_profile_evidence:
             return 0.5
 
         liked = self._genre_counter(user, "loved")
         fine = self._genre_counter(user, "fine")
         disliked = self._genre_counter(user, "no")
+        taste_profile_signals = self._taste_profile_genre_scores(user)
         score = 0.5
 
         for genre in candidate.genres:
             score += 0.12 * liked[genre]
             score += 0.05 * fine[genre]
             score -= 0.16 * disliked[genre]
+            taste_profile_signal = taste_profile_signals[genre]
+            if taste_profile_signal > 0:
+                score += 0.12 * taste_profile_signal
+            elif taste_profile_signal < 0:
+                score += 0.16 * taste_profile_signal
 
         return min(max(score, 0.0), 1.0)
 
@@ -184,6 +190,15 @@ class HeuristicScorer:
         for seed in user.onboarding_seeds:
             if seed.label == label:
                 counter.update(seed.genres)
+        return counter
+
+    def _taste_profile_genre_scores(self, user: UserProfile) -> Counter[str]:
+        counter: Counter[str] = Counter()
+        for evidence in user.taste_profile_evidence:
+            if evidence.preference_value is None:
+                continue
+            for genre in evidence.genres:
+                counter[genre] += evidence.preference_value
         return counter
 
     def _group_score(self, session_mode: SessionMode, user_scores: list[float]) -> float:
@@ -237,5 +252,18 @@ class HeuristicScorer:
             return "No personal taste signal yet."
         parts = []
         for user, score in zip(users[:2], user_scores[:2], strict=False):
-            parts.append(f"{user.display_label}: {round(score, 2)}")
+            taste_lab_signal_count = self._taste_lab_signal_count(user)
+            taste_lab_hint = (
+                f", Taste Lab signals: {taste_lab_signal_count}"
+                if taste_lab_signal_count
+                else ""
+            )
+            parts.append(f"{user.display_label}: {round(score, 2)}{taste_lab_hint}")
         return "; ".join(parts) + "."
+
+    def _taste_lab_signal_count(self, user: UserProfile) -> int:
+        return sum(
+            1
+            for evidence in user.taste_profile_evidence
+            if evidence.source == "taste_lab" and evidence.preference_value is not None
+        )

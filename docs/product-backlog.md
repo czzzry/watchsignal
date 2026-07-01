@@ -7,11 +7,16 @@ GitHub issue publication remains a separate action that should only happen with 
 
 ## Current MVP Plus 1 Focus
 
-### Taste Lab: high-signal rapid rating
+### Taste Lab: high-signal rapid rating to WatchSignal taste profile
 
 Goal: improve recommendation quality by collecting taste ratings from movies selected for high preference-information value.
 The founder is willing to rate many movies if those movies are chosen intelligently.
 The product question is whether WatchSignal can choose high-signal movies rather than asking for arbitrary ratings.
+The MVP plus 1 outcome is not that Taste Lab exists as a standalone tool.
+The MVP plus 1 outcome is that a user can use Taste Lab and have their tastes updated in WatchSignal.
+
+Taste Lab should remain private and optional for now.
+The main app should benefit from its saved signals without making Taste Lab part of the normal couch-flow UI.
 
 Questions to resolve:
 - Does "high-signal movie" have a defensible statistical meaning?
@@ -19,6 +24,8 @@ Questions to resolve:
 - What first signal-score formula should we use?
 - How many high-signal ratings are needed before recommendations improve?
 - How should `Haven't seen` be stored and deprioritized without treating it as dislike?
+- What is the smallest taste-profile read model that lets WatchSignal consume Taste Lab ratings?
+- What recommendation outcome changes or explanations prove that Taste Lab data reached the app?
 
 Candidate work:
 - Taste Lab research brief.
@@ -26,6 +33,9 @@ Candidate work:
 - Offline signal-score script using MovieLens data.
 - Private rapid-rating storage and API.
 - Private Taste Lab route for batch-rating 10 movies at a time.
+- Taste Lab to WatchSignal taste-profile read model.
+- Recommendation scoring that consumes Taste Lab-derived evidence.
+- Minimal app evidence that WatchSignal has absorbed Taste Lab data.
 - Recommendation evaluation fixture for comparing high-signal rating against random or popularity-only rating.
 
 ## Mature Product Backlog

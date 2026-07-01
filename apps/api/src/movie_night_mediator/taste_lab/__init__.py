@@ -22,6 +22,12 @@ from movie_night_mediator.taste_lab.evaluation import (
     run_fixture_evaluation,
     taste_lab_ratings_to_onboarding_seeds,
 )
+from movie_night_mediator.taste_lab.profile import (
+    TasteGenreSignal,
+    TasteProfileEvidence,
+    TasteProfileSummary,
+    build_taste_profile_summary,
+)
 from movie_night_mediator.taste_lab.service import (
     TasteLabCandidate,
     TasteLabRatingInput,
@@ -57,7 +63,11 @@ __all__ = [
     "TasteLabRatingLabel",
     "TasteLabService",
     "TasteLabStore",
+    "TasteGenreSignal",
+    "TasteProfileEvidence",
+    "TasteProfileSummary",
     "WatchSignalTasteSignal",
+    "build_taste_profile_summary",
     "familiarity_for_label",
     "default_taste_lab_candidates",
     "evaluate_strategy",

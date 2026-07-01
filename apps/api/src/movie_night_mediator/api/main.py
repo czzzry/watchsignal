@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date
 from pathlib import Path
 from typing import Annotated, Literal
@@ -66,6 +67,7 @@ from movie_night_mediator.domain import (
     TitleResolutionStatus,
     WatchedStatusScope,
     WatchedTitleBackfill,
+    UserProfile,
 )
 from movie_night_mediator.fixtures.demo_couple import (
     DEMO_HUSBAND_PROFILE,
@@ -87,6 +89,9 @@ from movie_night_mediator.taste_lab import (
     TasteLabRatingInput,
     TasteLabRatingLabel,
     TasteLabService,
+    TasteGenreSignal,
+    TasteProfileEvidence,
+    TasteProfileSummary,
     default_taste_lab_candidates,
 )
 
@@ -257,6 +262,14 @@ class RecommendationShortlistItemPayload(BaseModel):
 
 class RecommendationShortlistRequestPayload(BaseModel):
     sessionId: str = Field(min_length=1)
+    householdId: str = Field(default=DEFAULT_HOUSEHOLD_ID, min_length=1)
+    activeMode: SessionMode = SessionMode.COMPROMISE
+    participantIds: list[str] = Field(
+        default_factory=lambda: ["profile-1", "profile-2"],
+        min_length=1,
+        max_length=2,
+    )
+    shortlistSize: int = Field(default=5, ge=1, le=10)
     source: Literal["demo", "live_tmdb"] = "demo"
 
 
@@ -443,6 +456,42 @@ class TasteLabRatingExportPayload(BaseModel):
     queueProvenance: TasteLabQueueProvenancePayload | None = None
 
 
+class TasteGenreSignalPayload(BaseModel):
+    genre: str
+    positiveCount: int
+    neutralCount: int
+    negativeCount: int
+    score: float
+
+
+class TasteProfileEvidencePayload(BaseModel):
+    source: str
+    householdId: str
+    profileId: str
+    sourceMovieId: str
+    title: str
+    releaseYear: int | None = None
+    tmdbId: str | None = None
+    genres: list[str]
+    label: str
+    familiarity: str
+    watchsignalTasteSignal: str
+    isPreferenceEvidence: bool
+    preferenceValue: float | None = None
+    ratedAt: str
+    queueProvenance: TasteLabQueueProvenancePayload | None = None
+
+
+class TasteProfileSummaryPayload(BaseModel):
+    householdId: str
+    profileId: str
+    ratingCount: int
+    preferenceEvidenceCount: int
+    familiarityOnlyCount: int
+    genreSignals: list[TasteGenreSignalPayload]
+    evidence: list[TasteProfileEvidencePayload]
+
+
 def create_app(
     setup_store: SQLiteSetupStore | None = None,
     onboarding_store: SQLiteOnboardingStore | None = None,
@@ -532,16 +581,21 @@ def create_app(
             return [
                 _offline_shortlist_item_to_payload(item)
                 for item in _live_candidate_shortlist_items(
-                    session_id=payload.sessionId,
+                    payload=payload,
                     candidate_source=candidate_source,
                     snapshot_service=recommendation_snapshot_service,
+                    taste_lab_service=taste_lab_service,
                 )
             ]
 
         return [
             _offline_shortlist_item_to_payload(item)
             for item in get_offline_demo_shortlist(
-                session_id=payload.sessionId,
+                session=_shortlist_session_from_payload(payload),
+                users=_shortlist_users_from_taste_profile(
+                    payload=payload,
+                    taste_lab_service=taste_lab_service,
+                ),
                 snapshot_service=recommendation_snapshot_service,
             )
         ]
@@ -807,6 +861,25 @@ def create_app(
 
         return [_taste_lab_rating_export_to_payload(rating) for rating in ratings]
 
+    @app.get(
+        "/taste-profile/{profile_id}/summary",
+        response_model=TasteProfileSummaryPayload,
+        tags=["taste-profile"],
+    )
+    def get_taste_profile_summary(
+        profile_id: str,
+        householdId: str = DEFAULT_HOUSEHOLD_ID,
+    ) -> TasteProfileSummaryPayload:
+        try:
+            summary = taste_lab_service.taste_profile_summary(
+                household_id=householdId,
+                profile_id=profile_id,
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+
+        return _taste_profile_summary_to_payload(summary)
+
     @app.post(
         "/sessions/{session_id}/outcome",
         response_model=SessionOutcomePayload,
@@ -966,24 +1039,22 @@ def create_app(
 
 def _live_candidate_shortlist_items(
     *,
-    session_id: str,
+    payload: RecommendationShortlistRequestPayload,
     candidate_source: CandidateSource | None,
     snapshot_service: RecommendationSnapshotService,
+    taste_lab_service: TasteLabService,
 ) -> tuple[OfflineShortlistItem, ...]:
     try:
         resolved_candidate_source = candidate_source or TmdbCandidateSource()
         shortlist = get_candidate_source_shortlist_items(
             resolved_candidate_source,
-            session=SessionContext(
-                session_id=session_id,
-                audience_mode=AudienceMode.SHARED,
-                viewer_user_ids=("husband", "wife"),
-                region="DE",
-                service_constraint="Prime Video",
-            ),
+            session=_shortlist_session_from_payload(payload),
             household_defaults=HouseholdDefaults(),
-            users=(DEMO_HUSBAND_PROFILE, DEMO_WIFE_PROFILE),
-            limit=5,
+            users=_shortlist_users_from_taste_profile(
+                payload=payload,
+                taste_lab_service=taste_lab_service,
+            ),
+            limit=payload.shortlistSize,
             candidate_limit=20,
             snapshot_service=snapshot_service,
         )
@@ -997,6 +1068,49 @@ def _live_candidate_shortlist_items(
         )
 
     return shortlist
+
+
+def _shortlist_session_from_payload(
+    payload: RecommendationShortlistRequestPayload,
+) -> SessionContext:
+    audience_mode = (
+        AudienceMode.SHARED
+        if len(payload.participantIds) > 1
+        else AudienceMode.SOLO
+    )
+    return SessionContext(
+        session_id=payload.sessionId,
+        audience_mode=audience_mode,
+        session_mode=payload.activeMode,
+        viewer_user_ids=tuple(payload.participantIds),
+        region="DE",
+        service_constraint="Prime Video",
+    )
+
+
+def _shortlist_users_from_taste_profile(
+    *,
+    payload: RecommendationShortlistRequestPayload,
+    taste_lab_service: TasteLabService,
+) -> tuple[UserProfile, ...]:
+    base_profiles = (DEMO_HUSBAND_PROFILE, DEMO_WIFE_PROFILE)
+    users: list[UserProfile] = []
+
+    for index, profile_id in enumerate(payload.participantIds):
+        base_profile = base_profiles[min(index, len(base_profiles) - 1)]
+        summary = taste_lab_service.taste_profile_summary(
+            household_id=payload.householdId,
+            profile_id=profile_id,
+        )
+        users.append(
+            replace(
+                base_profile,
+                user_id=profile_id,
+                taste_profile_evidence=summary.watchsignal_taste_evidence,
+            )
+        )
+
+    return tuple(users)
 
 
 def _validate_profile_uniqueness(profiles: list[SetupProfilePayload]) -> None:
@@ -1345,6 +1459,64 @@ def _taste_lab_rating_export_to_payload(
             if rating.queue_provenance is not None
             else None
         ),
+    )
+
+
+def _taste_profile_summary_to_payload(
+    summary: TasteProfileSummary,
+) -> TasteProfileSummaryPayload:
+    return TasteProfileSummaryPayload(
+        householdId=summary.household_id,
+        profileId=summary.profile_id,
+        ratingCount=summary.rating_count,
+        preferenceEvidenceCount=summary.preference_evidence_count,
+        familiarityOnlyCount=summary.familiarity_only_count,
+        genreSignals=[
+            _taste_genre_signal_to_payload(signal)
+            for signal in summary.genre_signals
+        ],
+        evidence=[
+            _taste_profile_evidence_to_payload(evidence)
+            for evidence in summary.evidence
+        ],
+    )
+
+
+def _taste_profile_evidence_to_payload(
+    evidence: TasteProfileEvidence,
+) -> TasteProfileEvidencePayload:
+    return TasteProfileEvidencePayload(
+        source=evidence.source,
+        householdId=evidence.household_id,
+        profileId=evidence.profile_id,
+        sourceMovieId=evidence.source_movie_id,
+        title=evidence.title,
+        releaseYear=evidence.release_year,
+        tmdbId=evidence.tmdb_id,
+        genres=list(evidence.genres),
+        label=evidence.label,
+        familiarity=evidence.familiarity.value,
+        watchsignalTasteSignal=evidence.watchsignal_taste_signal.value,
+        isPreferenceEvidence=evidence.is_preference_evidence,
+        preferenceValue=evidence.preference_value,
+        ratedAt=evidence.rated_at,
+        queueProvenance=(
+            _taste_lab_queue_provenance_to_payload(evidence.queue_provenance)
+            if evidence.queue_provenance is not None
+            else None
+        ),
+    )
+
+
+def _taste_genre_signal_to_payload(
+    signal: TasteGenreSignal,
+) -> TasteGenreSignalPayload:
+    return TasteGenreSignalPayload(
+        genre=signal.genre,
+        positiveCount=signal.positive_count,
+        neutralCount=signal.neutral_count,
+        negativeCount=signal.negative_count,
+        score=signal.score,
     )
 
 

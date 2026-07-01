@@ -10,6 +10,10 @@ from movie_night_mediator.taste_lab.export_contract import (
     TasteLabRatingExport,
     TasteLabRatingLabel,
 )
+from movie_night_mediator.taste_lab.profile import (
+    TasteProfileSummary,
+    build_taste_profile_summary,
+)
 
 
 @dataclass(frozen=True)
@@ -128,6 +132,23 @@ class TasteLabService:
         return self.store.list_ratings(
             household_id=_require_non_empty(household_id, "household_id"),
             profile_id=_require_non_empty(profile_id, "profile_id"),
+        )
+
+    def taste_profile_summary(
+        self,
+        *,
+        household_id: str,
+        profile_id: str,
+    ) -> TasteProfileSummary:
+        normalized_household_id = _require_non_empty(household_id, "household_id")
+        normalized_profile_id = _require_non_empty(profile_id, "profile_id")
+        return build_taste_profile_summary(
+            household_id=normalized_household_id,
+            profile_id=normalized_profile_id,
+            ratings=self.store.list_ratings(
+                household_id=normalized_household_id,
+                profile_id=normalized_profile_id,
+            ),
         )
 
 

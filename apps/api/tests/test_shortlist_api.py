@@ -21,6 +21,12 @@ from movie_night_mediator.domain import (
     SessionContext,
 )
 from movie_night_mediator.storage import SQLiteRecommendationSnapshotStore
+from movie_night_mediator.storage import SQLiteTasteLabStore
+from movie_night_mediator.taste_lab import (
+    TasteLabMovieIdentity,
+    TasteLabRatingExport,
+    TasteLabRatingLabel,
+)
 
 
 class ShortlistApiTest(unittest.TestCase):
@@ -216,6 +222,58 @@ class ShortlistApiTest(unittest.TestCase):
             self.assertEqual(snapshot.session_id, "live-session")
             self.assertEqual(len(snapshot.candidate_inputs), 5)
             self.assertEqual(snapshot.candidate_inputs[0].source_movie_id, "tmdb:1")
+
+    def test_post_recommendation_shortlist_consumes_saved_taste_lab_profile_evidence(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            snapshot_store = SQLiteRecommendationSnapshotStore(
+                database_path=Path(directory) / "taste-lab-shortlist-snapshot.sqlite3"
+            )
+            taste_lab_store = SQLiteTasteLabStore(
+                database_path=Path(directory) / "taste-lab.sqlite3"
+            )
+            taste_lab_store.save_ratings(
+                ratings=(
+                    TasteLabRatingExport(
+                        household_id="default-household",
+                        profile_id="profile-1",
+                        movie=TasteLabMovieIdentity(
+                            source_movie_id="tmdb:101",
+                            title="Knives Out",
+                            genres=("Mystery", "Comedy"),
+                        ),
+                        label=TasteLabRatingLabel.LOVED,
+                        rated_at="2026-07-01T12:00:00Z",
+                    ),
+                ),
+            )
+            post_shortlist = recommendation_shortlist_endpoint(
+                create_app(
+                    recommendation_snapshot_store=snapshot_store,
+                    taste_lab_store=taste_lab_store,
+                ),
+                method="POST",
+            )
+
+            payload = post_shortlist(
+                RecommendationShortlistRequestPayload(
+                    sessionId="taste-lab-session",
+                    participantIds=["profile-1", "profile-2"],
+                )
+            )
+
+            snapshot = snapshot_store.load_snapshot("taste-lab-session")
+
+            self.assertEqual(len(payload), 5)
+            self.assertIsNotNone(snapshot)
+            assert snapshot is not None
+            self.assertTrue(
+                any(
+                    "Taste Lab signals: 1" in candidate.why_short
+                    for candidate in snapshot.candidates
+                )
+            )
 
 
 def recommendation_shortlist_endpoint(app, method: str = "GET"):
