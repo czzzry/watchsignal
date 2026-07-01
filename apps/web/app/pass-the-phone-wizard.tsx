@@ -736,7 +736,7 @@ export function PassThePhoneWizard({
       {step !== "setup" && step !== "founder" && step !== "handoff" && step !== "wife" && step !== "results" ? (
         <header className="topBar">
           <div className="topBarCopy">
-            <p className="eyebrow">Movie Night Mediator</p>
+            <p className="eyebrow">WatchSignal</p>
             <h1>{sessionDateLabel}</h1>
             <p className="topBarDetail">
               {stepHeadline(step, founderLabel, wifeLabel, peopleMode)}
