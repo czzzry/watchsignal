@@ -75,6 +75,16 @@ from movie_night_mediator.storage import (
     SQLiteOutcomeStore,
     SQLiteRecommendationSnapshotStore,
     SQLiteSessionStore,
+    SQLiteTasteLabStore,
+)
+from movie_night_mediator.taste_lab import (
+    TasteLabCandidate,
+    TasteLabMovieIdentity,
+    TasteLabQueueProvenance,
+    TasteLabRatingExport,
+    TasteLabRatingInput,
+    TasteLabRatingLabel,
+    TasteLabService,
 )
 
 
@@ -382,6 +392,54 @@ class RecentSessionSummaryPayload(BaseModel):
     feedback: list[RecentSessionFeedbackPayload]
 
 
+class TasteLabMoviePayload(BaseModel):
+    sourceMovieId: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    releaseYear: int | None = None
+    tmdbId: str | None = None
+    posterPath: str | None = None
+    genres: list[str] = Field(default_factory=list)
+
+
+class TasteLabQueueProvenancePayload(BaseModel):
+    queueSource: str = Field(min_length=1)
+    generatedAt: str | None = None
+    rank: int | None = None
+    signalScore: float | None = None
+    scoreComponents: dict[str, float] = Field(default_factory=dict)
+
+
+class TasteLabCandidatePayload(BaseModel):
+    movie: TasteLabMoviePayload
+    queueProvenance: TasteLabQueueProvenancePayload
+
+
+class TasteLabRatingInputPayload(BaseModel):
+    movie: TasteLabMoviePayload
+    label: TasteLabRatingLabel
+    queueProvenance: TasteLabQueueProvenancePayload | None = None
+    ratedAt: str | None = None
+
+
+class TasteLabSubmitRatingsPayload(BaseModel):
+    householdId: str = Field(default=DEFAULT_HOUSEHOLD_ID, min_length=1)
+    ratings: list[TasteLabRatingInputPayload] = Field(min_length=1)
+
+
+class TasteLabRatingExportPayload(BaseModel):
+    schemaVersion: str
+    householdId: str
+    profileId: str
+    movie: TasteLabMoviePayload
+    label: TasteLabRatingLabel
+    familiarity: str
+    preferenceValue: float | None = None
+    watchsignalTasteSignal: str
+    isImportablePreference: bool
+    ratedAt: str
+    queueProvenance: TasteLabQueueProvenancePayload | None = None
+
+
 def create_app(
     setup_store: SQLiteSetupStore | None = None,
     onboarding_store: SQLiteOnboardingStore | None = None,
@@ -390,6 +448,7 @@ def create_app(
     outcome_store: SQLiteOutcomeStore | None = None,
     session_store: SQLiteSessionStore | None = None,
     recommendation_snapshot_store: SQLiteRecommendationSnapshotStore | None = None,
+    taste_lab_store: SQLiteTasteLabStore | None = None,
     candidate_source: CandidateSource | None = None,
 ) -> FastAPI:
     app = FastAPI(
@@ -429,6 +488,7 @@ def create_app(
     recommendation_snapshot_service = RecommendationSnapshotService(
         resolved_recommendation_snapshot_store
     )
+    taste_lab_service = TasteLabService(taste_lab_store or SQLiteTasteLabStore())
 
     @app.get("/health", tags=["system"])
     def health() -> dict[str, str]:
@@ -632,6 +692,89 @@ def create_app(
                 limit=limit,
             )
         ]
+
+    @app.post(
+        "/taste-lab/candidates",
+        status_code=204,
+        tags=["taste-lab"],
+    )
+    def post_taste_lab_candidates(
+        candidates: list[TasteLabCandidatePayload],
+        householdId: str = DEFAULT_HOUSEHOLD_ID,
+    ) -> None:
+        try:
+            taste_lab_service.seed_candidates(
+                household_id=householdId,
+                candidates=tuple(
+                    _payload_to_taste_lab_candidate(candidate)
+                    for candidate in candidates
+                ),
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+
+    @app.get(
+        "/taste-lab/{profile_id}/queue",
+        response_model=list[TasteLabCandidatePayload],
+        tags=["taste-lab"],
+    )
+    def get_taste_lab_queue(
+        profile_id: str,
+        householdId: str = DEFAULT_HOUSEHOLD_ID,
+        limit: int = Query(default=10, ge=1, le=25),
+    ) -> list[TasteLabCandidatePayload]:
+        try:
+            candidates = taste_lab_service.next_batch(
+                household_id=householdId,
+                profile_id=profile_id,
+                limit=limit,
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+
+        return [_taste_lab_candidate_to_payload(candidate) for candidate in candidates]
+
+    @app.post(
+        "/taste-lab/{profile_id}/ratings",
+        response_model=list[TasteLabRatingExportPayload],
+        tags=["taste-lab"],
+    )
+    def post_taste_lab_ratings(
+        profile_id: str,
+        payload: TasteLabSubmitRatingsPayload,
+    ) -> list[TasteLabRatingExportPayload]:
+        try:
+            ratings = taste_lab_service.submit_batch(
+                household_id=payload.householdId,
+                profile_id=profile_id,
+                ratings=tuple(
+                    _payload_to_taste_lab_rating_input(rating)
+                    for rating in payload.ratings
+                ),
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+
+        return [_taste_lab_rating_export_to_payload(rating) for rating in ratings]
+
+    @app.get(
+        "/taste-lab/{profile_id}/ratings",
+        response_model=list[TasteLabRatingExportPayload],
+        tags=["taste-lab"],
+    )
+    def get_taste_lab_ratings(
+        profile_id: str,
+        householdId: str = DEFAULT_HOUSEHOLD_ID,
+    ) -> list[TasteLabRatingExportPayload]:
+        try:
+            ratings = taste_lab_service.list_profile_ratings(
+                household_id=householdId,
+                profile_id=profile_id,
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+
+        return [_taste_lab_rating_export_to_payload(rating) for rating in ratings]
 
     @app.post(
         "/sessions/{session_id}/outcome",
@@ -1087,6 +1230,115 @@ def _recent_session_summary_to_payload(
             )
             for feedback in summary.feedback
         ],
+    )
+
+
+def _payload_to_taste_lab_candidate(
+    payload: TasteLabCandidatePayload,
+) -> TasteLabCandidate:
+    return TasteLabCandidate(
+        movie=_payload_to_taste_lab_movie(payload.movie),
+        queue_provenance=_payload_to_taste_lab_queue_provenance(
+            payload.queueProvenance
+        ),
+    )
+
+
+def _payload_to_taste_lab_rating_input(
+    payload: TasteLabRatingInputPayload,
+) -> TasteLabRatingInput:
+    return TasteLabRatingInput(
+        movie=_payload_to_taste_lab_movie(payload.movie),
+        label=payload.label,
+        rated_at=payload.ratedAt,
+        queue_provenance=(
+            _payload_to_taste_lab_queue_provenance(payload.queueProvenance)
+            if payload.queueProvenance is not None
+            else None
+        ),
+    )
+
+
+def _payload_to_taste_lab_movie(
+    payload: TasteLabMoviePayload,
+) -> TasteLabMovieIdentity:
+    return TasteLabMovieIdentity(
+        source_movie_id=payload.sourceMovieId,
+        title=payload.title,
+        release_year=payload.releaseYear,
+        tmdb_id=payload.tmdbId,
+        poster_path=payload.posterPath,
+        genres=tuple(payload.genres),
+    )
+
+
+def _payload_to_taste_lab_queue_provenance(
+    payload: TasteLabQueueProvenancePayload,
+) -> TasteLabQueueProvenance:
+    return TasteLabQueueProvenance(
+        queue_source=payload.queueSource,
+        generated_at=payload.generatedAt,
+        rank=payload.rank,
+        signal_score=payload.signalScore,
+        score_components=payload.scoreComponents,
+    )
+
+
+def _taste_lab_candidate_to_payload(
+    candidate: TasteLabCandidate,
+) -> TasteLabCandidatePayload:
+    return TasteLabCandidatePayload(
+        movie=_taste_lab_movie_to_payload(candidate.movie),
+        queueProvenance=_taste_lab_queue_provenance_to_payload(
+            candidate.queue_provenance
+        ),
+    )
+
+
+def _taste_lab_rating_export_to_payload(
+    rating: TasteLabRatingExport,
+) -> TasteLabRatingExportPayload:
+    return TasteLabRatingExportPayload(
+        schemaVersion=rating.schema_version,
+        householdId=rating.household_id,
+        profileId=rating.profile_id,
+        movie=_taste_lab_movie_to_payload(rating.movie),
+        label=rating.label,
+        familiarity=rating.familiarity.value,
+        preferenceValue=rating.preference_value,
+        watchsignalTasteSignal=rating.watchsignal_taste_signal.value,
+        isImportablePreference=rating.is_importable_preference,
+        ratedAt=rating.rated_at,
+        queueProvenance=(
+            _taste_lab_queue_provenance_to_payload(rating.queue_provenance)
+            if rating.queue_provenance is not None
+            else None
+        ),
+    )
+
+
+def _taste_lab_movie_to_payload(
+    movie: TasteLabMovieIdentity,
+) -> TasteLabMoviePayload:
+    return TasteLabMoviePayload(
+        sourceMovieId=movie.source_movie_id,
+        title=movie.title,
+        releaseYear=movie.release_year,
+        tmdbId=movie.tmdb_id,
+        posterPath=movie.poster_path,
+        genres=list(movie.genres),
+    )
+
+
+def _taste_lab_queue_provenance_to_payload(
+    provenance: TasteLabQueueProvenance,
+) -> TasteLabQueueProvenancePayload:
+    return TasteLabQueueProvenancePayload(
+        queueSource=provenance.queue_source,
+        generatedAt=provenance.generated_at,
+        rank=provenance.rank,
+        signalScore=provenance.signal_score,
+        scoreComponents=dict(provenance.score_components),
     )
 
 
