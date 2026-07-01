@@ -23,6 +23,7 @@
   --soft-amber: rgba(255, 212, 141, 0.12);
   --soft-rose: rgba(255, 143, 185, 0.12);
   --shadow: 0 28px 90px rgba(0, 0, 0, 0.44);
+  --font-ui: "SF Pro Text", "Segoe UI Variable Text", "Helvetica Neue", Arial, sans-serif;
   --display-font: var(--font-ui), "SF Pro Display", "SF Pro Text",
     "Segoe UI Variable Display", "Helvetica Neue", Arial, sans-serif;
   --body-font: var(--font-ui), "SF Pro Text", "Inter",

@@ -11,6 +11,7 @@ node_modules/
 dist/
 build/
 .turbo/
+*.tsbuildinfo
 .pnpm-store/
 .tools/
 .venv/

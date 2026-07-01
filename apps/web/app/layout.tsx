@@ -1,12 +1,5 @@
 import "./globals.css";
 import type { ReactNode } from "react";
-import { Plus_Jakarta_Sans } from "next/font/google";
-
-const plusJakartaSans = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  variable: "--font-ui",
-  display: "swap",
-});
 
 export const metadata = {
   title: "WatchSignal",
@@ -20,9 +13,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${plusJakartaSans.className} ${plusJakartaSans.variable}`}>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

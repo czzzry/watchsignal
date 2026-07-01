@@ -183,7 +183,7 @@ The UI can be utilitarian, but it must not look broken or use fake poster art.
 - [ ] The UI shows rating progress.
 - [ ] The UI distinguishes `Haven't seen` from negative ratings.
 - [ ] A phone-sized browser review confirms the flow is fast enough for repeated use.
-- [ ] Production web build passes.
+- [x] Production web build passes.
 
 ### Validation commands
 
@@ -356,7 +356,7 @@ Do not require normal movie-night users to complete Taste Lab before starting a 
 - [x] The private Taste Lab route remains optional and outside the normal couch flow.
 - [x] A phone-sized browser review confirms the evidence is understandable.
 - [x] The UI does not imply that Taste Lab is a public or mandatory feature.
-- [ ] Production web build passes if frontend files change.
+- [x] Production web build passes if frontend files change.
 
 ### Validation commands
 
