@@ -2,7 +2,7 @@
 
 WatchSignal finds where your movie tastes overlap and gives you picks that keep everyone happy.
 
-![WatchSignal showcase](docs/assets/watchsignal-showcase.gif)
+![WatchSignal flow demo](docs/assets/watchsignal-flow.gif)
 
 ## What It Is
 
@@ -26,6 +26,7 @@ The app can run locally, collect household taste setup, fetch or fall back to mo
 
 The showcase route at `/showcase` is intentionally staged for portfolio review.
 It presents the product promise in a cleaner trailer format while the main app route remains the working MVP flow.
+The flow route at `/showcase/flow` is a stylized README demo that shows the pass-the-phone interaction from first reaction to shared pick.
 
 ## Tech Stack
 
@@ -57,6 +58,12 @@ To view the recruiter showcase, open:
 
 ```text
 http://localhost:3000/showcase
+```
+
+To view the README flow demo, open:
+
+```text
+http://localhost:3000/showcase/flow
 ```
 
 ## Validation
