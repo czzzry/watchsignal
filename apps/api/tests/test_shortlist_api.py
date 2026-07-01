@@ -207,6 +207,7 @@ class ShortlistApiTest(unittest.TestCase):
                 [f"tmdb:{index}" for index in range(1, 6)],
             )
             self.assertEqual(payload[0].providerNames, ["Amazon Prime Video"])
+            self.assertEqual(payload[0].posterUrl, "https://example.test/poster-1.jpg")
             self.assertEqual(payload[0].safePickStatus, "Safe Pick")
             self.assertEqual(payload[0].availability, "Amazon Prime Video DE flatrate")
             self.assertTrue(payload[0].whyShort)
@@ -246,6 +247,7 @@ class FakeCandidateSource:
                 media_type=MediaType.MOVIE,
                 release_year=2020 + index,
                 runtime_min=95 + index,
+                poster_url=f"https://example.test/poster-{index}.jpg",
                 genres=("Drama", "Sci-Fi"),
                 overview=f"Live overview {index}.",
                 providers=("Amazon Prime Video",),

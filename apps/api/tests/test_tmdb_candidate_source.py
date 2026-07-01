@@ -61,6 +61,10 @@ class TmdbCandidateSourceTest(unittest.TestCase):
         self.assertEqual(candidates[0].media_type, "movie")
         self.assertEqual(candidates[0].release_year, 2024)
         self.assertEqual(candidates[0].runtime_min, 111)
+        self.assertEqual(
+            candidates[0].poster_url,
+            "https://image.tmdb.org/t/p/w342/poster-11.jpg",
+        )
         self.assertEqual(candidates[0].genres, ("Drama", "Sci-Fi"))
         self.assertEqual(candidates[0].providers, ("Amazon Prime Video", "Amazon Video"))
         self.assertEqual(candidates[0].provider_availability[0].access_type, "flatrate")
@@ -121,9 +125,10 @@ class FakeTmdbClient:
                         "id": movie_id,
                         "title": f"Live Candidate {movie_id}",
                         "release_date": "2024-01-01",
-                        "overview": f"Overview for {movie_id}.",
-                        "original_language": "en",
-                    }
+            "overview": f"Overview for {movie_id}.",
+            "original_language": "en",
+            "poster_path": f"/poster-{movie_id}.jpg",
+        }
                     for movie_id in self._movie_ids
                 ]
             }

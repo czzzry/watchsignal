@@ -424,7 +424,7 @@ export function toSessionCandidate(
       candidate.topCast?.slice(0, 3) ??
       fixture?.topCast ??
       [],
-    genres: fixture?.genres ?? [],
+    genres: candidate.genres ?? fixture?.genres ?? [],
     criticScore: fixture?.criticScore,
     safePickStatus: toSafePickStatus(candidate.safePickStatus),
     availability: availability ?? fixture?.availability ?? "Availability check needed",

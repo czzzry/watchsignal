@@ -510,6 +510,7 @@ class Candidate:
     media_type: MediaType
     release_year: int | None = None
     runtime_min: int | None = None
+    poster_url: str | None = None
     genres: tuple[str, ...] = ()
     overview: str = ""
     providers: tuple[str, ...] = ()

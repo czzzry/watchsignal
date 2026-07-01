@@ -30,7 +30,7 @@ async function sendBackendSession(
       },
       body: JSON.stringify(body),
       cache: "no-store",
-      signal: AbortSignal.timeout(2500),
+      signal: AbortSignal.timeout(backendRequestTimeoutMs()),
     });
     const payload = (await response.json().catch(() => null)) as unknown;
 
@@ -53,7 +53,7 @@ export async function getBackendSession(path: string): Promise<Response> {
     const response = await fetch(url, {
       method: "GET",
       cache: "no-store",
-      signal: AbortSignal.timeout(2500),
+      signal: AbortSignal.timeout(backendRequestTimeoutMs()),
     });
     const payload = (await response.json().catch(() => null)) as unknown;
 
@@ -66,4 +66,17 @@ export async function getBackendSession(path: string): Promise<Response> {
       { status: 502 },
     );
   }
+}
+
+function backendRequestTimeoutMs(): number {
+  const configuredTimeout = Number(process.env.API_REQUEST_TIMEOUT_MS);
+  if (Number.isFinite(configuredTimeout) && configuredTimeout > 0) {
+    return configuredTimeout;
+  }
+
+  if (process.env.MOVIE_NIGHT_RECOMMENDATION_SOURCE === "live_tmdb") {
+    return 15_000;
+  }
+
+  return 2_500;
 }
