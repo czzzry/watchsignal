@@ -9,8 +9,8 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata = {
-  title: "Movie Night Mediator",
-  description: "A private household movie-night recommender.",
+  title: "WatchSignal",
+  description: "A pass-the-phone movie picker for shared taste.",
 };
 
 export default function RootLayout({

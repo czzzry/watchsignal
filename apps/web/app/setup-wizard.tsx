@@ -53,7 +53,7 @@ export function SetupWizard({ apiHealth, setupLoad }: SetupWizardProps) {
     <main className="appShell">
       <header className="topBar">
         <div>
-          <p className="eyebrow">Movie Night Mediator</p>
+          <p className="eyebrow">WatchSignal</p>
           <h1>Setup</h1>
         </div>
         <div
