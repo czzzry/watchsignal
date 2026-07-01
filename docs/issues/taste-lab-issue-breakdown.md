@@ -20,11 +20,12 @@ The main couch-flow UI should not need to expose Taste Lab yet.
 ## Current Local Status
 
 Slices 1 through 4 are substantially implemented in local app code.
-Slices 6 through 8 are implemented locally in the current working tree.
+Slices 5 through 8 are implemented locally in the current working tree.
 The current private Taste Lab loop can generate a MovieLens-derived high-signal queue, enrich it with TMDb posters, persist ratings, exclude answered movies, and support repeated private rating batches.
 The local WatchSignal read model can expose saved Taste Lab ratings as profile taste evidence.
 The local recommender can consume that profile taste evidence and explain when Taste Lab signals influenced scores.
 The review-only session evidence drawer can show Taste Lab-derived taste-profile signals beside the saved scoring snapshot.
+The local evaluation command compares no Taste Lab data, weak seeded data, and high-signal Taste Lab data through the same profile-evidence scoring path.
 
 The generated MovieLens-derived artifact remains local-only and ignored by Git.
 The committed repo contains the generator, contract, API, UI, tests, and setup docs.
@@ -224,13 +225,13 @@ Compare at least:
 
 ### Acceptance criteria
 
-- [ ] The evaluation can run from a local command.
-- [ ] It compares at least two elicitation strategies.
-- [ ] It reports recommendation-quality metrics or inspectable ranking deltas.
-- [ ] It proves Taste Lab-derived signals can reach recommendation inputs.
-- [ ] At least one fixed recommendation scenario changes or is explainably influenced by Taste Lab-derived signals.
-- [ ] It records enough output for founder review.
-- [ ] It does not change production ranking behavior by default.
+- [x] The evaluation can run from a local command.
+- [x] It compares at least two elicitation strategies.
+- [x] It reports recommendation-quality metrics or inspectable ranking deltas.
+- [x] It proves Taste Lab-derived signals can reach recommendation inputs.
+- [x] At least one fixed recommendation scenario changes or is explainably influenced by Taste Lab-derived signals.
+- [x] It records enough output for founder review.
+- [x] It does not change production ranking behavior by default.
 
 ### Validation commands
 

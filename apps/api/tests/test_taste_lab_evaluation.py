@@ -31,6 +31,12 @@ class TasteLabEvaluationTest(unittest.TestCase):
         self.assertEqual(results["no_taste_lab"]["target_rank"], 3)
         self.assertEqual(results["high_signal_seeded"]["target_rank"], 1)
         self.assertEqual(results["high_signal_seeded"]["top_pick_title"], "Shared Puzzle")
+        self.assertIn(
+            "Taste Lab signals",
+            results["high_signal_seeded"]["target_why_short"],
+        )
+        self.assertGreater(results["high_signal_seeded"]["taste_lab_influenced_rows"], 0)
+        self.assertTrue(payload["top_pick_changes_vs_baseline"]["high_signal_seeded"])
         self.assertGreater(
             payload["rank_deltas_vs_baseline"]["high_signal_seeded"],
             payload["rank_deltas_vs_baseline"]["popularity_seeded"],

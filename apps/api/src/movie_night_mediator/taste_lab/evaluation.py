@@ -19,6 +19,7 @@ from movie_night_mediator.taste_lab import (
     TasteLabRatingExport,
     TasteLabRatingLabel,
 )
+from movie_night_mediator.taste_lab.profile import build_taste_profile_summary
 
 TARGET_SOURCE_MOVIE_ID = "fixture:shared-puzzle"
 
@@ -59,6 +60,7 @@ class TasteLabEvaluationResult:
     description: str
     target_source_movie_id: str
     target_rank: int | None
+    target_why_short: str | None
     top_pick_source_movie_id: str | None
     top_pick_title: str | None
     ranked_rows: tuple[TasteLabEvaluationRow, ...]
@@ -69,8 +71,12 @@ class TasteLabEvaluationResult:
             "description": self.description,
             "target_source_movie_id": self.target_source_movie_id,
             "target_rank": self.target_rank,
+            "target_why_short": self.target_why_short,
             "top_pick_source_movie_id": self.top_pick_source_movie_id,
             "top_pick_title": self.top_pick_title,
+            "taste_lab_influenced_rows": sum(
+                1 for row in self.ranked_rows if "Taste Lab" in row.why_short
+            ),
             "ranked_rows": [row.as_dict() for row in self.ranked_rows],
         }
 
@@ -93,6 +99,10 @@ class TasteLabEvaluationReport:
             "results": [result.as_dict() for result in self.results],
             "rank_deltas_vs_baseline": {
                 result.strategy_name: _rank_delta(baseline.target_rank, result.target_rank)
+                for result in self.results
+            },
+            "top_pick_changes_vs_baseline": {
+                result.strategy_name: result.top_pick_source_movie_id != baseline.top_pick_source_movie_id
                 for result in self.results
             },
             "interpretation": (
@@ -187,6 +197,7 @@ def evaluate_strategy(
         description=strategy.description,
         target_source_movie_id=TARGET_SOURCE_MOVIE_ID,
         target_rank=target_row.rank if target_row else None,
+        target_why_short=target_row.why_short if target_row else None,
         top_pick_source_movie_id=top_row.source_movie_id if top_row else None,
         top_pick_title=top_row.title if top_row else None,
         ranked_rows=rows,
@@ -243,11 +254,16 @@ def _profile(
     display_label: str,
     ratings: tuple[TasteLabRatingExport, ...],
 ) -> UserProfile:
+    summary = build_taste_profile_summary(
+        household_id="default-household",
+        profile_id=profile_id,
+        ratings=ratings,
+    )
     return UserProfile(
         user_id=profile_id,
         role=profile_id,
         display_label=display_label,
-        onboarding_seeds=taste_lab_ratings_to_onboarding_seeds(ratings),
+        taste_profile_evidence=summary.watchsignal_taste_evidence,
     )
 
 
