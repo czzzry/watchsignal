@@ -84,6 +84,8 @@ Candidate work:
 
 - Keep the repo public and recruiter-readable.
 - Keep the README oriented around product judgment, architecture, and visible demo value.
+- Add a README section on research-backed Taste Lab calibration with citations to the specific cold-start, value-of-information, MovieLens, and item-discrimination sources used.
+- Improve the recruiter demo later so it shows the Taste Lab calibration loop, not only the final couch-flow result.
 - Maintain a short showcase/demo path for recruiters.
 - Avoid publishing private household data, real secrets, or overly personal context.
 - Consider a concise technical case-study page once the product story stabilizes.
