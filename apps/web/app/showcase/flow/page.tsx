@@ -27,7 +27,7 @@ export default function ShowcaseFlowPage() {
           <p className="flowCaption flowCaptionOne">Sandy gives a private signal.</p>
           <p className="flowCaption flowCaptionTwo">Robin gets the same shortlist, without being steered.</p>
           <p className="flowCaption flowCaptionThree">WatchSignal finds the shared yes.</p>
-          <p className="flowCaption flowCaptionFour">Tonight has a pick.</p>
+          <p className="flowCaption flowCaptionFour">Movie night, settled. Get the popcorn.</p>
         </div>
 
         <div className="flowPromise" aria-hidden="true">
