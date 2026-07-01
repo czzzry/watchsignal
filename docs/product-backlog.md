@@ -22,6 +22,7 @@ Questions to resolve:
 
 Candidate work:
 - Taste Lab research brief.
+- Taste Lab PRD and local issue breakdown.
 - Offline signal-score script using MovieLens data.
 - Private rapid-rating storage and API.
 - Private Taste Lab route for batch-rating 10 movies at a time.
