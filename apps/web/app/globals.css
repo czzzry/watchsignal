@@ -1522,7 +1522,12 @@ summary:focus-visible {
 
 .movieDetails h2 {
   font-size: 1rem;
-  line-height: 1;
+  line-height: 1.04;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .movieFacts {
@@ -3066,7 +3071,8 @@ summary:focus-visible {
   }
 
   .movieCard {
-    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 204px) minmax(0, 1fr);
+    width: min(100%, 324px);
   }
 
   .posterFrame {

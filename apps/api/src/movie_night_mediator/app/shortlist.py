@@ -273,7 +273,7 @@ def _candidate_source_shortlist_item(
             )
             for availability in candidate.provider_availability
         ),
-        poster_url=None,
+        poster_url=candidate.poster_url,
         top_cast=(),
         safe_pick_status=_safe_pick_status_label(candidate.safety_status),
         availability=_availability_summary(candidate.provider_availability),

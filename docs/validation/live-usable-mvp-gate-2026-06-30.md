@@ -43,6 +43,11 @@ The first live web-proxy title was `The Shawshank Redemption`.
 The first web-proxy attempt exposed that the default 2500ms proxy timeout was too short for a live TMDb candidate fetch.
 The web proxy now uses a longer default timeout when `MOVIE_NIGHT_RECOMMENDATION_SOURCE=live_tmdb`, with `API_REQUEST_TIMEOUT_MS` available as an override.
 
+Manual browser testing then exposed that live TMDb picks rendered with placeholder poster art.
+The cause was that the live candidate source did not propagate TMDb `poster_path` into the domain candidate or web payload.
+The branch now maps live TMDb poster paths into `posterUrl` and carries API-provided genres into the web card view model.
+After the fix, `/api/recommendations/shortlist` returned `https://image.tmdb.org/t/p/w342/9cqNxx0GxF0bflZmeSMuL5tnGzr.jpg` for `The Shawshank Redemption` and live genres `Drama` and `Crime`.
+
 ## Browser Smoke Result In Codex
 
 `pnpm smoke:ux:mobile` did not reach the product flow because pnpm attempted registry verification and npm attestation checks, then failed DNS resolution for `registry.npmjs.org`.
@@ -70,6 +75,17 @@ Click through Launch, Setup, first Reaction pass, Handoff, second Reaction pass,
 Record whether the visible shortlist used live TMDb-backed source ids such as `tmdb:...`.
 
 Record whether debug history shows recommendation snapshot evidence instead of missing candidate inputs or group scores.
+
+## Future Issue Notes
+
+The onboarding-required screen is usable, but it did not receive the same dedicated design pass as the main pass-the-phone movie flow.
+Consider a future onboarding design issue if this screen becomes demo-facing.
+
+Taste setup needs an easier way to add taste data.
+Explore options such as quicker title search, suggested seed lists, bulk entry, or a lighter guided flow.
+
+The current taste setup flow does not make it clear enough how many entries are needed before the user can continue.
+Future onboarding work should show the required count, completed count, and remaining requirement in the entry UI itself.
 
 ## Decision
 

@@ -21,6 +21,7 @@ from movie_night_mediator.domain.models import (
 TMDB_API_KEY_ENV_VAR = "TMDB_API_KEY"
 TMDB_READ_ACCESS_TOKEN_ENV_VAR = "TMDB_READ_ACCESS_TOKEN"
 TMDB_BASE_URL = "https://api.themoviedb.org/3"
+TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w342"
 TMDB_PRIME_VIDEO_PROVIDER_ID = "9"
 
 
@@ -47,6 +48,7 @@ class TmdbCandidateSourceConfig:
     api_key: str | None = None
     read_access_token: str | None = None
     base_url: str = TMDB_BASE_URL
+    image_base_url: str = TMDB_IMAGE_BASE_URL
     default_provider_id: str = TMDB_PRIME_VIDEO_PROVIDER_ID
     default_provider_name: str = "Prime Video"
     default_region: str = "DE"
@@ -200,6 +202,11 @@ class TmdbCandidateSource:
                 or _string_value(result.get("release_date"))
             ),
             runtime_min=_int_value(details.get("runtime")),
+            poster_url=_poster_url(
+                self._config.image_base_url,
+                _string_value(details.get("poster_path"))
+                or _string_value(result.get("poster_path")),
+            ),
             genres=_genre_names(details),
             overview=_string_value(details.get("overview"))
             or _string_value(result.get("overview"))
@@ -276,6 +283,17 @@ def _spoken_language_codes(details: Mapping[str, object]) -> tuple[str, ...]:
         if (code := _string_value(language.get("iso_639_1"))) is not None
     )
     return codes or ("und",)
+
+
+def _poster_url(image_base_url: str, poster_path: str | None) -> str | None:
+    if poster_path is None:
+        return None
+    normalized_path = poster_path.strip()
+    if not normalized_path:
+        return None
+    if normalized_path.startswith("http://") or normalized_path.startswith("https://"):
+        return normalized_path
+    return f"{image_base_url.rstrip('/')}/{normalized_path.lstrip('/')}"
 
 
 def _objects(value: object) -> tuple[Mapping[str, object], ...]:

@@ -28,6 +28,7 @@ export type ShortlistCandidatePayload = SessionShortlistItemPayload & {
   releaseYear?: number | null;
   runtime?: string | null;
   runtimeMin?: number | null;
+  genres?: string[];
   posterUrl?: string | null;
   safePickStatus?: string | null;
   availability?: string | null;
@@ -470,6 +471,7 @@ function parseShortlistCandidate(
     runtimeMin:
       numberValue(candidate.runtimeMin) ??
       numberValue(candidate.runtime_min),
+    genres: stringArrayValue(candidate.genres),
     posterUrl:
       stringValue(candidate.posterUrl) ??
       stringValue(candidate.poster_url),
