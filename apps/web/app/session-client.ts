@@ -311,6 +311,16 @@ export type ProfileMemorySummaryPayload = {
   signals: ProfileMemorySignalPayload[];
 };
 
+export type TonightIntentInterpretationPayload = {
+  rawText: string;
+  status: "confirmation_required" | "clarification_required";
+  confirmationText?: string | null;
+  clarificationQuestion?: string | null;
+  filters: Record<string, unknown>;
+  softSignals: string[];
+  confidence: string;
+};
+
 export type CreateSessionRequest = {
   sessionId?: string;
   householdId: string;
@@ -325,6 +335,7 @@ export type LoadShortlistRequest = {
   activeMode: ApiSessionMode;
   participantIds: string[];
   shortlistSize: number;
+  tonightIntent?: TonightIntentInterpretationPayload | null;
 };
 
 export type LoadShortlistResponse = {
@@ -406,6 +417,12 @@ export async function getProfileMemorySummary(
   return getJson(
     `/api/profiles/${encodeURIComponent(profileId)}/memory?${query.toString()}`,
   );
+}
+
+export async function interpretTonightIntent(
+  text: string,
+): Promise<TonightIntentInterpretationPayload> {
+  return postJson("/api/tonight-intent/interpret", { text });
 }
 
 export async function submitSessionOutcome(

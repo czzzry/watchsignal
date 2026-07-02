@@ -21,7 +21,9 @@ main().catch(async (error) => {
 });
 
 async function main() {
-  const useBackendMode = process.env.MOBILE_UX_SMOKE_EXPECT_API === "1";
+  const checkTonightIntent = process.env.MOBILE_UX_SMOKE_TONIGHT_INTENT === "1";
+  const useBackendMode =
+    process.env.MOBILE_UX_SMOKE_EXPECT_API === "1" || checkTonightIntent;
   const outcomeMode = process.env.MOBILE_UX_SMOKE_OUTCOME === "other" ? "other" : "recommended";
   const targetUrl = process.env.MOBILE_UX_SMOKE_URL;
   const screenshotDir = process.env.MOBILE_UX_SMOKE_SCREENSHOT_DIR || null;
@@ -44,6 +46,10 @@ async function main() {
     await waitForLaunchStingToFinish(tab);
     await assertNoHorizontalOverflow(tab, "setup screen");
     await captureScreenshot(tab, screenshotDir, "01-setup");
+    if (checkTonightIntent) {
+      await verifyTonightIntentSetup(tab);
+      await captureScreenshot(tab, screenshotDir, "01-tonight-intent");
+    }
     await clickButton(tab, "Start first pass");
     await waitForText(tab, "1 of 5", "first pass");
     await waitForPosterImage(tab);
@@ -113,6 +119,9 @@ async function main() {
         ? "Debug history mode: backend-backed load"
         : "Debug history mode: demo fallback, no backend writes",
     );
+    if (checkTonightIntent) {
+      console.log("Tonight intent mode: direct confirmation and clarification paths checked");
+    }
     if (useBackendMode) {
       console.log(
         `Outcome mode: ${outcomeMode === "other" ? "watched_other shortlist title" : "watched_recommended best pick"}`,
@@ -122,6 +131,29 @@ async function main() {
     await browser.close();
     await cleanup();
   }
+}
+
+async function verifyTonightIntentSetup(tab) {
+  await waitForText(tab, "Steer this movie night", "tonight intent setup");
+  await fillInput(tab, "#tonight-intent-input", "something funny from the 90s that we have not seen");
+  await clickButton(tab, "Review");
+  await waitForText(tab, "1990-1999", "direct intent confirmation");
+  await waitForText(tab, "Apply to tonight", "direct intent apply action");
+  await clickButton(tab, "Apply to tonight");
+  await waitForText(tab, "Applied to tonight only", "active direct tonight intent");
+  await waitForText(tab, "taste profile is unchanged", "tonight-only distinction");
+  await assertNoHorizontalOverflow(tab, "direct tonight intent review");
+  await clickButton(tab, "Clear");
+
+  await fillInput(tab, "#tonight-intent-input", "ugh I feel sad today");
+  await clickButton(tab, "Review");
+  await waitForText(tab, "Do you want something comforting", "intent clarification");
+  await fillInput(tab, "[aria-label='Clarify tonight intent']", "comforting and light");
+  await clickButton(tab, "Answer");
+  await waitForText(tab, "Apply to tonight", "clarified intent apply action");
+  await clickButton(tab, "Apply to tonight");
+  await waitForText(tab, "Applied to tonight only", "active clarified tonight intent");
+  await assertNoHorizontalOverflow(tab, "clarified tonight intent review");
 }
 
 function withReviewMode(url) {
@@ -462,6 +494,34 @@ async function clickButton(tab, label) {
     button: "left",
     clickCount: 1,
   });
+}
+
+async function fillInput(tab, selector, value) {
+  const focused = await waitForValue(
+    async () =>
+      evaluate(tab, (wantedSelector, nextValue) => {
+        const input = document.querySelector(wantedSelector);
+        if (!(input instanceof HTMLInputElement)) {
+          return false;
+        }
+
+        input.scrollIntoView({ block: "center", inline: "center" });
+        const valueSetter = Object.getOwnPropertyDescriptor(
+          HTMLInputElement.prototype,
+          "value",
+        )?.set;
+        valueSetter?.call(input, nextValue);
+        input.dispatchEvent(new InputEvent("input", { bubbles: true, data: nextValue }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        input.focus();
+        return true;
+      }, selector, value),
+    `input "${selector}"`,
+  );
+
+  if (!focused) {
+    throw new Error(`Could not fill input "${selector}".`);
+  }
 }
 
 async function clickButtonInSection(tab, sectionHeading, label) {

@@ -305,6 +305,7 @@ class RecommendationShortlistRequestPayload(BaseModel):
     )
     shortlistSize: int = Field(default=5, ge=1, le=10)
     source: Literal["demo", "live_tmdb"] = "demo"
+    tonightIntent: dict[str, object] | None = None
 
 
 class SessionReactionPayload(BaseModel):

@@ -65,6 +65,7 @@ import {
   type SessionOutcomePayload,
   type SessionOutcomeType,
   type TasteProfileSummaryPayload,
+  type TonightIntentInterpretationPayload,
   type WatchlistEntryPayload,
 } from "./session-client";
 
@@ -128,6 +129,18 @@ export function SetupStep({
   onboardingPrompt,
   profileMemorySummaries,
   profileMemoryMessage,
+  tonightIntentText,
+  onTonightIntentTextChange,
+  pendingTonightIntent,
+  activeTonightIntent,
+  tonightIntentClarificationText,
+  onTonightIntentClarificationTextChange,
+  tonightIntentBusy,
+  tonightIntentMessage,
+  onInterpretTonightIntent,
+  onAnswerTonightIntentClarification,
+  onApplyTonightIntent,
+  onClearTonightIntent,
   onStart,
   onBeginOnboarding,
   recentSessions,
@@ -158,6 +171,18 @@ export function SetupStep({
   onboardingPrompt: OnboardingPromptState;
   profileMemorySummaries: ProfileMemorySummaryPayload[];
   profileMemoryMessage: string | null;
+  tonightIntentText: string;
+  onTonightIntentTextChange: (text: string) => void;
+  pendingTonightIntent: TonightIntentInterpretationPayload | null;
+  activeTonightIntent: TonightIntentInterpretationPayload | null;
+  tonightIntentClarificationText: string;
+  onTonightIntentClarificationTextChange: (text: string) => void;
+  tonightIntentBusy: boolean;
+  tonightIntentMessage: string | null;
+  onInterpretTonightIntent: () => void | Promise<void>;
+  onAnswerTonightIntentClarification: () => void | Promise<void>;
+  onApplyTonightIntent: () => void;
+  onClearTonightIntent: () => void;
   onStart: () => void;
   onBeginOnboarding: () => void | Promise<void>;
   recentSessions: RecentSessionSummaryPayload[];
@@ -410,6 +435,23 @@ export function SetupStep({
         message={profileMemoryMessage}
       />
 
+      {!onboardingRequired ? (
+        <TonightIntentPanel
+          text={tonightIntentText}
+          onTextChange={onTonightIntentTextChange}
+          pendingIntent={pendingTonightIntent}
+          activeIntent={activeTonightIntent}
+          clarificationText={tonightIntentClarificationText}
+          onClarificationTextChange={onTonightIntentClarificationTextChange}
+          busy={tonightIntentBusy}
+          message={tonightIntentMessage}
+          onInterpret={onInterpretTonightIntent}
+          onAnswerClarification={onAnswerTonightIntentClarification}
+          onApply={onApplyTonightIntent}
+          onClear={onClearTonightIntent}
+        />
+      ) : null}
+
       {onboardingMessage ? (
         <p className="setupCallout">{onboardingMessage}</p>
       ) : null}
@@ -518,6 +560,132 @@ export function SetupStep({
   );
 }
 
+function TonightIntentPanel({
+  text,
+  onTextChange,
+  pendingIntent,
+  activeIntent,
+  clarificationText,
+  onClarificationTextChange,
+  busy,
+  message,
+  onInterpret,
+  onAnswerClarification,
+  onApply,
+  onClear,
+}: {
+  text: string;
+  onTextChange: (text: string) => void;
+  pendingIntent: TonightIntentInterpretationPayload | null;
+  activeIntent: TonightIntentInterpretationPayload | null;
+  clarificationText: string;
+  onClarificationTextChange: (text: string) => void;
+  busy: boolean;
+  message: string | null;
+  onInterpret: () => void | Promise<void>;
+  onAnswerClarification: () => void | Promise<void>;
+  onApply: () => void;
+  onClear: () => void;
+}) {
+  const pendingSignals = pendingIntent?.softSignals.slice(0, 4) ?? [];
+  const activeSignals = activeIntent?.softSignals.slice(0, 4) ?? [];
+  const hasActiveIntent = activeIntent?.status === "confirmation_required";
+  const hasClarification = pendingIntent?.status === "clarification_required";
+  const hasConfirmation = pendingIntent?.status === "confirmation_required";
+
+  return (
+    <section className="tonightIntentPanel" aria-labelledby="tonight-intent-heading">
+      <div className="tonightIntentHeader">
+        <div>
+          <p className="eyebrow">Tonight only</p>
+          <h3 id="tonight-intent-heading">Steer this movie night</h3>
+        </div>
+        {hasActiveIntent ? (
+          <button type="button" className="secondaryAction compactAction" onClick={onClear}>
+            Clear
+          </button>
+        ) : null}
+      </div>
+
+      {hasActiveIntent ? (
+        <div className="tonightIntentActive" aria-label="Active tonight context">
+          <strong>{activeIntent.confirmationText}</strong>
+          <span>This applies to this session only. It is not saved to either taste profile.</span>
+          {activeSignals.length > 0 ? (
+            <div className="tonightIntentSignals">
+              {activeSignals.map((signal) => (
+                <span key={`active-${signal}`}>{formatTonightIntentSignal(signal)}</span>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="tonightIntentComposer">
+        <label htmlFor="tonight-intent-input">Natural-language nudge</label>
+        <div className="tonightIntentInputRow">
+          <input
+            id="tonight-intent-input"
+            value={text}
+            onChange={(event) => onTextChange(event.target.value)}
+            placeholder="something funny from the 90s"
+            disabled={busy}
+          />
+          <button
+            type="button"
+            className="secondaryAction compactAction"
+            onClick={onInterpret}
+            disabled={busy || text.trim().length === 0}
+          >
+            {busy ? "Reading..." : "Review"}
+          </button>
+        </div>
+      </div>
+
+      {hasConfirmation ? (
+        <div className="tonightIntentReview">
+          <p>{pendingIntent.confirmationText}</p>
+          {pendingSignals.length > 0 ? (
+            <div className="tonightIntentSignals">
+              {pendingSignals.map((signal) => (
+                <span key={`pending-${signal}`}>{formatTonightIntentSignal(signal)}</span>
+              ))}
+            </div>
+          ) : null}
+          <button type="button" className="primaryAction compactAction" onClick={onApply} disabled={busy}>
+            Apply to tonight
+          </button>
+        </div>
+      ) : null}
+
+      {hasClarification ? (
+        <div className="tonightIntentReview">
+          <p>{pendingIntent.clarificationQuestion}</p>
+          <div className="tonightIntentInputRow">
+            <input
+              value={clarificationText}
+              onChange={(event) => onClarificationTextChange(event.target.value)}
+              placeholder="comforting, not matching the mood"
+              disabled={busy}
+              aria-label="Clarify tonight intent"
+            />
+            <button
+              type="button"
+              className="secondaryAction compactAction"
+              onClick={onAnswerClarification}
+              disabled={busy || clarificationText.trim().length === 0}
+            >
+              Answer
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {message ? <p className="tonightIntentNote">{message}</p> : null}
+    </section>
+  );
+}
+
 function ProfileMemoryPanel({
   founderLabel,
   wifeLabel,
@@ -583,6 +751,14 @@ function ProfileMemoryPanel({
       </div>
     </section>
   );
+}
+
+function formatTonightIntentSignal(signal: string): string {
+  return signal
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function SetupControlIcon({

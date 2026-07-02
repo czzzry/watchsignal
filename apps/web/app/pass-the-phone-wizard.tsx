@@ -65,6 +65,7 @@ import {
   getRecentSessions,
   getSessionDebugHistory,
   getTasteProfileSummary,
+  interpretTonightIntent,
   loadRecommendationShortlist,
   saveProfileOnboarding,
   submitSessionReactions,
@@ -75,6 +76,7 @@ import {
   type RecentSessionSummaryPayload,
   type SharedSessionPayload,
   type TasteProfileSummaryPayload,
+  type TonightIntentInterpretationPayload,
 } from "./session-client";
 
 type PassThePhoneWizardProps = {
@@ -146,6 +148,16 @@ export function PassThePhoneWizard({
     ProfileMemorySummaryPayload[]
   >([]);
   const [profileMemoryMessage, setProfileMemoryMessage] = useState<string | null>(null);
+  const [tonightIntentText, setTonightIntentText] = useState("");
+  const [tonightIntentClarificationText, setTonightIntentClarificationText] =
+    useState("");
+  const [pendingTonightIntent, setPendingTonightIntent] =
+    useState<TonightIntentInterpretationPayload | null>(null);
+  const [activeTonightIntent, setActiveTonightIntent] =
+    useState<TonightIntentInterpretationPayload | null>(null);
+  const [tonightIntentStatus, setTonightIntentStatus] =
+    useState<SyncStatus>("ready");
+  const [tonightIntentMessage, setTonightIntentMessage] = useState<string | null>(null);
   const [debugHistoryStatus, setDebugHistoryStatus] =
     useState<DebugHistoryStatus>("idle");
   const [debugHistoryMessage, setDebugHistoryMessage] = useState<string | null>(
@@ -208,6 +220,7 @@ export function PassThePhoneWizard({
 
   const currentStepIndex = activeStepOrder.indexOf(step);
   const isSyncing = syncStatus !== "ready";
+  const tonightIntentBusy = tonightIntentStatus !== "ready";
   const onboardingBusy = onboardingStatus === "loading" || onboardingStatus === "saving";
   const sessionDateLabel = formatSessionDate(new Date());
   const isOnboardingRequired = apiHealth.connected
@@ -576,6 +589,7 @@ export function PassThePhoneWizard({
         activeMode: toApiSessionMode(sessionMode),
         participantIds,
         shortlistSize: setupLoad.setup.defaults.shortlistSize,
+        tonightIntent: activeTonightIntent,
       });
       const candidates = shortlistResponse.shortlist.map(toSessionCandidate);
 
@@ -618,6 +632,88 @@ export function PassThePhoneWizard({
       setSyncStatus("ready");
       setStep("founder");
     }
+  }
+
+  async function interpretTonightIntentText(): Promise<void> {
+    const text = tonightIntentText.trim();
+    if (!text) {
+      setTonightIntentMessage("Add a short tonight note first.");
+      return;
+    }
+
+    if (!apiHealth.connected) {
+      setTonightIntentMessage("Tonight steering needs the local API connection.");
+      return;
+    }
+
+    setTonightIntentStatus("loading");
+    setTonightIntentMessage(null);
+
+    try {
+      const interpretation = await interpretTonightIntent(text);
+      setPendingTonightIntent(interpretation);
+      setTonightIntentClarificationText("");
+      if (interpretation.status === "confirmation_required") {
+        setTonightIntentMessage("Review this before applying it to tonight.");
+      } else {
+        setTonightIntentMessage("One quick clarification, then this stays tonight-only.");
+      }
+    } catch (error) {
+      setTonightIntentMessage(toErrorMessage(error));
+    } finally {
+      setTonightIntentStatus("ready");
+    }
+  }
+
+  async function answerTonightIntentClarification(): Promise<void> {
+    if (pendingTonightIntent?.status !== "clarification_required") {
+      return;
+    }
+
+    const answer = tonightIntentClarificationText.trim();
+    if (!answer) {
+      setTonightIntentMessage("Answer the clarification first.");
+      return;
+    }
+
+    if (!apiHealth.connected) {
+      setTonightIntentMessage("Tonight steering needs the local API connection.");
+      return;
+    }
+
+    setTonightIntentStatus("loading");
+    setTonightIntentMessage(null);
+
+    try {
+      const interpretation = await interpretTonightIntent(
+        `${pendingTonightIntent.rawText}. Clarification: ${answer}`,
+      );
+      setPendingTonightIntent(interpretation);
+      setTonightIntentClarificationText("");
+      setTonightIntentMessage("Review this before applying it to tonight.");
+    } catch (error) {
+      setTonightIntentMessage(toErrorMessage(error));
+    } finally {
+      setTonightIntentStatus("ready");
+    }
+  }
+
+  function applyTonightIntent(): void {
+    if (pendingTonightIntent?.status !== "confirmation_required") {
+      return;
+    }
+
+    setActiveTonightIntent(pendingTonightIntent);
+    setPendingTonightIntent(null);
+    setTonightIntentMessage("Applied to tonight only. Your taste profile is unchanged.");
+  }
+
+  function clearTonightIntent(): void {
+    setActiveTonightIntent(null);
+    setPendingTonightIntent(null);
+    setTonightIntentText("");
+    setTonightIntentClarificationText("");
+    setTonightIntentMessage(null);
   }
 
   async function recordReaction(
@@ -797,6 +893,18 @@ export function PassThePhoneWizard({
           onboardingPrompt={onboardingPrompt}
           profileMemorySummaries={profileMemorySummaries}
           profileMemoryMessage={profileMemoryMessage}
+          tonightIntentText={tonightIntentText}
+          onTonightIntentTextChange={setTonightIntentText}
+          pendingTonightIntent={pendingTonightIntent}
+          activeTonightIntent={activeTonightIntent}
+          tonightIntentClarificationText={tonightIntentClarificationText}
+          onTonightIntentClarificationTextChange={setTonightIntentClarificationText}
+          tonightIntentBusy={tonightIntentBusy}
+          tonightIntentMessage={tonightIntentMessage}
+          onInterpretTonightIntent={interpretTonightIntentText}
+          onAnswerTonightIntentClarification={answerTonightIntentClarification}
+          onApplyTonightIntent={applyTonightIntent}
+          onClearTonightIntent={clearTonightIntent}
           onStart={startSession}
           onBeginOnboarding={() => beginOnboarding()}
           recentSessions={recentSessions}
