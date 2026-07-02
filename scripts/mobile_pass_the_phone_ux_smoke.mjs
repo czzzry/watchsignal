@@ -100,7 +100,7 @@ async function main() {
       await clickButtonInSection(tab, "Husband", "Loved");
       await clickButtonInSection(tab, "Wife", "Fine");
       await clickButton(tab, "Save feedback");
-      await clickButton(tab, "Start another session");
+      await clickButton(tab, "Start new night");
       await clickSummary(tab, "Recent nights");
       await waitForText(tab, "Household history", "setup history panel");
       await clickButton(tab, "Load");

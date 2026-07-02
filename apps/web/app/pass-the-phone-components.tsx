@@ -1777,6 +1777,8 @@ export function ResultsStep({
   debugHistoryMessage,
   onLoadDebugHistory,
   onReset,
+  onShowMore,
+  isSyncing,
   reviewMode,
 }: {
   founderLabel: string;
@@ -1795,6 +1797,8 @@ export function ResultsStep({
   debugHistoryMessage: string | null;
   onLoadDebugHistory: () => void | Promise<void>;
   onReset: () => void;
+  onShowMore: () => void | Promise<void>;
+  isSyncing: boolean;
   reviewMode: boolean;
 }) {
   const bestPick = rankedCandidates[0];
@@ -2432,8 +2436,13 @@ export function ResultsStep({
         </details>
       ) : null}
 
-      <button type="button" className="primaryAction resultsRestartAction" onClick={onReset}>
-        Start another session
+      <button
+        type="button"
+        className="primaryAction resultsRestartAction"
+        onClick={onShowMore}
+        disabled={!canPersist || isSyncing}
+      >
+        {isSyncing ? "Finding five more..." : "Show 5 more"}
       </button>
     </section>
   );
@@ -2501,7 +2510,22 @@ function DebugHistoryPanel({
               <dt>Best pick</dt>
               <dd>{bestPickTitle ?? history.bestPickSourceMovieId ?? "No pick yet"}</dd>
             </div>
+            <div>
+              <dt>Batches</dt>
+              <dd>{history.batchCount}</dd>
+            </div>
+            <div>
+              <dt>Shown titles</dt>
+              <dd>{history.shownSourceMovieIds.length}</dd>
+            </div>
           </dl>
+
+          <DebugList
+            label="Previous batch"
+            items={history.previousShortlist.map(
+              (item) => `${item.title} (${item.sourceMovieId})`,
+            )}
+          />
 
           <DebugList
             label="Session outcome"
@@ -2537,6 +2561,14 @@ function DebugHistoryPanel({
           <DebugReactionList
             label="Wife reactions"
             reactions={history.wifeReactions}
+          />
+          <DebugReactionList
+            label="Previous founder reactions"
+            reactions={history.previousFounderReactions}
+          />
+          <DebugReactionList
+            label="Previous wife reactions"
+            reactions={history.previousWifeReactions}
           />
           <DebugList
             label="Post-watch feedback"

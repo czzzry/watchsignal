@@ -488,6 +488,9 @@ class SharedMovieNightSession:
     founder_reactions: tuple[SessionReaction, ...] = ()
     wife_reactions: tuple[SessionReaction, ...] = ()
     reranked_source_movie_ids: tuple[str, ...] = ()
+    previous_shortlist: tuple[SessionShortlistItem, ...] = ()
+    previous_founder_reactions: tuple[SessionReaction, ...] = ()
+    previous_wife_reactions: tuple[SessionReaction, ...] = ()
 
     @property
     def founder_participant_id(self) -> str:
@@ -502,6 +505,21 @@ class SharedMovieNightSession:
         if not self.reranked_source_movie_ids:
             return None
         return self.reranked_source_movie_ids[0]
+
+    @property
+    def shown_source_movie_ids(self) -> tuple[str, ...]:
+        return tuple(
+            dict.fromkeys(
+                item.source_movie_id
+                for item in (*self.previous_shortlist, *self.shortlist)
+            )
+        )
+
+    @property
+    def batch_count(self) -> int:
+        if not self.previous_shortlist:
+            return 1
+        return (len(self.previous_shortlist) // 5) + 1
 
     def __post_init__(self) -> None:
         normalized_session_id = self.session_id.strip()

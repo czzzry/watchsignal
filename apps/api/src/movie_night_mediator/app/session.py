@@ -80,6 +80,49 @@ class SharedSessionService:
                 founder_reactions=session.founder_reactions,
                 wife_reactions=session.wife_reactions,
                 reranked_source_movie_ids=session.reranked_source_movie_ids,
+                previous_shortlist=session.previous_shortlist,
+                previous_founder_reactions=session.previous_founder_reactions,
+                previous_wife_reactions=session.previous_wife_reactions,
+            )
+        )
+
+    def continue_with_shortlist(
+        self,
+        session_id: str,
+        shortlist: tuple[SessionShortlistItem, ...],
+    ) -> SharedMovieNightSession:
+        session = self._require_session(session_id)
+        if session.state != SharedSessionState.RERANKED:
+            raise SessionTransitionError("Only reranked sessions can show five more.")
+
+        if len(shortlist) != 5:
+            raise ValueError("Session continuation requires a five-title shortlist.")
+
+        next_ids = {item.source_movie_id for item in shortlist}
+        if len(next_ids) != len(shortlist):
+            raise ValueError("Continuation shortlist source movie ids must be unique.")
+
+        already_shown_ids = set(session.shown_source_movie_ids)
+        if already_shown_ids.intersection(next_ids):
+            raise ValueError("Continuation shortlist cannot include already-shown movies.")
+
+        return self.session_store.save_session(
+            SharedMovieNightSession(
+                session_id=session.session_id,
+                household_id=session.household_id,
+                active_mode=session.active_mode,
+                participant_ids=session.participant_ids,
+                state=SharedSessionState.FOUNDER_REACTING,
+                shortlist=shortlist,
+                previous_shortlist=(*session.previous_shortlist, *session.shortlist),
+                previous_founder_reactions=(
+                    *session.previous_founder_reactions,
+                    *session.founder_reactions,
+                ),
+                previous_wife_reactions=(
+                    *session.previous_wife_reactions,
+                    *session.wife_reactions,
+                ),
             )
         )
 
@@ -106,6 +149,9 @@ class SharedSessionService:
                     shortlist=session.shortlist,
                     founder_reactions=reactions,
                     wife_reactions=session.wife_reactions,
+                    previous_shortlist=session.previous_shortlist,
+                    previous_founder_reactions=session.previous_founder_reactions,
+                    previous_wife_reactions=session.previous_wife_reactions,
                 )
             )
 
@@ -125,6 +171,9 @@ class SharedSessionService:
                     founder_reactions=session.founder_reactions,
                     wife_reactions=reactions,
                     reranked_source_movie_ids=reranked_ids,
+                    previous_shortlist=session.previous_shortlist,
+                    previous_founder_reactions=session.previous_founder_reactions,
+                    previous_wife_reactions=session.previous_wife_reactions,
                 )
             )
 
@@ -145,6 +194,9 @@ class SharedSessionService:
                 shortlist=session.shortlist,
                 founder_reactions=session.founder_reactions,
                 wife_reactions=session.wife_reactions,
+                previous_shortlist=session.previous_shortlist,
+                previous_founder_reactions=session.previous_founder_reactions,
+                previous_wife_reactions=session.previous_wife_reactions,
             )
         )
 

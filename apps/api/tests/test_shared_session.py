@@ -121,6 +121,90 @@ class SharedSessionServiceTest(unittest.TestCase):
             with self.assertRaisesRegex(SessionTransitionError, "cannot change mode"):
                 service.update_mode("session-1", SessionMode.WIFE_FIRST)
 
+    def test_continue_with_shortlist_preserves_prior_batch_and_reactions(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "sessions.sqlite3"
+            service = create_service_with_complete_onboarding(database_path)
+            service.start_session(
+                session_id="session-1",
+                participant_ids=("husband", "wife"),
+                shortlist=GENERIC_SHORTLIST,
+            )
+            service.submit_reactions(
+                "session-1",
+                "husband",
+                reactions_for("session-1", "husband", ["maybe", "interested", "no", "seen", "maybe"]),
+            )
+            service.advance_handoff("session-1")
+            service.submit_reactions(
+                "session-1",
+                "wife",
+                reactions_for("session-1", "wife", ["interested", "maybe", "no", "seen", "interested"]),
+            )
+
+            continued = service.continue_with_shortlist(
+                "session-1",
+                CONTINUATION_SHORTLIST,
+            )
+            reloaded = service.load_session("session-1")
+
+            self.assertEqual(continued.state, SharedSessionState.FOUNDER_REACTING)
+            self.assertEqual(continued.shortlist, CONTINUATION_SHORTLIST)
+            self.assertEqual(continued.previous_shortlist, GENERIC_SHORTLIST)
+            self.assertEqual(len(continued.previous_founder_reactions), 5)
+            self.assertEqual(len(continued.previous_wife_reactions), 5)
+            self.assertEqual(continued.founder_reactions, ())
+            self.assertEqual(continued.wife_reactions, ())
+            self.assertEqual(continued.batch_count, 2)
+            self.assertEqual(
+                continued.shown_source_movie_ids,
+                (
+                    "tmdb:1",
+                    "tmdb:2",
+                    "tmdb:3",
+                    "tmdb:4",
+                    "tmdb:5",
+                    "tmdb:6",
+                    "tmdb:7",
+                    "tmdb:8",
+                    "tmdb:9",
+                    "tmdb:10",
+                ),
+            )
+            assert reloaded is not None
+            self.assertEqual(reloaded.previous_shortlist, GENERIC_SHORTLIST)
+            self.assertEqual(len(reloaded.previous_founder_reactions), 5)
+
+    def test_continue_rejects_already_shown_movies(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "sessions.sqlite3"
+            service = create_service_with_complete_onboarding(database_path)
+            service.start_session(
+                session_id="session-1",
+                participant_ids=("husband", "wife"),
+                shortlist=GENERIC_SHORTLIST,
+            )
+            service.submit_reactions(
+                "session-1",
+                "husband",
+                reactions_for("session-1", "husband", ["maybe", "maybe", "maybe", "maybe", "maybe"]),
+            )
+            service.advance_handoff("session-1")
+            service.submit_reactions(
+                "session-1",
+                "wife",
+                reactions_for("session-1", "wife", ["maybe", "maybe", "maybe", "maybe", "maybe"]),
+            )
+
+            with self.assertRaisesRegex(ValueError, "already-shown"):
+                service.continue_with_shortlist(
+                    "session-1",
+                    (
+                        SessionShortlistItem("tmdb:1", "Duplicate Pick", 1),
+                        *CONTINUATION_SHORTLIST[:4],
+                    ),
+                )
+
 
 GENERIC_SHORTLIST = (
     SessionShortlistItem("tmdb:1", "First Pick", 1),
@@ -128,6 +212,14 @@ GENERIC_SHORTLIST = (
     SessionShortlistItem("tmdb:3", "Third Pick", 3),
     SessionShortlistItem("tmdb:4", "Fourth Pick", 4),
     SessionShortlistItem("tmdb:5", "Fifth Pick", 5),
+)
+
+CONTINUATION_SHORTLIST = (
+    SessionShortlistItem("tmdb:6", "Sixth Pick", 1),
+    SessionShortlistItem("tmdb:7", "Seventh Pick", 2),
+    SessionShortlistItem("tmdb:8", "Eighth Pick", 3),
+    SessionShortlistItem("tmdb:9", "Ninth Pick", 4),
+    SessionShortlistItem("tmdb:10", "Tenth Pick", 5),
 )
 
 

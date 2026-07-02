@@ -58,6 +58,7 @@ import type {
 } from "./pass-the-phone-model";
 import {
   advanceSessionHandoff,
+  continueSharedSession,
   createSharedSession,
   getOnboardingCompletion,
   getProfileMemorySummary,
@@ -634,6 +635,64 @@ export function PassThePhoneWizard({
     }
   }
 
+  async function showFiveMore(): Promise<void> {
+    if (!apiHealth.connected || sharedSession === null || sessionSource !== "api") {
+      setApiError("Show 5 more needs the synced session so earlier reactions can stay attached.");
+      return;
+    }
+
+    setSyncStatus("loading");
+    setApiError(null);
+    setDebugHistory(null);
+    setDebugHistoryStatus("idle");
+    setDebugHistoryMessage(null);
+
+    try {
+      const excludedSourceMovieIds =
+        sharedSession.shownSourceMovieIds.length > 0
+          ? sharedSession.shownSourceMovieIds
+          : sessionCandidates.map((candidate) => candidate.id);
+      const shortlistResponse = await loadRecommendationShortlist({
+        sessionId: sharedSession.sessionId,
+        householdId: sharedSession.householdId,
+        activeMode: toApiSessionMode(sessionMode),
+        participantIds,
+        shortlistSize: setupLoad.setup.defaults.shortlistSize,
+        tonightIntent: activeTonightIntent,
+        excludedSourceMovieIds,
+      });
+      const candidates = shortlistResponse.shortlist.map(toSessionCandidate);
+
+      if (candidates.length !== 5) {
+        throw new Error("Recommendation API did not return five fresh picks.");
+      }
+
+      const continuedSession = await continueSharedSession(
+        sharedSession.sessionId,
+        candidates.map((candidate, index) => ({
+          sourceMovieId: candidate.id,
+          title: candidate.title,
+          candidateRank: index + 1,
+        })),
+      );
+
+      setSharedSession(continuedSession);
+      setSessionCandidates(candidates);
+      setFounderIndex(0);
+      setWifeIndex(0);
+      setFounderReactions({});
+      setWifeReactions({});
+      setFounderSeenMemories({});
+      setWifeSeenMemories({});
+      setSeenMemoryPrompt(null);
+      setStep("founder");
+    } catch (error) {
+      setApiError(toErrorMessage(error));
+    } finally {
+      setSyncStatus("ready");
+    }
+  }
+
   async function interpretTonightIntentText(): Promise<void> {
     const text = tonightIntentText.trim();
     if (!text) {
@@ -1040,6 +1099,8 @@ export function PassThePhoneWizard({
           debugHistoryMessage={debugHistoryMessage}
           onLoadDebugHistory={loadDebugHistory}
           onReset={resetSession}
+          onShowMore={showFiveMore}
+          isSyncing={isSyncing}
           reviewMode={reviewMode}
         />
       ) : null}

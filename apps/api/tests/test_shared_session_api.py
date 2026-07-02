@@ -8,6 +8,7 @@ from pydantic import ValidationError
 
 from movie_night_mediator.api.main import (
     CreateSharedSessionPayload,
+    ContinueSharedSessionPayload,
     SubmitSessionReactionsPayload,
     UpdateSharedSessionPayload,
     create_app,
@@ -269,6 +270,112 @@ class SharedSessionApiTest(unittest.TestCase):
             self.assertEqual(raised.exception.status_code, 400)
             self.assertIn("Each shortlist item", raised.exception.detail)
 
+    def test_session_api_continues_with_new_batch_and_history(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "sessions.sqlite3"
+            routes = session_route_endpoints(
+                create_app(
+                    onboarding_store=complete_onboarding_store(database_path),
+                    session_store=SQLiteSessionStore(database_path=database_path),
+                )
+            )
+            routes["post_session"](
+                CreateSharedSessionPayload(**GENERIC_CREATE_SESSION_PAYLOAD)
+            )
+            routes["post_reactions"](
+                "session-api-1",
+                SubmitSessionReactionsPayload(
+                    participantId="husband",
+                    reactions=reaction_payloads(
+                        ["maybe", "interested", "no", "seen", "maybe"]
+                    ),
+                ),
+            )
+            routes["post_handoff"]("session-api-1")
+            routes["post_reactions"](
+                "session-api-1",
+                SubmitSessionReactionsPayload(
+                    participantId="wife",
+                    reactions=reaction_payloads(
+                        ["interested", "maybe", "no", "seen", "interested"]
+                    ),
+                ),
+            )
+
+            continued = routes["post_continue"](
+                "session-api-1",
+                ContinueSharedSessionPayload(shortlist=CONTINUATION_SHORTLIST_PAYLOAD),
+            )
+            response = payload_to_dict(continued)
+
+            self.assertEqual(response["state"], "founder_reacting")
+            self.assertEqual(response["batchCount"], 2)
+            self.assertEqual(len(response["previousShortlist"]), 5)
+            self.assertEqual(len(response["previousFounderReactions"]), 5)
+            self.assertEqual(len(response["previousWifeReactions"]), 5)
+            self.assertEqual(response["founderReactions"], [])
+            self.assertEqual(response["wifeReactions"], [])
+            self.assertEqual(
+                response["shownSourceMovieIds"],
+                [
+                    "tmdb:1",
+                    "tmdb:2",
+                    "tmdb:3",
+                    "tmdb:4",
+                    "tmdb:5",
+                    "tmdb:6",
+                    "tmdb:7",
+                    "tmdb:8",
+                    "tmdb:9",
+                    "tmdb:10",
+                ],
+            )
+
+    def test_session_api_rejects_continuation_duplicates(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "sessions.sqlite3"
+            routes = session_route_endpoints(
+                create_app(
+                    onboarding_store=complete_onboarding_store(database_path),
+                    session_store=SQLiteSessionStore(database_path=database_path),
+                )
+            )
+            routes["post_session"](
+                CreateSharedSessionPayload(**GENERIC_CREATE_SESSION_PAYLOAD)
+            )
+            routes["post_reactions"](
+                "session-api-1",
+                SubmitSessionReactionsPayload(
+                    participantId="husband",
+                    reactions=reaction_payloads(
+                        ["maybe", "maybe", "maybe", "maybe", "maybe"]
+                    ),
+                ),
+            )
+            routes["post_handoff"]("session-api-1")
+            routes["post_reactions"](
+                "session-api-1",
+                SubmitSessionReactionsPayload(
+                    participantId="wife",
+                    reactions=reaction_payloads(
+                        ["maybe", "maybe", "maybe", "maybe", "maybe"]
+                    ),
+                ),
+            )
+            duplicate_payload = [
+                {"sourceMovieId": "tmdb:1", "title": "Duplicate", "candidateRank": 1},
+                *CONTINUATION_SHORTLIST_PAYLOAD[:4],
+            ]
+
+            with self.assertRaises(HTTPException) as raised:
+                routes["post_continue"](
+                    "session-api-1",
+                    ContinueSharedSessionPayload(shortlist=duplicate_payload),
+                )
+
+            self.assertEqual(raised.exception.status_code, 400)
+            self.assertIn("already-shown", raised.exception.detail)
+
 
 GENERIC_CREATE_SESSION_PAYLOAD = {
     "sessionId": "session-api-1",
@@ -283,6 +390,14 @@ GENERIC_CREATE_SESSION_PAYLOAD = {
         {"sourceMovieId": "tmdb:5", "title": "Fifth Pick", "candidateRank": 5},
     ],
 }
+
+CONTINUATION_SHORTLIST_PAYLOAD = [
+    {"sourceMovieId": "tmdb:6", "title": "Sixth Pick", "candidateRank": 1},
+    {"sourceMovieId": "tmdb:7", "title": "Seventh Pick", "candidateRank": 2},
+    {"sourceMovieId": "tmdb:8", "title": "Eighth Pick", "candidateRank": 3},
+    {"sourceMovieId": "tmdb:9", "title": "Ninth Pick", "candidateRank": 4},
+    {"sourceMovieId": "tmdb:10", "title": "Tenth Pick", "candidateRank": 5},
+]
 
 
 def complete_onboarding_store(database_path: Path) -> SQLiteOnboardingStore:
@@ -329,6 +444,7 @@ def session_route_endpoints(app):
         "put_session": routes[("PUT", "/sessions/{session_id}")],
         "post_reactions": routes[("POST", "/sessions/{session_id}/reactions")],
         "post_handoff": routes[("POST", "/sessions/{session_id}/advance-handoff")],
+        "post_continue": routes[("POST", "/sessions/{session_id}/continue")],
     }
 
 

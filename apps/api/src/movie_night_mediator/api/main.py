@@ -306,6 +306,7 @@ class RecommendationShortlistRequestPayload(BaseModel):
     shortlistSize: int = Field(default=5, ge=1, le=10)
     source: Literal["demo", "live_tmdb"] = "demo"
     tonightIntent: dict[str, object] | None = None
+    excludedSourceMovieIds: list[str] = Field(default_factory=list)
 
 
 class SessionReactionPayload(BaseModel):
@@ -319,6 +320,10 @@ class CreateSharedSessionPayload(BaseModel):
     participantIds: list[str] = Field(min_length=2, max_length=2)
     shortlist: list[SessionShortlistItemPayload] = Field(min_length=5, max_length=5)
     sessionId: str | None = None
+
+
+class ContinueSharedSessionPayload(BaseModel):
+    shortlist: list[SessionShortlistItemPayload] = Field(min_length=5, max_length=5)
 
 
 class UpdateSharedSessionPayload(BaseModel):
@@ -339,6 +344,11 @@ class SharedSessionPayload(BaseModel):
     shortlist: list[SessionShortlistItemPayload]
     founderReactions: list[SessionReactionPayload]
     wifeReactions: list[SessionReactionPayload]
+    previousShortlist: list[SessionShortlistItemPayload]
+    previousFounderReactions: list[SessionReactionPayload]
+    previousWifeReactions: list[SessionReactionPayload]
+    shownSourceMovieIds: list[str]
+    batchCount: int
     rerankedSourceMovieIds: list[str]
     rerankedShortlist: list[SessionShortlistItemPayload]
     bestPickSourceMovieId: str | None = None
@@ -416,8 +426,13 @@ class DebugHistorySessionPayload(BaseModel):
     state: str
     participantIds: list[str]
     shortlist: list[DebugHistoryShortlistItemPayload]
+    previousShortlist: list[DebugHistoryShortlistItemPayload]
     founderReactions: list[DebugHistoryReactionPayload]
     wifeReactions: list[DebugHistoryReactionPayload]
+    previousFounderReactions: list[DebugHistoryReactionPayload]
+    previousWifeReactions: list[DebugHistoryReactionPayload]
+    shownSourceMovieIds: list[str]
+    batchCount: int
     rerankedSourceMovieIds: list[str]
     bestPickSourceMovieId: str | None = None
     sessionOutcome: DebugHistoryOutcomePayload | None = None
@@ -697,6 +712,7 @@ def create_app(
                     taste_lab_service=taste_lab_service,
                 ),
                 snapshot_service=recommendation_snapshot_service,
+                excluded_source_movie_ids=tuple(payload.excludedSourceMovieIds),
             )
         ]
 
@@ -1152,6 +1168,32 @@ def create_app(
 
         return _shared_session_to_payload(session)
 
+    @app.post(
+        "/sessions/{session_id}/continue",
+        response_model=SharedSessionPayload,
+        tags=["sessions"],
+    )
+    def post_shared_session_continuation(
+        session_id: str,
+        payload: ContinueSharedSessionPayload,
+    ) -> SharedSessionPayload:
+        try:
+            session = session_service.continue_with_shortlist(
+                session_id=session_id,
+                shortlist=tuple(
+                    _payload_to_session_shortlist_item(item)
+                    for item in payload.shortlist
+                ),
+            )
+        except LookupError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except SessionTransitionError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+
+        return _shared_session_to_payload(session)
+
     @app.put(
         "/sessions/{session_id}",
         response_model=SharedSessionPayload,
@@ -1266,8 +1308,9 @@ def _live_candidate_shortlist_items(
                 taste_lab_service=taste_lab_service,
             ),
             limit=payload.shortlistSize,
-            candidate_limit=20,
+            candidate_limit=20 + len(payload.excludedSourceMovieIds),
             snapshot_service=snapshot_service,
+            excluded_source_movie_ids=tuple(payload.excludedSourceMovieIds),
         )
     except TmdbCandidateSourceError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
@@ -1296,7 +1339,18 @@ def _shortlist_session_from_payload(
         viewer_user_ids=tuple(payload.participantIds),
         region="DE",
         service_constraint="Prime Video",
+        mood_text=_tonight_intent_mood_text(payload.tonightIntent),
     )
+
+
+def _tonight_intent_mood_text(
+    tonight_intent: dict[str, object] | None,
+) -> str | None:
+    if not tonight_intent:
+        return None
+
+    raw_text = tonight_intent.get("rawText")
+    return raw_text if isinstance(raw_text, str) and raw_text.strip() else None
 
 
 def _shortlist_users_from_taste_profile(
@@ -1881,6 +1935,30 @@ def _shared_session_to_payload(
             )
             for reaction in session.wife_reactions
         ],
+        previousShortlist=[
+            SessionShortlistItemPayload(
+                sourceMovieId=item.source_movie_id,
+                title=item.title,
+                candidateRank=item.candidate_rank,
+            )
+            for item in session.previous_shortlist
+        ],
+        previousFounderReactions=[
+            SessionReactionPayload(
+                sourceMovieId=reaction.source_movie_id,
+                reactionLabel=reaction.reaction_label,
+            )
+            for reaction in session.previous_founder_reactions
+        ],
+        previousWifeReactions=[
+            SessionReactionPayload(
+                sourceMovieId=reaction.source_movie_id,
+                reactionLabel=reaction.reaction_label,
+            )
+            for reaction in session.previous_wife_reactions
+        ],
+        shownSourceMovieIds=list(session.shown_source_movie_ids),
+        batchCount=session.batch_count,
         rerankedSourceMovieIds=list(session.reranked_source_movie_ids),
         rerankedShortlist=[
             SessionShortlistItemPayload(
@@ -1911,6 +1989,14 @@ def _debug_history_session_to_payload(
             )
             for item in evidence.shortlist
         ],
+        previousShortlist=[
+            DebugHistoryShortlistItemPayload(
+                sourceMovieId=item.source_movie_id,
+                title=item.title,
+                candidateRank=item.candidate_rank,
+            )
+            for item in evidence.previous_shortlist
+        ],
         founderReactions=[
             DebugHistoryReactionPayload(
                 participantId=reaction.participant_id,
@@ -1927,6 +2013,24 @@ def _debug_history_session_to_payload(
             )
             for reaction in evidence.wife_reactions
         ],
+        previousFounderReactions=[
+            DebugHistoryReactionPayload(
+                participantId=reaction.participant_id,
+                sourceMovieId=reaction.source_movie_id,
+                reactionLabel=reaction.reaction_label,
+            )
+            for reaction in evidence.previous_founder_reactions
+        ],
+        previousWifeReactions=[
+            DebugHistoryReactionPayload(
+                participantId=reaction.participant_id,
+                sourceMovieId=reaction.source_movie_id,
+                reactionLabel=reaction.reaction_label,
+            )
+            for reaction in evidence.previous_wife_reactions
+        ],
+        shownSourceMovieIds=list(evidence.shown_source_movie_ids),
+        batchCount=evidence.batch_count,
         rerankedSourceMovieIds=list(evidence.reranked_source_movie_ids),
         bestPickSourceMovieId=evidence.best_pick_source_movie_id,
         sessionOutcome=(

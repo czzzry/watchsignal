@@ -133,8 +133,13 @@ class DebugPersistedSessionEvidence:
     state: str
     participant_ids: tuple[str, ...]
     shortlist: tuple[DebugPersistedShortlistItem, ...]
+    previous_shortlist: tuple[DebugPersistedShortlistItem, ...]
     founder_reactions: tuple[DebugPersistedReaction, ...]
     wife_reactions: tuple[DebugPersistedReaction, ...]
+    previous_founder_reactions: tuple[DebugPersistedReaction, ...]
+    previous_wife_reactions: tuple[DebugPersistedReaction, ...]
+    shown_source_movie_ids: tuple[str, ...]
+    batch_count: int
     reranked_source_movie_ids: tuple[str, ...]
     best_pick_source_movie_id: str | None
     session_outcome: DebugPersistedOutcome | None
@@ -195,12 +200,25 @@ def build_persisted_session_evidence(
         state=session.state.value,
         participant_ids=session.participant_ids,
         shortlist=tuple(_persisted_shortlist_item(item) for item in session.shortlist),
+        previous_shortlist=tuple(
+            _persisted_shortlist_item(item) for item in session.previous_shortlist
+        ),
         founder_reactions=tuple(
             _persisted_reaction(reaction) for reaction in session.founder_reactions
         ),
         wife_reactions=tuple(
             _persisted_reaction(reaction) for reaction in session.wife_reactions
         ),
+        previous_founder_reactions=tuple(
+            _persisted_reaction(reaction)
+            for reaction in session.previous_founder_reactions
+        ),
+        previous_wife_reactions=tuple(
+            _persisted_reaction(reaction)
+            for reaction in session.previous_wife_reactions
+        ),
+        shown_source_movie_ids=session.shown_source_movie_ids,
+        batch_count=session.batch_count,
         reranked_source_movie_ids=session.reranked_source_movie_ids,
         best_pick_source_movie_id=session.best_pick_source_movie_id,
         session_outcome=_persisted_outcome(outcome) if outcome is not None else None,

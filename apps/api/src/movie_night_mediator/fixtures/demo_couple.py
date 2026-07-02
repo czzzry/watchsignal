@@ -234,7 +234,104 @@ DEMO_CANDIDATE_FIXTURES = (
         original_language="en",
         spoken_languages=("en",),
     ),
+    FixtureCandidate(
+        source_movie_id="little-miss-sunshine",
+        title="Little Miss Sunshine",
+        release_year=2006,
+        runtime_min=102,
+        genres=("Comedy", "Drama"),
+        tone="Warm, awkward, bittersweet",
+        reason="A chaotic family piles into a van for a kid's pageant and somehow turns dysfunction into tenderness.",
+        top_cast=("Abigail Breslin", "Greg Kinnear", "Toni Collette"),
+        provider_availability=(
+            FixtureProviderAvailability(
+                provider_name="Prime Video",
+                access_type=ProviderAccessType.FLATRATE,
+                region="DE",
+            ),
+        ),
+        original_language="en",
+        spoken_languages=("en",),
+    ),
+    FixtureCandidate(
+        source_movie_id="the-martian",
+        title="The Martian",
+        release_year=2015,
+        runtime_min=141,
+        genres=("Adventure", "Comedy", "Sci-Fi"),
+        tone="Optimistic, nerdy, propulsive",
+        reason="A stranded astronaut tries to science his way home while everyone else races to solve the impossible.",
+        top_cast=("Matt Damon", "Jessica Chastain", "Chiwetel Ejiofor"),
+        provider_availability=(
+            FixtureProviderAvailability(
+                provider_name="Prime Video",
+                access_type=ProviderAccessType.FLATRATE,
+                region="DE",
+            ),
+        ),
+        original_language="en",
+        spoken_languages=("en",),
+    ),
+    FixtureCandidate(
+        source_movie_id="ocean-s-eleven",
+        title="Ocean's Eleven",
+        release_year=2001,
+        runtime_min=116,
+        genres=("Comedy", "Crime"),
+        tone="Slick, breezy, stylish",
+        reason="A relaxed crew of experts tries to rob three Las Vegas casinos with charm, timing, and very little visible panic.",
+        top_cast=("George Clooney", "Brad Pitt", "Julia Roberts"),
+        provider_availability=(
+            FixtureProviderAvailability(
+                provider_name="Prime Video",
+                access_type=ProviderAccessType.FLATRATE,
+                region="DE",
+            ),
+        ),
+        original_language="en",
+        spoken_languages=("en",),
+    ),
+    FixtureCandidate(
+        source_movie_id="source-code",
+        title="Source Code",
+        release_year=2011,
+        runtime_min=94,
+        genres=("Mystery", "Sci-Fi", "Thriller"),
+        tone="Tense, compact, puzzle-box",
+        reason="A soldier wakes up in someone else's body and has minutes to solve a train bombing before the loop resets.",
+        top_cast=("Jake Gyllenhaal", "Michelle Monaghan", "Vera Farmiga"),
+        provider_availability=(
+            FixtureProviderAvailability(
+                provider_name="Prime Video",
+                access_type=ProviderAccessType.FLATRATE,
+                region="DE",
+            ),
+        ),
+        original_language="en",
+        spoken_languages=("en",),
+    ),
+    FixtureCandidate(
+        source_movie_id="school-of-rock",
+        title="School of Rock",
+        release_year=2003,
+        runtime_min=110,
+        genres=("Comedy", "Music"),
+        tone="Loose, goofy, high-energy",
+        reason="A broke musician fakes his way into a substitute teaching job and turns a class into a rock band.",
+        top_cast=("Jack Black", "Joan Cusack", "Mike White"),
+        provider_availability=(
+            FixtureProviderAvailability(
+                provider_name="Prime Video",
+                access_type=ProviderAccessType.FLATRATE,
+                region="DE",
+            ),
+        ),
+        original_language="en",
+        spoken_languages=("en",),
+    ),
 )
+
+INITIAL_DEMO_CANDIDATE_FIXTURES = DEMO_CANDIDATE_FIXTURES[:8]
 
 DEMO_CANDIDATES = fixture_candidates_to_domain(
     DEMO_CANDIDATE_FIXTURES,
@@ -242,9 +339,15 @@ DEMO_CANDIDATES = fixture_candidates_to_domain(
     household_defaults=DEMO_HOUSEHOLD_DEFAULTS,
 )
 
+INITIAL_DEMO_CANDIDATES = fixture_candidates_to_domain(
+    INITIAL_DEMO_CANDIDATE_FIXTURES,
+    session=DEMO_SHARED_SESSION,
+    household_defaults=DEMO_HOUSEHOLD_DEFAULTS,
+)
+
 
 def demo_scoring_request(
-    candidates: tuple[Candidate, ...] = DEMO_CANDIDATES,
+    candidates: tuple[Candidate, ...] = INITIAL_DEMO_CANDIDATES,
 ) -> ScoringRequest:
     return ScoringRequest(
         session=DEMO_SHARED_SESSION,
@@ -256,7 +359,7 @@ def demo_scoring_request(
 
 def demo_candidate_shortlist(limit: int = 5) -> tuple[RankedCandidate, ...]:
     return fixture_candidates_to_shortlist(
-        DEMO_CANDIDATE_FIXTURES,
+        INITIAL_DEMO_CANDIDATE_FIXTURES,
         session=DEMO_SHARED_SESSION,
         household_defaults=DEMO_HOUSEHOLD_DEFAULTS,
         users=(DEMO_HUSBAND_PROFILE, DEMO_WIFE_PROFILE),

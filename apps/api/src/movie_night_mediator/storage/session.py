@@ -90,6 +90,35 @@ class SQLiteSessionStore:
                     ],
                 )
                 connection.execute(
+                    "DELETE FROM shared_session_previous_shortlist WHERE session_id = ?",
+                    (session.session_id,),
+                )
+                connection.executemany(
+                    """
+                    INSERT INTO shared_session_previous_shortlist (
+                        session_id,
+                        source_movie_id,
+                        title,
+                        candidate_rank,
+                        history_position
+                    )
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    [
+                        (
+                            session.session_id,
+                            item.source_movie_id,
+                            item.title,
+                            item.candidate_rank,
+                            index,
+                        )
+                        for index, item in enumerate(
+                            session.previous_shortlist,
+                            start=1,
+                        )
+                    ],
+                )
+                connection.execute(
                     "DELETE FROM shared_session_reactions WHERE session_id = ?",
                     (session.session_id,),
                 )
@@ -123,6 +152,51 @@ class SQLiteSessionStore:
                             "wife",
                         )
                         for reaction in session.wife_reactions
+                    ],
+                )
+                connection.execute(
+                    "DELETE FROM shared_session_previous_reactions WHERE session_id = ?",
+                    (session.session_id,),
+                )
+                connection.executemany(
+                    """
+                    INSERT INTO shared_session_previous_reactions (
+                        session_id,
+                        participant_id,
+                        source_movie_id,
+                        reaction_label,
+                        reaction_pass,
+                        history_position
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    [
+                        (
+                            reaction.session_id,
+                            reaction.participant_id,
+                            reaction.source_movie_id,
+                            reaction.reaction_label.value,
+                            "founder",
+                            index,
+                        )
+                        for index, reaction in enumerate(
+                            session.previous_founder_reactions,
+                            start=1,
+                        )
+                    ]
+                    + [
+                        (
+                            reaction.session_id,
+                            reaction.participant_id,
+                            reaction.source_movie_id,
+                            reaction.reaction_label.value,
+                            "wife",
+                            index,
+                        )
+                        for index, reaction in enumerate(
+                            session.previous_wife_reactions,
+                            start=1,
+                        )
                     ],
                 )
                 connection.execute(
@@ -191,6 +265,24 @@ class SQLiteSessionStore:
                 """,
                 (session_id,),
             ).fetchall()
+            previous_shortlist_rows = connection.execute(
+                """
+                SELECT source_movie_id, title, candidate_rank
+                FROM shared_session_previous_shortlist
+                WHERE session_id = ?
+                ORDER BY history_position ASC
+                """,
+                (session_id,),
+            ).fetchall()
+            previous_reaction_rows = connection.execute(
+                """
+                SELECT participant_id, source_movie_id, reaction_label, reaction_pass
+                FROM shared_session_previous_reactions
+                WHERE session_id = ?
+                ORDER BY reaction_pass ASC, history_position ASC
+                """,
+                (session_id,),
+            ).fetchall()
             rerank_rows = connection.execute(
                 """
                 SELECT source_movie_id
@@ -215,6 +307,20 @@ class SQLiteSessionStore:
             else:
                 wife_reactions.append(reaction)
 
+        previous_founder_reactions = []
+        previous_wife_reactions = []
+        for row in previous_reaction_rows:
+            reaction = SessionReaction(
+                session_id=session_row["session_id"],
+                participant_id=row["participant_id"],
+                source_movie_id=row["source_movie_id"],
+                reaction_label=SessionReactionLabel(row["reaction_label"]),
+            )
+            if row["reaction_pass"] == "founder":
+                previous_founder_reactions.append(reaction)
+            else:
+                previous_wife_reactions.append(reaction)
+
         return SharedMovieNightSession(
             session_id=session_row["session_id"],
             household_id=session_row["household_id"],
@@ -237,6 +343,16 @@ class SQLiteSessionStore:
             reranked_source_movie_ids=tuple(
                 row["source_movie_id"] for row in rerank_rows
             ),
+            previous_shortlist=tuple(
+                SessionShortlistItem(
+                    source_movie_id=row["source_movie_id"],
+                    title=row["title"],
+                    candidate_rank=row["candidate_rank"],
+                )
+                for row in previous_shortlist_rows
+            ),
+            previous_founder_reactions=tuple(previous_founder_reactions),
+            previous_wife_reactions=tuple(previous_wife_reactions),
         )
 
     def list_sessions(
@@ -317,6 +433,35 @@ class SQLiteSessionStore:
                             reaction_pass IN ('founder', 'wife')
                         ),
                         PRIMARY KEY (session_id, participant_id, source_movie_id)
+                    );
+
+                    CREATE TABLE IF NOT EXISTS shared_session_previous_shortlist (
+                        session_id TEXT NOT NULL REFERENCES shared_sessions(session_id)
+                            ON DELETE CASCADE,
+                        source_movie_id TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        candidate_rank INTEGER NOT NULL,
+                        history_position INTEGER NOT NULL,
+                        PRIMARY KEY (session_id, source_movie_id)
+                    );
+
+                    CREATE TABLE IF NOT EXISTS shared_session_previous_reactions (
+                        session_id TEXT NOT NULL REFERENCES shared_sessions(session_id)
+                            ON DELETE CASCADE,
+                        participant_id TEXT NOT NULL,
+                        source_movie_id TEXT NOT NULL,
+                        reaction_label TEXT NOT NULL CHECK (
+                            reaction_label IN ('interested', 'maybe', 'no', 'seen')
+                        ),
+                        reaction_pass TEXT NOT NULL CHECK (
+                            reaction_pass IN ('founder', 'wife')
+                        ),
+                        history_position INTEGER NOT NULL,
+                        PRIMARY KEY (
+                            session_id,
+                            participant_id,
+                            source_movie_id
+                        )
                     );
 
                     CREATE TABLE IF NOT EXISTS shared_session_reranks (

@@ -13,6 +13,11 @@ export type SharedSessionPayload = {
   shortlist: SessionShortlistItemPayload[];
   founderReactions: SessionReactionPayload[];
   wifeReactions: SessionReactionPayload[];
+  previousShortlist: SessionShortlistItemPayload[];
+  previousFounderReactions: SessionReactionPayload[];
+  previousWifeReactions: SessionReactionPayload[];
+  shownSourceMovieIds: string[];
+  batchCount: number;
   rerankedSourceMovieIds: string[];
   bestPickSourceMovieId: string | null;
 };
@@ -206,8 +211,13 @@ export type DebugHistorySessionPayload = {
   state: string;
   participantIds: string[];
   shortlist: SessionShortlistItemPayload[];
+  previousShortlist: SessionShortlistItemPayload[];
   founderReactions: DebugHistoryReactionPayload[];
   wifeReactions: DebugHistoryReactionPayload[];
+  previousFounderReactions: DebugHistoryReactionPayload[];
+  previousWifeReactions: DebugHistoryReactionPayload[];
+  shownSourceMovieIds: string[];
+  batchCount: number;
   rerankedSourceMovieIds: string[];
   bestPickSourceMovieId: string | null;
   sessionOutcome: DebugHistoryOutcomePayload | null;
@@ -336,6 +346,7 @@ export type LoadShortlistRequest = {
   participantIds: string[];
   shortlistSize: number;
   tonightIntent?: TonightIntentInterpretationPayload | null;
+  excludedSourceMovieIds?: string[];
 };
 
 export type LoadShortlistResponse = {
@@ -363,6 +374,15 @@ export async function createSharedSession(
   request: CreateSessionRequest,
 ): Promise<SharedSessionPayload> {
   return postJson("/api/session", request);
+}
+
+export async function continueSharedSession(
+  sessionId: string,
+  shortlist: SessionShortlistItemPayload[],
+): Promise<SharedSessionPayload> {
+  return postJson(`/api/session/${encodeURIComponent(sessionId)}/continue`, {
+    shortlist,
+  });
 }
 
 export async function loadRecommendationShortlist(

@@ -77,10 +77,15 @@ def get_offline_demo_shortlist(
     session: SessionContext | None = None,
     users: tuple[UserProfile, ...] | None = None,
     snapshot_service: RecommendationSnapshotService | None = None,
+    excluded_source_movie_ids: tuple[str, ...] = (),
 ) -> tuple[OfflineShortlistItem, ...]:
-    fixtures_by_source_id = {
-        fixture.source_movie_id: fixture for fixture in DEMO_CANDIDATE_FIXTURES
-    }
+    excluded_ids = set(excluded_source_movie_ids)
+    candidate_fixtures = tuple(
+        fixture
+        for fixture in DEMO_CANDIDATE_FIXTURES
+        if fixture.source_movie_id not in excluded_ids
+    )
+    fixtures_by_source_id = {fixture.source_movie_id: fixture for fixture in candidate_fixtures}
     resolved_session = session or replace(
         DEMO_SHARED_SESSION,
         session_id=session_id or DEMO_SHARED_SESSION.session_id,
@@ -89,16 +94,22 @@ def get_offline_demo_shortlist(
     domain_candidates_by_source_id = {
         candidate.source_movie_id: candidate
         for candidate in fixture_candidates_to_domain(
-            DEMO_CANDIDATE_FIXTURES,
+            candidate_fixtures,
             session=resolved_session,
             household_defaults=DEMO_HOUSEHOLD_DEFAULTS,
         )
     }
-    if session_id is None and session is None and users is None and snapshot_service is None:
+    if (
+        session_id is None
+        and session is None
+        and users is None
+        and snapshot_service is None
+        and not excluded_source_movie_ids
+    ):
         ranked_candidates = demo_candidate_shortlist(limit=5)
     else:
         ranked_candidates = fixture_candidates_to_shortlist(
-            DEMO_CANDIDATE_FIXTURES,
+            candidate_fixtures,
             session=resolved_session,
             household_defaults=DEMO_HOUSEHOLD_DEFAULTS,
             users=resolved_users,
@@ -171,11 +182,18 @@ def get_candidate_source_shortlist(
     candidate_limit: int = 20,
     scorer: HeuristicScorer | None = None,
     snapshot_service: RecommendationSnapshotService | None = None,
+    excluded_source_movie_ids: tuple[str, ...] = (),
 ) -> tuple[RankedCandidate, ...]:
+    excluded_ids = set(excluded_source_movie_ids)
     candidates = candidate_source.fetch_candidates(
         session=session,
         household_defaults=household_defaults,
         limit=candidate_limit,
+    )
+    candidates = tuple(
+        candidate
+        for candidate in candidates
+        if candidate.source_movie_id not in excluded_ids
     )
     result = _score_candidate_source_candidates(
         candidates,
@@ -198,11 +216,18 @@ def get_candidate_source_shortlist_items(
     candidate_limit: int = 20,
     scorer: HeuristicScorer | None = None,
     snapshot_service: RecommendationSnapshotService | None = None,
+    excluded_source_movie_ids: tuple[str, ...] = (),
 ) -> tuple[OfflineShortlistItem, ...]:
+    excluded_ids = set(excluded_source_movie_ids)
     candidates = candidate_source.fetch_candidates(
         session=session,
         household_defaults=household_defaults,
         limit=candidate_limit,
+    )
+    candidates = tuple(
+        candidate
+        for candidate in candidates
+        if candidate.source_movie_id not in excluded_ids
     )
     ranked_candidates = _score_candidate_source_candidates(
         candidates,

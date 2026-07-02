@@ -185,6 +185,33 @@ class ShortlistApiTest(unittest.TestCase):
                 snapshot_store.load_snapshot("demo-shared-session"),
             )
 
+    def test_post_recommendation_shortlist_excludes_already_shown_ids(self) -> None:
+        post_shortlist = recommendation_shortlist_endpoint(create_app(), method="POST")
+
+        payload = post_shortlist(
+            RecommendationShortlistRequestPayload(
+                sessionId="continuation-session",
+                excludedSourceMovieIds=[
+                    "arrival",
+                    "knives-out",
+                    "the-grand-budapest-hotel",
+                    "edge-of-tomorrow",
+                    "past-lives",
+                ],
+            )
+        )
+
+        self.assertEqual(len(payload), 5)
+        self.assertTrue(
+            {
+                "arrival",
+                "knives-out",
+                "the-grand-budapest-hotel",
+                "edge-of-tomorrow",
+                "past-lives",
+            }.isdisjoint({item.sourceMovieId for item in payload})
+        )
+
     def test_post_recommendation_shortlist_can_use_live_candidate_source(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             snapshot_store = SQLiteRecommendationSnapshotStore(
