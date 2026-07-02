@@ -178,6 +178,19 @@ class ShortlistApiTest(unittest.TestCase):
                 snapshot.candidates[0].source_movie_id,
                 payload[0].sourceMovieId,
             )
+            self.assertEqual(snapshot.enrichment_coverage, (13, 5, 8, 0.3846))
+            self.assertEqual(
+                snapshot.candidate_inputs[0].enrichment_status,
+                "enriched",
+            )
+            self.assertEqual(
+                snapshot.candidate_inputs[0].matched_enrichment_source_movie_id,
+                "movielens:122882",
+            )
+            self.assertGreater(
+                snapshot.candidate_inputs[0].enrichment_feature_scores["cerebral"],
+                0.9,
+            )
             self.assertIsNone(
                 snapshot_store.load_snapshot("demo-shared-session"),
             )
@@ -249,6 +262,11 @@ class ShortlistApiTest(unittest.TestCase):
             self.assertEqual(snapshot.session_id, "live-session")
             self.assertEqual(len(snapshot.candidate_inputs), 5)
             self.assertEqual(snapshot.candidate_inputs[0].source_movie_id, "tmdb:1")
+            self.assertEqual(snapshot.enrichment_coverage, (5, 0, 5, 0.0))
+            self.assertEqual(
+                snapshot.candidate_inputs[0].enrichment_provider,
+                "tmdb-metadata-fallback",
+            )
 
     def test_post_recommendation_shortlist_combines_additive_tonight_intents(
         self,

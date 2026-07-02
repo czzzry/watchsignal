@@ -39,6 +39,12 @@ class RecommendationSnapshotTest(unittest.TestCase):
             snapshot.candidate_inputs[0].provider_access,
             ("Prime Video:flatrate:DE",),
         )
+        self.assertEqual(snapshot.candidate_inputs[0].enrichment_status, "enriched")
+        self.assertEqual(
+            snapshot.candidate_inputs[0].enrichment_provider,
+            "movielens-tag-genome-fixture",
+        )
+        self.assertEqual(snapshot.enrichment_coverage, (2, 1, 1, 0.5))
         self.assertEqual(len(snapshot.candidates), 2)
         self.assertEqual(snapshot.candidates[0].candidate_rank, 1)
         self.assertEqual(snapshot.candidates[0].source_movie_id, "tmdb:1")
@@ -79,6 +85,10 @@ class RecommendationSnapshotTest(unittest.TestCase):
             self.assertEqual(
                 loaded_snapshot.candidate_inputs[0].provider_access,
                 ("Prime Video:flatrate:DE",),
+            )
+            self.assertEqual(
+                loaded_snapshot.candidate_inputs[0].enrichment_status,
+                "enriched",
             )
             self.assertEqual(loaded_snapshot.candidates[0].why_short, result.ranked_candidates[0].why_short)
             self.assertEqual(loaded_snapshot.candidates[0].user_scores[0].user_id, "husband")
@@ -166,6 +176,10 @@ def scoring_request(session_id: str) -> ScoringRequest:
                 media_type=MediaType.MOVIE,
                 genres=("Sci-Fi",),
                 providers=("Prime Video",),
+                enrichment_status="enriched",
+                enrichment_provider="movielens-tag-genome-fixture",
+                enrichment_feature_scores={"cerebral": 0.72},
+                matched_enrichment_source_movie_id="movielens:test-shared-sci-fi",
                 provider_availability=(
                     ProviderAvailability(
                         provider_name="Prime Video",

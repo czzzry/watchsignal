@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
+from movie_night_mediator.app.candidate_enrichment import CandidateEnrichmentService
 from movie_night_mediator.app.recommendation_snapshot import (
     RecommendationSnapshotService,
     SnapshottingRecommendationService,
@@ -28,7 +29,6 @@ from movie_night_mediator.fixtures.demo_couple import (
 )
 from movie_night_mediator.fixtures.candidate_adapter import (
     fixture_candidates_to_domain,
-    fixture_candidates_to_shortlist,
 )
 from movie_night_mediator.scoring import HeuristicScorer
 
@@ -78,6 +78,7 @@ def get_offline_demo_shortlist(
     users: tuple[UserProfile, ...] | None = None,
     snapshot_service: RecommendationSnapshotService | None = None,
     excluded_source_movie_ids: tuple[str, ...] = (),
+    enrichment_service: CandidateEnrichmentService | None = None,
 ) -> tuple[OfflineShortlistItem, ...]:
     excluded_ids = set(excluded_source_movie_ids)
     candidate_fixtures = tuple(
@@ -91,13 +92,16 @@ def get_offline_demo_shortlist(
         session_id=session_id or DEMO_SHARED_SESSION.session_id,
     )
     resolved_users = users or (DEMO_HUSBAND_PROFILE, DEMO_WIFE_PROFILE)
-    domain_candidates_by_source_id = {
-        candidate.source_movie_id: candidate
-        for candidate in fixture_candidates_to_domain(
+    resolved_enrichment_service = enrichment_service or CandidateEnrichmentService()
+    domain_candidates = resolved_enrichment_service.enrich_candidates(
+        fixture_candidates_to_domain(
             candidate_fixtures,
             session=resolved_session,
             household_defaults=DEMO_HOUSEHOLD_DEFAULTS,
         )
+    )
+    domain_candidates_by_source_id = {
+        candidate.source_movie_id: candidate for candidate in domain_candidates
     }
     if (
         session_id is None
@@ -108,14 +112,14 @@ def get_offline_demo_shortlist(
     ):
         ranked_candidates = demo_candidate_shortlist(limit=5)
     else:
-        ranked_candidates = fixture_candidates_to_shortlist(
-            candidate_fixtures,
+        ranked_candidates = _score_candidate_source_candidates(
+            domain_candidates,
             session=resolved_session,
             household_defaults=DEMO_HOUSEHOLD_DEFAULTS,
             users=resolved_users,
-            limit=5,
+            scorer=None,
             snapshot_service=snapshot_service,
-        )
+        )[:5]
 
     shortlist_items = []
     for candidate in ranked_candidates:
@@ -183,6 +187,7 @@ def get_candidate_source_shortlist(
     scorer: HeuristicScorer | None = None,
     snapshot_service: RecommendationSnapshotService | None = None,
     excluded_source_movie_ids: tuple[str, ...] = (),
+    enrichment_service: CandidateEnrichmentService | None = None,
 ) -> tuple[RankedCandidate, ...]:
     excluded_ids = set(excluded_source_movie_ids)
     candidates = candidate_source.fetch_candidates(
@@ -194,6 +199,9 @@ def get_candidate_source_shortlist(
         candidate
         for candidate in candidates
         if candidate.source_movie_id not in excluded_ids
+    )
+    candidates = (enrichment_service or CandidateEnrichmentService()).enrich_candidates(
+        candidates
     )
     result = _score_candidate_source_candidates(
         candidates,
@@ -217,6 +225,7 @@ def get_candidate_source_shortlist_items(
     scorer: HeuristicScorer | None = None,
     snapshot_service: RecommendationSnapshotService | None = None,
     excluded_source_movie_ids: tuple[str, ...] = (),
+    enrichment_service: CandidateEnrichmentService | None = None,
 ) -> tuple[OfflineShortlistItem, ...]:
     excluded_ids = set(excluded_source_movie_ids)
     candidates = candidate_source.fetch_candidates(
@@ -228,6 +237,9 @@ def get_candidate_source_shortlist_items(
         candidate
         for candidate in candidates
         if candidate.source_movie_id not in excluded_ids
+    )
+    candidates = (enrichment_service or CandidateEnrichmentService()).enrich_candidates(
+        candidates
     )
     ranked_candidates = _score_candidate_source_candidates(
         candidates,

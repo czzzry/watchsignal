@@ -83,6 +83,7 @@ Enriched candidates have a matched offline source movie id and feature scores.
 Fallback candidates remain rankable with TMDb metadata and existing scorer inputs.
 
 Coverage must be tracked because MVP Plus 2 is only meaningful if the richer engine is actually being used.
+The first implementation note is [Candidate Enrichment Pipeline](candidate-enrichment-pipeline.md).
 
 ## Scoring Evidence
 

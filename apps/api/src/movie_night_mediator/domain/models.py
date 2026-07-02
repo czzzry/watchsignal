@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 from enum import StrEnum
-from typing import Protocol, runtime_checkable
+from types import MappingProxyType
+from typing import Mapping, Protocol, runtime_checkable
 
 DEFAULT_HOUSEHOLD_ID = "default-household"
 DEFAULT_HOUSEHOLD_LABEL = "Household"
@@ -583,6 +584,17 @@ class Candidate:
     already_watched: bool = False
     safety_status: CandidateSafety = CandidateSafety.SAFE_PICK
     is_interesting_safe_pick: bool = False
+    enrichment_status: str = "fallback"
+    enrichment_provider: str = "tmdb-metadata-fallback"
+    enrichment_feature_scores: Mapping[str, float] = field(default_factory=dict)
+    matched_enrichment_source_movie_id: str | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "enrichment_feature_scores",
+            MappingProxyType(dict(self.enrichment_feature_scores)),
+        )
 
 
 @runtime_checkable
@@ -652,6 +664,10 @@ class RecommendationSnapshotCandidateInput:
     safety_status: str = CandidateSafety.SAFE_PICK.value
     already_watched: bool = False
     is_interesting_safe_pick: bool = False
+    enrichment_status: str = "fallback"
+    enrichment_provider: str = "tmdb-metadata-fallback"
+    enrichment_feature_scores: Mapping[str, float] = field(default_factory=dict)
+    matched_enrichment_source_movie_id: str | None = None
 
     def __post_init__(self) -> None:
         normalized_source_movie_id = self.source_movie_id.strip()
@@ -660,6 +676,20 @@ class RecommendationSnapshotCandidateInput:
             access.strip() for access in self.provider_access if access.strip()
         )
         normalized_safety_status = self.safety_status.strip()
+        normalized_enrichment_status = self.enrichment_status.strip()
+        normalized_enrichment_provider = self.enrichment_provider.strip()
+        normalized_feature_scores = MappingProxyType(
+            {
+                key.strip(): float(value)
+                for key, value in self.enrichment_feature_scores.items()
+                if key.strip()
+            }
+        )
+        normalized_matched_source_movie_id = (
+            self.matched_enrichment_source_movie_id.strip()
+            if self.matched_enrichment_source_movie_id is not None
+            else None
+        )
 
         if not normalized_source_movie_id:
             raise ValueError(
@@ -676,10 +706,28 @@ class RecommendationSnapshotCandidateInput:
                 "Recommendation snapshot candidate inputs require a safety status."
             )
 
+        if not normalized_enrichment_status:
+            raise ValueError(
+                "Recommendation snapshot candidate inputs require an enrichment status."
+            )
+
+        if not normalized_enrichment_provider:
+            raise ValueError(
+                "Recommendation snapshot candidate inputs require an enrichment provider."
+            )
+
         object.__setattr__(self, "source_movie_id", normalized_source_movie_id)
         object.__setattr__(self, "title", normalized_title)
         object.__setattr__(self, "provider_access", normalized_provider_access)
         object.__setattr__(self, "safety_status", normalized_safety_status)
+        object.__setattr__(self, "enrichment_status", normalized_enrichment_status)
+        object.__setattr__(self, "enrichment_provider", normalized_enrichment_provider)
+        object.__setattr__(self, "enrichment_feature_scores", normalized_feature_scores)
+        object.__setattr__(
+            self,
+            "matched_enrichment_source_movie_id",
+            normalized_matched_source_movie_id,
+        )
 
 
 @dataclass(frozen=True)
@@ -730,6 +778,27 @@ class RecommendationSnapshot:
     uncertainty_reason: str | None = None
     recommended_follow_up: str | None = None
     interesting_safe_pick_id: str | None = None
+
+    @property
+    def enrichment_coverage(self) -> tuple[int, int, int, float]:
+        candidate_count = len(self.candidate_inputs)
+        enriched_candidate_count = sum(
+            1
+            for candidate in self.candidate_inputs
+            if candidate.enrichment_status == "enriched"
+        )
+        fallback_candidate_count = candidate_count - enriched_candidate_count
+        enrichment_rate = (
+            round(enriched_candidate_count / candidate_count, 4)
+            if candidate_count
+            else 0.0
+        )
+        return (
+            candidate_count,
+            enriched_candidate_count,
+            fallback_candidate_count,
+            enrichment_rate,
+        )
 
     def __post_init__(self) -> None:
         normalized_session_id = self.session_id.strip()

@@ -396,6 +396,17 @@ class DebugHistoryCandidateInputPayload(BaseModel):
     safetyStatus: str
     alreadyWatched: bool
     isInterestingSafePick: bool
+    enrichmentStatus: str
+    enrichmentProvider: str
+    enrichmentFeatureScores: dict[str, float]
+    matchedEnrichmentSourceMovieId: str | None = None
+
+
+class DebugHistoryEnrichmentCoveragePayload(BaseModel):
+    candidateCount: int
+    enrichedCandidateCount: int
+    fallbackCandidateCount: int
+    enrichmentRate: float
 
 
 class DebugHistoryRecommendationCandidatePayload(BaseModel):
@@ -413,6 +424,7 @@ class DebugHistoryRecommendationCandidatePayload(BaseModel):
 class DebugHistoryRecommendationSnapshotPayload(BaseModel):
     sessionId: str
     candidateInputs: list[DebugHistoryCandidateInputPayload]
+    enrichmentCoverage: DebugHistoryEnrichmentCoveragePayload
     candidates: list[DebugHistoryRecommendationCandidatePayload]
     isUncertain: bool
     uncertaintyReason: str | None = None
@@ -2081,6 +2093,12 @@ def _debug_history_session_to_payload(
 def _recommendation_snapshot_to_payload(
     snapshot: RecommendationSnapshot,
 ) -> DebugHistoryRecommendationSnapshotPayload:
+    (
+        candidate_count,
+        enriched_candidate_count,
+        fallback_candidate_count,
+        enrichment_rate,
+    ) = snapshot.enrichment_coverage
     return DebugHistoryRecommendationSnapshotPayload(
         sessionId=snapshot.session_id,
         candidateInputs=[
@@ -2093,9 +2111,21 @@ def _recommendation_snapshot_to_payload(
                 safetyStatus=candidate.safety_status,
                 alreadyWatched=candidate.already_watched,
                 isInterestingSafePick=candidate.is_interesting_safe_pick,
+                enrichmentStatus=candidate.enrichment_status,
+                enrichmentProvider=candidate.enrichment_provider,
+                enrichmentFeatureScores=dict(candidate.enrichment_feature_scores),
+                matchedEnrichmentSourceMovieId=(
+                    candidate.matched_enrichment_source_movie_id
+                ),
             )
             for candidate in snapshot.candidate_inputs
         ],
+        enrichmentCoverage=DebugHistoryEnrichmentCoveragePayload(
+            candidateCount=candidate_count,
+            enrichedCandidateCount=enriched_candidate_count,
+            fallbackCandidateCount=fallback_candidate_count,
+            enrichmentRate=enrichment_rate,
+        ),
         candidates=[
             DebugHistoryRecommendationCandidatePayload(
                 sourceMovieId=candidate.source_movie_id,

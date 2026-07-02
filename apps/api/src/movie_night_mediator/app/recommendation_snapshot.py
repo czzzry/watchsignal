@@ -117,6 +117,12 @@ def build_recommendation_snapshot(
                 safety_status=candidate.safety_status.value,
                 already_watched=candidate.already_watched,
                 is_interesting_safe_pick=candidate.is_interesting_safe_pick,
+                enrichment_status=candidate.enrichment_status,
+                enrichment_provider=candidate.enrichment_provider,
+                enrichment_feature_scores=dict(candidate.enrichment_feature_scores),
+                matched_enrichment_source_movie_id=(
+                    candidate.matched_enrichment_source_movie_id
+                ),
             )
             for candidate in request.candidates
         ),

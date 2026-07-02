@@ -70,6 +70,18 @@ class DebugHistoryApiTest(unittest.TestCase):
                 len(after_creation["recommendationSnapshot"]["candidateInputs"]),
                 0,
             )
+            self.assertEqual(
+                after_creation["recommendationSnapshot"]["enrichmentCoverage"][
+                    "enrichedCandidateCount"
+                ],
+                5,
+            )
+            self.assertEqual(
+                after_creation["recommendationSnapshot"]["candidateInputs"][0][
+                    "enrichmentStatus"
+                ],
+                "enriched",
+            )
             self.assertNotIn("candidate_inputs", after_creation["unavailableEvidence"])
             self.assertEqual(after_creation["state"], "founder_reacting")
             self.assertNotIn("group_scores", after_creation["unavailableEvidence"])

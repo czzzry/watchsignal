@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from contextlib import closing
 from pathlib import Path
@@ -93,9 +94,13 @@ class SQLiteRecommendationSnapshotStore:
                         provider_access,
                         safety_status,
                         already_watched,
-                        is_interesting_safe_pick
+                        is_interesting_safe_pick,
+                        enrichment_status,
+                        enrichment_provider,
+                        enrichment_feature_scores,
+                        matched_enrichment_source_movie_id
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     [
                         (
@@ -109,6 +114,10 @@ class SQLiteRecommendationSnapshotStore:
                             candidate.safety_status,
                             int(candidate.already_watched),
                             int(candidate.is_interesting_safe_pick),
+                            candidate.enrichment_status,
+                            candidate.enrichment_provider,
+                            _dump_feature_scores(candidate.enrichment_feature_scores),
+                            candidate.matched_enrichment_source_movie_id,
                         )
                         for index, candidate in enumerate(
                             snapshot.candidate_inputs,
@@ -226,7 +235,11 @@ class SQLiteRecommendationSnapshotStore:
                     provider_access,
                     safety_status,
                     already_watched,
-                    is_interesting_safe_pick
+                    is_interesting_safe_pick,
+                    enrichment_status,
+                    enrichment_provider,
+                    enrichment_feature_scores,
+                    matched_enrichment_source_movie_id
                 FROM recommendation_snapshot_candidate_inputs
                 WHERE session_id = ?
                 ORDER BY candidate_position ASC, source_movie_id ASC
@@ -264,6 +277,14 @@ class SQLiteRecommendationSnapshotStore:
                     safety_status=row["safety_status"],
                     already_watched=bool(row["already_watched"]),
                     is_interesting_safe_pick=bool(row["is_interesting_safe_pick"]),
+                    enrichment_status=row["enrichment_status"],
+                    enrichment_provider=row["enrichment_provider"],
+                    enrichment_feature_scores=_load_feature_scores(
+                        row["enrichment_feature_scores"]
+                    ),
+                    matched_enrichment_source_movie_id=row[
+                        "matched_enrichment_source_movie_id"
+                    ],
                 )
                 for row in candidate_input_rows
             ),
@@ -341,6 +362,10 @@ class SQLiteRecommendationSnapshotStore:
                         is_interesting_safe_pick INTEGER NOT NULL CHECK (
                             is_interesting_safe_pick IN (0, 1)
                         ),
+                        enrichment_status TEXT NOT NULL DEFAULT 'fallback',
+                        enrichment_provider TEXT NOT NULL DEFAULT 'tmdb-metadata-fallback',
+                        enrichment_feature_scores TEXT NOT NULL DEFAULT '{}',
+                        matched_enrichment_source_movie_id TEXT,
                         PRIMARY KEY (session_id, source_movie_id)
                     );
 
@@ -379,6 +404,7 @@ class SQLiteRecommendationSnapshotStore:
                     );
                     """
                 )
+                _ensure_candidate_input_enrichment_columns(connection)
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.database_path)
@@ -404,3 +430,49 @@ def _split_values(value: str) -> tuple[str, ...]:
         return ()
 
     return tuple(item for item in value.split("\u001f") if item)
+
+
+def _dump_feature_scores(values: object) -> str:
+    return json.dumps(dict(values), sort_keys=True)
+
+
+def _load_feature_scores(value: str) -> dict[str, float]:
+    if not value:
+        return {}
+    raw_scores = json.loads(value)
+    if not isinstance(raw_scores, dict):
+        return {}
+    return {str(key): float(score) for key, score in raw_scores.items()}
+
+
+def _ensure_candidate_input_enrichment_columns(
+    connection: sqlite3.Connection,
+) -> None:
+    existing_columns = {
+        row["name"]
+        for row in connection.execute(
+            "PRAGMA table_info(recommendation_snapshot_candidate_inputs)"
+        ).fetchall()
+    }
+    migrations = {
+        "enrichment_status": (
+            "ALTER TABLE recommendation_snapshot_candidate_inputs "
+            "ADD COLUMN enrichment_status TEXT NOT NULL DEFAULT 'fallback'"
+        ),
+        "enrichment_provider": (
+            "ALTER TABLE recommendation_snapshot_candidate_inputs "
+            "ADD COLUMN enrichment_provider TEXT NOT NULL DEFAULT "
+            "'tmdb-metadata-fallback'"
+        ),
+        "enrichment_feature_scores": (
+            "ALTER TABLE recommendation_snapshot_candidate_inputs "
+            "ADD COLUMN enrichment_feature_scores TEXT NOT NULL DEFAULT '{}'"
+        ),
+        "matched_enrichment_source_movie_id": (
+            "ALTER TABLE recommendation_snapshot_candidate_inputs "
+            "ADD COLUMN matched_enrichment_source_movie_id TEXT"
+        ),
+    }
+    for column_name, statement in migrations.items():
+        if column_name not in existing_columns:
+            connection.execute(statement)
