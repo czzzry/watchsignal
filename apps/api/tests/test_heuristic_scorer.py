@@ -9,6 +9,7 @@ from movie_night_mediator.domain.models import (
     OnboardingSeed,
     ProfileTasteEvidence,
     ScoringRequest,
+    ScoringSessionReaction,
     SessionContext,
     SessionMode,
     UserProfile,
@@ -373,6 +374,160 @@ class HeuristicScorerTest(unittest.TestCase):
             result.ranked_candidates[0].why_short,
         )
         self.assertIn("Wife: 0.5", result.ranked_candidates[0].why_short)
+
+    def test_movie_title_similarity_can_influence_ranking_beyond_genres(self) -> None:
+        user = UserProfile(
+            user_id="user_a",
+            role="solo",
+            display_label="Demo viewer",
+            taste_profile_evidence=(
+                ProfileTasteEvidence(
+                    source="app_rating",
+                    source_movie_id="tmdb:101",
+                    title="The Matrix",
+                    genres=("Sci-Fi",),
+                    preference_value=1.0,
+                    source_label="loved",
+                ),
+            ),
+        )
+        request = ScoringRequest(
+            session=SessionContext(session_id="title-similarity-session"),
+            household_defaults=HouseholdDefaults(),
+            users=(user,),
+            candidates=(
+                Candidate(
+                    source_movie_id="tmdb:1",
+                    title="The Matrix Reloaded",
+                    media_type=MediaType.MOVIE,
+                    genres=("Sci-Fi",),
+                    providers=("Prime Video",),
+                ),
+                Candidate(
+                    source_movie_id="tmdb:2",
+                    title="Distant Planet",
+                    media_type=MediaType.MOVIE,
+                    genres=("Sci-Fi",),
+                    providers=("Prime Video",),
+                ),
+            ),
+        )
+
+        result = HeuristicScorer().score(request)
+
+        self.assertEqual(result.ranked_candidates[0].title, "The Matrix Reloaded")
+        self.assertGreater(
+            result.ranked_candidates[0].user_a_score or 0,
+            result.ranked_candidates[1].user_a_score or 0,
+        )
+        self.assertIn("title_similarity", result.ranked_candidates[0].why_short)
+        self.assertIn(
+            "title_similarity",
+            result.ranked_candidates[0].scoring_evidence[0].signal_families,
+        )
+
+    def test_feature_tags_can_influence_ranking_when_enrichment_exists(self) -> None:
+        user = UserProfile(
+            user_id="user_a",
+            role="solo",
+            display_label="Demo viewer",
+            taste_profile_evidence=(
+                ProfileTasteEvidence(
+                    source="taste_lab",
+                    source_movie_id="tmdb:101",
+                    title="Knives Out",
+                    genres=("Mystery",),
+                    preference_value=1.0,
+                    source_label="loved",
+                ),
+            ),
+        )
+        request = ScoringRequest(
+            session=SessionContext(session_id="feature-tag-session"),
+            household_defaults=HouseholdDefaults(),
+            users=(user,),
+            candidates=(
+                Candidate(
+                    source_movie_id="tmdb:1",
+                    title="Puzzle Box",
+                    media_type=MediaType.MOVIE,
+                    genres=("Drama",),
+                    providers=("Prime Video",),
+                    enrichment_status="enriched",
+                    enrichment_provider="movielens-tag-genome-fixture",
+                    enrichment_feature_scores={"whodunit": 1.0},
+                    matched_enrichment_source_movie_id="movielens:test-1",
+                ),
+                Candidate(
+                    source_movie_id="tmdb:2",
+                    title="Plain Drama",
+                    media_type=MediaType.MOVIE,
+                    genres=("Drama",),
+                    providers=("Prime Video",),
+                ),
+            ),
+        )
+
+        result = HeuristicScorer().score(request)
+
+        self.assertEqual(result.ranked_candidates[0].title, "Puzzle Box")
+        self.assertIn("feature_tag", result.ranked_candidates[0].why_short)
+        self.assertIn(
+            "feature_tag",
+            result.ranked_candidates[0].scoring_evidence[0].signal_families,
+        )
+        self.assertIn(
+            "fallback",
+            result.ranked_candidates[1].scoring_evidence[0].signal_families,
+        )
+
+    def test_tonight_intent_and_session_reactions_can_influence_fit(self) -> None:
+        user = UserProfile(user_id="user_a", role="solo", display_label="Demo viewer")
+        request = ScoringRequest(
+            session=SessionContext(
+                session_id="intent-session",
+                mood_text="time loop energy",
+            ),
+            household_defaults=HouseholdDefaults(),
+            users=(user,),
+            candidates=(
+                Candidate(
+                    source_movie_id="tmdb:1",
+                    title="Edge of Tomorrow Again",
+                    media_type=MediaType.MOVIE,
+                    genres=("Sci-Fi",),
+                    providers=("Prime Video",),
+                    enrichment_status="enriched",
+                    enrichment_provider="movielens-tag-genome-fixture",
+                    enrichment_feature_scores={"time-loop": 1.0},
+                    matched_enrichment_source_movie_id="movielens:test-2",
+                ),
+                Candidate(
+                    source_movie_id="tmdb:2",
+                    title="Quiet Choice",
+                    media_type=MediaType.MOVIE,
+                    genres=("Drama",),
+                    providers=("Prime Video",),
+                ),
+            ),
+            session_reactions=(
+                ScoringSessionReaction(
+                    source_movie_id="previous:edge",
+                    title="Edge of Tomorrow",
+                    reaction_label="interested",
+                ),
+            ),
+        )
+
+        result = HeuristicScorer().score(request)
+
+        self.assertEqual(result.ranked_candidates[0].title, "Edge of Tomorrow Again")
+        self.assertIn("tonight_intent", result.ranked_candidates[0].why_short)
+        self.assertIn("session_reaction", result.ranked_candidates[0].why_short)
+        self.assertIn(
+            "session_reaction",
+            result.ranked_candidates[0].scoring_evidence[0].signal_families,
+        )
 
     def _shared_request(
         self,

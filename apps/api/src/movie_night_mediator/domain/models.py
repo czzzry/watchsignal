@@ -6,6 +6,8 @@ from enum import StrEnum
 from types import MappingProxyType
 from typing import Mapping, Protocol, runtime_checkable
 
+from movie_night_mediator.mvp_plus_2 import ScoringEvidence
+
 DEFAULT_HOUSEHOLD_ID = "default-household"
 DEFAULT_HOUSEHOLD_LABEL = "Household"
 DEFAULT_HUSBAND_PROFILE_ID = "husband"
@@ -620,11 +622,34 @@ class WatchabilityClassification:
 
 
 @dataclass(frozen=True)
+class ScoringSessionReaction:
+    source_movie_id: str
+    reaction_label: str
+    title: str | None = None
+
+    def __post_init__(self) -> None:
+        source_movie_id = self.source_movie_id.strip()
+        reaction_label = self.reaction_label.strip()
+        title = self.title.strip() if self.title is not None else None
+
+        if not source_movie_id:
+            raise ValueError("Scoring session reactions require a source movie id.")
+
+        if not reaction_label:
+            raise ValueError("Scoring session reactions require a reaction label.")
+
+        object.__setattr__(self, "source_movie_id", source_movie_id)
+        object.__setattr__(self, "reaction_label", reaction_label)
+        object.__setattr__(self, "title", title)
+
+
+@dataclass(frozen=True)
 class ScoringRequest:
     session: SessionContext
     household_defaults: HouseholdDefaults
     users: tuple[UserProfile, ...]
     candidates: tuple[Candidate, ...]
+    session_reactions: tuple[ScoringSessionReaction, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -639,6 +664,7 @@ class RankedCandidate:
     why_short: str
     hard_filter_pass: bool
     is_interesting_pick: bool = False
+    scoring_evidence: tuple[ScoringEvidence, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -741,6 +767,7 @@ class RecommendationSnapshotCandidate:
     why_short: str
     hard_filter_pass: bool
     is_interesting_pick: bool = False
+    scoring_evidence: tuple[ScoringEvidence, ...] = ()
 
     def __post_init__(self) -> None:
         normalized_source_movie_id = self.source_movie_id.strip()

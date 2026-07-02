@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from dataclasses import dataclass
 
 from movie_night_mediator.domain.models import (
     AudienceMode,
@@ -12,6 +13,11 @@ from movie_night_mediator.domain.models import (
     SessionMode,
     UserProfile,
 )
+from movie_night_mediator.mvp_plus_2 import (
+    CandidateEnrichmentStatus,
+    ScoringEvidence,
+    SignalContribution,
+)
 
 PRIME_VIDEO_PROVIDER_ALIASES = frozenset(
     {
@@ -20,6 +26,21 @@ PRIME_VIDEO_PROVIDER_ALIASES = frozenset(
         "amazon prime",
     }
 )
+
+GENRE_FEATURE_AFFINITIES = {
+    "Mystery": ("whodunit",),
+    "Comedy": ("witty", "playful", "quirky"),
+    "Sci-Fi": ("cerebral", "first-contact", "time-loop"),
+    "Romance": ("romantic", "bittersweet"),
+    "Drama": ("emotional", "reflective", "quiet"),
+    "Action": ("action", "high-energy"),
+}
+
+
+@dataclass(frozen=True)
+class UserScoreBreakdown:
+    score: float
+    contributions: tuple[SignalContribution, ...]
 
 
 class HeuristicScorer:
@@ -33,8 +54,14 @@ class HeuristicScorer:
         for candidate in request.candidates:
             hard_filter_pass = self._passes_hard_filters(request, candidate, active_users)
             rankable = self._is_rankable_candidate(request, candidate, hard_filter_pass)
-            user_scores = [self._score_for_user(user, candidate) for user in active_users]
+            user_breakdowns = [
+                self._score_for_user(user, candidate) for user in active_users
+            ]
+            user_scores = [breakdown.score for breakdown in user_breakdowns]
             group_score = self._group_score(request.session.session_mode, user_scores)
+            group_contributions = self._group_contributions(request, candidate)
+            group_score += sum(item.value for item in group_contributions)
+            group_score = min(max(group_score, 0.0), 1.0)
             if not hard_filter_pass:
                 group_score = 0.0
             if not rankable:
@@ -60,9 +87,17 @@ class HeuristicScorer:
                     active_users,
                     user_scores,
                     is_interesting_pick,
+                    self._signal_families(user_breakdowns, group_contributions),
                 ),
                 hard_filter_pass=hard_filter_pass,
                 is_interesting_pick=is_interesting_pick,
+                scoring_evidence=(
+                    self._scoring_evidence(
+                        candidate,
+                        user_breakdowns=user_breakdowns,
+                        group_contributions=group_contributions,
+                    ),
+                ),
             )
             scored_rows.append((group_score, ranked))
 
@@ -82,6 +117,7 @@ class HeuristicScorer:
                     why_short=ranked.why_short,
                     hard_filter_pass=ranked.hard_filter_pass,
                     is_interesting_pick=ranked.is_interesting_pick,
+                    scoring_evidence=ranked.scoring_evidence,
                 )
             )
 
@@ -163,27 +199,47 @@ class HeuristicScorer:
             return True
         return hard_filter_pass and candidate.safety_status == CandidateSafety.SAFE_PICK
 
-    def _score_for_user(self, user: UserProfile, candidate: Candidate) -> float:
+    def _score_for_user(self, user: UserProfile, candidate: Candidate) -> UserScoreBreakdown:
         if not user.onboarding_seeds and not user.taste_profile_evidence:
-            return 0.5
+            return UserScoreBreakdown(score=0.5, contributions=())
 
         liked = self._genre_counter(user, "loved")
         fine = self._genre_counter(user, "fine")
         disliked = self._genre_counter(user, "no")
         taste_profile_signals = self._taste_profile_genre_scores(user)
         score = 0.5
+        contributions = []
 
         for genre in candidate.genres:
-            score += 0.12 * liked[genre]
-            score += 0.05 * fine[genre]
-            score -= 0.16 * disliked[genre]
+            genre_score = (0.12 * liked[genre]) + (0.05 * fine[genre])
+            genre_score -= 0.16 * disliked[genre]
             taste_profile_signal = taste_profile_signals[genre]
             if taste_profile_signal > 0:
-                score += 0.12 * taste_profile_signal
+                genre_score += 0.12 * taste_profile_signal
             elif taste_profile_signal < 0:
-                score += 0.16 * taste_profile_signal
+                genre_score += 0.16 * taste_profile_signal
+            if genre_score:
+                contributions.append(
+                    SignalContribution(
+                        family="genre",
+                        label=genre,
+                        value=genre_score,
+                    )
+                )
+                score += genre_score
 
-        return min(max(score, 0.0), 1.0)
+        for contribution in self._title_similarity_contributions(user, candidate):
+            contributions.append(contribution)
+            score += contribution.value
+
+        for contribution in self._feature_tag_contributions(user, candidate):
+            contributions.append(contribution)
+            score += contribution.value
+
+        return UserScoreBreakdown(
+            score=min(max(score, 0.0), 1.0),
+            contributions=tuple(contributions),
+        )
 
     def _genre_counter(self, user: UserProfile, label: str) -> Counter[str]:
         counter: Counter[str] = Counter()
@@ -200,6 +256,137 @@ class HeuristicScorer:
             for genre in evidence.genres:
                 counter[genre] += evidence.preference_value
         return counter
+
+    def _title_similarity_contributions(
+        self,
+        user: UserProfile,
+        candidate: Candidate,
+    ) -> tuple[SignalContribution, ...]:
+        contributions = []
+        for evidence in user.taste_profile_evidence:
+            if evidence.preference_value is None:
+                continue
+            similarity = _title_similarity(candidate.title, evidence.title)
+            if similarity < 0.5:
+                continue
+            value = 0.18 * evidence.preference_value * similarity
+            contributions.append(
+                SignalContribution(
+                    family="title_similarity",
+                    label=evidence.title,
+                    value=value,
+                )
+            )
+        return tuple(contributions)
+
+    def _feature_tag_contributions(
+        self,
+        user: UserProfile,
+        candidate: Candidate,
+    ) -> tuple[SignalContribution, ...]:
+        if not candidate.enrichment_feature_scores:
+            return ()
+
+        contributions = []
+        profile_genre_scores = self._taste_profile_genre_scores(user)
+        for genre, feature_names in GENRE_FEATURE_AFFINITIES.items():
+            preference = profile_genre_scores[genre]
+            if preference == 0:
+                continue
+            for feature_name in feature_names:
+                feature_score = candidate.enrichment_feature_scores.get(feature_name)
+                if feature_score is None:
+                    continue
+                contributions.append(
+                    SignalContribution(
+                        family="feature_tag",
+                        label=feature_name,
+                        value=0.07 * preference * feature_score,
+                    )
+                )
+        return tuple(contributions)
+
+    def _group_contributions(
+        self,
+        request: ScoringRequest,
+        candidate: Candidate,
+    ) -> tuple[SignalContribution, ...]:
+        contributions = [
+            *self._tonight_intent_contributions(request, candidate),
+            *self._session_reaction_contributions(request, candidate),
+        ]
+        if candidate.enrichment_status == "fallback":
+            contributions.append(
+                SignalContribution(
+                    family="fallback",
+                    label=candidate.enrichment_provider,
+                    value=0.0,
+                )
+            )
+        return tuple(contributions)
+
+    def _tonight_intent_contributions(
+        self,
+        request: ScoringRequest,
+        candidate: Candidate,
+    ) -> tuple[SignalContribution, ...]:
+        intent_text = request.session.mood_text or ""
+        intent_tokens = _tokens(intent_text)
+        if not intent_tokens:
+            return ()
+
+        contributions = []
+        for genre in candidate.genres:
+            if _normalize(genre) in intent_tokens:
+                contributions.append(
+                    SignalContribution(
+                        family="tonight_intent",
+                        label=genre,
+                        value=0.06,
+                    )
+                )
+
+        for feature_name, feature_score in candidate.enrichment_feature_scores.items():
+            feature_tokens = _tokens(feature_name)
+            if feature_tokens and feature_tokens.issubset(intent_tokens):
+                contributions.append(
+                    SignalContribution(
+                        family="tonight_intent",
+                        label=feature_name,
+                        value=0.10 * feature_score,
+                    )
+                )
+
+        return tuple(contributions)
+
+    def _session_reaction_contributions(
+        self,
+        request: ScoringRequest,
+        candidate: Candidate,
+    ) -> tuple[SignalContribution, ...]:
+        contributions = []
+        for reaction in request.session_reactions:
+            if reaction.reaction_label == "seen":
+                continue
+            value = {"interested": 0.08, "maybe": 0.03, "no": -0.10}.get(
+                reaction.reaction_label,
+                0.0,
+            )
+            if value == 0.0:
+                continue
+            similarity = 1.0 if reaction.source_movie_id == candidate.source_movie_id else 0.0
+            if reaction.title:
+                similarity = max(similarity, _title_similarity(candidate.title, reaction.title))
+            if similarity < 0.4:
+                continue
+            contributions.append(
+                SignalContribution(
+                    family="session_reaction",
+                    label=reaction.title or reaction.source_movie_id,
+                    value=value * similarity,
+                )
+            )
+        return tuple(contributions)
 
     def _group_score(self, session_mode: SessionMode, user_scores: list[float]) -> float:
         if not user_scores:
@@ -237,15 +424,21 @@ class HeuristicScorer:
         users: tuple[UserProfile, ...],
         user_scores: list[float],
         is_interesting_pick: bool,
+        signal_families: tuple[str, ...],
     ) -> str:
         if not hard_filter_pass:
             return "Filtered out by tonight's hard constraints."
         genre_hint = ", ".join(candidate.genres[:2]) or "its profile"
         score_hint = self._score_hint(users, user_scores)
+        evidence_hint = (
+            f" Evidence: {', '.join(signal_families)}."
+            if signal_families
+            else ""
+        )
         interesting_hint = "Interesting Safe Pick. " if is_interesting_pick else ""
         if session_mode == SessionMode.COMPROMISE and user_scores and min(user_scores) <= 0.35:
-            return f"{interesting_hint}Compromise protects against a weak fit; signal from {genre_hint}. {score_hint}"
-        return f"{interesting_hint}Fits {session_mode.value.replace('_', '-')} mode with signal from {genre_hint}. {score_hint}"
+            return f"{interesting_hint}Compromise protects against a weak fit; signal from {genre_hint}. {score_hint}{evidence_hint}"
+        return f"{interesting_hint}Fits {session_mode.value.replace('_', '-')} mode with signal from {genre_hint}. {score_hint}{evidence_hint}"
 
     def _score_hint(self, users: tuple[UserProfile, ...], user_scores: list[float]) -> str:
         if not users or not user_scores:
@@ -267,3 +460,59 @@ class HeuristicScorer:
             for evidence in user.taste_profile_evidence
             if evidence.source == "taste_lab" and evidence.preference_value is not None
         )
+
+    def _signal_families(
+        self,
+        user_breakdowns: list[UserScoreBreakdown],
+        group_contributions: tuple[SignalContribution, ...],
+    ) -> tuple[str, ...]:
+        return tuple(
+            dict.fromkeys(
+                contribution.family
+                for breakdown in user_breakdowns
+                for contribution in breakdown.contributions
+            )
+            | dict.fromkeys(contribution.family for contribution in group_contributions)
+        )
+
+    def _scoring_evidence(
+        self,
+        candidate: Candidate,
+        *,
+        user_breakdowns: list[UserScoreBreakdown],
+        group_contributions: tuple[SignalContribution, ...],
+    ) -> ScoringEvidence:
+        enrichment_status = (
+            CandidateEnrichmentStatus.ENRICHED
+            if candidate.enrichment_status == "enriched"
+            else CandidateEnrichmentStatus.FALLBACK
+        )
+        return ScoringEvidence(
+            source_movie_id=candidate.source_movie_id,
+            enrichment_status=enrichment_status,
+            contributions=tuple(
+                contribution
+                for breakdown in user_breakdowns
+                for contribution in breakdown.contributions
+            )
+            + group_contributions,
+        )
+
+
+def _normalize(value: str) -> str:
+    return " ".join(value.casefold().replace("-", " ").split())
+
+
+def _tokens(value: str) -> set[str]:
+    return set(_normalize(value).split())
+
+
+def _title_similarity(candidate_title: str, evidence_title: str) -> float:
+    candidate_tokens = _tokens(candidate_title)
+    evidence_tokens = _tokens(evidence_title)
+    if not candidate_tokens or not evidence_tokens:
+        return 0.0
+    overlap = len(candidate_tokens & evidence_tokens)
+    if overlap == 0:
+        return 0.0
+    return overlap / len(candidate_tokens | evidence_tokens)

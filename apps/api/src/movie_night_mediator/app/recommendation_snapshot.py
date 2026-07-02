@@ -102,6 +102,7 @@ def build_recommendation_snapshot(
                 why_short=ranked_candidate.why_short,
                 hard_filter_pass=ranked_candidate.hard_filter_pass,
                 is_interesting_pick=ranked_candidate.is_interesting_pick,
+                scoring_evidence=ranked_candidate.scoring_evidence,
             )
         )
 

@@ -16,6 +16,7 @@ from movie_night_mediator.domain.models import (
     ProviderAvailability,
     RankedCandidate,
     ScoringRequest,
+    ScoringSessionReaction,
     SessionContext,
     UserProfile,
 )
@@ -79,6 +80,7 @@ def get_offline_demo_shortlist(
     snapshot_service: RecommendationSnapshotService | None = None,
     excluded_source_movie_ids: tuple[str, ...] = (),
     enrichment_service: CandidateEnrichmentService | None = None,
+    session_reactions: tuple[ScoringSessionReaction, ...] = (),
 ) -> tuple[OfflineShortlistItem, ...]:
     excluded_ids = set(excluded_source_movie_ids)
     candidate_fixtures = tuple(
@@ -119,6 +121,7 @@ def get_offline_demo_shortlist(
             users=resolved_users,
             scorer=None,
             snapshot_service=snapshot_service,
+            session_reactions=session_reactions,
         )[:5]
 
     shortlist_items = []
@@ -188,6 +191,7 @@ def get_candidate_source_shortlist(
     snapshot_service: RecommendationSnapshotService | None = None,
     excluded_source_movie_ids: tuple[str, ...] = (),
     enrichment_service: CandidateEnrichmentService | None = None,
+    session_reactions: tuple[ScoringSessionReaction, ...] = (),
 ) -> tuple[RankedCandidate, ...]:
     excluded_ids = set(excluded_source_movie_ids)
     candidates = candidate_source.fetch_candidates(
@@ -210,6 +214,7 @@ def get_candidate_source_shortlist(
         users=users,
         scorer=scorer,
         snapshot_service=snapshot_service,
+        session_reactions=session_reactions,
     )
     return result[:limit]
 
@@ -226,6 +231,7 @@ def get_candidate_source_shortlist_items(
     snapshot_service: RecommendationSnapshotService | None = None,
     excluded_source_movie_ids: tuple[str, ...] = (),
     enrichment_service: CandidateEnrichmentService | None = None,
+    session_reactions: tuple[ScoringSessionReaction, ...] = (),
 ) -> tuple[OfflineShortlistItem, ...]:
     excluded_ids = set(excluded_source_movie_ids)
     candidates = candidate_source.fetch_candidates(
@@ -248,6 +254,7 @@ def get_candidate_source_shortlist_items(
         users=users,
         scorer=scorer,
         snapshot_service=snapshot_service,
+        session_reactions=session_reactions,
     )[:limit]
     candidates_by_source_id = {
         candidate.source_movie_id: candidate for candidate in candidates
@@ -270,12 +277,14 @@ def _score_candidate_source_candidates(
     users: tuple[UserProfile, ...],
     scorer: HeuristicScorer | None,
     snapshot_service: RecommendationSnapshotService | None,
+    session_reactions: tuple[ScoringSessionReaction, ...] = (),
 ) -> tuple[RankedCandidate, ...]:
     request = ScoringRequest(
         session=session,
         household_defaults=household_defaults,
         users=users,
         candidates=candidates,
+        session_reactions=session_reactions,
     )
     resolved_scorer = scorer or HeuristicScorer()
     if snapshot_service is None:

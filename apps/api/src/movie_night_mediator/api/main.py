@@ -71,6 +71,7 @@ from movie_night_mediator.domain import (
     SessionMode,
     SessionOutcome,
     SessionOutcomeType,
+    ScoringSessionReaction,
     SessionReaction,
     SessionReactionLabel,
     SessionShortlistItem,
@@ -294,6 +295,12 @@ class RecommendationShortlistItemPayload(BaseModel):
     englishSubtitlesVerified: bool
 
 
+class ScoringSessionReactionPayload(BaseModel):
+    sourceMovieId: str = Field(min_length=1)
+    reactionLabel: str = Field(min_length=1)
+    title: str | None = None
+
+
 class RecommendationShortlistRequestPayload(BaseModel):
     sessionId: str = Field(min_length=1)
     householdId: str = Field(default=DEFAULT_HOUSEHOLD_ID, min_length=1)
@@ -308,6 +315,7 @@ class RecommendationShortlistRequestPayload(BaseModel):
     tonightIntent: dict[str, object] | None = None
     tonightIntents: list[dict[str, object]] = Field(default_factory=list)
     excludedSourceMovieIds: list[str] = Field(default_factory=list)
+    sessionReactions: list[ScoringSessionReactionPayload] = Field(default_factory=list)
 
 
 class SessionReactionPayload(BaseModel):
@@ -409,6 +417,19 @@ class DebugHistoryEnrichmentCoveragePayload(BaseModel):
     enrichmentRate: float
 
 
+class DebugHistorySignalContributionPayload(BaseModel):
+    family: str
+    label: str
+    value: float
+
+
+class DebugHistoryScoringEvidencePayload(BaseModel):
+    sourceMovieId: str
+    enrichmentStatus: str
+    signalFamilies: list[str]
+    contributions: list[DebugHistorySignalContributionPayload]
+
+
 class DebugHistoryRecommendationCandidatePayload(BaseModel):
     sourceMovieId: str
     title: str
@@ -419,6 +440,7 @@ class DebugHistoryRecommendationCandidatePayload(BaseModel):
     whyShort: str
     hardFilterPass: bool
     isInterestingPick: bool
+    scoringEvidence: list[DebugHistoryScoringEvidencePayload]
 
 
 class DebugHistoryRecommendationSnapshotPayload(BaseModel):
@@ -726,6 +748,7 @@ def create_app(
                 ),
                 snapshot_service=recommendation_snapshot_service,
                 excluded_source_movie_ids=tuple(payload.excludedSourceMovieIds),
+                session_reactions=_shortlist_session_reactions_from_payload(payload),
             )
         ]
 
@@ -1324,6 +1347,7 @@ def _live_candidate_shortlist_items(
             candidate_limit=20 + len(payload.excludedSourceMovieIds),
             snapshot_service=snapshot_service,
             excluded_source_movie_ids=tuple(payload.excludedSourceMovieIds),
+            session_reactions=_shortlist_session_reactions_from_payload(payload),
         )
     except TmdbCandidateSourceError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
@@ -1356,6 +1380,19 @@ def _shortlist_session_from_payload(
             payload.tonightIntent,
             payload.tonightIntents,
         ),
+    )
+
+
+def _shortlist_session_reactions_from_payload(
+    payload: RecommendationShortlistRequestPayload,
+) -> tuple[ScoringSessionReaction, ...]:
+    return tuple(
+        ScoringSessionReaction(
+            source_movie_id=reaction.sourceMovieId,
+            reaction_label=reaction.reactionLabel,
+            title=reaction.title,
+        )
+        for reaction in payload.sessionReactions
     )
 
 
@@ -2143,6 +2180,22 @@ def _recommendation_snapshot_to_payload(
                 whyShort=candidate.why_short,
                 hardFilterPass=candidate.hard_filter_pass,
                 isInterestingPick=candidate.is_interesting_pick,
+                scoringEvidence=[
+                    DebugHistoryScoringEvidencePayload(
+                        sourceMovieId=evidence.source_movie_id,
+                        enrichmentStatus=evidence.enrichment_status.value,
+                        signalFamilies=list(evidence.signal_families),
+                        contributions=[
+                            DebugHistorySignalContributionPayload(
+                                family=contribution.family,
+                                label=contribution.label,
+                                value=contribution.value,
+                            )
+                            for contribution in evidence.contributions
+                        ],
+                    )
+                    for evidence in candidate.scoring_evidence
+                ],
             )
             for candidate in snapshot.candidates
         ],

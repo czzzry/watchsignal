@@ -55,6 +55,10 @@ export type SessionReactionPayload = {
   reactionLabel: ReactionValue;
 };
 
+export type ScoringSessionReactionPayload = SessionReactionPayload & {
+  title?: string | null;
+};
+
 export type TitleResolutionCandidatePayload = {
   source: string;
   sourceId: string;
@@ -261,6 +265,30 @@ export type DebugHistoryCandidateInputPayload = {
   safetyStatus: string;
   alreadyWatched: boolean;
   isInterestingSafePick: boolean;
+  enrichmentStatus: string;
+  enrichmentProvider: string;
+  enrichmentFeatureScores: Record<string, number>;
+  matchedEnrichmentSourceMovieId: string | null;
+};
+
+export type DebugHistoryEnrichmentCoveragePayload = {
+  candidateCount: number;
+  enrichedCandidateCount: number;
+  fallbackCandidateCount: number;
+  enrichmentRate: number;
+};
+
+export type DebugHistorySignalContributionPayload = {
+  family: string;
+  label: string;
+  value: number;
+};
+
+export type DebugHistoryScoringEvidencePayload = {
+  sourceMovieId: string;
+  enrichmentStatus: string;
+  signalFamilies: string[];
+  contributions: DebugHistorySignalContributionPayload[];
 };
 
 export type DebugHistoryRecommendationCandidatePayload = {
@@ -273,11 +301,13 @@ export type DebugHistoryRecommendationCandidatePayload = {
   whyShort: string;
   hardFilterPass: boolean;
   isInterestingPick: boolean;
+  scoringEvidence: DebugHistoryScoringEvidencePayload[];
 };
 
 export type DebugHistoryRecommendationSnapshotPayload = {
   sessionId: string;
   candidateInputs: DebugHistoryCandidateInputPayload[];
+  enrichmentCoverage: DebugHistoryEnrichmentCoveragePayload;
   candidates: DebugHistoryRecommendationCandidatePayload[];
   isUncertain: boolean;
   uncertaintyReason: string | null;
@@ -348,6 +378,7 @@ export type LoadShortlistRequest = {
   tonightIntent?: TonightIntentInterpretationPayload | null;
   tonightIntents?: TonightIntentInterpretationPayload[];
   excludedSourceMovieIds?: string[];
+  sessionReactions?: ScoringSessionReactionPayload[];
 };
 
 export type LoadShortlistResponse = {

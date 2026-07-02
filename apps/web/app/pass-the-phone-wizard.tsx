@@ -75,6 +75,7 @@ import {
   type OnboardingCompletionPayload,
   type ProfileMemorySummaryPayload,
   type RecentSessionSummaryPayload,
+  type ScoringSessionReactionPayload,
   type SharedSessionPayload,
   type TasteProfileSummaryPayload,
   type TonightIntentInterpretationPayload,
@@ -86,6 +87,26 @@ type PassThePhoneWizardProps = {
 };
 
 const stepOrder: WizardStep[] = ["setup", "founder", "handoff", "wife", "results"];
+
+function scoringReactionSignals(
+  session: SharedSessionPayload,
+): ScoringSessionReactionPayload[] {
+  const titlesBySourceId = new Map(
+    [...session.previousShortlist, ...session.shortlist].map((item) => [
+      item.sourceMovieId,
+      item.title,
+    ]),
+  );
+  return [
+    ...session.previousFounderReactions,
+    ...session.previousWifeReactions,
+    ...session.founderReactions,
+    ...session.wifeReactions,
+  ].map((reaction) => ({
+    ...reaction,
+    title: titlesBySourceId.get(reaction.sourceMovieId) ?? null,
+  }));
+}
 
 export function PassThePhoneWizard({
   apiHealth,
@@ -690,6 +711,7 @@ export function PassThePhoneWizard({
             : null,
         tonightIntents: nextTonightIntents,
         excludedSourceMovieIds,
+        sessionReactions: scoringReactionSignals(sharedSession),
       });
       const candidates = shortlistResponse.shortlist.map(toSessionCandidate);
 

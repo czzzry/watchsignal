@@ -11,6 +11,11 @@ from movie_night_mediator.domain import (
     RecommendationSnapshotCandidateInput,
     RecommendationUserScore,
 )
+from movie_night_mediator.mvp_plus_2 import (
+    CandidateEnrichmentStatus,
+    ScoringEvidence,
+    SignalContribution,
+)
 from movie_night_mediator.storage.settings import SQLiteSettings
 
 
@@ -136,9 +141,10 @@ class SQLiteRecommendationSnapshotStore:
                         group_score,
                         why_short,
                         hard_filter_pass,
-                        is_interesting_pick
+                        is_interesting_pick,
+                        scoring_evidence
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     [
                         (
@@ -151,6 +157,7 @@ class SQLiteRecommendationSnapshotStore:
                             candidate.why_short,
                             int(candidate.hard_filter_pass),
                             int(candidate.is_interesting_pick),
+                            _dump_scoring_evidence(candidate.scoring_evidence),
                         )
                         for candidate in snapshot.candidates
                     ],
@@ -218,7 +225,8 @@ class SQLiteRecommendationSnapshotStore:
                     group_score,
                     why_short,
                     hard_filter_pass,
-                    is_interesting_pick
+                    is_interesting_pick,
+                    scoring_evidence
                 FROM recommendation_snapshot_candidates
                 WHERE session_id = ?
                 ORDER BY candidate_rank ASC, source_movie_id ASC
@@ -301,6 +309,7 @@ class SQLiteRecommendationSnapshotStore:
                     why_short=row["why_short"],
                     hard_filter_pass=bool(row["hard_filter_pass"]),
                     is_interesting_pick=bool(row["is_interesting_pick"]),
+                    scoring_evidence=_load_scoring_evidence(row["scoring_evidence"]),
                 )
                 for row in candidate_rows
             ),
@@ -385,6 +394,7 @@ class SQLiteRecommendationSnapshotStore:
                         is_interesting_pick INTEGER NOT NULL CHECK (
                             is_interesting_pick IN (0, 1)
                         ),
+                        scoring_evidence TEXT NOT NULL DEFAULT '[]',
                         PRIMARY KEY (session_id, source_movie_id)
                     );
 
@@ -405,6 +415,7 @@ class SQLiteRecommendationSnapshotStore:
                     """
                 )
                 _ensure_candidate_input_enrichment_columns(connection)
+                _ensure_recommendation_candidate_evidence_columns(connection)
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.database_path)
@@ -476,3 +487,73 @@ def _ensure_candidate_input_enrichment_columns(
     for column_name, statement in migrations.items():
         if column_name not in existing_columns:
             connection.execute(statement)
+
+
+def _dump_scoring_evidence(values: tuple[ScoringEvidence, ...]) -> str:
+    return json.dumps(
+        [
+            {
+                "sourceMovieId": evidence.source_movie_id,
+                "enrichmentStatus": evidence.enrichment_status.value,
+                "contributions": [
+                    {
+                        "family": contribution.family,
+                        "label": contribution.label,
+                        "value": contribution.value,
+                    }
+                    for contribution in evidence.contributions
+                ],
+            }
+            for evidence in values
+        ],
+        sort_keys=True,
+    )
+
+
+def _load_scoring_evidence(value: str) -> tuple[ScoringEvidence, ...]:
+    if not value:
+        return ()
+    raw_rows = json.loads(value)
+    if not isinstance(raw_rows, list):
+        return ()
+    evidence_rows = []
+    for row in raw_rows:
+        if not isinstance(row, dict):
+            continue
+        raw_contributions = row.get("contributions", [])
+        if not isinstance(raw_contributions, list):
+            raw_contributions = []
+        evidence_rows.append(
+            ScoringEvidence(
+                source_movie_id=str(row.get("sourceMovieId", "")),
+                enrichment_status=CandidateEnrichmentStatus(
+                    str(row.get("enrichmentStatus", "fallback"))
+                ),
+                contributions=tuple(
+                    SignalContribution(
+                        family=str(contribution.get("family", "")),
+                        label=str(contribution.get("label", "")),
+                        value=float(contribution.get("value", 0.0)),
+                    )
+                    for contribution in raw_contributions
+                    if isinstance(contribution, dict)
+                ),
+            )
+        )
+    return tuple(evidence_rows)
+
+
+def _ensure_recommendation_candidate_evidence_columns(
+    connection: sqlite3.Connection,
+) -> None:
+    existing_columns = {
+        row["name"]
+        for row in connection.execute(
+            "PRAGMA table_info(recommendation_snapshot_candidates)"
+        ).fetchall()
+    }
+    if "scoring_evidence" not in existing_columns:
+        connection.execute(
+            "ALTER TABLE recommendation_snapshot_candidates "
+            "ADD COLUMN scoring_evidence TEXT NOT NULL DEFAULT '[]'"
+        )
