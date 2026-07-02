@@ -292,6 +292,25 @@ export type TasteProfileSummaryPayload = {
   genreSignals: TasteGenreSignalPayload[];
 };
 
+export type ProfileMemorySignalPayload = {
+  label: string;
+  count: number;
+  source: "visible_app_memory" | "private_calibration" | string;
+};
+
+export type ProfileMemorySummaryPayload = {
+  householdId: string;
+  profileId: string;
+  sharedSavedCount: number;
+  savedByProfileCount: number;
+  recentReactionCount: number;
+  watchedCount: number;
+  ratedCount: number;
+  visibleAppMemoryCount: number;
+  privateCalibrationCount: number;
+  signals: ProfileMemorySignalPayload[];
+};
+
 export type CreateSessionRequest = {
   sessionId?: string;
   householdId: string;
@@ -376,6 +395,16 @@ export async function getTasteProfileSummary(
   const query = new URLSearchParams({ householdId });
   return getJson(
     `/api/taste-profile/${encodeURIComponent(profileId)}/summary?${query.toString()}`,
+  );
+}
+
+export async function getProfileMemorySummary(
+  householdId: string,
+  profileId: string,
+): Promise<ProfileMemorySummaryPayload> {
+  const query = new URLSearchParams({ householdId });
+  return getJson(
+    `/api/profiles/${encodeURIComponent(profileId)}/memory?${query.toString()}`,
   );
 }
 

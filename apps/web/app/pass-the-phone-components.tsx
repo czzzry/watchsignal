@@ -57,6 +57,7 @@ import {
   type DebugHistorySessionPayload,
   type OnboardingCompletionPayload,
   type PostWatchFeedbackPayload,
+  type ProfileMemorySummaryPayload,
   type RecentSessionSummaryPayload,
   type SavePostWatchFeedbackRequest,
   type SaveSessionOutcomeRequest,
@@ -125,6 +126,8 @@ export function SetupStep({
   onboardingCompletion,
   onboardingMessage,
   onboardingPrompt,
+  profileMemorySummaries,
+  profileMemoryMessage,
   onStart,
   onBeginOnboarding,
   recentSessions,
@@ -153,6 +156,8 @@ export function SetupStep({
   onboardingCompletion: OnboardingCompletionPayload | null;
   onboardingMessage: string | null;
   onboardingPrompt: OnboardingPromptState;
+  profileMemorySummaries: ProfileMemorySummaryPayload[];
+  profileMemoryMessage: string | null;
   onStart: () => void;
   onBeginOnboarding: () => void | Promise<void>;
   recentSessions: RecentSessionSummaryPayload[];
@@ -398,6 +403,13 @@ export function SetupStep({
         </div>
       </div>
 
+      <ProfileMemoryPanel
+        founderLabel={founderLabel}
+        wifeLabel={wifeLabel}
+        summaries={profileMemorySummaries}
+        message={profileMemoryMessage}
+      />
+
       {onboardingMessage ? (
         <p className="setupCallout">{onboardingMessage}</p>
       ) : null}
@@ -502,6 +514,73 @@ export function SetupStep({
           </div>
         </details>
       ) : null}
+    </section>
+  );
+}
+
+function ProfileMemoryPanel({
+  founderLabel,
+  wifeLabel,
+  summaries,
+  message,
+}: {
+  founderLabel: string;
+  wifeLabel: string;
+  summaries: ProfileMemorySummaryPayload[];
+  message: string | null;
+}) {
+  if (summaries.length === 0 && !message) {
+    return null;
+  }
+
+  const labelsByIndex = [founderLabel, wifeLabel];
+
+  return (
+    <section className="profileMemoryPanel" aria-labelledby="profile-memory-heading">
+      <div className="profileMemoryHeader">
+        <div>
+          <p className="eyebrow">Memory</p>
+          <h3 id="profile-memory-heading">What WatchSignal remembers</h3>
+        </div>
+        <span>Small view</span>
+      </div>
+      {message ? <p className="profileMemoryNote">{message}</p> : null}
+      <div className="profileMemoryGrid">
+        {summaries.map((summary, index) => {
+          const topSignals = summary.signals.slice(0, 3);
+
+          return (
+            <article key={summary.profileId} className="profileMemoryCard">
+              <div className="profileMemoryCardHeader">
+                <strong>{labelsByIndex[index] ?? summary.profileId}</strong>
+                <span>{summary.visibleAppMemoryCount} app memories</span>
+              </div>
+              <div className="profileMemoryFacts">
+                <span>{summary.sharedSavedCount} saved</span>
+                <span>{summary.recentReactionCount} reactions</span>
+                <span>{summary.watchedCount} watched</span>
+                <span>{summary.ratedCount} rated</span>
+              </div>
+              {topSignals.length > 0 ? (
+                <div className="profileMemorySignals">
+                  {topSignals.map((signal) => (
+                    <span key={`${summary.profileId}-${signal.source}-${signal.label}`}>
+                      {signal.label} · {signal.source === "private_calibration" ? "private calibration" : "app memory"}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="profileMemoryNote">No profile-specific signals yet.</p>
+              )}
+              {summary.privateCalibrationCount > 0 ? (
+                <p className="profileMemoryNote">
+                  {summary.privateCalibrationCount} private calibration signals available.
+                </p>
+              ) : null}
+            </article>
+          );
+        })}
+      </div>
     </section>
   );
 }

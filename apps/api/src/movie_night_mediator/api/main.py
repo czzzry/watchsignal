@@ -27,6 +27,11 @@ from movie_night_mediator.app.feedback import PostWatchFeedbackService
 from movie_night_mediator.app.history import SessionHistoryService
 from movie_night_mediator.app.onboarding import SQLiteOnboardingStore
 from movie_night_mediator.app.outcome import SessionOutcomeService
+from movie_night_mediator.app.profile_memory import (
+    ProfileMemoryService,
+    ProfileMemorySignal,
+    ProfileMemorySummary,
+)
 from movie_night_mediator.app.recommendation_snapshot import (
     RecommendationSnapshotService,
 )
@@ -516,6 +521,25 @@ class TasteProfileSummaryPayload(BaseModel):
     evidence: list[TasteProfileEvidencePayload]
 
 
+class ProfileMemorySignalPayload(BaseModel):
+    label: str
+    count: int
+    source: str
+
+
+class ProfileMemorySummaryPayload(BaseModel):
+    householdId: str
+    profileId: str
+    sharedSavedCount: int
+    savedByProfileCount: int
+    recentReactionCount: int
+    watchedCount: int
+    ratedCount: int
+    visibleAppMemoryCount: int
+    privateCalibrationCount: int
+    signals: list[ProfileMemorySignalPayload]
+
+
 class WatchlistEntryPayload(BaseModel):
     householdId: str
     sourceMovieId: str
@@ -602,6 +626,12 @@ def create_app(
     watchlist_service = SharedWatchlistService(
         watchlist_store or SQLiteWatchlistStore()
     )
+    profile_memory_service = ProfileMemoryService(
+        watchlist_service=watchlist_service,
+        backfill_service=backfill_service,
+        session_store=resolved_session_store,
+        taste_lab_service=taste_lab_service,
+    )
 
     @app.get("/health", tags=["system"])
     def health() -> dict[str, str]:
@@ -658,6 +688,22 @@ def create_app(
         _validate_profile_uniqueness(payload.profiles)
         saved_setup = resolved_setup_store.save_setup(_payload_to_setup_state(payload))
         return _setup_state_to_payload(saved_setup)
+
+    @app.get(
+        "/profiles/{profile_id}/memory",
+        response_model=ProfileMemorySummaryPayload,
+        tags=["profiles"],
+    )
+    def get_profile_memory(
+        profile_id: str,
+        householdId: str = DEFAULT_HOUSEHOLD_ID,
+    ) -> ProfileMemorySummaryPayload:
+        return _profile_memory_summary_to_payload(
+            profile_memory_service.summarize_profile(
+                household_id=householdId,
+                profile_id=profile_id,
+            )
+        )
 
     @app.get(
         "/watchlist",
@@ -1520,6 +1566,36 @@ def _watchlist_entry_to_payload(entry: WatchlistEntry) -> WatchlistEntryPayload:
         posterUrl=entry.poster_url,
         releaseYear=entry.release_year,
         isTasteSignal=entry.is_taste_signal,
+    )
+
+
+def _profile_memory_summary_to_payload(
+    summary: ProfileMemorySummary,
+) -> ProfileMemorySummaryPayload:
+    return ProfileMemorySummaryPayload(
+        householdId=summary.household_id,
+        profileId=summary.profile_id,
+        sharedSavedCount=summary.shared_saved_count,
+        savedByProfileCount=summary.saved_by_profile_count,
+        recentReactionCount=summary.recent_reaction_count,
+        watchedCount=summary.watched_count,
+        ratedCount=summary.rated_count,
+        visibleAppMemoryCount=summary.visible_app_memory_count,
+        privateCalibrationCount=summary.private_calibration_count,
+        signals=[
+            _profile_memory_signal_to_payload(signal)
+            for signal in summary.signals
+        ],
+    )
+
+
+def _profile_memory_signal_to_payload(
+    signal: ProfileMemorySignal,
+) -> ProfileMemorySignalPayload:
+    return ProfileMemorySignalPayload(
+        label=signal.label,
+        count=signal.count,
+        source=signal.source,
     )
 
 

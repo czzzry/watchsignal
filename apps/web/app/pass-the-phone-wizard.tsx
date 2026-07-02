@@ -60,6 +60,7 @@ import {
   advanceSessionHandoff,
   createSharedSession,
   getOnboardingCompletion,
+  getProfileMemorySummary,
   getProfileOnboarding,
   getRecentSessions,
   getSessionDebugHistory,
@@ -70,6 +71,7 @@ import {
   toApiSessionMode,
   type DebugHistorySessionPayload,
   type OnboardingCompletionPayload,
+  type ProfileMemorySummaryPayload,
   type RecentSessionSummaryPayload,
   type SharedSessionPayload,
   type TasteProfileSummaryPayload,
@@ -140,6 +142,10 @@ export function PassThePhoneWizard({
   const [tasteProfileSummaries, setTasteProfileSummaries] = useState<
     TasteProfileSummaryPayload[]
   >([]);
+  const [profileMemorySummaries, setProfileMemorySummaries] = useState<
+    ProfileMemorySummaryPayload[]
+  >([]);
+  const [profileMemoryMessage, setProfileMemoryMessage] = useState<string | null>(null);
   const [debugHistoryStatus, setDebugHistoryStatus] =
     useState<DebugHistoryStatus>("idle");
   const [debugHistoryMessage, setDebugHistoryMessage] = useState<string | null>(
@@ -239,6 +245,16 @@ export function PassThePhoneWizard({
 
     void refreshOnboardingCompletion();
   }, [apiHealth.connected, participantIds.join("|"), isCoupleSession]);
+
+  useEffect(() => {
+    if (!apiHealth.connected) {
+      setProfileMemorySummaries([]);
+      setProfileMemoryMessage(null);
+      return;
+    }
+
+    void loadProfileMemorySummaries();
+  }, [apiHealth.connected, rawParticipantIds.join("|")]);
 
   function resetSession() {
     setStep("setup");
@@ -779,6 +795,8 @@ export function PassThePhoneWizard({
           onboardingCompletion={onboardingCompletion}
           onboardingMessage={onboardingMessage}
           onboardingPrompt={onboardingPrompt}
+          profileMemorySummaries={profileMemorySummaries}
+          profileMemoryMessage={profileMemoryMessage}
           onStart={startSession}
           onBeginOnboarding={() => beginOnboarding()}
           recentSessions={recentSessions}
@@ -981,6 +999,21 @@ export function PassThePhoneWizard({
       setTasteProfileSummaries([]);
       setDebugHistoryStatus("failed");
       setDebugHistoryMessage(toDebugHistoryErrorMessage(error));
+    }
+  }
+
+  async function loadProfileMemorySummaries(): Promise<void> {
+    try {
+      const summaries = await Promise.all(
+        rawParticipantIds.map((profileId) =>
+          getProfileMemorySummary("default-household", profileId),
+        ),
+      );
+      setProfileMemorySummaries(summaries);
+      setProfileMemoryMessage(null);
+    } catch (error) {
+      setProfileMemorySummaries([]);
+      setProfileMemoryMessage(toErrorMessage(error));
     }
   }
 
