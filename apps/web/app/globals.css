@@ -3162,6 +3162,11 @@ summary:focus-visible {
   background: rgba(0, 0, 0, 0.16);
 }
 
+.watchlistActions {
+  display: flex;
+  gap: 6px;
+}
+
 .watchlistItem img {
   width: 42px;
   aspect-ratio: 2 / 3;
@@ -3183,6 +3188,50 @@ summary:focus-visible {
   color: rgba(255, 255, 255, 0.56);
   font-size: 0.72rem;
   line-height: 1.35;
+}
+
+.watchlistRatingGrid {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 6px;
+  padding-top: 4px;
+}
+
+.watchlistRatingRow {
+  display: grid;
+  grid-template-columns: minmax(64px, 0.7fr) minmax(0, 1.3fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.watchlistRatingRow > span {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.watchlistRatingRow > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.watchlistRatingChip {
+  min-height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 8px;
+  background: rgba(255, 255, 255, 0.035);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.68rem;
+}
+
+.watchlistRatingChipActive {
+  border-color: rgba(120, 240, 255, 0.36);
+  background: rgba(120, 240, 255, 0.12);
+  color: var(--cyan);
 }
 
 .backupStrip {

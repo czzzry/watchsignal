@@ -68,6 +68,20 @@ export type TitleResolutionEntryPayload = {
   unresolvedReason?: string | null;
 };
 
+export type WatchedTitleBackfillPayload = {
+  householdId: string;
+  scope: "participant" | "global";
+  participantId?: string | null;
+  titleKey: string;
+  rawTitle: string;
+  status: "resolved" | "unresolved";
+  candidate?: TitleResolutionCandidatePayload | null;
+  unresolvedReason?: string | null;
+  watchedOn?: string | null;
+  watched: boolean;
+  tasteLabel?: "loved" | "fine" | "no" | null;
+};
+
 export type OnboardingConstraintsPayload = {
   horrorExclusion: boolean;
   subtitleIntolerance: boolean;
@@ -153,6 +167,19 @@ export type SaveWatchlistEntryRequest = {
   savedByProfileId?: string | null;
   posterUrl?: string | null;
   releaseYear?: number | null;
+};
+
+export type AppOwnedMovieRatingRequest = {
+  profileId: string;
+  tasteLabel: "loved" | "fine" | "no";
+};
+
+export type AppOwnedMovieWatchedRequest = {
+  householdId: string;
+  sourceMovieId: string;
+  title: string;
+  watchedOn?: string | null;
+  ratings: AppOwnedMovieRatingRequest[];
 };
 
 export type RecentSessionFeedbackPayload = {
@@ -397,6 +424,12 @@ export async function removeWatchlistEntry(
   return deleteJson(
     `/api/watchlist/${encodeURIComponent(sourceMovieId)}?${query.toString()}`,
   );
+}
+
+export async function markAppOwnedMovieWatched(
+  request: AppOwnedMovieWatchedRequest,
+): Promise<WatchedTitleBackfillPayload[]> {
+  return postJson("/api/app-owned-movies/watched", request);
 }
 
 export async function getProfileOnboarding(

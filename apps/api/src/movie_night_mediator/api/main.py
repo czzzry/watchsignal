@@ -15,6 +15,10 @@ from movie_night_mediator.adapters import (
 )
 
 from movie_night_mediator.app.backfill import ManualBackfillService
+from movie_night_mediator.app.app_owned_movie_actions import (
+    AppOwnedMovieActionService,
+    AppOwnedProfileRating,
+)
 from movie_night_mediator.app.debug_history import (
     DebugPersistedSessionEvidence,
     build_persisted_session_evidence,
@@ -188,6 +192,19 @@ class WatchedTitleBackfillPayload(BaseModel):
     watchedOn: date | None = None
     watched: bool
     tasteLabel: BackfillTasteLabel | None = None
+
+
+class AppOwnedMovieRatingPayload(BaseModel):
+    profileId: str = Field(min_length=1)
+    tasteLabel: BackfillTasteLabel
+
+
+class AppOwnedMovieWatchedPayload(BaseModel):
+    householdId: str = Field(default=DEFAULT_HOUSEHOLD_ID, min_length=1)
+    sourceMovieId: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    watchedOn: date | None = None
+    ratings: list[AppOwnedMovieRatingPayload] = Field(default_factory=list)
 
 
 class PostWatchFeedbackPayload(BaseModel):
@@ -554,6 +571,7 @@ def create_app(
     resolved_session_store = session_store or SQLiteSessionStore()
     resolved_outcome_store = outcome_store or SQLiteOutcomeStore()
     backfill_service = ManualBackfillService(resolved_backfill_store)
+    app_owned_movie_action_service = AppOwnedMovieActionService(backfill_service)
     feedback_service = PostWatchFeedbackService(
         store=feedback_store or SQLiteFeedbackStore(),
         session_store=resolved_session_store,
@@ -781,6 +799,33 @@ def create_app(
             _watched_backfill_to_payload(record)
             for record in backfill_service.list_watched_titles(householdId)
         ]
+
+    @app.post(
+        "/app-owned-movies/watched",
+        response_model=list[WatchedTitleBackfillPayload],
+        tags=["app-owned-movies"],
+    )
+    def post_app_owned_movie_watched(
+        payload: AppOwnedMovieWatchedPayload,
+    ) -> list[WatchedTitleBackfillPayload]:
+        try:
+            records = app_owned_movie_action_service.mark_watched(
+                household_id=payload.householdId,
+                source_movie_id=payload.sourceMovieId,
+                title=payload.title,
+                watched_on=payload.watchedOn,
+                profile_ratings=tuple(
+                    AppOwnedProfileRating(
+                        profile_id=rating.profileId,
+                        taste_label=rating.tasteLabel,
+                    )
+                    for rating in payload.ratings
+                ),
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+
+        return [_watched_backfill_to_payload(record) for record in records]
 
     @app.post(
         "/feedback/post-watch",

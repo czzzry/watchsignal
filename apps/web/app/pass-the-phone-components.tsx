@@ -47,6 +47,7 @@ import type {
 } from "./pass-the-phone-model";
 import {
   getWatchlist,
+  markAppOwnedMovieWatched,
   removeWatchlistEntry,
   saveWatchlistEntry,
   submitPostWatchFeedback,
@@ -1550,8 +1551,11 @@ export function ResultsStep({
   const [feedbackNotes, setFeedbackNotes] = useState<FeedbackNoteState>({});
   const [savedFeedback, setSavedFeedback] = useState<PostWatchFeedbackPayload[]>([]);
   const [watchlistEntries, setWatchlistEntries] = useState<WatchlistEntryPayload[]>([]);
-  const [watchlistStatus, setWatchlistStatus] = useState<"idle" | "loading" | "saving" | "removing">("idle");
+  const [watchlistStatus, setWatchlistStatus] = useState<"idle" | "loading" | "saving" | "removing" | "marking">("idle");
   const [watchlistMessage, setWatchlistMessage] = useState<string | null>(null);
+  const [watchlistRatingState, setWatchlistRatingState] = useState<
+    Record<string, Record<string, "loved" | "fine" | "no">>
+  >({});
   const canPersist = sessionSource === "api" && sharedSession !== null;
   const participantEntries =
     peopleMode === "couple"
@@ -1674,6 +1678,30 @@ export function ResultsStep({
         currentEntries.filter((entry) => entry.sourceMovieId !== sourceMovieId),
       );
       setWatchlistMessage("Removed from the shared watchlist.");
+    } catch (error) {
+      setWatchlistMessage(toErrorMessage(error));
+    } finally {
+      setWatchlistStatus("idle");
+    }
+  }
+
+  async function handleMarkWatchlistEntryWatched(entry: WatchlistEntryPayload): Promise<void> {
+    if (!canPersist || sharedSession === null) {
+      return;
+    }
+
+    setWatchlistStatus("marking");
+    try {
+      const ratings = Object.entries(watchlistRatingState[entry.sourceMovieId] ?? {})
+        .map(([profileId, tasteLabel]) => ({ profileId, tasteLabel }));
+      await markAppOwnedMovieWatched({
+        householdId: sharedSession.householdId,
+        sourceMovieId: entry.sourceMovieId,
+        title: entry.title,
+        ratings,
+      });
+      setWatchlistMessage(`${entry.title} is marked watched${ratings.length ? " with ratings." : "."}`);
+      await onLoadDebugHistory();
     } catch (error) {
       setWatchlistMessage(toErrorMessage(error));
     } finally {
@@ -1912,14 +1940,55 @@ export function ResultsStep({
                       {savedByLabel ? ` · Saved by ${savedByLabel}` : ""}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    className="secondaryButton compactButton"
-                    onClick={() => handleRemoveWatchlistEntry(entry.sourceMovieId)}
-                    disabled={watchlistStatus === "removing"}
-                  >
-                    Remove
-                  </button>
+                  <div className="watchlistActions">
+                    <button
+                      type="button"
+                      className="secondaryButton compactButton"
+                      onClick={() => handleMarkWatchlistEntryWatched(entry)}
+                      disabled={watchlistStatus === "marking"}
+                    >
+                      {watchlistStatus === "marking" ? "Saving..." : "Watched"}
+                    </button>
+                    <button
+                      type="button"
+                      className="secondaryButton compactButton"
+                      onClick={() => handleRemoveWatchlistEntry(entry.sourceMovieId)}
+                      disabled={watchlistStatus === "removing"}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div className="watchlistRatingGrid">
+                    {participantEntries.map((participant) => (
+                      <div key={participant.id} className="watchlistRatingRow">
+                        <span>{participant.label}</span>
+                        <div role="group" aria-label={`${participant.label} rating for ${entry.title}`}>
+                          {(Object.keys(feedbackLabels) as Array<keyof typeof feedbackLabels>).map((label) => (
+                            <button
+                              key={label}
+                              type="button"
+                              className={
+                                watchlistRatingState[entry.sourceMovieId]?.[participant.id] === label
+                                  ? "watchlistRatingChip watchlistRatingChipActive"
+                                  : "watchlistRatingChip"
+                              }
+                              onClick={() =>
+                                setWatchlistRatingState((current) => ({
+                                  ...current,
+                                  [entry.sourceMovieId]: {
+                                    ...(current[entry.sourceMovieId] ?? {}),
+                                    [participant.id]: label,
+                                  },
+                                }))
+                              }
+                            >
+                              {feedbackLabels[label]}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </article>
               );
             })}
