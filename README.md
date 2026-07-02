@@ -1,7 +1,7 @@
 # WatchSignal
 
 <p align="center">
-  <img src="apps/web/public/watchsignal-brand-reference.png" alt="WatchSignal brand reference" width="560">
+  <img src="apps/web/public/watchsignal-logo.png" alt="WatchSignal logo" width="477">
 </p>
 
 <p align="center">
@@ -29,6 +29,8 @@ Start here if you want the project story:
 - [Code-first app architecture](docs/architecture/code-first-app-architecture.md)
 - [Taste Lab PRD](docs/prd-taste-lab.md)
 - [Taste Lab issue breakdown](docs/issues/taste-lab-issue-breakdown.md)
+- [MVP Plus 2 PRD](docs/prd-mvp-plus-2.md)
+- [MVP Plus 2 issue breakdown](docs/issues/mvp-plus-2-issue-breakdown.md)
 - [Live usable MVP gate](docs/validation/live-usable-mvp-gate-2026-06-30.md)
 
 ## What The Demo Shows

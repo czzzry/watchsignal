@@ -75,6 +75,14 @@ When the repo has multiple open branches or PRs, summarize which branch is activ
 - For bug fixes, reproduce the bug in an end-to-end setting as closely aligned with the user experience as possible
 - Apply the same standard to engineering quality, including lint, test failures, and flaky tests
 
+## MVP phase tracking
+
+For multi-issue product work, Codex must keep the current MVP phase boundary visible.
+Show only the current phase name and an x/y issue status bar, unless the founder explicitly asks for historical phases.
+Do not silently add new issues into an accepted MVP phase.
+If new work emerges, classify it as in-scope risk closure, a scope-change candidate that needs founder approval, or next-phase backlog.
+If a phase is not yet accepted, report it as scoping with an unknown total instead of pretending the issue count is locked.
+
 ## Architecture posture
 
 - Prefer boring, reversible, inspectable architecture

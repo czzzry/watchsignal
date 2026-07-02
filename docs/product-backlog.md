@@ -5,38 +5,39 @@ It is not a commitment to build everything next.
 It is a parking lot for mature-product needs, rough edges, and future issue candidates.
 GitHub issue publication remains a separate action that should only happen with explicit founder approval.
 
-## Current MVP Plus 1 Focus
+## Current MVP Plus 2 Focus
 
-### Taste Lab: high-signal rapid rating to WatchSignal taste profile
+### Memory, Steering, And Rich Recommendation Intelligence
 
-Goal: improve recommendation quality by collecting taste ratings from movies selected for high preference-information value.
-The founder is willing to rate many movies if those movies are chosen intelligently.
-The product question is whether WatchSignal can choose high-signal movies rather than asking for arbitrary ratings.
-The MVP plus 1 outcome is not that Taste Lab exists as a standalone tool.
-The MVP plus 1 outcome is that a user can use Taste Lab and have their tastes updated in WatchSignal.
+Goal: prove that WatchSignal has memory and taste steering, not just a one-night flow.
+MVP plus 1 proved that Taste Lab ratings can update WatchSignal taste evidence.
+MVP plus 2 should make the main product feel materially more mature by combining profile identity, shared watchlist memory, Show 5 more, Steer next 5, LLM intent interpretation, and richer recommendation intelligence.
 
 Taste Lab should remain private and optional for now.
 The main app should benefit from its saved signals without making Taste Lab part of the normal couch-flow UI.
+The main app should not add a competing manual backfill flow because Taste Lab remains the future intentional calibration and bulk-rating service.
 
 Questions to resolve:
-- Does "high-signal movie" have a defensible statistical meaning?
-- Can MovieLens-style ratings data identify movies with high preference-information value?
-- What first signal-score formula should we use?
-- How many high-signal ratings are needed before recommendations improve?
-- How should `Haven't seen` be stored and deprioritized without treating it as dislike?
-- What is the smallest taste-profile read model that lets WatchSignal consume Taste Lab ratings?
-- What recommendation outcome changes or explanations prove that Taste Lab data reached the app?
+- What contract lets Treehouse workers parallelize profile memory, watchlist, intent, continuation, enrichment, scoring, and evaluation?
+- What is the smallest profile identity setup that makes saved and rated signals feel owned by real people?
+- How should a shared household watchlist work without becoming an automatic taste vote?
+- How should natural-language tonight intent become structured filters and soft signals without giving the LLM ranking authority?
+- How should Show 5 more and Steer next 5 preserve prior reactions and filters?
+- How much MovieLens Tag Genome or offline feature enrichment can be used safely in MVP plus 2?
+- What recommendation-quality report proves that richer profile and enrichment evidence improved ranking behavior?
 
 Candidate work:
-- Taste Lab research brief.
-- Taste Lab PRD and local issue breakdown.
-- Offline signal-score script using MovieLens data.
-- Private rapid-rating storage and API.
-- Private Taste Lab route for batch-rating 10 movies at a time.
-- Taste Lab to WatchSignal taste-profile read model.
-- Recommendation scoring that consumes Taste Lab-derived evidence.
-- Minimal app evidence that WatchSignal has absorbed Taste Lab data.
-- Recommendation evaluation fixture for comparing high-signal rating against random or popularity-only rating.
+- MVP plus 2 PRD and issue breakdown.
+- MVP plus 2 architecture and data contracts.
+- Profile labels and lightweight avatars.
+- Shared household watchlist with remove.
+- App-owned watched and rating actions.
+- Small profile memory panel.
+- Tonight intent interpreter with confirm-before-apply and clarification behavior.
+- Show 5 more and Steer next 5.
+- Hybrid TMDb plus MovieLens Tag Genome or offline feature enrichment.
+- Rich recommendation scoring and evidence.
+- MVP plus 2 evaluation and acceptance gate.
 
 ## Mature Product Backlog
 
