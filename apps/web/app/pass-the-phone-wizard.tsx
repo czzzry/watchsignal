@@ -89,8 +89,14 @@ export function PassThePhoneWizard({
   const profiles = setupLoad.setup.profiles
     .slice()
     .sort((first, second) => first.order - second.order);
+  const founderProfile = profiles[0];
+  const wifeProfile = profiles[1];
   const founderLabel = profiles[0]?.label || "Husband";
   const wifeLabel = profiles[1]?.label || "Wife";
+  const founderAvatarKey = founderProfile?.avatarKey || "spark";
+  const wifeAvatarKey = wifeProfile?.avatarKey || "moon";
+  const founderColorKey = founderProfile?.colorKey || "cyan";
+  const wifeColorKey = wifeProfile?.colorKey || "rose";
   const [step, setStep] = useState<WizardStep>("setup");
   const [sessionMode, setSessionMode] = useState<SessionMode>("compromise");
   const [peopleMode, setPeopleMode] = useState<PeopleMode>("couple");
@@ -791,6 +797,12 @@ export function PassThePhoneWizard({
         firstPassCandidate ? (
           <ReactionStep
             actorLabel={firstPassLabel}
+            actorAvatarKey={
+              firstPassActor === "founder" ? founderAvatarKey : wifeAvatarKey
+            }
+            actorColorKey={
+              firstPassActor === "founder" ? founderColorKey : wifeColorKey
+            }
             actor={firstPassActor}
             index={firstPassActor === "founder" ? founderIndex : wifeIndex}
             total={sessionCandidates.length}
@@ -852,6 +864,8 @@ export function PassThePhoneWizard({
         wifeCandidate ? (
           <ReactionStep
             actorLabel={wifeLabel}
+            actorAvatarKey={wifeAvatarKey}
+            actorColorKey={wifeColorKey}
             actor="wife"
             index={wifeIndex}
             total={sessionCandidates.length}

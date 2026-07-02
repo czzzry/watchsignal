@@ -1,0 +1,66 @@
+import { DEFAULT_API_BASE_URL, loadSetupState } from "../setup-api";
+import { SetupWizard } from "../setup-wizard";
+
+type ApiHealth = {
+  connected: boolean;
+  label: "Connected" | "Disconnected";
+  detail: string;
+};
+
+export const dynamic = "force-dynamic";
+
+async function getApiHealth(
+  apiBaseUrl = process.env.API_BASE_URL ?? DEFAULT_API_BASE_URL,
+): Promise<ApiHealth> {
+  const healthUrl = new URL("/health", apiBaseUrl);
+
+  try {
+    const response = await fetch(healthUrl, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(2000),
+    });
+
+    if (!response.ok) {
+      return {
+        connected: false,
+        label: "Disconnected",
+        detail: `/health returned HTTP ${response.status}.`,
+      };
+    }
+
+    const payload = (await response.json()) as {
+      service?: unknown;
+      status?: unknown;
+    };
+
+    if (payload.status === "ok" && typeof payload.service === "string") {
+      return {
+        connected: true,
+        label: "Connected",
+        detail: `${payload.service} returned status ok.`,
+      };
+    }
+
+    return {
+      connected: false,
+      label: "Disconnected",
+      detail: "/health returned an unexpected response.",
+    };
+  } catch {
+    return {
+      connected: false,
+      label: "Disconnected",
+      detail: `FastAPI is not reachable at ${apiBaseUrl}.`,
+    };
+  }
+}
+
+export default async function SetupPage() {
+  const apiBaseUrl = process.env.API_BASE_URL ?? DEFAULT_API_BASE_URL;
+  const [apiHealth, setupLoad] = await Promise.all([
+    getApiHealth(apiBaseUrl),
+    loadSetupState(apiBaseUrl),
+  ]);
+
+  return <SetupWizard apiHealth={apiHealth} setupLoad={setupLoad} />;
+}

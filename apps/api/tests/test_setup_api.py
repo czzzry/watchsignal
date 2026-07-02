@@ -1,3 +1,4 @@
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -11,8 +12,20 @@ from movie_night_mediator.app.setup import SQLiteSetupStore
 GENERIC_UPDATED_SETUP = {
     "householdLabel": "Household",
     "profiles": [
-        {"id": "profile-1", "label": "Viewer A", "order": 1},
-        {"id": "profile-2", "label": "Viewer B", "order": 2},
+        {
+            "id": "profile-1",
+            "label": "Viewer A",
+            "order": 1,
+            "avatarKey": "comet",
+            "colorKey": "amber",
+        },
+        {
+            "id": "profile-2",
+            "label": "Viewer B",
+            "order": 2,
+            "avatarKey": "ticket",
+            "colorKey": "violet",
+        },
     ],
     "defaults": {
         "sessionType": "Movie night",
@@ -40,8 +53,20 @@ class SetupApiTest(unittest.TestCase):
                 {
                     "householdLabel": "Household",
                     "profiles": [
-                        {"id": "profile-1", "label": "Husband", "order": 1},
-                        {"id": "profile-2", "label": "Wife", "order": 2},
+                        {
+                            "id": "profile-1",
+                            "label": "Husband",
+                            "order": 1,
+                            "avatarKey": "spark",
+                            "colorKey": "cyan",
+                        },
+                        {
+                            "id": "profile-2",
+                            "label": "Wife",
+                            "order": 2,
+                            "avatarKey": "moon",
+                            "colorKey": "rose",
+                        },
                     ],
                     "defaults": {
                         "sessionType": "Movie night",
@@ -86,11 +111,100 @@ class SetupApiTest(unittest.TestCase):
                 ["Viewer A", "Viewer B"],
             )
             self.assertEqual(
+                [profile.avatar_key for profile in loaded_setup.profiles],
+                ["comet", "ticket"],
+            )
+            self.assertEqual(
+                [profile.color_key for profile in loaded_setup.profiles],
+                ["amber", "violet"],
+            )
+            self.assertEqual(
                 loaded_setup.defaults.availability_region,
                 "Library region",
             )
             self.assertEqual(loaded_setup.defaults.shortlist_size, 4)
             self.assertFalse(loaded_setup.defaults.avoid_already_watched)
+
+    def test_existing_setup_rows_receive_lightweight_identity_defaults(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "setup.sqlite3"
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE setup_state (
+                        setup_id TEXT PRIMARY KEY,
+                        household_label TEXT NOT NULL,
+                        session_type TEXT NOT NULL,
+                        input_mode TEXT NOT NULL,
+                        availability_region TEXT NOT NULL,
+                        language_access TEXT NOT NULL,
+                        shortlist_size INTEGER NOT NULL CHECK (shortlist_size > 0),
+                        avoid_already_watched INTEGER NOT NULL CHECK (
+                            avoid_already_watched IN (0, 1)
+                        ),
+                        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    );
+
+                    CREATE TABLE setup_profiles (
+                        profile_id TEXT PRIMARY KEY,
+                        setup_id TEXT NOT NULL REFERENCES setup_state(setup_id)
+                            ON DELETE CASCADE,
+                        display_label TEXT NOT NULL,
+                        sort_order INTEGER NOT NULL
+                    );
+                    """
+                )
+                connection.execute(
+                    """
+                    INSERT INTO setup_state (
+                        setup_id,
+                        household_label,
+                        session_type,
+                        input_mode,
+                        availability_region,
+                        language_access,
+                        shortlist_size,
+                        avoid_already_watched
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        "current",
+                        "Household",
+                        "Movie night",
+                        "Pass the phone",
+                        "Prime Video Germany",
+                        "English audio or verified English subtitles",
+                        5,
+                        1,
+                    ),
+                )
+                connection.executemany(
+                    """
+                    INSERT INTO setup_profiles (
+                        profile_id,
+                        setup_id,
+                        display_label,
+                        sort_order
+                    )
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (
+                        ("profile-1", "current", "Husband", 1),
+                        ("profile-2", "current", "Wife", 2),
+                    ),
+                )
+
+            loaded_setup = SQLiteSetupStore(database_path=database_path).load_setup()
+
+            self.assertEqual(
+                [profile.avatar_key for profile in loaded_setup.profiles],
+                ["spark", "moon"],
+            )
+            self.assertEqual(
+                [profile.color_key for profile in loaded_setup.profiles],
+                ["cyan", "rose"],
+            )
 
 
 def setup_route_endpoints(app):

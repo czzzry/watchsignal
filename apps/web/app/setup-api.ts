@@ -4,6 +4,8 @@ export type SetupProfile = {
   id: string;
   label: string;
   order: number;
+  avatarKey: string;
+  colorKey: string;
 };
 
 export type SetupDefaults = {
@@ -31,8 +33,20 @@ export type SetupLoadResult = {
 export const fallbackSetup: SetupState = {
   householdLabel: "Household",
   profiles: [
-    { id: "profile-1", label: "Husband", order: 1 },
-    { id: "profile-2", label: "Wife", order: 2 },
+    {
+      id: "profile-1",
+      label: "Husband",
+      order: 1,
+      avatarKey: "spark",
+      colorKey: "cyan",
+    },
+    {
+      id: "profile-2",
+      label: "Wife",
+      order: 2,
+      avatarKey: "moon",
+      colorKey: "rose",
+    },
   ],
   defaults: {
     sessionType: "Movie night",
@@ -80,6 +94,43 @@ export async function loadSetupState(
     return fallbackLoadResult(
       `Setup API is not reachable at ${apiBaseUrl}. Local defaults are shown for review.`,
     );
+  }
+}
+
+export async function saveSetupState(setup: SetupState): Promise<SetupLoadResult> {
+  try {
+    const response = await fetch("/api/setup", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(setup),
+    });
+    const payload = (await response.json()) as unknown;
+    const savedSetup = parseSetupState(payload);
+
+    if (!response.ok || !savedSetup) {
+      return {
+        setup,
+        source: "fallback",
+        detail: "Setup could not be saved. Your edits are still visible locally.",
+        canPersist: false,
+      };
+    }
+
+    return {
+      setup: savedSetup,
+      source: "backend",
+      detail: "Saved setup to FastAPI.",
+      canPersist: true,
+    };
+  } catch {
+    return {
+      setup,
+      source: "fallback",
+      detail: "Setup API is not reachable. Your edits are still visible locally.",
+      canPersist: false,
+    };
   }
 }
 
@@ -145,6 +196,14 @@ function parseProfile(profile: unknown): SetupProfile | null {
     id: profile.id,
     label: profile.label,
     order: profile.order,
+    avatarKey:
+      typeof profile.avatarKey === "string" && profile.avatarKey.trim()
+        ? profile.avatarKey
+        : defaultAvatarKey(profile.order),
+    colorKey:
+      typeof profile.colorKey === "string" && profile.colorKey.trim()
+        ? profile.colorKey
+        : defaultColorKey(profile.order),
   };
 }
 
@@ -176,4 +235,12 @@ function parseDefaults(defaults: unknown): SetupDefaults | null {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function defaultAvatarKey(order: number): string {
+  return order === 2 ? "moon" : "spark";
+}
+
+function defaultColorKey(order: number): string {
+  return order === 2 ? "rose" : "cyan";
 }

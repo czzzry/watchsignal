@@ -100,6 +100,8 @@ class SetupProfilePayload(BaseModel):
     id: str = Field(min_length=1)
     label: str = Field(min_length=1)
     order: int
+    avatarKey: str = Field(default="spark", min_length=1)
+    colorKey: str = Field(default="cyan", min_length=1)
 
 
 class SetupDefaultsPayload(BaseModel):
@@ -1168,6 +1170,8 @@ def _payload_to_setup_state(payload: SetupStatePayload) -> SetupState:
                 id=profile.id,
                 label=profile.label,
                 order=profile.order,
+                avatar_key=profile.avatarKey,
+                color_key=profile.colorKey,
             )
             for profile in payload.profiles
         ),
@@ -1190,6 +1194,8 @@ def _setup_state_to_payload(setup: SetupState) -> SetupStatePayload:
                 id=profile.id,
                 label=profile.label,
                 order=profile.order,
+                avatarKey=profile.avatar_key,
+                colorKey=profile.color_key,
             )
             for profile in setup.profiles
         ],

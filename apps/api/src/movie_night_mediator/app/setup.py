@@ -15,6 +15,8 @@ class SetupProfile:
     id: str
     label: str
     order: int
+    avatar_key: str
+    color_key: str
 
 
 @dataclass(frozen=True)
@@ -38,8 +40,20 @@ def default_setup_state() -> SetupState:
     return SetupState(
         household_label="Household",
         profiles=(
-            SetupProfile(id="profile-1", label="Husband", order=1),
-            SetupProfile(id="profile-2", label="Wife", order=2),
+            SetupProfile(
+                id="profile-1",
+                label="Husband",
+                order=1,
+                avatar_key="spark",
+                color_key="cyan",
+            ),
+            SetupProfile(
+                id="profile-2",
+                label="Wife",
+                order=2,
+                avatar_key="moon",
+                color_key="rose",
+            ),
         ),
         defaults=SetupDefaults(
             session_type="Movie night",
@@ -91,7 +105,7 @@ class SQLiteSetupStore:
 
             profile_rows = connection.execute(
                 """
-                SELECT profile_id, display_label, sort_order
+                SELECT profile_id, display_label, sort_order, avatar_key, color_key
                 FROM setup_profiles
                 WHERE setup_id = ?
                 ORDER BY sort_order ASC, profile_id ASC
@@ -109,6 +123,8 @@ class SQLiteSetupStore:
                     id=row["profile_id"],
                     label=row["display_label"],
                     order=row["sort_order"],
+                    avatar_key=row["avatar_key"],
+                    color_key=row["color_key"],
                 )
                 for row in profile_rows
             ),
@@ -172,9 +188,11 @@ class SQLiteSetupStore:
                         profile_id,
                         setup_id,
                         display_label,
-                        sort_order
+                        sort_order,
+                        avatar_key,
+                        color_key
                     )
-                    VALUES (?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     """,
                     [
                         (
@@ -182,6 +200,8 @@ class SQLiteSetupStore:
                             CURRENT_SETUP_ID,
                             profile.label,
                             profile.order,
+                            profile.avatar_key,
+                            profile.color_key,
                         )
                         for profile in setup.profiles
                     ],
@@ -214,10 +234,44 @@ class SQLiteSetupStore:
                         setup_id TEXT NOT NULL REFERENCES setup_state(setup_id)
                             ON DELETE CASCADE,
                         display_label TEXT NOT NULL,
-                        sort_order INTEGER NOT NULL
+                        sort_order INTEGER NOT NULL,
+                        avatar_key TEXT NOT NULL DEFAULT 'spark',
+                        color_key TEXT NOT NULL DEFAULT 'cyan'
                     );
                     """
                 )
+                columns = {
+                    row["name"]
+                    for row in connection.execute("PRAGMA table_info(setup_profiles)")
+                }
+                added_avatar_key = False
+                added_color_key = False
+                if "avatar_key" not in columns:
+                    connection.execute(
+                        "ALTER TABLE setup_profiles ADD COLUMN avatar_key TEXT NOT NULL DEFAULT 'spark'"
+                    )
+                    added_avatar_key = True
+                if "color_key" not in columns:
+                    connection.execute(
+                        "ALTER TABLE setup_profiles ADD COLUMN color_key TEXT NOT NULL DEFAULT 'cyan'"
+                    )
+                    added_color_key = True
+                if added_avatar_key:
+                    connection.execute(
+                        """
+                        UPDATE setup_profiles
+                        SET avatar_key = 'moon'
+                        WHERE sort_order = 2
+                        """
+                    )
+                if added_color_key:
+                    connection.execute(
+                        """
+                        UPDATE setup_profiles
+                        SET color_key = 'rose'
+                        WHERE sort_order = 2
+                        """
+                    )
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.database_path)

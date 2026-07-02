@@ -75,12 +75,6 @@ const sessionModeLabels: Record<SessionMode, string> = {
   "wife-first": "Wife first",
 };
 
-const peopleModeLabels: Record<PeopleMode, string> = {
-  couple: "Husband + Wife",
-  founder: "Husband",
-  wife: "Wife",
-};
-
 const languageModeLabels: Record<LanguageMode, string> = {
   english: "English",
   "subtitles-ok": "Foreign + English subtitles",
@@ -172,6 +166,11 @@ export function SetupStep({
   const completedCount = onboardingCompletion?.completedProfileIds.length ?? 0;
   const totalCount = onboardingCompletion?.requiredProfileIds.length ?? 2;
   const isCoupleSession = peopleMode === "couple";
+  const peopleModeLabels: Record<PeopleMode, string> = {
+    couple: `${founderLabel} + ${wifeLabel}`,
+    founder: founderLabel,
+    wife: wifeLabel,
+  };
   const selectedPeopleLabel = peopleModeLabels[peopleMode];
   const selectedLanguageLabel = languageModeLabels[languageMode];
   const selectedLanguageDisplayLabel = languageMode === "english"
@@ -555,6 +554,8 @@ function StartupConceptHero() {
 
 export function ReactionStep({
   actorLabel,
+  actorAvatarKey,
+  actorColorKey,
   actor,
   index,
   total,
@@ -567,6 +568,8 @@ export function ReactionStep({
   onBack,
 }: {
   actorLabel: string;
+  actorAvatarKey: string;
+  actorColorKey: string;
   actor: "founder" | "wife";
   index: number;
   total: number;
@@ -585,8 +588,7 @@ export function ReactionStep({
   const confidenceScore = candidate.taste.founder && candidate.taste.wife
     ? Math.round((candidate.taste.founder + candidate.taste.wife) / 2)
     : 87;
-  const accentCopy =
-    actorLabel === "Wife" ? "Your turn" : `${actorLabel} first`;
+  const accentCopy = actor === "wife" ? "Your turn" : `${actorLabel} first`;
   const reactionSummary = candidate.hook ?? candidate.reason;
   const reactionDetail = candidate.whyNow ?? candidate.languageAccess;
   return (
@@ -706,7 +708,10 @@ export function ReactionStep({
 
       <div className="reactionStageFooter">
         <div className="reactionTurnGlowBar" aria-hidden="true" />
-        <p className="reactionTurnEyebrow">{accentCopy}</p>
+        <div className={`reactionActorMark reactionActorMark${actorColorKey}`}>
+          <span>{avatarSymbol(actorAvatarKey)}</span>
+          <p>{accentCopy}</p>
+        </div>
         <p className="reactionTurnPrompt">{actorLabel}, what do you think?</p>
       </div>
 
@@ -717,6 +722,17 @@ export function ReactionStep({
       </p>
     </section>
   );
+}
+
+function avatarSymbol(avatarKey: string): string {
+  const symbols: Record<string, string> = {
+    spark: "S",
+    moon: "M",
+    comet: "C",
+    ticket: "T",
+  };
+
+  return symbols[avatarKey] ?? "P";
 }
 
 function ReactionChoiceIcon({

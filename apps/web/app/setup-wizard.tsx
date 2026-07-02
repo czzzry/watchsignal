@@ -1,7 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { SetupLoadResult, SetupProfile } from "./setup-api";
+import {
+  saveSetupState,
+  type SetupLoadResult,
+  type SetupProfile,
+} from "./setup-api";
 
 type ApiHealth = {
   connected: boolean;
@@ -15,17 +19,35 @@ type SetupWizardProps = {
 };
 
 const profileStepLabels = ["Profiles", "Defaults", "Ready"];
+const avatarOptions = [
+  { key: "spark", label: "Spark", symbol: "S" },
+  { key: "moon", label: "Moon", symbol: "M" },
+  { key: "comet", label: "Comet", symbol: "C" },
+  { key: "ticket", label: "Ticket", symbol: "T" },
+];
+const colorOptions = [
+  { key: "cyan", label: "Cyan" },
+  { key: "rose", label: "Rose" },
+  { key: "amber", label: "Amber" },
+  { key: "violet", label: "Violet" },
+];
 
 export function SetupWizard({ apiHealth, setupLoad }: SetupWizardProps) {
   const [activeStep, setActiveStep] = useState(0);
   const [profiles, setProfiles] = useState(setupLoad.setup.profiles);
   const [savedSnapshot, setSavedSnapshot] = useState(profiles);
+  const [saveMessage, setSaveMessage] = useState(setupLoad.detail);
+  const [isSaving, setIsSaving] = useState(false);
 
   const hasLocalChanges = useMemo(
     () =>
       profiles.some((profile) => {
         const savedProfile = savedSnapshot.find((item) => item.id === profile.id);
-        return savedProfile?.label !== profile.label;
+        return (
+          savedProfile?.label !== profile.label ||
+          savedProfile?.avatarKey !== profile.avatarKey ||
+          savedProfile?.colorKey !== profile.colorKey
+        );
       }),
     [profiles, savedSnapshot],
   );
@@ -38,8 +60,45 @@ export function SetupWizard({ apiHealth, setupLoad }: SetupWizardProps) {
     );
   }
 
-  function saveLocalReview() {
-    setSavedSnapshot(profiles);
+  function updateProfileAvatar(profileId: string, avatarKey: string) {
+    setProfiles((currentProfiles) =>
+      currentProfiles.map((profile) =>
+        profile.id === profileId ? { ...profile, avatarKey } : profile,
+      ),
+    );
+  }
+
+  function updateProfileColor(profileId: string, colorKey: string) {
+    setProfiles((currentProfiles) =>
+      currentProfiles.map((profile) =>
+        profile.id === profileId ? { ...profile, colorKey } : profile,
+      ),
+    );
+  }
+
+  async function saveSetup() {
+    const nextProfiles = profiles.map((profile) => ({
+      ...profile,
+      label: profile.label.trim() || `Profile ${profile.order}`,
+    }));
+    setProfiles(nextProfiles);
+    setIsSaving(true);
+    const result = setupLoad.canPersist
+      ? await saveSetupState({
+          ...setupLoad.setup,
+          profiles: nextProfiles,
+        })
+      : {
+          setup: {
+            ...setupLoad.setup,
+            profiles: nextProfiles,
+          },
+          detail: "Setup API is unavailable. Edits are kept for this screen.",
+        };
+
+    setSavedSnapshot(result.setup.profiles);
+    setSaveMessage(result.detail);
+    setIsSaving(false);
     setActiveStep(2);
   }
 
@@ -96,6 +155,8 @@ export function SetupWizard({ apiHealth, setupLoad }: SetupWizardProps) {
         <ProfilesStep
           profiles={profiles}
           onProfileLabelChange={updateProfileLabel}
+          onProfileAvatarChange={updateProfileAvatar}
+          onProfileColorChange={updateProfileColor}
         />
       ) : null}
 
@@ -108,6 +169,7 @@ export function SetupWizard({ apiHealth, setupLoad }: SetupWizardProps) {
           profiles={profiles}
           canPersist={setupLoad.canPersist}
           hasLocalChanges={hasLocalChanges}
+          saveMessage={saveMessage}
         />
       ) : null}
 
@@ -124,8 +186,12 @@ export function SetupWizard({ apiHealth, setupLoad }: SetupWizardProps) {
             Continue
           </button>
         ) : (
-          <button type="button" onClick={saveLocalReview}>
-            {setupLoad.canPersist ? "Save setup" : "Keep local review"}
+          <button type="button" onClick={saveSetup} disabled={isSaving}>
+            {isSaving
+              ? "Saving..."
+              : setupLoad.canPersist
+                ? "Save setup"
+                : "Keep local review"}
           </button>
         )}
       </footer>
@@ -136,9 +202,13 @@ export function SetupWizard({ apiHealth, setupLoad }: SetupWizardProps) {
 function ProfilesStep({
   profiles,
   onProfileLabelChange,
+  onProfileAvatarChange,
+  onProfileColorChange,
 }: {
   profiles: SetupProfile[];
   onProfileLabelChange: (profileId: string, label: string) => void;
+  onProfileAvatarChange: (profileId: string, avatarKey: string) => void;
+  onProfileColorChange: (profileId: string, colorKey: string) => void;
 }) {
   return (
     <section className="wizardPanel" aria-labelledby="profiles-heading">
@@ -151,17 +221,61 @@ function ProfilesStep({
           .slice()
           .sort((first, second) => first.order - second.order)
           .map((profile) => (
-            <label key={profile.id} className="profileField">
-              <span>Profile {profile.order}</span>
-              <input
-                value={profile.label}
-                onChange={(event) =>
-                  onProfileLabelChange(profile.id, event.target.value)
-                }
-                autoComplete="off"
-                maxLength={28}
-              />
-            </label>
+            <article key={profile.id} className="profileIdentityCard">
+              <label className="profileField">
+                <span>Profile {profile.order}</span>
+                <input
+                  value={profile.label}
+                  onChange={(event) =>
+                    onProfileLabelChange(profile.id, event.target.value)
+                  }
+                  autoComplete="off"
+                  maxLength={28}
+                />
+              </label>
+              <div className="profileIdentityControls">
+                <div className="profileChoiceGroup">
+                  <span>Avatar</span>
+                  <div className="profileAvatarChoices" role="group" aria-label={`Avatar for ${profile.label}`}>
+                    {avatarOptions.map((option) => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        className={
+                          profile.avatarKey === option.key
+                            ? "profileAvatarChoice profileAvatarChoiceActive"
+                            : "profileAvatarChoice"
+                        }
+                        onClick={() => onProfileAvatarChange(profile.id, option.key)}
+                        title={option.label}
+                      >
+                        {option.symbol}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="profileChoiceGroup">
+                  <span>Color</span>
+                  <div className="profileColorChoices" role="group" aria-label={`Color for ${profile.label}`}>
+                    {colorOptions.map((option) => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        className={
+                          profile.colorKey === option.key
+                            ? `profileColorChoice profileColorChoiceActive profileColorChoice${option.key}`
+                            : `profileColorChoice profileColorChoice${option.key}`
+                        }
+                        onClick={() => onProfileColorChange(profile.id, option.key)}
+                        title={option.label}
+                      >
+                        <span />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </article>
           ))}
       </div>
     </section>
@@ -204,10 +318,12 @@ function ReadyStep({
   profiles,
   canPersist,
   hasLocalChanges,
+  saveMessage,
 }: {
   profiles: SetupProfile[];
   canPersist: boolean;
   hasLocalChanges: boolean;
+  saveMessage: string;
 }) {
   return (
     <section className="wizardPanel" aria-labelledby="ready-heading">
@@ -220,22 +336,27 @@ function ReadyStep({
           .slice()
           .sort((first, second) => first.order - second.order)
           .map((profile) => (
-            <div key={profile.id}>
-              <span>{profile.order}</span>
+            <div key={profile.id} className={`identityPreview identityPreview${profile.colorKey}`}>
+              <span>{avatarSymbol(profile.avatarKey)}</span>
               <p>{profile.label}</p>
             </div>
           ))}
       </div>
       <p className="readyNote">
-        {canPersist
-          ? "Backend setup persistence is available for this review."
-          : "Backend setup persistence is still blocked by Slice 2. Edits stay on this screen."}
+        {saveMessage ||
+          (canPersist
+            ? "Backend setup persistence is available for this review."
+            : "Backend setup persistence is unavailable. Edits stay on this screen.")}
       </p>
       <p className={hasLocalChanges ? "changeNote changeNoteActive" : "changeNote"}>
         {hasLocalChanges ? "Unsaved local label changes" : "Labels match the current review"}
       </p>
     </section>
   );
+}
+
+function avatarSymbol(avatarKey: string): string {
+  return avatarOptions.find((option) => option.key === avatarKey)?.symbol ?? "P";
 }
 
 function DefaultItem({ label, value }: { label: string; value: string }) {
