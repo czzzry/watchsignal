@@ -45,6 +45,7 @@ from movie_night_mediator.app.setup import (
     SetupProfile,
     SetupState,
 )
+from movie_night_mediator.app.tonight_intent import TonightIntentInterpreter
 from movie_night_mediator.app.watchlist import (
     SharedWatchlistService,
     WatchlistEntry,
@@ -85,6 +86,10 @@ from movie_night_mediator.domain import (
 from movie_night_mediator.fixtures.demo_couple import (
     DEMO_HUSBAND_PROFILE,
     DEMO_WIFE_PROFILE,
+)
+from movie_night_mediator.mvp_plus_2 import (
+    IntentInterpretation,
+    IntentInterpretationStatus,
 )
 from movie_night_mediator.storage import (
     SQLiteBackfillStore,
@@ -540,6 +545,20 @@ class ProfileMemorySummaryPayload(BaseModel):
     signals: list[ProfileMemorySignalPayload]
 
 
+class TonightIntentInterpretRequestPayload(BaseModel):
+    text: str = Field(min_length=1)
+
+
+class TonightIntentInterpretationPayload(BaseModel):
+    rawText: str
+    status: IntentInterpretationStatus
+    confirmationText: str | None = None
+    clarificationQuestion: str | None = None
+    filters: dict[str, object]
+    softSignals: list[str]
+    confidence: str
+
+
 class WatchlistEntryPayload(BaseModel):
     householdId: str
     sourceMovieId: str
@@ -632,6 +651,7 @@ def create_app(
         session_store=resolved_session_store,
         taste_lab_service=taste_lab_service,
     )
+    tonight_intent_interpreter = TonightIntentInterpreter()
 
     @app.get("/health", tags=["system"])
     def health() -> dict[str, str]:
@@ -704,6 +724,22 @@ def create_app(
                 profile_id=profile_id,
             )
         )
+
+    @app.post(
+        "/tonight-intent/interpret",
+        response_model=TonightIntentInterpretationPayload,
+        response_model_exclude_none=True,
+        tags=["tonight-intent"],
+    )
+    def post_tonight_intent_interpretation(
+        payload: TonightIntentInterpretRequestPayload,
+    ) -> TonightIntentInterpretationPayload:
+        try:
+            interpretation = tonight_intent_interpreter.interpret(payload.text)
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+
+        return _intent_interpretation_to_payload(interpretation)
 
     @app.get(
         "/watchlist",
@@ -1596,6 +1632,20 @@ def _profile_memory_signal_to_payload(
         label=signal.label,
         count=signal.count,
         source=signal.source,
+    )
+
+
+def _intent_interpretation_to_payload(
+    interpretation: IntentInterpretation,
+) -> TonightIntentInterpretationPayload:
+    return TonightIntentInterpretationPayload(
+        rawText=interpretation.raw_text,
+        status=interpretation.status,
+        confirmationText=interpretation.confirmation_text,
+        clarificationQuestion=interpretation.clarification_question,
+        filters=dict(interpretation.filters),
+        softSignals=list(interpretation.soft_signals),
+        confidence=interpretation.confidence,
     )
 
 
