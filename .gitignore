@@ -22,3 +22,5 @@ apps/api/.venv/
 apps/api/data/taste_lab_seed_queue.generated.json
 .DS_Store
 /.treehouse
+.lavish/
+.worktrees/
