@@ -3539,8 +3539,12 @@ summary:focus-visible {
   overflow: hidden;
 }
 
-.resultsRestartAction {
-  display: none;
+.resultsNewNightAction {
+  min-height: 34px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  justify-content: center;
+  opacity: 0.82;
 }
 
 .sharedWhyCard span {

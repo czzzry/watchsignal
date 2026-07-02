@@ -1,0 +1,98 @@
+{
+  "phase": "MVP+2: Memory, Steering, And Rich Recommendation Intelligence",
+  "report_date": "2026-07-02",
+  "results": [
+    {
+      "enrichment_coverage": {
+        "candidate_count": 4,
+        "enriched_candidate_count": 0,
+        "enrichment_rate": 0.0,
+        "fallback_candidate_count": 4
+      },
+      "rank_delta_vs_baseline": 0,
+      "ranked_titles": [
+        "Dinner Party Mystery",
+        "Edge of Tomorrow Again",
+        "Quiet Rainy Drama",
+        "Distant Planet"
+      ],
+      "strategy_name": "baseline_genre_only",
+      "target_explanation_excerpt": "Fits compromise mode with signal from Action, Sci-Fi. Founder: 0.5. Evidence: fallback.",
+      "target_rank": 2,
+      "top_pick_changed_vs_baseline": false,
+      "top_pick_explanation_excerpt": "Fits compromise mode with signal from Mystery, Comedy. Founder: 0.5. Evidence: fallback.",
+      "top_pick_signal_families": [
+        "fallback"
+      ],
+      "top_pick_title": "Dinner Party Mystery"
+    },
+    {
+      "enrichment_coverage": {
+        "candidate_count": 4,
+        "enriched_candidate_count": 0,
+        "enrichment_rate": 0.0,
+        "fallback_candidate_count": 4
+      },
+      "rank_delta_vs_baseline": 1,
+      "ranked_titles": [
+        "Edge of Tomorrow Again",
+        "Dinner Party Mystery",
+        "Distant Planet",
+        "Quiet Rainy Drama"
+      ],
+      "strategy_name": "fallback_rich_profile",
+      "target_explanation_excerpt": "Fits compromise mode with signal from Action, Sci-Fi. Founder: 0.88, Taste Lab signals: 1. Evidence: genre, title_similarity, fallback.",
+      "target_rank": 1,
+      "top_pick_changed_vs_baseline": true,
+      "top_pick_explanation_excerpt": "Fits compromise mode with signal from Action, Sci-Fi. Founder: 0.88, Taste Lab signals: 1. Evidence: genre, title_similarity, fallback.",
+      "top_pick_signal_families": [
+        "genre",
+        "title_similarity",
+        "fallback"
+      ],
+      "top_pick_title": "Edge of Tomorrow Again"
+    },
+    {
+      "enrichment_coverage": {
+        "candidate_count": 4,
+        "enriched_candidate_count": 2,
+        "enrichment_rate": 0.5,
+        "fallback_candidate_count": 2
+      },
+      "rank_delta_vs_baseline": 1,
+      "ranked_titles": [
+        "Edge of Tomorrow Again",
+        "Dinner Party Mystery",
+        "Distant Planet",
+        "Quiet Rainy Drama"
+      ],
+      "strategy_name": "enriched_rich_profile_intent_reactions",
+      "target_explanation_excerpt": "Fits compromise mode with signal from Action, Sci-Fi. Founder: 1.0, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag, tonight_intent, session_reaction.",
+      "target_rank": 1,
+      "top_pick_changed_vs_baseline": true,
+      "top_pick_explanation_excerpt": "Fits compromise mode with signal from Action, Sci-Fi. Founder: 1.0, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag, tonight_intent, session_reaction.",
+      "top_pick_signal_families": [
+        "genre",
+        "title_similarity",
+        "feature_tag",
+        "tonight_intent",
+        "session_reaction"
+      ],
+      "top_pick_title": "Edge of Tomorrow Again"
+    }
+  ],
+  "risk_notes": [
+    "Coverage is mixed by design, so fallback behavior remains visible.",
+    "The enriched scenario improves the fixed target rank without requiring every candidate to be mapped.",
+    "Weights are intentionally modest and should be retuned against broader household feedback before production claims.",
+    "Title similarity is useful for reviewable movement but can overfit sequels or remakes if used without collision checks."
+  ],
+  "summary": {
+    "baseline_top_pick": "Dinner Party Mystery",
+    "enriched_target_rank_delta": 1,
+    "enriched_top_pick": "Edge of Tomorrow Again",
+    "enrichment_rate": 0.5,
+    "mvp_plus_2_recommendation_quality_passed": true
+  },
+  "target_title": "Edge of Tomorrow Again"
+}

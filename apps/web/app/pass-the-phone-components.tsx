@@ -2162,13 +2162,18 @@ export function ResultsStep({
       </section>
 
       <div className="resultsActionRow" role="group" aria-label="Results actions">
-        <button type="button" className="secondaryButton resultsSecondaryAction" onClick={onReset}>
-          <RedoIcon />
-          <span>Start new night</span>
-        </button>
         <button
           type="button"
           className="resultsPrimaryAction"
+          onClick={onShowMore}
+          disabled={!canPersist || isSyncing}
+        >
+          <span>{isSyncing ? "Finding five more..." : "Show 5 more"}</span>
+          <RedoIcon />
+        </button>
+        <button
+          type="button"
+          className="secondaryButton resultsSecondaryAction"
           onClick={handleSaveBestPick}
           disabled={!canPersist || watchlistStatus === "saving"}
         >
@@ -2182,6 +2187,11 @@ export function ResultsStep({
           <BookmarkIcon />
         </button>
       </div>
+
+      <button type="button" className="secondaryButton resultsNewNightAction" onClick={onReset}>
+        <RedoIcon />
+        <span>Start new night</span>
+      </button>
 
       {!canPersist ? <p className="debugMessage quietCallout">Outcome saving only works when the backend session stays connected.</p> : null}
       {watchlistMessage ? <p className="debugMessage quietCallout">{watchlistMessage}</p> : null}
@@ -2471,14 +2481,6 @@ export function ResultsStep({
         </details>
       ) : null}
 
-      <button
-        type="button"
-        className="primaryAction resultsRestartAction"
-        onClick={onShowMore}
-        disabled={!canPersist || isSyncing}
-      >
-        {isSyncing ? "Finding five more..." : "Show 5 more"}
-      </button>
     </section>
   );
 }

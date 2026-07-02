@@ -84,6 +84,14 @@ async function main() {
       await waitForRankedShortlist(tab);
       await assertNoHorizontalOverflow(tab, "results screen");
       await captureScreenshot(tab, screenshotDir, "03-results");
+      if (useBackendMode) {
+        await clickButton(tab, "Add to watchlist");
+        await waitForText(tab, "shared watchlist", "watchlist add");
+        await clickButton(tab, "Watched");
+        await waitForText(tab, "marked watched", "watchlist watched action");
+        await clickButton(tab, "Remove");
+        await waitForText(tab, "Removed from the shared watchlist", "watchlist remove");
+      }
     } catch (error) {
       await reportVisiblePageState(tab, "results timeout");
       throw error;
@@ -97,6 +105,14 @@ async function main() {
       await waitForText(tab, "1 of 5", "steered next first pass");
       await assertNoHorizontalOverflow(tab, "steered next first pass");
       console.log("Steer next 5 smoke path passed.");
+      return;
+    }
+
+    if (process.env.MOBILE_UX_SMOKE_SHOW_MORE === "1") {
+      await clickButton(tab, "Show 5 more");
+      await waitForText(tab, "1 of 5", "show five more first pass");
+      await assertNoHorizontalOverflow(tab, "show five more first pass");
+      console.log("Show 5 more smoke path passed.");
       return;
     }
 
@@ -120,6 +136,7 @@ async function main() {
       await clickButton(tab, "View details");
       await waitForText(tab, "What happened after", "recent session detail");
       await waitForText(tab, "How did everyone feel?", "recent session detail");
+      await waitForText(tab, "Scoring snapshot", "recent session evidence");
     }
 
     console.log("Mobile pass-the-phone UX smoke passed.");
