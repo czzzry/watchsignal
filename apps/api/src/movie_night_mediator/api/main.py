@@ -36,6 +36,10 @@ from movie_night_mediator.app.setup import (
     SetupProfile,
     SetupState,
 )
+from movie_night_mediator.app.watchlist import (
+    SharedWatchlistService,
+    WatchlistEntry,
+)
 from movie_night_mediator.app.shortlist import (
     OfflineShortlistItem,
     get_candidate_source_shortlist_items,
@@ -80,6 +84,7 @@ from movie_night_mediator.storage import (
     SQLiteRecommendationSnapshotStore,
     SQLiteSessionStore,
     SQLiteTasteLabStore,
+    SQLiteWatchlistStore,
 )
 from movie_night_mediator.taste_lab import (
     TasteLabCandidate,
@@ -494,6 +499,26 @@ class TasteProfileSummaryPayload(BaseModel):
     evidence: list[TasteProfileEvidencePayload]
 
 
+class WatchlistEntryPayload(BaseModel):
+    householdId: str
+    sourceMovieId: str
+    title: str
+    savedAt: str
+    savedByProfileId: str | None = None
+    posterUrl: str | None = None
+    releaseYear: int | None = None
+    isTasteSignal: bool = False
+
+
+class SaveWatchlistEntryPayload(BaseModel):
+    householdId: str = Field(default=DEFAULT_HOUSEHOLD_ID, min_length=1)
+    sourceMovieId: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    savedByProfileId: str | None = None
+    posterUrl: str | None = None
+    releaseYear: int | None = None
+
+
 def create_app(
     setup_store: SQLiteSetupStore | None = None,
     onboarding_store: SQLiteOnboardingStore | None = None,
@@ -503,6 +528,7 @@ def create_app(
     session_store: SQLiteSessionStore | None = None,
     recommendation_snapshot_store: SQLiteRecommendationSnapshotStore | None = None,
     taste_lab_store: SQLiteTasteLabStore | None = None,
+    watchlist_store: SQLiteWatchlistStore | None = None,
     taste_lab_seed_queue_path: Path | str | None = None,
     candidate_source: CandidateSource | None = None,
 ) -> FastAPI:
@@ -555,6 +581,9 @@ def create_app(
         resolved_recommendation_snapshot_store
     )
     taste_lab_service = TasteLabService(taste_lab_store or SQLiteTasteLabStore())
+    watchlist_service = SharedWatchlistService(
+        watchlist_store or SQLiteWatchlistStore()
+    )
 
     @app.get("/health", tags=["system"])
     def health() -> dict[str, str]:
@@ -611,6 +640,58 @@ def create_app(
         _validate_profile_uniqueness(payload.profiles)
         saved_setup = resolved_setup_store.save_setup(_payload_to_setup_state(payload))
         return _setup_state_to_payload(saved_setup)
+
+    @app.get(
+        "/watchlist",
+        response_model=list[WatchlistEntryPayload],
+        tags=["watchlist"],
+    )
+    def get_watchlist(
+        householdId: str = DEFAULT_HOUSEHOLD_ID,
+    ) -> list[WatchlistEntryPayload]:
+        return [
+            _watchlist_entry_to_payload(entry)
+            for entry in watchlist_service.list_movies(household_id=householdId)
+        ]
+
+    @app.post(
+        "/watchlist",
+        response_model=WatchlistEntryPayload,
+        tags=["watchlist"],
+    )
+    def post_watchlist_entry(
+        payload: SaveWatchlistEntryPayload,
+    ) -> WatchlistEntryPayload:
+        try:
+            entry = watchlist_service.save_movie(
+                household_id=payload.householdId,
+                source_movie_id=payload.sourceMovieId,
+                title=payload.title,
+                saved_by_profile_id=payload.savedByProfileId,
+                poster_url=payload.posterUrl,
+                release_year=payload.releaseYear,
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+
+        return _watchlist_entry_to_payload(entry)
+
+    @app.delete(
+        "/watchlist/{source_movie_id}",
+        status_code=204,
+        tags=["watchlist"],
+    )
+    def delete_watchlist_entry(
+        source_movie_id: str,
+        householdId: str = DEFAULT_HOUSEHOLD_ID,
+    ) -> None:
+        try:
+            watchlist_service.remove_movie(
+                household_id=householdId,
+                source_movie_id=source_movie_id,
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
 
     @app.get(
         "/onboarding/completion",
@@ -1381,6 +1462,19 @@ def _recent_session_summary_to_payload(
             )
             for feedback in summary.feedback
         ],
+    )
+
+
+def _watchlist_entry_to_payload(entry: WatchlistEntry) -> WatchlistEntryPayload:
+    return WatchlistEntryPayload(
+        householdId=entry.household_id,
+        sourceMovieId=entry.source_movie_id,
+        title=entry.title,
+        savedAt=entry.saved_at,
+        savedByProfileId=entry.saved_by_profile_id,
+        posterUrl=entry.poster_url,
+        releaseYear=entry.release_year,
+        isTasteSignal=entry.is_taste_signal,
     )
 
 

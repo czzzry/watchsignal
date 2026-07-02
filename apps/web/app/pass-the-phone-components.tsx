@@ -22,6 +22,7 @@ import {
   mergeSeenMemoryIntoOnboarding,
   suggestedSeedsForBucket,
   titleForSourceMovieId,
+  toErrorMessage,
   toMatchTier,
 } from "./pass-the-phone-helpers";
 import type {
@@ -45,6 +46,9 @@ import type {
   WizardStep,
 } from "./pass-the-phone-model";
 import {
+  getWatchlist,
+  removeWatchlistEntry,
+  saveWatchlistEntry,
   submitPostWatchFeedback,
   submitSessionOutcome,
   type DebugHistoryCandidateInputPayload,
@@ -59,6 +63,7 @@ import {
   type SessionOutcomePayload,
   type SessionOutcomeType,
   type TasteProfileSummaryPayload,
+  type WatchlistEntryPayload,
 } from "./session-client";
 
 const stepLabels: Record<WizardStep, string> = {
@@ -1544,6 +1549,10 @@ export function ResultsStep({
   const [feedbackState, setFeedbackState] = useState<FeedbackState>({});
   const [feedbackNotes, setFeedbackNotes] = useState<FeedbackNoteState>({});
   const [savedFeedback, setSavedFeedback] = useState<PostWatchFeedbackPayload[]>([]);
+  const [watchlistEntries, setWatchlistEntries] = useState<WatchlistEntryPayload[]>([]);
+  const [watchlistStatus, setWatchlistStatus] = useState<"idle" | "loading" | "saving" | "removing">("idle");
+  const [watchlistMessage, setWatchlistMessage] = useState<string | null>(null);
+  const canPersist = sessionSource === "api" && sharedSession !== null;
   const participantEntries =
     peopleMode === "couple"
       ? [
@@ -1553,6 +1562,16 @@ export function ResultsStep({
       : peopleMode === "founder"
         ? [{ id: participantIds[0], label: founderLabel, actor: "founder" as const }]
         : [{ id: participantIds[0], label: wifeLabel, actor: "wife" as const }];
+
+  useEffect(() => {
+    if (!canPersist || sharedSession === null) {
+      setWatchlistEntries([]);
+      setWatchlistMessage(null);
+      return;
+    }
+
+    void refreshWatchlist();
+  }, [canPersist, sharedSession?.householdId]);
 
   if (!bestPick) {
     return (
@@ -1576,7 +1595,6 @@ export function ResultsStep({
     watchedTitleSourceId !== null
       ? rankedCandidates.find((candidate) => candidate.id === watchedTitleSourceId) ?? null
       : null;
-  const canPersist = sessionSource === "api" && sharedSession !== null;
   const canSaveOutcome =
     canPersist &&
     outcomeType !== null &&
@@ -1593,6 +1611,75 @@ export function ResultsStep({
     founderLabel,
     wifeLabel,
   });
+  const bestPickWatchlistEntry = watchlistEntries.find(
+    (entry) => entry.sourceMovieId === bestPick.id,
+  );
+
+  async function refreshWatchlist(): Promise<void> {
+    if (!canPersist || sharedSession === null) {
+      return;
+    }
+
+    setWatchlistStatus("loading");
+    try {
+      const entries = await getWatchlist(sharedSession.householdId);
+      setWatchlistEntries(entries);
+      setWatchlistMessage(null);
+    } catch (error) {
+      setWatchlistMessage(toErrorMessage(error));
+    } finally {
+      setWatchlistStatus("idle");
+    }
+  }
+
+  async function handleSaveBestPick(): Promise<void> {
+    if (!canPersist || sharedSession === null) {
+      setWatchlistMessage("Watchlist saving only works when the backend session stays connected.");
+      return;
+    }
+
+    setWatchlistStatus("saving");
+    try {
+      const savedEntry = await saveWatchlistEntry({
+        householdId: sharedSession.householdId,
+        sourceMovieId: bestPick.id,
+        title: bestPick.title,
+        savedByProfileId: participantEntries[0]?.id ?? null,
+        posterUrl: bestPick.posterUrl,
+        releaseYear: bestPick.year,
+      });
+      setWatchlistEntries((currentEntries) => [
+        savedEntry,
+        ...currentEntries.filter(
+          (entry) => entry.sourceMovieId !== savedEntry.sourceMovieId,
+        ),
+      ]);
+      setWatchlistMessage(`${bestPick.title} is in the shared watchlist.`);
+    } catch (error) {
+      setWatchlistMessage(toErrorMessage(error));
+    } finally {
+      setWatchlistStatus("idle");
+    }
+  }
+
+  async function handleRemoveWatchlistEntry(sourceMovieId: string): Promise<void> {
+    if (!canPersist || sharedSession === null) {
+      return;
+    }
+
+    setWatchlistStatus("removing");
+    try {
+      await removeWatchlistEntry(sharedSession.householdId, sourceMovieId);
+      setWatchlistEntries((currentEntries) =>
+        currentEntries.filter((entry) => entry.sourceMovieId !== sourceMovieId),
+      );
+      setWatchlistMessage("Removed from the shared watchlist.");
+    } catch (error) {
+      setWatchlistMessage(toErrorMessage(error));
+    } finally {
+      setWatchlistStatus("idle");
+    }
+  }
 
   async function handleSaveOutcome(): Promise<void> {
     if (!canPersist || sharedSession === null || outcomeType === null) {
@@ -1772,13 +1859,79 @@ export function ResultsStep({
           <RedoIcon />
           <span>Start new night</span>
         </button>
-        <button type="button" className="resultsPrimaryAction" disabled>
-          <span>Add to watchlist</span>
+        <button
+          type="button"
+          className="resultsPrimaryAction"
+          onClick={handleSaveBestPick}
+          disabled={!canPersist || watchlistStatus === "saving"}
+        >
+          <span>
+            {watchlistStatus === "saving"
+              ? "Saving..."
+              : bestPickWatchlistEntry
+                ? "Saved for later"
+                : "Add to watchlist"}
+          </span>
           <BookmarkIcon />
         </button>
       </div>
 
       {!canPersist ? <p className="debugMessage quietCallout">Outcome saving only works when the backend session stays connected.</p> : null}
+      {watchlistMessage ? <p className="debugMessage quietCallout">{watchlistMessage}</p> : null}
+
+      <section className="watchlistPanel" aria-labelledby="watchlist-heading">
+        <div className="watchlistPanelHeader">
+          <div>
+            <p className="eyebrow">Shared household watchlist</p>
+            <h3 id="watchlist-heading">Saved for later</h3>
+          </div>
+          <span>{watchlistEntries.length}</span>
+        </div>
+        {watchlistEntries.length > 0 ? (
+          <div className="watchlistList">
+            {watchlistEntries.map((entry) => {
+              const savedByLabel = entry.savedByProfileId
+                ? participantEntries.find(
+                    (participant) => participant.id === entry.savedByProfileId,
+                  )?.label ?? entry.savedByProfileId
+                : null;
+
+              return (
+                <article key={entry.sourceMovieId} className="watchlistItem">
+                  {entry.posterUrl ? (
+                    <img
+                      src={entry.posterUrl}
+                      alt=""
+                      onError={handlePosterFallback}
+                    />
+                  ) : null}
+                  <div>
+                    <strong>{entry.title}</strong>
+                    <p>
+                      {entry.releaseYear ? `${entry.releaseYear}` : "Saved movie"}
+                      {savedByLabel ? ` · Saved by ${savedByLabel}` : ""}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="secondaryButton compactButton"
+                    onClick={() => handleRemoveWatchlistEntry(entry.sourceMovieId)}
+                    disabled={watchlistStatus === "removing"}
+                  >
+                    Remove
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="watchlistEmpty">
+            {watchlistStatus === "loading"
+              ? "Loading saved movies..."
+              : "Saved movies will appear here for the whole household."}
+          </p>
+        )}
+      </section>
 
       <details className="disclosurePanel outcomeDisclosure">
         <summary>Save what happened after</summary>

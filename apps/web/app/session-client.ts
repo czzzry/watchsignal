@@ -135,6 +135,26 @@ export type PostWatchFeedbackPayload = {
   freeTextNote?: string | null;
 };
 
+export type WatchlistEntryPayload = {
+  householdId: string;
+  sourceMovieId: string;
+  title: string;
+  savedAt: string;
+  savedByProfileId?: string | null;
+  posterUrl?: string | null;
+  releaseYear?: number | null;
+  isTasteSignal: boolean;
+};
+
+export type SaveWatchlistEntryRequest = {
+  householdId: string;
+  sourceMovieId: string;
+  title: string;
+  savedByProfileId?: string | null;
+  posterUrl?: string | null;
+  releaseYear?: number | null;
+};
+
 export type RecentSessionFeedbackPayload = {
   userId: string;
   feedbackLabel: string;
@@ -356,6 +376,29 @@ export async function getRecentSessions(
   return getJson(`/api/history/sessions?${query.toString()}`);
 }
 
+export async function getWatchlist(
+  householdId: string,
+): Promise<WatchlistEntryPayload[]> {
+  const query = new URLSearchParams({ householdId });
+  return getJson(`/api/watchlist?${query.toString()}`);
+}
+
+export async function saveWatchlistEntry(
+  request: SaveWatchlistEntryRequest,
+): Promise<WatchlistEntryPayload> {
+  return postJson("/api/watchlist", request);
+}
+
+export async function removeWatchlistEntry(
+  householdId: string,
+  sourceMovieId: string,
+): Promise<void> {
+  const query = new URLSearchParams({ householdId });
+  return deleteJson(
+    `/api/watchlist/${encodeURIComponent(sourceMovieId)}?${query.toString()}`,
+  );
+}
+
 export async function getProfileOnboarding(
   profileId: string,
 ): Promise<ParticipantOnboardingPayload> {
@@ -433,6 +476,19 @@ async function getJson<TResponse>(url: string): Promise<TResponse> {
   }
 
   return payload as TResponse;
+}
+
+async function deleteJson(url: string): Promise<void> {
+  const response = await fetch(url, {
+    method: "DELETE",
+  });
+
+  if (response.ok) {
+    return;
+  }
+
+  const payload = (await response.json().catch(() => null)) as unknown;
+  throw new Error(parseApiError(payload, response.status));
 }
 
 function parseApiError(payload: unknown, status: number): string {

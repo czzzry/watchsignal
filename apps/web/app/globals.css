@@ -3105,6 +3105,86 @@ summary:focus-visible {
   cursor: default;
 }
 
+.watchlistPanel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.032);
+}
+
+.watchlistPanelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.watchlistPanelHeader h3,
+.watchlistPanelHeader p,
+.watchlistEmpty,
+.watchlistItem p {
+  margin: 0;
+}
+
+.watchlistPanelHeader h3 {
+  font-size: 1rem;
+  line-height: 1.1;
+}
+
+.watchlistPanelHeader > span {
+  min-width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(120, 240, 255, 0.12);
+  color: var(--cyan);
+  font-size: 0.78rem;
+  font-weight: 780;
+}
+
+.watchlistList {
+  display: grid;
+  gap: 8px;
+}
+
+.watchlistItem {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.watchlistItem img {
+  width: 42px;
+  aspect-ratio: 2 / 3;
+  border-radius: 8px;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.watchlistItem strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.88rem;
+}
+
+.watchlistItem p,
+.watchlistEmpty {
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
 .backupStrip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

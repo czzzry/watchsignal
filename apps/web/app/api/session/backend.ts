@@ -14,8 +14,12 @@ export async function putBackendSession(
   return sendBackendSession("PUT", path, body);
 }
 
+export async function deleteBackendSession(path: string): Promise<Response> {
+  return sendBackendSession("DELETE", path, undefined);
+}
+
 async function sendBackendSession(
-  method: "POST" | "PUT",
+  method: "DELETE" | "POST" | "PUT",
   path: string,
   body: unknown,
 ): Promise<Response> {
@@ -28,11 +32,15 @@ async function sendBackendSession(
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(body),
+      body: body === undefined ? undefined : JSON.stringify(body),
       cache: "no-store",
       signal: AbortSignal.timeout(backendRequestTimeoutMs()),
     });
     const payload = (await response.json().catch(() => null)) as unknown;
+
+    if (response.status === 204) {
+      return new Response(null, { status: 204 });
+    }
 
     return Response.json(payload, { status: response.status });
   } catch {
