@@ -306,6 +306,7 @@ class RecommendationShortlistRequestPayload(BaseModel):
     shortlistSize: int = Field(default=5, ge=1, le=10)
     source: Literal["demo", "live_tmdb"] = "demo"
     tonightIntent: dict[str, object] | None = None
+    tonightIntents: list[dict[str, object]] = Field(default_factory=list)
     excludedSourceMovieIds: list[str] = Field(default_factory=list)
 
 
@@ -1339,18 +1340,33 @@ def _shortlist_session_from_payload(
         viewer_user_ids=tuple(payload.participantIds),
         region="DE",
         service_constraint="Prime Video",
-        mood_text=_tonight_intent_mood_text(payload.tonightIntent),
+        mood_text=_tonight_intent_mood_text(
+            payload.tonightIntent,
+            payload.tonightIntents,
+        ),
     )
 
 
 def _tonight_intent_mood_text(
     tonight_intent: dict[str, object] | None,
+    tonight_intents: list[dict[str, object]] | None = None,
 ) -> str | None:
-    if not tonight_intent:
+    intent_payloads = list(tonight_intents or [])
+    if tonight_intent and tonight_intent not in intent_payloads:
+        intent_payloads.append(tonight_intent)
+
+    if not intent_payloads:
         return None
 
-    raw_text = tonight_intent.get("rawText")
-    return raw_text if isinstance(raw_text, str) and raw_text.strip() else None
+    raw_texts = [
+        raw_text.strip()
+        for intent in intent_payloads
+        if isinstance((raw_text := intent.get("rawText")), str) and raw_text.strip()
+    ]
+    if not raw_texts:
+        return None
+
+    return " + ".join(dict.fromkeys(raw_texts))
 
 
 def _shortlist_users_from_taste_profile(

@@ -346,6 +346,7 @@ export type LoadShortlistRequest = {
   participantIds: string[];
   shortlistSize: number;
   tonightIntent?: TonightIntentInterpretationPayload | null;
+  tonightIntents?: TonightIntentInterpretationPayload[];
   excludedSourceMovieIds?: string[];
 };
 

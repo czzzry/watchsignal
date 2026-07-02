@@ -154,11 +154,17 @@ export function PassThePhoneWizard({
     useState("");
   const [pendingTonightIntent, setPendingTonightIntent] =
     useState<TonightIntentInterpretationPayload | null>(null);
-  const [activeTonightIntent, setActiveTonightIntent] =
-    useState<TonightIntentInterpretationPayload | null>(null);
+  const [activeTonightIntents, setActiveTonightIntents] = useState<
+    TonightIntentInterpretationPayload[]
+  >([]);
   const [tonightIntentStatus, setTonightIntentStatus] =
     useState<SyncStatus>("ready");
   const [tonightIntentMessage, setTonightIntentMessage] = useState<string | null>(null);
+  const [steerText, setSteerText] = useState("");
+  const [steerClarificationText, setSteerClarificationText] = useState("");
+  const [pendingSteerIntent, setPendingSteerIntent] =
+    useState<TonightIntentInterpretationPayload | null>(null);
+  const [steerMessage, setSteerMessage] = useState<string | null>(null);
   const [debugHistoryStatus, setDebugHistoryStatus] =
     useState<DebugHistoryStatus>("idle");
   const [debugHistoryMessage, setDebugHistoryMessage] = useState<string | null>(
@@ -222,6 +228,10 @@ export function PassThePhoneWizard({
   const currentStepIndex = activeStepOrder.indexOf(step);
   const isSyncing = syncStatus !== "ready";
   const tonightIntentBusy = tonightIntentStatus !== "ready";
+  const activeTonightIntent =
+    activeTonightIntents.length > 0
+      ? activeTonightIntents[activeTonightIntents.length - 1]
+      : null;
   const onboardingBusy = onboardingStatus === "loading" || onboardingStatus === "saving";
   const sessionDateLabel = formatSessionDate(new Date());
   const isOnboardingRequired = apiHealth.connected
@@ -285,6 +295,15 @@ export function PassThePhoneWizard({
     setTasteProfileSummaries([]);
     setDebugHistoryStatus("idle");
     setDebugHistoryMessage(null);
+    setActiveTonightIntents([]);
+    setPendingTonightIntent(null);
+    setTonightIntentText("");
+    setTonightIntentClarificationText("");
+    setTonightIntentMessage(null);
+    setSteerText("");
+    setSteerClarificationText("");
+    setPendingSteerIntent(null);
+    setSteerMessage(null);
     setSyncStatus("ready");
     setSessionSource(apiHealth.connected ? "api" : "demo");
     setApiError(
@@ -591,6 +610,7 @@ export function PassThePhoneWizard({
         participantIds,
         shortlistSize: setupLoad.setup.defaults.shortlistSize,
         tonightIntent: activeTonightIntent,
+        tonightIntents: activeTonightIntents,
       });
       const candidates = shortlistResponse.shortlist.map(toSessionCandidate);
 
@@ -636,6 +656,12 @@ export function PassThePhoneWizard({
   }
 
   async function showFiveMore(): Promise<void> {
+    await continueWithTonightIntents(activeTonightIntents);
+  }
+
+  async function continueWithTonightIntents(
+    nextTonightIntents: TonightIntentInterpretationPayload[],
+  ): Promise<void> {
     if (!apiHealth.connected || sharedSession === null || sessionSource !== "api") {
       setApiError("Show 5 more needs the synced session so earlier reactions can stay attached.");
       return;
@@ -658,7 +684,11 @@ export function PassThePhoneWizard({
         activeMode: toApiSessionMode(sessionMode),
         participantIds,
         shortlistSize: setupLoad.setup.defaults.shortlistSize,
-        tonightIntent: activeTonightIntent,
+        tonightIntent:
+          nextTonightIntents.length > 0
+            ? nextTonightIntents[nextTonightIntents.length - 1]
+            : null,
+        tonightIntents: nextTonightIntents,
         excludedSourceMovieIds,
       });
       const candidates = shortlistResponse.shortlist.map(toSessionCandidate);
@@ -757,18 +787,96 @@ export function PassThePhoneWizard({
     }
   }
 
+  async function interpretSteerText(): Promise<void> {
+    const text = steerText.trim();
+    if (!text) {
+      setSteerMessage("Add a short steer first.");
+      return;
+    }
+
+    if (!apiHealth.connected) {
+      setSteerMessage("Steer next 5 needs the local API connection.");
+      return;
+    }
+
+    setTonightIntentStatus("loading");
+    setSteerMessage(null);
+
+    try {
+      const interpretation = await interpretTonightIntent(text);
+      setPendingSteerIntent(interpretation);
+      setSteerClarificationText("");
+      setSteerMessage(
+        interpretation.status === "confirmation_required"
+          ? "Review this steer before applying it to the next five."
+          : "One clarification, then the steer stays tonight-only.",
+      );
+    } catch (error) {
+      setSteerMessage(toErrorMessage(error));
+    } finally {
+      setTonightIntentStatus("ready");
+    }
+  }
+
+  async function answerSteerClarification(): Promise<void> {
+    if (pendingSteerIntent?.status !== "clarification_required") {
+      return;
+    }
+
+    const answer = steerClarificationText.trim();
+    if (!answer) {
+      setSteerMessage("Answer the clarification first.");
+      return;
+    }
+
+    if (!apiHealth.connected) {
+      setSteerMessage("Steer next 5 needs the local API connection.");
+      return;
+    }
+
+    setTonightIntentStatus("loading");
+    setSteerMessage(null);
+
+    try {
+      const interpretation = await interpretTonightIntent(
+        `${pendingSteerIntent.rawText}. Clarification: ${answer}`,
+      );
+      setPendingSteerIntent(interpretation);
+      setSteerClarificationText("");
+      setSteerMessage("Review this steer before applying it to the next five.");
+    } catch (error) {
+      setSteerMessage(toErrorMessage(error));
+    } finally {
+      setTonightIntentStatus("ready");
+    }
+  }
+
+  async function applySteerAndShowMore(): Promise<void> {
+    if (pendingSteerIntent?.status !== "confirmation_required") {
+      return;
+    }
+
+    const nextTonightIntents = [...activeTonightIntents, pendingSteerIntent];
+    setActiveTonightIntents(nextTonightIntents);
+    setPendingSteerIntent(null);
+    setSteerText("");
+    setSteerClarificationText("");
+    setSteerMessage(null);
+    await continueWithTonightIntents(nextTonightIntents);
+  }
+
   function applyTonightIntent(): void {
     if (pendingTonightIntent?.status !== "confirmation_required") {
       return;
     }
 
-    setActiveTonightIntent(pendingTonightIntent);
+    setActiveTonightIntents([pendingTonightIntent]);
     setPendingTonightIntent(null);
     setTonightIntentMessage("Applied to tonight only. Your taste profile is unchanged.");
   }
 
   function clearTonightIntent(): void {
-    setActiveTonightIntent(null);
+    setActiveTonightIntents([]);
     setPendingTonightIntent(null);
     setTonightIntentText("");
     setTonightIntentClarificationText("");
@@ -1093,6 +1201,11 @@ export function PassThePhoneWizard({
           sessionMode={sessionMode}
           sessionSource={sessionSource}
           sharedSession={sharedSession}
+          activeTonightIntents={activeTonightIntents}
+          steerText={steerText}
+          pendingSteerIntent={pendingSteerIntent}
+          steerClarificationText={steerClarificationText}
+          steerMessage={steerMessage}
           debugHistory={debugHistory}
           tasteProfileSummaries={tasteProfileSummaries}
           debugHistoryStatus={debugHistoryStatus}
@@ -1100,6 +1213,11 @@ export function PassThePhoneWizard({
           onLoadDebugHistory={loadDebugHistory}
           onReset={resetSession}
           onShowMore={showFiveMore}
+          onSteerTextChange={setSteerText}
+          onInterpretSteer={interpretSteerText}
+          onSteerClarificationTextChange={setSteerClarificationText}
+          onAnswerSteerClarification={answerSteerClarification}
+          onApplySteer={applySteerAndShowMore}
           isSyncing={isSyncing}
           reviewMode={reviewMode}
         />

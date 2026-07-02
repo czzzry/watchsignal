@@ -1771,6 +1771,11 @@ export function ResultsStep({
   sessionMode,
   sessionSource,
   sharedSession,
+  activeTonightIntents,
+  steerText,
+  pendingSteerIntent,
+  steerClarificationText,
+  steerMessage,
   debugHistory,
   tasteProfileSummaries,
   debugHistoryStatus,
@@ -1778,6 +1783,11 @@ export function ResultsStep({
   onLoadDebugHistory,
   onReset,
   onShowMore,
+  onSteerTextChange,
+  onInterpretSteer,
+  onSteerClarificationTextChange,
+  onAnswerSteerClarification,
+  onApplySteer,
   isSyncing,
   reviewMode,
 }: {
@@ -1791,6 +1801,11 @@ export function ResultsStep({
   sessionMode: SessionMode;
   sessionSource: SessionSource;
   sharedSession: SharedSessionPayload | null;
+  activeTonightIntents: TonightIntentInterpretationPayload[];
+  steerText: string;
+  pendingSteerIntent: TonightIntentInterpretationPayload | null;
+  steerClarificationText: string;
+  steerMessage: string | null;
   debugHistory: DebugHistorySessionPayload | null;
   tasteProfileSummaries: TasteProfileSummaryPayload[];
   debugHistoryStatus: DebugHistoryStatus;
@@ -1798,6 +1813,11 @@ export function ResultsStep({
   onLoadDebugHistory: () => void | Promise<void>;
   onReset: () => void;
   onShowMore: () => void | Promise<void>;
+  onSteerTextChange: (text: string) => void;
+  onInterpretSteer: () => void | Promise<void>;
+  onSteerClarificationTextChange: (text: string) => void;
+  onAnswerSteerClarification: () => void | Promise<void>;
+  onApplySteer: () => void | Promise<void>;
   isSyncing: boolean;
   reviewMode: boolean;
 }) {
@@ -2419,6 +2439,21 @@ export function ResultsStep({
         </div>
       </details>
 
+      <SteerNextPanel
+        activeIntents={activeTonightIntents}
+        text={steerText}
+        pendingIntent={pendingSteerIntent}
+        clarificationText={steerClarificationText}
+        message={steerMessage}
+        busy={isSyncing}
+        canPersist={canPersist}
+        onTextChange={onSteerTextChange}
+        onInterpret={onInterpretSteer}
+        onClarificationTextChange={onSteerClarificationTextChange}
+        onAnswerClarification={onAnswerSteerClarification}
+        onApply={onApplySteer}
+      />
+
       {reviewMode ? (
         <details className="disclosurePanel">
           <summary>Session evidence</summary>
@@ -2444,6 +2479,129 @@ export function ResultsStep({
       >
         {isSyncing ? "Finding five more..." : "Show 5 more"}
       </button>
+    </section>
+  );
+}
+
+function SteerNextPanel({
+  activeIntents,
+  text,
+  pendingIntent,
+  clarificationText,
+  message,
+  busy,
+  canPersist,
+  onTextChange,
+  onInterpret,
+  onClarificationTextChange,
+  onAnswerClarification,
+  onApply,
+}: {
+  activeIntents: TonightIntentInterpretationPayload[];
+  text: string;
+  pendingIntent: TonightIntentInterpretationPayload | null;
+  clarificationText: string;
+  message: string | null;
+  busy: boolean;
+  canPersist: boolean;
+  onTextChange: (text: string) => void;
+  onInterpret: () => void | Promise<void>;
+  onClarificationTextChange: (text: string) => void;
+  onAnswerClarification: () => void | Promise<void>;
+  onApply: () => void | Promise<void>;
+}) {
+  const pendingSignals = pendingIntent?.softSignals.slice(0, 4) ?? [];
+  const hasClarification = pendingIntent?.status === "clarification_required";
+  const hasConfirmation = pendingIntent?.status === "confirmation_required";
+
+  return (
+    <section className="tonightIntentPanel steerNextPanel" aria-labelledby="steer-next-heading">
+      <div className="tonightIntentHeader">
+        <div>
+          <p className="eyebrow">Steer next 5</p>
+          <h3 id="steer-next-heading">Add one more tonight nudge</h3>
+        </div>
+      </div>
+
+      {activeIntents.length > 0 ? (
+        <div className="tonightIntentActive">
+          <strong>Still active</strong>
+          <div className="tonightIntentSignals">
+            {activeIntents.map((intent, index) => (
+              <span key={`${intent.rawText}-${index}`}>
+                {intent.rawText}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="tonightIntentComposer">
+        <label htmlFor="steer-next-input">New steer</label>
+        <div className="tonightIntentInputRow">
+          <input
+            id="steer-next-input"
+            value={text}
+            onChange={(event) => onTextChange(event.target.value)}
+            placeholder="actually more action"
+            disabled={busy || !canPersist}
+          />
+          <button
+            type="button"
+            className="secondaryAction compactAction"
+            onClick={onInterpret}
+            disabled={busy || !canPersist || text.trim().length === 0}
+          >
+            Review
+          </button>
+        </div>
+      </div>
+
+      {hasConfirmation ? (
+        <div className="tonightIntentReview">
+          <p>{pendingIntent.confirmationText}</p>
+          {pendingSignals.length > 0 ? (
+            <div className="tonightIntentSignals">
+              {pendingSignals.map((signal) => (
+                <span key={`steer-${signal}`}>{formatTonightIntentSignal(signal)}</span>
+              ))}
+            </div>
+          ) : null}
+          <button
+            type="button"
+            className="primaryAction compactAction"
+            onClick={onApply}
+            disabled={busy || !canPersist}
+          >
+            Apply steer and show 5
+          </button>
+        </div>
+      ) : null}
+
+      {hasClarification ? (
+        <div className="tonightIntentReview">
+          <p>{pendingIntent.clarificationQuestion}</p>
+          <div className="tonightIntentInputRow">
+            <input
+              value={clarificationText}
+              onChange={(event) => onClarificationTextChange(event.target.value)}
+              placeholder="comforting, not matching the mood"
+              disabled={busy || !canPersist}
+              aria-label="Clarify steer next 5"
+            />
+            <button
+              type="button"
+              className="secondaryAction compactAction"
+              onClick={onAnswerClarification}
+              disabled={busy || !canPersist || clarificationText.trim().length === 0}
+            >
+              Answer
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {message ? <p className="tonightIntentNote">{message}</p> : null}
     </section>
   );
 }

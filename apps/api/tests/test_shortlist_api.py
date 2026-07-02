@@ -250,6 +250,32 @@ class ShortlistApiTest(unittest.TestCase):
             self.assertEqual(len(snapshot.candidate_inputs), 5)
             self.assertEqual(snapshot.candidate_inputs[0].source_movie_id, "tmdb:1")
 
+    def test_post_recommendation_shortlist_combines_additive_tonight_intents(
+        self,
+    ) -> None:
+        candidate_source = RecordingCandidateSource()
+        post_shortlist = recommendation_shortlist_endpoint(
+            create_app(candidate_source=candidate_source),
+            method="POST",
+        )
+
+        payload = post_shortlist(
+            RecommendationShortlistRequestPayload(
+                sessionId="steered-session",
+                source="live_tmdb",
+                tonightIntents=[
+                    {"rawText": "something funny from the 90s"},
+                    {"rawText": "actually more action"},
+                ],
+            )
+        )
+
+        self.assertEqual(len(payload), 5)
+        self.assertEqual(
+            candidate_source.mood_texts,
+            ("something funny from the 90s + actually more action",),
+        )
+
     def test_post_recommendation_shortlist_consumes_saved_taste_lab_profile_evidence(
         self,
     ) -> None:
@@ -347,6 +373,25 @@ class FakeCandidateSource:
                 spoken_languages=("en",),
             )
             for index in range(1, min(limit, 5) + 1)
+        )
+
+
+class RecordingCandidateSource(FakeCandidateSource):
+    def __init__(self) -> None:
+        self.mood_texts: tuple[str | None, ...] = ()
+
+    def fetch_candidates(
+        self,
+        *,
+        session: SessionContext,
+        household_defaults: HouseholdDefaults,
+        limit: int = 20,
+    ) -> tuple[Candidate, ...]:
+        self.mood_texts = (*self.mood_texts, session.mood_text)
+        return super().fetch_candidates(
+            session=session,
+            household_defaults=household_defaults,
+            limit=limit,
         )
 
 

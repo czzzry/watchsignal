@@ -80,12 +80,24 @@ async function main() {
     try {
       await waitForText(tab, "Tonight", "results screen");
       await waitForText(tab, "Backups we also liked", "results backups");
+      await waitForText(tab, "Steer next 5", "results steering panel");
       await waitForRankedShortlist(tab);
       await assertNoHorizontalOverflow(tab, "results screen");
       await captureScreenshot(tab, screenshotDir, "03-results");
     } catch (error) {
       await reportVisiblePageState(tab, "results timeout");
       throw error;
+    }
+
+    if (process.env.MOBILE_UX_SMOKE_STEER_NEXT === "1") {
+      await fillInput(tab, "#steer-next-input", "actually more action");
+      await clickButton(tab, "Review");
+      await waitForText(tab, "Apply steer and show 5", "steer next confirmation");
+      await clickButton(tab, "Apply steer and show 5");
+      await waitForText(tab, "1 of 5", "steered next first pass");
+      await assertNoHorizontalOverflow(tab, "steered next first pass");
+      console.log("Steer next 5 smoke path passed.");
+      return;
     }
 
     if (useBackendMode) {
