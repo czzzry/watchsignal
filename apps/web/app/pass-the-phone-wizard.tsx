@@ -8,6 +8,13 @@ import {
   type SessionMode,
 } from "./session-fixtures";
 import {
+  continuationExcludedSourceMovieIds,
+  latestTonightIntent,
+  scoringReactionSignals,
+  sessionShortlistFromCandidates,
+  usePassThePhoneSessionControl,
+} from "./pass-the-phone/session-control";
+import {
   HandoffStep,
   LaunchSting,
   OnboardingDialog,
@@ -41,7 +48,6 @@ import {
 } from "./pass-the-phone-helpers";
 import type {
   ApiHealth,
-  CandidateViewModel,
   DebugHistoryStatus,
   LanguageMode,
   OnboardingDraft,
@@ -49,8 +55,6 @@ import type {
   OnboardingStatus,
   PeopleMode,
   ReactionState,
-  SeenMemoryPromptState,
-  SeenMemoryState,
   SeenMemoryValue,
   SessionSource,
   SyncStatus,
@@ -75,7 +79,6 @@ import {
   type OnboardingCompletionPayload,
   type ProfileMemorySummaryPayload,
   type RecentSessionSummaryPayload,
-  type ScoringSessionReactionPayload,
   type SharedSessionPayload,
   type TasteProfileSummaryPayload,
   type TonightIntentInterpretationPayload,
@@ -87,26 +90,6 @@ type PassThePhoneWizardProps = {
 };
 
 const stepOrder: WizardStep[] = ["setup", "founder", "handoff", "wife", "results"];
-
-function scoringReactionSignals(
-  session: SharedSessionPayload,
-): ScoringSessionReactionPayload[] {
-  const titlesBySourceId = new Map(
-    [...session.previousShortlist, ...session.shortlist].map((item) => [
-      item.sourceMovieId,
-      item.title,
-    ]),
-  );
-  return [
-    ...session.previousFounderReactions,
-    ...session.previousWifeReactions,
-    ...session.founderReactions,
-    ...session.wifeReactions,
-  ].map((reaction) => ({
-    ...reaction,
-    title: titlesBySourceId.get(reaction.sourceMovieId) ?? null,
-  }));
-}
 
 export function PassThePhoneWizard({
   apiHealth,
@@ -127,16 +110,25 @@ export function PassThePhoneWizard({
   const [sessionMode, setSessionMode] = useState<SessionMode>("compromise");
   const [peopleMode, setPeopleMode] = useState<PeopleMode>("couple");
   const [languageMode, setLanguageMode] = useState<LanguageMode>("english");
-  const [founderIndex, setFounderIndex] = useState(0);
-  const [wifeIndex, setWifeIndex] = useState(0);
-  const [sessionCandidates, setSessionCandidates] =
-    useState<CandidateViewModel[]>(demoCandidateViewModels);
-  const [founderReactions, setFounderReactions] = useState<ReactionState>({});
-  const [wifeReactions, setWifeReactions] = useState<ReactionState>({});
-  const [founderSeenMemories, setFounderSeenMemories] = useState<SeenMemoryState>({});
-  const [wifeSeenMemories, setWifeSeenMemories] = useState<SeenMemoryState>({});
-  const [seenMemoryPrompt, setSeenMemoryPrompt] =
-    useState<SeenMemoryPromptState>(null);
+  const sessionControl = usePassThePhoneSessionControl(demoCandidateViewModels);
+  const {
+    founderIndex,
+    setFounderIndex,
+    wifeIndex,
+    setWifeIndex,
+    sessionCandidates,
+    founderReactions,
+    setFounderReactions,
+    wifeReactions,
+    setWifeReactions,
+    founderSeenMemories,
+    setFounderSeenMemories,
+    wifeSeenMemories,
+    setWifeSeenMemories,
+    seenMemoryPrompt,
+    setSeenMemoryPrompt,
+    resetBatch,
+  } = sessionControl;
   const [onboardingCompletion, setOnboardingCompletion] =
     useState<OnboardingCompletionPayload | null>(null);
   const [onboardingStatus, setOnboardingStatus] =
@@ -303,14 +295,7 @@ export function PassThePhoneWizard({
 
   function resetSession() {
     setStep("setup");
-    setFounderIndex(0);
-    setWifeIndex(0);
-    setSessionCandidates(demoCandidateViewModels);
-    setFounderReactions({});
-    setWifeReactions({});
-    setFounderSeenMemories({});
-    setWifeSeenMemories({});
-    setSeenMemoryPrompt(null);
+    resetBatch();
     setSharedSession(null);
     setDebugHistory(null);
     setTasteProfileSummaries([]);
@@ -598,14 +583,7 @@ export function PassThePhoneWizard({
       }
     }
 
-    setFounderIndex(0);
-    setWifeIndex(0);
-    setSessionCandidates(demoCandidateViewModels);
-    setFounderReactions({});
-    setWifeReactions({});
-    setFounderSeenMemories({});
-    setWifeSeenMemories({});
-    setSeenMemoryPrompt(null);
+    resetBatch();
     setSharedSession(null);
     setDebugHistory(null);
     setTasteProfileSummaries([]);
@@ -639,7 +617,7 @@ export function PassThePhoneWizard({
         throw new Error("Recommendation API returned no usable picks for this session.");
       }
 
-      setSessionCandidates(candidates);
+      resetBatch(candidates);
 
       try {
         const session = await createSharedSession({
@@ -647,11 +625,7 @@ export function PassThePhoneWizard({
           householdId: "default-household",
           activeMode: toApiSessionMode(sessionMode),
           participantIds,
-          shortlist: candidates.map((candidate, index) => ({
-            sourceMovieId: candidate.id,
-            title: candidate.title,
-            candidateRank: index + 1,
-          })),
+          shortlist: sessionShortlistFromCandidates(candidates),
         });
 
         setSharedSession(session);
@@ -664,7 +638,7 @@ export function PassThePhoneWizard({
         );
       }
     } catch (error) {
-      setSessionCandidates(demoCandidateViewModels);
+      resetBatch();
       setSharedSession(null);
       setSessionSource("demo");
       setDebugHistoryStatus("idle");
@@ -695,22 +669,18 @@ export function PassThePhoneWizard({
     setDebugHistoryMessage(null);
 
     try {
-      const excludedSourceMovieIds =
-        sharedSession.shownSourceMovieIds.length > 0
-          ? sharedSession.shownSourceMovieIds
-          : sessionCandidates.map((candidate) => candidate.id);
       const shortlistResponse = await loadRecommendationShortlist({
         sessionId: sharedSession.sessionId,
         householdId: sharedSession.householdId,
         activeMode: toApiSessionMode(sessionMode),
         participantIds,
         shortlistSize: setupLoad.setup.defaults.shortlistSize,
-        tonightIntent:
-          nextTonightIntents.length > 0
-            ? nextTonightIntents[nextTonightIntents.length - 1]
-            : null,
+        tonightIntent: latestTonightIntent(nextTonightIntents),
         tonightIntents: nextTonightIntents,
-        excludedSourceMovieIds,
+        excludedSourceMovieIds: continuationExcludedSourceMovieIds(
+          sharedSession,
+          sessionCandidates,
+        ),
         sessionReactions: scoringReactionSignals(sharedSession),
       });
       const candidates = shortlistResponse.shortlist.map(toSessionCandidate);
@@ -721,22 +691,11 @@ export function PassThePhoneWizard({
 
       const continuedSession = await continueSharedSession(
         sharedSession.sessionId,
-        candidates.map((candidate, index) => ({
-          sourceMovieId: candidate.id,
-          title: candidate.title,
-          candidateRank: index + 1,
-        })),
+        sessionShortlistFromCandidates(candidates),
       );
 
       setSharedSession(continuedSession);
-      setSessionCandidates(candidates);
-      setFounderIndex(0);
-      setWifeIndex(0);
-      setFounderReactions({});
-      setWifeReactions({});
-      setFounderSeenMemories({});
-      setWifeSeenMemories({});
-      setSeenMemoryPrompt(null);
+      resetBatch(candidates);
       setStep("founder");
     } catch (error) {
       setApiError(toErrorMessage(error));
