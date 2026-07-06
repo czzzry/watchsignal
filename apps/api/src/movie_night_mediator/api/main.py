@@ -23,6 +23,11 @@ from movie_night_mediator.api.routes.history import (
     register_debug_history_routes,
     register_history_routes,
 )
+from movie_night_mediator.api.routes.watchlist import (
+    SaveWatchlistEntryPayload,
+    WatchlistEntryPayload,
+    register_watchlist_routes,
+)
 from movie_night_mediator.app.feedback import PostWatchFeedbackService
 from movie_night_mediator.app.history import SessionHistoryService
 from movie_night_mediator.app.onboarding import SQLiteOnboardingStore
@@ -48,7 +53,6 @@ from movie_night_mediator.app.setup import (
 from movie_night_mediator.app.tonight_intent import TonightIntentInterpreter
 from movie_night_mediator.app.watchlist import (
     SharedWatchlistService,
-    WatchlistEntry,
 )
 from movie_night_mediator.app.shortlist import (
     OfflineShortlistItem,
@@ -479,26 +483,6 @@ class TonightIntentInterpretationPayload(BaseModel):
     confidence: str
 
 
-class WatchlistEntryPayload(BaseModel):
-    householdId: str
-    sourceMovieId: str
-    title: str
-    savedAt: str
-    savedByProfileId: str | None = None
-    posterUrl: str | None = None
-    releaseYear: int | None = None
-    isTasteSignal: bool = False
-
-
-class SaveWatchlistEntryPayload(BaseModel):
-    householdId: str = Field(default=DEFAULT_HOUSEHOLD_ID, min_length=1)
-    sourceMovieId: str = Field(min_length=1)
-    title: str = Field(min_length=1)
-    savedByProfileId: str | None = None
-    posterUrl: str | None = None
-    releaseYear: int | None = None
-
-
 def create_app(
     setup_store: SQLiteSetupStore | None = None,
     onboarding_store: SQLiteOnboardingStore | None = None,
@@ -580,6 +564,7 @@ def create_app(
         outcome_service=outcome_service,
         recommendation_snapshot_store=resolved_recommendation_snapshot_store,
     )
+    register_watchlist_routes(app, watchlist_service=watchlist_service)
 
     @app.get("/health", tags=["system"])
     def health() -> dict[str, str]:
@@ -670,58 +655,6 @@ def create_app(
             raise HTTPException(status_code=400, detail=str(error)) from error
 
         return _intent_interpretation_to_payload(interpretation)
-
-    @app.get(
-        "/watchlist",
-        response_model=list[WatchlistEntryPayload],
-        tags=["watchlist"],
-    )
-    def get_watchlist(
-        householdId: str = DEFAULT_HOUSEHOLD_ID,
-    ) -> list[WatchlistEntryPayload]:
-        return [
-            _watchlist_entry_to_payload(entry)
-            for entry in watchlist_service.list_movies(household_id=householdId)
-        ]
-
-    @app.post(
-        "/watchlist",
-        response_model=WatchlistEntryPayload,
-        tags=["watchlist"],
-    )
-    def post_watchlist_entry(
-        payload: SaveWatchlistEntryPayload,
-    ) -> WatchlistEntryPayload:
-        try:
-            entry = watchlist_service.save_movie(
-                household_id=payload.householdId,
-                source_movie_id=payload.sourceMovieId,
-                title=payload.title,
-                saved_by_profile_id=payload.savedByProfileId,
-                poster_url=payload.posterUrl,
-                release_year=payload.releaseYear,
-            )
-        except ValueError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
-
-        return _watchlist_entry_to_payload(entry)
-
-    @app.delete(
-        "/watchlist/{source_movie_id}",
-        status_code=204,
-        tags=["watchlist"],
-    )
-    def delete_watchlist_entry(
-        source_movie_id: str,
-        householdId: str = DEFAULT_HOUSEHOLD_ID,
-    ) -> None:
-        try:
-            watchlist_service.remove_movie(
-                household_id=householdId,
-                source_movie_id=source_movie_id,
-            )
-        except ValueError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
 
     @app.get(
         "/onboarding/completion",
@@ -1518,19 +1451,6 @@ def _session_outcome_to_payload(
         selectedTitle=outcome.selected_title,
         selectionOrigin=outcome.selection_origin,
         notes=outcome.notes,
-    )
-
-
-def _watchlist_entry_to_payload(entry: WatchlistEntry) -> WatchlistEntryPayload:
-    return WatchlistEntryPayload(
-        householdId=entry.household_id,
-        sourceMovieId=entry.source_movie_id,
-        title=entry.title,
-        savedAt=entry.saved_at,
-        savedByProfileId=entry.saved_by_profile_id,
-        posterUrl=entry.poster_url,
-        releaseYear=entry.release_year,
-        isTasteSignal=entry.is_taste_signal,
     )
 
 
