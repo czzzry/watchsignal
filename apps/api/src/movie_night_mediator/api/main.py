@@ -23,6 +23,10 @@ from movie_night_mediator.api.routes.history import (
     register_debug_history_routes,
     register_history_routes,
 )
+from movie_night_mediator.api.routes.setup import (
+    SetupStatePayload,
+    register_setup_routes,
+)
 from movie_night_mediator.api.routes.watchlist import (
     SaveWatchlistEntryPayload,
     WatchlistEntryPayload,
@@ -46,9 +50,6 @@ from movie_night_mediator.app.session import (
 )
 from movie_night_mediator.app.setup import (
     SQLiteSetupStore,
-    SetupDefaults,
-    SetupProfile,
-    SetupState,
 )
 from movie_night_mediator.app.tonight_intent import TonightIntentInterpreter
 from movie_night_mediator.app.watchlist import (
@@ -117,29 +118,6 @@ from movie_night_mediator.taste_lab import (
     TasteProfileSummary,
     default_taste_lab_candidates,
 )
-
-
-class SetupProfilePayload(BaseModel):
-    id: str = Field(min_length=1)
-    label: str = Field(min_length=1)
-    order: int
-    avatarKey: str = Field(default="spark", min_length=1)
-    colorKey: str = Field(default="cyan", min_length=1)
-
-
-class SetupDefaultsPayload(BaseModel):
-    sessionType: str = Field(min_length=1)
-    inputMode: str = Field(min_length=1)
-    availabilityRegion: str = Field(min_length=1)
-    languageAccess: str = Field(min_length=1)
-    shortlistSize: int = Field(ge=1)
-    avoidAlreadyWatched: bool
-
-
-class SetupStatePayload(BaseModel):
-    householdLabel: str = Field(min_length=1)
-    profiles: list[SetupProfilePayload] = Field(min_length=2)
-    defaults: SetupDefaultsPayload
 
 
 class TitleResolutionCandidatePayload(BaseModel):
@@ -565,6 +543,7 @@ def create_app(
         recommendation_snapshot_store=resolved_recommendation_snapshot_store,
     )
     register_watchlist_routes(app, watchlist_service=watchlist_service)
+    register_setup_routes(app, setup_store=resolved_setup_store)
 
     @app.get("/health", tags=["system"])
     def health() -> dict[str, str]:
@@ -613,16 +592,6 @@ def create_app(
                 session_reactions=_shortlist_session_reactions_from_payload(payload),
             )
         ]
-
-    @app.get("/setup", response_model=SetupStatePayload, tags=["setup"])
-    def get_setup() -> SetupStatePayload:
-        return _setup_state_to_payload(resolved_setup_store.load_setup())
-
-    @app.put("/setup", response_model=SetupStatePayload, tags=["setup"])
-    def put_setup(payload: SetupStatePayload) -> SetupStatePayload:
-        _validate_profile_uniqueness(payload.profiles)
-        saved_setup = resolved_setup_store.save_setup(_payload_to_setup_state(payload))
-        return _setup_state_to_payload(saved_setup)
 
     @app.get(
         "/profiles/{profile_id}/memory",
@@ -1207,12 +1176,6 @@ def _shortlist_users_from_taste_profile(
     return tuple(users)
 
 
-def _validate_profile_uniqueness(profiles: list[SetupProfilePayload]) -> None:
-    profile_ids = [profile.id for profile in profiles]
-    if len(set(profile_ids)) != len(profile_ids):
-        raise HTTPException(status_code=400, detail="Profile ids must be unique.")
-
-
 def _offline_shortlist_item_to_payload(
     item: OfflineShortlistItem,
 ) -> RecommendationShortlistItemPayload:
@@ -1251,54 +1214,6 @@ def _offline_shortlist_item_to_payload(
         originalLanguage=item.original_language,
         spokenLanguages=list(item.spoken_languages),
         englishSubtitlesVerified=item.english_subtitles_verified,
-    )
-
-
-def _payload_to_setup_state(payload: SetupStatePayload) -> SetupState:
-    return SetupState(
-        household_label=payload.householdLabel,
-        profiles=tuple(
-            SetupProfile(
-                id=profile.id,
-                label=profile.label,
-                order=profile.order,
-                avatar_key=profile.avatarKey,
-                color_key=profile.colorKey,
-            )
-            for profile in payload.profiles
-        ),
-        defaults=SetupDefaults(
-            session_type=payload.defaults.sessionType,
-            input_mode=payload.defaults.inputMode,
-            availability_region=payload.defaults.availabilityRegion,
-            language_access=payload.defaults.languageAccess,
-            shortlist_size=payload.defaults.shortlistSize,
-            avoid_already_watched=payload.defaults.avoidAlreadyWatched,
-        ),
-    )
-
-
-def _setup_state_to_payload(setup: SetupState) -> SetupStatePayload:
-    return SetupStatePayload(
-        householdLabel=setup.household_label,
-        profiles=[
-            SetupProfilePayload(
-                id=profile.id,
-                label=profile.label,
-                order=profile.order,
-                avatarKey=profile.avatar_key,
-                colorKey=profile.color_key,
-            )
-            for profile in setup.profiles
-        ],
-        defaults=SetupDefaultsPayload(
-            sessionType=setup.defaults.session_type,
-            inputMode=setup.defaults.input_mode,
-            availabilityRegion=setup.defaults.availability_region,
-            languageAccess=setup.defaults.language_access,
-            shortlistSize=setup.defaults.shortlist_size,
-            avoidAlreadyWatched=setup.defaults.avoid_already_watched,
-        ),
     )
 
 
