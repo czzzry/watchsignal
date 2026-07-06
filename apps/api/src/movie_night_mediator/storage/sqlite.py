@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 from movie_night_mediator.domain.models import (
@@ -30,34 +31,35 @@ class SQLiteHouseholdStore:
 
     def initialize_schema(self) -> None:
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as connection:
-            connection.executescript(
-                """
-                CREATE TABLE IF NOT EXISTS households (
-                    household_id TEXT PRIMARY KEY,
-                    label TEXT NOT NULL,
-                    default_region TEXT NOT NULL,
-                    default_service TEXT NOT NULL,
-                    default_language_mode TEXT NOT NULL,
-                    rewatch_avoidance_default INTEGER NOT NULL CHECK (
-                        rewatch_avoidance_default IN (0, 1)
-                    ),
-                    active_interface TEXT NOT NULL,
-                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-                );
+        with closing(self._connect()) as connection:
+            with connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE IF NOT EXISTS households (
+                        household_id TEXT PRIMARY KEY,
+                        label TEXT NOT NULL,
+                        default_region TEXT NOT NULL,
+                        default_service TEXT NOT NULL,
+                        default_language_mode TEXT NOT NULL,
+                        rewatch_avoidance_default INTEGER NOT NULL CHECK (
+                            rewatch_avoidance_default IN (0, 1)
+                        ),
+                        active_interface TEXT NOT NULL,
+                        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    );
 
-                CREATE TABLE IF NOT EXISTS participant_profiles (
-                    profile_id TEXT PRIMARY KEY,
-                    household_id TEXT NOT NULL REFERENCES households(household_id)
-                        ON DELETE CASCADE,
-                    role TEXT NOT NULL,
-                    display_label TEXT NOT NULL,
-                    sort_order INTEGER NOT NULL,
-                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    UNIQUE (household_id, role)
-                );
-                """
-            )
+                    CREATE TABLE IF NOT EXISTS participant_profiles (
+                        profile_id TEXT PRIMARY KEY,
+                        household_id TEXT NOT NULL REFERENCES households(household_id)
+                            ON DELETE CASCADE,
+                        role TEXT NOT NULL,
+                        display_label TEXT NOT NULL,
+                        sort_order INTEGER NOT NULL,
+                        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE (household_id, role)
+                    );
+                    """
+                )
 
     def ensure_default_household_setup(self) -> HouseholdSetup:
         setup = default_household_setup()
@@ -81,68 +83,69 @@ class SQLiteHouseholdStore:
         self.initialize_schema()
         household = setup.household
         defaults = household.defaults
-        with self._connect() as connection:
-            connection.execute(
-                """
-                INSERT INTO households (
-                    household_id,
-                    label,
-                    default_region,
-                    default_service,
-                    default_language_mode,
-                    rewatch_avoidance_default,
-                    active_interface
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(household_id) DO UPDATE SET
-                    label = excluded.label,
-                    default_region = excluded.default_region,
-                    default_service = excluded.default_service,
-                    default_language_mode = excluded.default_language_mode,
-                    rewatch_avoidance_default = excluded.rewatch_avoidance_default,
-                    active_interface = excluded.active_interface
-                """,
-                (
-                    household.household_id,
-                    household.label,
-                    defaults.default_region,
-                    defaults.default_service,
-                    defaults.default_language_mode,
-                    int(defaults.rewatch_avoidance_default),
-                    household.active_interface,
-                ),
-            )
-            connection.executemany(
-                """
-                INSERT INTO participant_profiles (
-                    profile_id,
-                    household_id,
-                    role,
-                    display_label,
-                    sort_order
-                )
-                VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(profile_id) DO UPDATE SET
-                    household_id = excluded.household_id,
-                    role = excluded.role,
-                    display_label = excluded.display_label,
-                    sort_order = excluded.sort_order
-                """,
-                [
-                    (
-                        profile.profile_id,
-                        profile.household_id,
-                        profile.role,
-                        profile.display_label,
-                        profile.sort_order,
+        with closing(self._connect()) as connection:
+            with connection:
+                connection.execute(
+                    """
+                    INSERT INTO households (
+                        household_id,
+                        label,
+                        default_region,
+                        default_service,
+                        default_language_mode,
+                        rewatch_avoidance_default,
+                        active_interface
                     )
-                    for profile in setup.participant_profiles
-                ],
-            )
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(household_id) DO UPDATE SET
+                        label = excluded.label,
+                        default_region = excluded.default_region,
+                        default_service = excluded.default_service,
+                        default_language_mode = excluded.default_language_mode,
+                        rewatch_avoidance_default = excluded.rewatch_avoidance_default,
+                        active_interface = excluded.active_interface
+                    """,
+                    (
+                        household.household_id,
+                        household.label,
+                        defaults.default_region,
+                        defaults.default_service,
+                        defaults.default_language_mode,
+                        int(defaults.rewatch_avoidance_default),
+                        household.active_interface,
+                    ),
+                )
+                connection.executemany(
+                    """
+                    INSERT INTO participant_profiles (
+                        profile_id,
+                        household_id,
+                        role,
+                        display_label,
+                        sort_order
+                    )
+                    VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT(profile_id) DO UPDATE SET
+                        household_id = excluded.household_id,
+                        role = excluded.role,
+                        display_label = excluded.display_label,
+                        sort_order = excluded.sort_order
+                    """,
+                    [
+                        (
+                            profile.profile_id,
+                            profile.household_id,
+                            profile.role,
+                            profile.display_label,
+                            profile.sort_order,
+                        )
+                        for profile in setup.participant_profiles
+                    ],
+                )
 
     def load_household_setup(self, household_id: str) -> HouseholdSetup | None:
         self.initialize_schema()
-        with self._connect() as connection:
+        with closing(self._connect()) as connection:
             household_row = connection.execute(
                 """
                 SELECT

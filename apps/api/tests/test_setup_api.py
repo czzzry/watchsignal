@@ -1,6 +1,7 @@
 import sqlite3
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 
 from fastapi.routing import APIRoute
@@ -128,72 +129,73 @@ class SetupApiTest(unittest.TestCase):
     def test_existing_setup_rows_receive_lightweight_identity_defaults(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             database_path = Path(directory) / "setup.sqlite3"
-            with sqlite3.connect(database_path) as connection:
-                connection.executescript(
-                    """
-                    CREATE TABLE setup_state (
-                        setup_id TEXT PRIMARY KEY,
-                        household_label TEXT NOT NULL,
-                        session_type TEXT NOT NULL,
-                        input_mode TEXT NOT NULL,
-                        availability_region TEXT NOT NULL,
-                        language_access TEXT NOT NULL,
-                        shortlist_size INTEGER NOT NULL CHECK (shortlist_size > 0),
-                        avoid_already_watched INTEGER NOT NULL CHECK (
-                            avoid_already_watched IN (0, 1)
-                        ),
-                        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-                    );
+            with closing(sqlite3.connect(database_path)) as connection:
+                with connection:
+                    connection.executescript(
+                        """
+                        CREATE TABLE setup_state (
+                            setup_id TEXT PRIMARY KEY,
+                            household_label TEXT NOT NULL,
+                            session_type TEXT NOT NULL,
+                            input_mode TEXT NOT NULL,
+                            availability_region TEXT NOT NULL,
+                            language_access TEXT NOT NULL,
+                            shortlist_size INTEGER NOT NULL CHECK (shortlist_size > 0),
+                            avoid_already_watched INTEGER NOT NULL CHECK (
+                                avoid_already_watched IN (0, 1)
+                            ),
+                            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                        );
 
-                    CREATE TABLE setup_profiles (
-                        profile_id TEXT PRIMARY KEY,
-                        setup_id TEXT NOT NULL REFERENCES setup_state(setup_id)
-                            ON DELETE CASCADE,
-                        display_label TEXT NOT NULL,
-                        sort_order INTEGER NOT NULL
-                    );
-                    """
-                )
-                connection.execute(
-                    """
-                    INSERT INTO setup_state (
-                        setup_id,
-                        household_label,
-                        session_type,
-                        input_mode,
-                        availability_region,
-                        language_access,
-                        shortlist_size,
-                        avoid_already_watched
+                        CREATE TABLE setup_profiles (
+                            profile_id TEXT PRIMARY KEY,
+                            setup_id TEXT NOT NULL REFERENCES setup_state(setup_id)
+                                ON DELETE CASCADE,
+                            display_label TEXT NOT NULL,
+                            sort_order INTEGER NOT NULL
+                        );
+                        """
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        "current",
-                        "Household",
-                        "Movie night",
-                        "Pass the phone",
-                        "Prime Video Germany",
-                        "English audio or verified English subtitles",
-                        5,
-                        1,
-                    ),
-                )
-                connection.executemany(
-                    """
-                    INSERT INTO setup_profiles (
-                        profile_id,
-                        setup_id,
-                        display_label,
-                        sort_order
+                    connection.execute(
+                        """
+                        INSERT INTO setup_state (
+                            setup_id,
+                            household_label,
+                            session_type,
+                            input_mode,
+                            availability_region,
+                            language_access,
+                            shortlist_size,
+                            avoid_already_watched
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            "current",
+                            "Household",
+                            "Movie night",
+                            "Pass the phone",
+                            "Prime Video Germany",
+                            "English audio or verified English subtitles",
+                            5,
+                            1,
+                        ),
                     )
-                    VALUES (?, ?, ?, ?)
-                    """,
-                    (
-                        ("profile-1", "current", "Husband", 1),
-                        ("profile-2", "current", "Wife", 2),
-                    ),
-                )
+                    connection.executemany(
+                        """
+                        INSERT INTO setup_profiles (
+                            profile_id,
+                            setup_id,
+                            display_label,
+                            sort_order
+                        )
+                        VALUES (?, ?, ?, ?)
+                        """,
+                        (
+                            ("profile-1", "current", "Husband", 1),
+                            ("profile-2", "current", "Wife", 2),
+                        ),
+                    )
 
             loaded_setup = SQLiteSetupStore(database_path=database_path).load_setup()
 
