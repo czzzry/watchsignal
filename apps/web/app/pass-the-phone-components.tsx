@@ -16,14 +16,11 @@ import {
   describeSharedWhy,
   entryKey,
   fallbackPosterUrl,
-  formatDebugCandidateInput,
-  formatDebugSnapshotCandidate,
   formatSessionDate,
   mergeSeenMemoryIntoOnboarding,
   suggestedSeedsForBucket,
   titleForSourceMovieId,
   toErrorMessage,
-  toMatchTier,
 } from "./pass-the-phone-helpers";
 import type {
   ApiHealth,
@@ -52,7 +49,6 @@ import {
   saveWatchlistEntry,
   submitPostWatchFeedback,
   submitSessionOutcome,
-  type DebugHistoryCandidateInputPayload,
   type DebugHistoryReactionPayload,
   type DebugHistorySessionPayload,
   type OnboardingCompletionPayload,
@@ -68,6 +64,17 @@ import {
   type TonightIntentInterpretationPayload,
   type WatchlistEntryPayload,
 } from "./session-client";
+import {
+  BackupTitles,
+  DebugHistoryPanel as ResultsDebugHistoryPanel,
+  OutcomePanel,
+  ResultsActions,
+  type ResultsParticipantEntry,
+  SessionEvidencePanel,
+  SteerNextPanel as ResultsSteerNextPanel,
+  WatchlistPanel,
+  WinnerReveal,
+} from "./pass-the-phone/results/results-panels";
 
 const stepLabels: Record<WizardStep, string> = {
   setup: "Setup",
@@ -87,12 +94,6 @@ const languageModeLabels: Record<LanguageMode, string> = {
   english: "English",
   "subtitles-ok": "Foreign + English subtitles",
   anything: "No rules",
-};
-
-const feedbackLabels: Record<"loved" | "fine" | "no", string> = {
-  loved: "Loved",
-  fine: "Fine",
-  no: "No",
 };
 
 const seenMemoryLabels: Record<SeenMemoryValue, string> = {
@@ -540,7 +541,7 @@ export function SetupStep({
       </details>
 
       {reviewMode ? (
-        <details className="disclosurePanel startupDisclosure">
+        <details className="disclosurePanel startupDisclosure historyDisclosure">
           <summary>Recent nights</summary>
           <div className="disclosureBody">
             <RecentSessionsPanel
@@ -1030,32 +1031,6 @@ function ReactionChoiceIcon({
     <svg viewBox="0 0 32 32">
       <path d="M3.8 16s4.6-7.3 12.2-7.3S28.2 16 28.2 16 23.6 23.3 16 23.3 3.8 16 3.8 16Z" />
       <circle cx="16" cy="16" r="4.1" />
-    </svg>
-  );
-}
-
-function HeartPulseIcon() {
-  return (
-    <svg viewBox="0 0 48 48" aria-hidden="true">
-      <path d="M24 37.6 13.2 27.7C7.4 22.4 5 15.9 10.2 12.3c3.8-2.6 8.5-.8 10.7 2.6L24 19.1l3.1-4.2c2.2-3.4 6.9-5.2 10.7-2.6 5.2 3.6 2.8 10.1-3 15.4L24 37.6Z" />
-    </svg>
-  );
-}
-
-function RedoIcon() {
-  return (
-    <svg className="buttonIcon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M4.8 8.2A8 8 0 1 1 4 12.7" />
-      <path d="M4.8 8.2V4.4" />
-      <path d="M4.8 8.2h4" />
-    </svg>
-  );
-}
-
-function BookmarkIcon() {
-  return (
-    <svg className="buttonIcon" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M7 4.8c0-1 .8-1.8 1.8-1.8h6.4c1 0 1.8.8 1.8 1.8v15.1l-5-3.1-5 3.1V4.8Z" />
     </svg>
   );
 }
@@ -1826,9 +1801,11 @@ export function ResultsStep({
   const [otherPickId, setOtherPickId] = useState<string | null>(null);
   const [outcomeNote, setOutcomeNote] = useState("");
   const [savedOutcome, setSavedOutcome] = useState<SessionOutcomePayload | null>(null);
+  const [outcomeError, setOutcomeError] = useState<string | null>(null);
   const [feedbackState, setFeedbackState] = useState<FeedbackState>({});
   const [feedbackNotes, setFeedbackNotes] = useState<FeedbackNoteState>({});
   const [savedFeedback, setSavedFeedback] = useState<PostWatchFeedbackPayload[]>([]);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [watchlistEntries, setWatchlistEntries] = useState<WatchlistEntryPayload[]>([]);
   const [watchlistStatus, setWatchlistStatus] = useState<"idle" | "loading" | "saving" | "removing" | "marking">("idle");
   const [watchlistMessage, setWatchlistMessage] = useState<string | null>(null);
@@ -1836,7 +1813,7 @@ export function ResultsStep({
     Record<string, Record<string, "loved" | "fine" | "no">>
   >({});
   const canPersist = sessionSource === "api" && sharedSession !== null;
-  const participantEntries =
+  const participantEntries: ResultsParticipantEntry[] =
     peopleMode === "couple"
       ? [
           { id: participantIds[0], label: founderLabel, actor: "founder" as const },
@@ -1885,7 +1862,6 @@ export function ResultsStep({
   const feedbackReady =
     watchedTitleSourceId !== null &&
     participantIds.every((participantId) => feedbackState[participantId] !== undefined);
-  const matchTier = toMatchTier(bestPick.score);
   const sharedWhy = describeSharedWhy({
     candidate: bestPick,
     founderReaction: founderReactions[bestPick.id],
@@ -1898,6 +1874,63 @@ export function ResultsStep({
     (entry) => entry.sourceMovieId === bestPick.id,
   );
 
+  function handleOutcomeTypeChange(nextOutcomeType: SessionOutcomeType): void {
+    setOutcomeType(nextOutcomeType);
+    if (nextOutcomeType !== "watched_other") {
+      setOtherPickId(null);
+    }
+    setSavedOutcome(null);
+    setSavedFeedback([]);
+    setOutcomeError(null);
+    setFeedbackError(null);
+  }
+
+  function handleOtherPickChange(sourceMovieId: string): void {
+    setOtherPickId(sourceMovieId);
+    setSavedOutcome(null);
+    setSavedFeedback([]);
+    setOutcomeError(null);
+    setFeedbackError(null);
+  }
+
+  function handleOutcomeNoteChange(note: string): void {
+    setOutcomeNote(note);
+    setOutcomeError(null);
+  }
+
+  function handleFeedbackChange(
+    participantId: string,
+    feedback: "loved" | "fine" | "no",
+  ): void {
+    setFeedbackState((current) => ({
+      ...current,
+      [participantId]: feedback,
+    }));
+    setFeedbackError(null);
+  }
+
+  function handleFeedbackNoteChange(participantId: string, note: string): void {
+    setFeedbackNotes((current) => ({
+      ...current,
+      [participantId]: note,
+    }));
+    setFeedbackError(null);
+  }
+
+  function handleWatchlistRatingChange(
+    sourceMovieId: string,
+    profileId: string,
+    rating: "loved" | "fine" | "no",
+  ): void {
+    setWatchlistRatingState((current) => ({
+      ...current,
+      [sourceMovieId]: {
+        ...(current[sourceMovieId] ?? {}),
+        [profileId]: rating,
+      },
+    }));
+  }
+
   async function refreshWatchlist(): Promise<void> {
     if (!canPersist || sharedSession === null) {
       return;
@@ -1907,7 +1940,6 @@ export function ResultsStep({
     try {
       const entries = await getWatchlist(sharedSession.householdId);
       setWatchlistEntries(entries);
-      setWatchlistMessage(null);
     } catch (error) {
       setWatchlistMessage(toErrorMessage(error));
     } finally {
@@ -2019,12 +2051,15 @@ export function ResultsStep({
             notes: outcomeNote || null,
           };
 
+    setOutcomeError(null);
     try {
       const outcome = await submitSessionOutcome(sharedSession.sessionId, payload);
       setSavedOutcome(outcome);
       setSavedFeedback([]);
+      setFeedbackError(null);
       await onLoadDebugHistory();
     } catch (error) {
+      setOutcomeError(toErrorMessage(error));
       console.error(error);
     }
   }
@@ -2034,6 +2069,7 @@ export function ResultsStep({
       return;
     }
 
+    setFeedbackError(null);
     try {
       const feedback = await Promise.all(
         participantIds.map((participantId) =>
@@ -2050,6 +2086,7 @@ export function ResultsStep({
       setSavedFeedback(feedback);
       await onLoadDebugHistory();
     } catch (error) {
+      setFeedbackError(toErrorMessage(error));
       console.error(error);
     }
   }
@@ -2066,390 +2103,74 @@ export function ResultsStep({
         <h2 id="results-heading">Tonight&apos;s pick</h2>
       </div>
 
-      <section className="winnerReveal">
-        <article className="winnerPosterCard">
-          <img
-            src={bestPick.posterUrl}
-            alt=""
-            className="winnerPosterTall"
-            onError={handlePosterFallback}
-          />
-        </article>
+      <WinnerReveal
+        bestPick={bestPick}
+        peopleMode={peopleMode}
+        participantEntries={participantEntries}
+        founderReactions={founderReactions}
+        wifeReactions={wifeReactions}
+        founderLabel={founderLabel}
+        wifeLabel={wifeLabel}
+        sharedWhy={sharedWhy}
+        onPosterFallback={handlePosterFallback}
+      />
 
-        <div className={`matchPulse matchPulse${matchTier} resultsPulse`} aria-label={`Shared score ${bestPick.score}%`}>
-          <span className="scoreSparkle" aria-hidden="true">✦</span>
-          <span className="matchPulseLabel">Shared score</span>
-          <strong>{bestPick.score}%</strong>
-          <span className="scoreSparkle" aria-hidden="true">✦</span>
-        </div>
+      <BackupTitles
+        rankedCandidates={rankedCandidates}
+        onPosterFallback={handlePosterFallback}
+      />
 
-        <div className="winnerRevealMeta">
-          <h3>{bestPick.title}</h3>
-          <p>
-            {bestPick.year} · {bestPick.runtime} · {bestPick.genres.slice(0, 2).join(", ")}
-          </p>
-        </div>
-
-        <div className="sharedWhyCard resultsSharedWhy">
-          <span>Why this won</span>
-          <p>{sharedWhy}</p>
-        </div>
-
-        <p className="resultsPeopleLabel">How you both felt</p>
-        <div className={peopleMode === "couple" ? "resultsPeoplePanel resultsPeoplePanelCouple" : "resultsPeoplePanel"}>
-          {(peopleMode === "couple" ? participantEntries.slice(0, 1) : participantEntries).map((participant) => (
-            <div key={participant.id} className="resultsPerson">
-              <div className="resultsPersonMeta">
-                <strong>{participant.label}</strong>
-                <span>
-                  {participant.actor === "founder"
-                    ? founderReactions[bestPick.id]
-                      ? reactionLabels[founderReactions[bestPick.id]!]
-                      : "No vote"
-                    : wifeReactions[bestPick.id]
-                      ? reactionLabels[wifeReactions[bestPick.id]!]
-                      : "No vote"}
-                </span>
-              </div>
-              <div className="resultsPersonAvatar">{participant.label.slice(0, 1)}</div>
-            </div>
-          ))}
-          {peopleMode === "couple" ? (
-            <div className="resultsHeartLockup" aria-hidden="true">
-              <HeartPulseIcon />
-            </div>
-          ) : null}
-          {(peopleMode === "couple" ? participantEntries.slice(1) : []).map((participant) => (
-            <div key={participant.id} className="resultsPerson">
-              <div className="resultsPersonAvatar">{participant.label.slice(0, 1)}</div>
-              <div className="resultsPersonMeta">
-                <strong>{participant.label}</strong>
-                <span>
-                  {participant.actor === "founder"
-                    ? founderReactions[bestPick.id]
-                      ? reactionLabels[founderReactions[bestPick.id]!]
-                      : "No vote"
-                    : wifeReactions[bestPick.id]
-                      ? reactionLabels[wifeReactions[bestPick.id]!]
-                      : "No vote"}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="resultsBackupsSection" aria-labelledby="backups-heading">
-        <p id="backups-heading" className="resultsBackupsLabel">Backups we also liked</p>
-        <div className="backupStrip" aria-label="Reranked shortlist">
-          {rankedCandidates.slice(1).map((candidate) => (
-            <article key={candidate.id} className="backupCard backupCardCompact">
-              <img
-                src={candidate.posterUrl}
-                alt=""
-                className="backupPoster backupPosterCompact"
-                loading="eager"
-                decoding="sync"
-                onError={handlePosterFallback}
-              />
-              <div className="backupMeta backupMetaCompact">
-                <strong>{candidate.title}</strong>
-                <span>{candidate.score}%</span>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <div className="resultsActionRow" role="group" aria-label="Results actions">
-        <button
-          type="button"
-          className="resultsPrimaryAction"
-          onClick={onShowMore}
-          disabled={!canPersist || isSyncing}
-        >
-          <span>{isSyncing ? "Finding five more..." : "Show 5 more"}</span>
-          <RedoIcon />
-        </button>
-        <button
-          type="button"
-          className="secondaryButton resultsSecondaryAction"
-          onClick={handleSaveBestPick}
-          disabled={!canPersist || watchlistStatus === "saving"}
-        >
-          <span>
-            {watchlistStatus === "saving"
-              ? "Saving..."
-              : bestPickWatchlistEntry
-                ? "Saved for later"
-                : "Add to watchlist"}
-          </span>
-          <BookmarkIcon />
-        </button>
-      </div>
-
-      <button type="button" className="secondaryButton resultsNewNightAction" onClick={onReset}>
-        <RedoIcon />
-        <span>Start new night</span>
-      </button>
+      <ResultsActions
+        canPersist={canPersist}
+        isSyncing={isSyncing}
+        isBestPickSaved={bestPickWatchlistEntry !== undefined}
+        watchlistStatus={watchlistStatus}
+        onShowMore={onShowMore}
+        onSaveBestPick={handleSaveBestPick}
+        onReset={onReset}
+      />
 
       {!canPersist ? <p className="debugMessage quietCallout">Outcome saving only works when the backend session stays connected.</p> : null}
       {watchlistMessage ? <p className="debugMessage quietCallout">{watchlistMessage}</p> : null}
 
-      <section className="watchlistPanel" aria-labelledby="watchlist-heading">
-        <div className="watchlistPanelHeader">
-          <div>
-            <p className="eyebrow">Shared household watchlist</p>
-            <h3 id="watchlist-heading">Saved for later</h3>
-          </div>
-          <span>{watchlistEntries.length}</span>
-        </div>
-        {watchlistEntries.length > 0 ? (
-          <div className="watchlistList">
-            {watchlistEntries.map((entry) => {
-              const savedByLabel = entry.savedByProfileId
-                ? participantEntries.find(
-                    (participant) => participant.id === entry.savedByProfileId,
-                  )?.label ?? entry.savedByProfileId
-                : null;
+      <WatchlistPanel
+        entries={watchlistEntries}
+        participantEntries={participantEntries}
+        status={watchlistStatus}
+        ratingState={watchlistRatingState}
+        onRatingChange={handleWatchlistRatingChange}
+        onMarkWatched={handleMarkWatchlistEntryWatched}
+        onRemove={handleRemoveWatchlistEntry}
+        onPosterFallback={handlePosterFallback}
+      />
 
-              return (
-                <article key={entry.sourceMovieId} className="watchlistItem">
-                  {entry.posterUrl ? (
-                    <img
-                      src={entry.posterUrl}
-                      alt=""
-                      onError={handlePosterFallback}
-                    />
-                  ) : null}
-                  <div>
-                    <strong>{entry.title}</strong>
-                    <p>
-                      {entry.releaseYear ? `${entry.releaseYear}` : "Saved movie"}
-                      {savedByLabel ? ` · Saved by ${savedByLabel}` : ""}
-                    </p>
-                  </div>
-                  <div className="watchlistActions">
-                    <button
-                      type="button"
-                      className="secondaryButton compactButton"
-                      onClick={() => handleMarkWatchlistEntryWatched(entry)}
-                      disabled={watchlistStatus === "marking"}
-                    >
-                      {watchlistStatus === "marking" ? "Saving..." : "Watched"}
-                    </button>
-                    <button
-                      type="button"
-                      className="secondaryButton compactButton"
-                      onClick={() => handleRemoveWatchlistEntry(entry.sourceMovieId)}
-                      disabled={watchlistStatus === "removing"}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                  <div className="watchlistRatingGrid">
-                    {participantEntries.map((participant) => (
-                      <div key={participant.id} className="watchlistRatingRow">
-                        <span>{participant.label}</span>
-                        <div role="group" aria-label={`${participant.label} rating for ${entry.title}`}>
-                          {(Object.keys(feedbackLabels) as Array<keyof typeof feedbackLabels>).map((label) => (
-                            <button
-                              key={label}
-                              type="button"
-                              className={
-                                watchlistRatingState[entry.sourceMovieId]?.[participant.id] === label
-                                  ? "watchlistRatingChip watchlistRatingChipActive"
-                                  : "watchlistRatingChip"
-                              }
-                              onClick={() =>
-                                setWatchlistRatingState((current) => ({
-                                  ...current,
-                                  [entry.sourceMovieId]: {
-                                    ...(current[entry.sourceMovieId] ?? {}),
-                                    [participant.id]: label,
-                                  },
-                                }))
-                              }
-                            >
-                              {feedbackLabels[label]}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="watchlistEmpty">
-            {watchlistStatus === "loading"
-              ? "Loading saved movies..."
-              : "Saved movies will appear here for the whole household."}
-          </p>
-        )}
-      </section>
+      <OutcomePanel
+        rankedCandidates={rankedCandidates}
+        bestPick={bestPick}
+        participantEntries={participantEntries}
+        participantCount={participantIds.length}
+        outcomeType={outcomeType}
+        otherPickId={otherPickId}
+        outcomeNote={outcomeNote}
+        savedOutcome={savedOutcome}
+        watchedTitle={watchedTitle}
+        canSaveOutcome={canSaveOutcome}
+        outcomeError={outcomeError}
+        feedbackError={feedbackError}
+        feedbackState={feedbackState}
+        feedbackNotes={feedbackNotes}
+        savedFeedbackCount={savedFeedback.length}
+        feedbackReady={feedbackReady}
+        onOutcomeTypeChange={handleOutcomeTypeChange}
+        onOtherPickChange={handleOtherPickChange}
+        onOutcomeNoteChange={handleOutcomeNoteChange}
+        onSaveOutcome={handleSaveOutcome}
+        onFeedbackChange={handleFeedbackChange}
+        onFeedbackNoteChange={handleFeedbackNoteChange}
+        onSaveFeedback={handleSaveFeedback}
+      />
 
-      <details className="disclosurePanel outcomeDisclosure">
-        <summary>Save what happened after</summary>
-        <div className="disclosureBody">
-          <section className="outcomePanel" aria-labelledby="outcome-heading">
-            <div className="sectionHeading">
-              <p className="eyebrow">After the movie</p>
-              <h3 id="outcome-heading">What actually happened?</h3>
-              <p>Save tonight&apos;s real outcome so the app can learn from more than shortlist taps.</p>
-            </div>
-
-            <div className="outcomeOptionGrid" role="group" aria-label="Outcome type">
-              <button
-                type="button"
-                className={outcomeType === "watched_recommended" ? "segment segmentActive" : "segment"}
-                onClick={() => {
-                  setOutcomeType("watched_recommended");
-                  setOtherPickId(null);
-                  setSavedOutcome(null);
-                  setSavedFeedback([]);
-                }}
-              >
-                Watched best pick
-              </button>
-              <button
-                type="button"
-                className={outcomeType === "watched_other" ? "segment segmentActive" : "segment"}
-                onClick={() => {
-                  setOutcomeType("watched_other");
-                  setSavedOutcome(null);
-                  setSavedFeedback([]);
-                }}
-              >
-                Watched another shortlist title
-              </button>
-              <button
-                type="button"
-                className={outcomeType === "watched_nothing" ? "segment segmentActive" : "segment"}
-                onClick={() => {
-                  setOutcomeType("watched_nothing");
-                  setOtherPickId(null);
-                  setSavedOutcome(null);
-                  setSavedFeedback([]);
-                }}
-              >
-                Watched nothing
-              </button>
-            </div>
-
-            {outcomeType === "watched_other" ? (
-              <div className="outcomeChoiceList" role="group" aria-label="Other watched shortlist title">
-                {rankedCandidates
-                  .filter((candidate) => candidate.id !== bestPick.id)
-                  .map((candidate) => (
-                    <button
-                      key={candidate.id}
-                      type="button"
-                      className={otherPickId === candidate.id ? "secondaryButton choiceButton choiceButtonActive" : "secondaryButton choiceButton"}
-                      onClick={() => {
-                        setOtherPickId(candidate.id);
-                        setSavedOutcome(null);
-                        setSavedFeedback([]);
-                      }}
-                    >
-                      {candidate.title}
-                    </button>
-                  ))}
-              </div>
-            ) : null}
-
-            <label className="noteField">
-              <span>Optional note</span>
-              <textarea
-                value={outcomeNote}
-                onChange={(event) => setOutcomeNote(event.target.value)}
-                rows={3}
-                placeholder="Anything worth remembering about tonight?"
-              />
-            </label>
-
-            <div className="bottomActions inlineActions">
-              <button
-                type="button"
-                className="primaryAction"
-                onClick={handleSaveOutcome}
-                disabled={!canSaveOutcome}
-              >
-                {savedOutcome ? "Outcome saved" : "Save outcome"}
-              </button>
-            </div>
-          </section>
-
-          {savedOutcome && savedOutcome.outcomeType !== "watched_nothing" && watchedTitle ? (
-            <section className="outcomePanel" aria-labelledby="feedback-heading">
-              <div className="sectionHeading">
-                <p className="eyebrow">Post-watch feedback</p>
-                <h3 id="feedback-heading">How did each of you feel?</h3>
-                <p>These are separate from the shortlist reactions and count as real taste signal.</p>
-              </div>
-
-              <div className="feedbackGrid">
-                {participantEntries.map((participant) => {
-                  const participantId = participant.id;
-                  const personLabel = participant.label;
-
-                  return (
-                    <article key={participantId} className="feedbackCard">
-                      <h4>{personLabel}</h4>
-                      <div className="outcomeOptionGrid" role="group" aria-label={`${personLabel} feedback`}>
-                        {(Object.keys(feedbackLabels) as Array<keyof typeof feedbackLabels>).map((label) => (
-                          <button
-                            key={label}
-                            type="button"
-                            className={feedbackState[participantId] === label ? "segment segmentActive" : "segment"}
-                            onClick={() =>
-                              setFeedbackState((current) => ({
-                                ...current,
-                                [participantId]: label,
-                              }))
-                            }
-                          >
-                            {feedbackLabels[label]}
-                          </button>
-                        ))}
-                      </div>
-                      <label className="noteField">
-                        <span>Optional note</span>
-                        <textarea
-                          value={feedbackNotes[participantId] ?? ""}
-                          onChange={(event) =>
-                            setFeedbackNotes((current) => ({
-                              ...current,
-                              [participantId]: event.target.value,
-                            }))
-                          }
-                          rows={3}
-                          placeholder={`Anything ${personLabel.toLowerCase()} wants remembered?`}
-                        />
-                      </label>
-                    </article>
-                  );
-                })}
-              </div>
-
-              <div className="bottomActions inlineActions">
-                <button
-                  type="button"
-                  className="primaryAction"
-                  onClick={handleSaveFeedback}
-                  disabled={!feedbackReady}
-                >
-                  {savedFeedback.length === participantIds.length ? "Feedback saved" : "Save feedback"}
-                </button>
-              </div>
-            </section>
-          ) : null}
-        </div>
-      </details>
-
-      <SteerNextPanel
+      <ResultsSteerNextPanel
         activeIntents={activeTonightIntents}
         text={steerText}
         pendingIntent={pendingSteerIntent}
@@ -2465,402 +2186,20 @@ export function ResultsStep({
       />
 
       {reviewMode ? (
-        <details className="disclosurePanel">
-          <summary>Session evidence</summary>
-          <div className="disclosureBody">
-            <DebugHistoryPanel
-              source={sessionSource}
-              session={sharedSession}
-              history={debugHistory}
-              tasteProfileSummaries={tasteProfileSummaries}
-              status={debugHistoryStatus}
-              message={debugHistoryMessage}
-              onLoad={onLoadDebugHistory}
-            />
-          </div>
-        </details>
+        <SessionEvidencePanel>
+          <ResultsDebugHistoryPanel
+            source={sessionSource}
+            session={sharedSession}
+            history={debugHistory}
+            tasteProfileSummaries={tasteProfileSummaries}
+            status={debugHistoryStatus}
+            message={debugHistoryMessage}
+            onLoad={onLoadDebugHistory}
+          />
+        </SessionEvidencePanel>
       ) : null}
 
     </section>
-  );
-}
-
-function SteerNextPanel({
-  activeIntents,
-  text,
-  pendingIntent,
-  clarificationText,
-  message,
-  busy,
-  canPersist,
-  onTextChange,
-  onInterpret,
-  onClarificationTextChange,
-  onAnswerClarification,
-  onApply,
-}: {
-  activeIntents: TonightIntentInterpretationPayload[];
-  text: string;
-  pendingIntent: TonightIntentInterpretationPayload | null;
-  clarificationText: string;
-  message: string | null;
-  busy: boolean;
-  canPersist: boolean;
-  onTextChange: (text: string) => void;
-  onInterpret: () => void | Promise<void>;
-  onClarificationTextChange: (text: string) => void;
-  onAnswerClarification: () => void | Promise<void>;
-  onApply: () => void | Promise<void>;
-}) {
-  const pendingSignals = pendingIntent?.softSignals.slice(0, 4) ?? [];
-  const hasClarification = pendingIntent?.status === "clarification_required";
-  const hasConfirmation = pendingIntent?.status === "confirmation_required";
-
-  return (
-    <section className="tonightIntentPanel steerNextPanel" aria-labelledby="steer-next-heading">
-      <div className="tonightIntentHeader">
-        <div>
-          <p className="eyebrow">Steer next 5</p>
-          <h3 id="steer-next-heading">Add one more tonight nudge</h3>
-        </div>
-      </div>
-
-      {activeIntents.length > 0 ? (
-        <div className="tonightIntentActive">
-          <strong>Still active</strong>
-          <div className="tonightIntentSignals">
-            {activeIntents.map((intent, index) => (
-              <span key={`${intent.rawText}-${index}`}>
-                {intent.rawText}
-              </span>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      <div className="tonightIntentComposer">
-        <label htmlFor="steer-next-input">New steer</label>
-        <div className="tonightIntentInputRow">
-          <input
-            id="steer-next-input"
-            value={text}
-            onChange={(event) => onTextChange(event.target.value)}
-            placeholder="actually more action"
-            disabled={busy || !canPersist}
-          />
-          <button
-            type="button"
-            className="secondaryAction compactAction"
-            onClick={onInterpret}
-            disabled={busy || !canPersist || text.trim().length === 0}
-          >
-            Review
-          </button>
-        </div>
-      </div>
-
-      {hasConfirmation ? (
-        <div className="tonightIntentReview">
-          <p>{pendingIntent.confirmationText}</p>
-          {pendingSignals.length > 0 ? (
-            <div className="tonightIntentSignals">
-              {pendingSignals.map((signal) => (
-                <span key={`steer-${signal}`}>{formatTonightIntentSignal(signal)}</span>
-              ))}
-            </div>
-          ) : null}
-          <button
-            type="button"
-            className="primaryAction compactAction"
-            onClick={onApply}
-            disabled={busy || !canPersist}
-          >
-            Apply steer and show 5
-          </button>
-        </div>
-      ) : null}
-
-      {hasClarification ? (
-        <div className="tonightIntentReview">
-          <p>{pendingIntent.clarificationQuestion}</p>
-          <div className="tonightIntentInputRow">
-            <input
-              value={clarificationText}
-              onChange={(event) => onClarificationTextChange(event.target.value)}
-              placeholder="comforting, not matching the mood"
-              disabled={busy || !canPersist}
-              aria-label="Clarify steer next 5"
-            />
-            <button
-              type="button"
-              className="secondaryAction compactAction"
-              onClick={onAnswerClarification}
-              disabled={busy || !canPersist || clarificationText.trim().length === 0}
-            >
-              Answer
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {message ? <p className="tonightIntentNote">{message}</p> : null}
-    </section>
-  );
-}
-
-function DebugHistoryPanel({
-  source,
-  session,
-  history,
-  tasteProfileSummaries,
-  status,
-  message,
-  onLoad,
-}: {
-  source: SessionSource;
-  session: SharedSessionPayload | null;
-  history: DebugHistorySessionPayload | null;
-  tasteProfileSummaries: TasteProfileSummaryPayload[];
-  status: DebugHistoryStatus;
-  message: string | null;
-  onLoad: () => void | Promise<void>;
-}) {
-  const canLoad = source === "api" && session !== null;
-  const bestPickTitle = history
-    ? titleForSourceMovieId(history.shortlist, history.bestPickSourceMovieId)
-    : null;
-
-  return (
-    <section className="debugHistoryPanel" aria-labelledby="debug-history-heading">
-      <div className="debugHistoryHeader">
-        <div>
-          <p className="eyebrow">Debug history</p>
-          <h3 id="debug-history-heading">Current session evidence</h3>
-        </div>
-        <button
-          type="button"
-          className="secondaryButton compactButton"
-          onClick={onLoad}
-          disabled={!canLoad || status === "loading"}
-        >
-          {status === "loading" ? "Loading..." : history ? "Refresh" : "Load"}
-        </button>
-      </div>
-
-      {!canLoad ? (
-        <p className="debugMessage">
-          Demo sessions do not have persisted backend evidence.
-        </p>
-      ) : null}
-
-      {message ? <p className="debugMessage">{message}</p> : null}
-
-      {history ? (
-        <div className="debugHistoryBody">
-          <dl className="debugFacts">
-            <div>
-              <dt>State</dt>
-              <dd>{history.state}</dd>
-            </div>
-            <div>
-              <dt>Participants</dt>
-              <dd>{history.participantIds.join(", ")}</dd>
-            </div>
-            <div>
-              <dt>Best pick</dt>
-              <dd>{bestPickTitle ?? history.bestPickSourceMovieId ?? "No pick yet"}</dd>
-            </div>
-            <div>
-              <dt>Batches</dt>
-              <dd>{history.batchCount}</dd>
-            </div>
-            <div>
-              <dt>Shown titles</dt>
-              <dd>{history.shownSourceMovieIds.length}</dd>
-            </div>
-          </dl>
-
-          <DebugList
-            label="Previous batch"
-            items={history.previousShortlist.map(
-              (item) => `${item.title} (${item.sourceMovieId})`,
-            )}
-          />
-
-          <DebugList
-            label="Session outcome"
-            items={
-              history.sessionOutcome
-                ? [
-                    [
-                      history.sessionOutcome.outcomeType,
-                      history.sessionOutcome.selectedTitle,
-                      history.sessionOutcome.selectionOrigin,
-                      history.sessionOutcome.hasNotes ? "notes saved" : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · "),
-                  ]
-                : []
-            }
-          />
-
-          <DebugList
-            label="Reranked order"
-            items={history.rerankedSourceMovieIds.map((sourceMovieId) => {
-              const title = titleForSourceMovieId(history.shortlist, sourceMovieId);
-
-              return title ? `${title} (${sourceMovieId})` : sourceMovieId;
-            })}
-          />
-
-          <DebugReactionList
-            label="Founder reactions"
-            reactions={history.founderReactions}
-          />
-          <DebugReactionList
-            label="Wife reactions"
-            reactions={history.wifeReactions}
-          />
-          <DebugReactionList
-            label="Previous founder reactions"
-            reactions={history.previousFounderReactions}
-          />
-          <DebugReactionList
-            label="Previous wife reactions"
-            reactions={history.previousWifeReactions}
-          />
-          <DebugList
-            label="Post-watch feedback"
-            items={history.postWatchFeedback.map(
-              (feedback) =>
-                `${feedback.userId}: ${feedback.sourceMovieId} = ${feedback.feedbackLabel}${
-                  feedback.hasFreeTextNote ? " (note)" : ""
-                }`,
-            )}
-          />
-          <DebugTasteProfileSignals summaries={tasteProfileSummaries} />
-          <DebugRecommendationSnapshot history={history} />
-          <DebugList
-            label="Unavailable evidence"
-            items={history.unavailableEvidence}
-          />
-        </div>
-      ) : null}
-    </section>
-  );
-}
-
-function DebugTasteProfileSignals({
-  summaries,
-}: {
-  summaries: TasteProfileSummaryPayload[];
-}) {
-  return (
-    <div className="debugListBlock">
-      <h4>Taste profile signals</h4>
-      {summaries.length > 0 ? (
-        <div className="tasteProfileEvidenceGrid">
-          {summaries.map((summary) => {
-            const topSignals = summary.genreSignals.slice(0, 3);
-
-            return (
-              <article key={summary.profileId} className="tasteProfileEvidenceCard">
-                <div>
-                  <strong>{summary.profileId}</strong>
-                  <span>
-                    {summary.preferenceEvidenceCount} taste signals · {summary.familiarityOnlyCount} familiarity only
-                  </span>
-                </div>
-                {topSignals.length > 0 ? (
-                  <ol>
-                    {topSignals.map((signal) => (
-                      <li key={signal.genre}>
-                        {signal.genre}: {formatTasteSignalScore(signal.score)}
-                      </li>
-                    ))}
-                  </ol>
-                ) : (
-                  <p>No Taste Lab preference evidence saved yet.</p>
-                )}
-              </article>
-            );
-          })}
-        </div>
-      ) : (
-        <p>No Taste Lab profile summary loaded yet.</p>
-      )}
-    </div>
-  );
-}
-
-function DebugRecommendationSnapshot({
-  history,
-}: {
-  history: DebugHistorySessionPayload;
-}) {
-  const snapshot = history.recommendationSnapshot;
-
-  if (snapshot === null) {
-    return (
-      <div className="debugListBlock">
-        <h4>Scoring snapshot</h4>
-        <p>No scoring snapshot saved yet.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="debugListBlock">
-      <h4>Scoring snapshot</h4>
-      <DebugCandidateInputs candidateInputs={snapshot.candidateInputs} />
-      <ol>
-        {snapshot.candidates.map((candidate) => (
-          <li key={candidate.sourceMovieId}>
-            {formatDebugSnapshotCandidate(candidate)}
-          </li>
-        ))}
-      </ol>
-      {snapshot.isUncertain ? (
-        <p>
-          Uncertain: {snapshot.uncertaintyReason ?? "No reason saved."}
-        </p>
-      ) : null}
-      {snapshot.recommendedFollowUp ? (
-        <p>Follow-up: {snapshot.recommendedFollowUp}</p>
-      ) : null}
-    </div>
-  );
-}
-
-function formatTasteSignalScore(score: number): string {
-  if (score > 0) {
-    return `+${score}`;
-  }
-
-  return String(score);
-}
-
-function DebugCandidateInputs({
-  candidateInputs,
-}: {
-  candidateInputs: DebugHistoryCandidateInputPayload[];
-}) {
-  return (
-    <div className="debugListBlock">
-      <h4>Candidate inputs</h4>
-      {candidateInputs.length > 0 ? (
-        <ol>
-          {candidateInputs.map((candidate) => (
-            <li key={candidate.sourceMovieId}>
-              {formatDebugCandidateInput(candidate)}
-            </li>
-          ))}
-        </ol>
-      ) : (
-        <p>No candidate input snapshot saved yet.</p>
-      )}
-    </div>
   );
 }
 
