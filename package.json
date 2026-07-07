@@ -5,6 +5,7 @@
   "scripts": {
     "beta:preflight": "node scripts/beta_readiness_preflight.mjs",
     "beta:check": "pnpm beta:preflight && pnpm check",
+    "beta:mvp4": "node scripts/mvp_plus_4_acceptance_gate.mjs",
     "beta:dogfood": "MOBILE_UX_SMOKE_EXPECT_API=1 pnpm smoke:ux:mobile",
     "beta:dogfood:live": "MOVIE_NIGHT_RECOMMENDATION_SOURCE=live_tmdb MOBILE_UX_SMOKE_EXPECT_API=1 MOBILE_UX_SMOKE_EXPECT_RECOMMENDATION_SOURCE=live_tmdb pnpm smoke:ux:mobile",
     "eval:mvp4": "python3 scripts/mvp_plus_4_evaluation.py",

@@ -96,6 +96,7 @@ function checkPackageScripts() {
   for (const scriptName of [
     "beta:preflight",
     "beta:check",
+    "beta:mvp4",
     "beta:dogfood",
     "check",
     "smoke:ux:mobile",
