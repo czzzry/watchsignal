@@ -31,6 +31,8 @@ Start here if you want the project story:
 - [Taste Lab issue breakdown](docs/issues/taste-lab-issue-breakdown.md)
 - [MVP Plus 2 PRD](docs/prd-mvp-plus-2.md)
 - [MVP Plus 2 issue breakdown](docs/issues/mvp-plus-2-issue-breakdown.md)
+- [MVP Plus 3 PRD](docs/prd-mvp-plus-3.md)
+- [MVP Plus 3 issue breakdown](docs/issues/mvp-plus-3-issue-breakdown.md)
 - [Beta Readiness runbook](docs/beta-readiness/fresh-checkout-runbook.md)
 - [Live usable MVP gate](docs/validation/live-usable-mvp-gate-2026-06-30.md)
 
