@@ -2233,6 +2233,26 @@ export function ResultsStep({
     void refreshWatchlist();
   }, [canPersist, sharedSession?.householdId]);
 
+  useEffect(() => {
+    if (
+      !canPersist ||
+      sharedSession === null ||
+      debugHistory !== null ||
+      debugHistoryStatus !== "idle"
+    ) {
+      return;
+    }
+
+    void onLoadDebugHistory();
+  }, [
+    canPersist,
+    sharedSession?.sessionId,
+    sharedSession?.state,
+    debugHistory,
+    debugHistoryStatus,
+    onLoadDebugHistory,
+  ]);
+
   if (!bestPick) {
     return (
       <SessionRecoveryStep

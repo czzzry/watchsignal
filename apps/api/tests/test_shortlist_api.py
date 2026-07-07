@@ -595,6 +595,78 @@ class ShortlistApiTest(unittest.TestCase):
                 memory_candidate.scoring_evidence[0].signal_families,
             )
 
+    def test_post_recommendation_shortlist_surfaces_household_compromise_pick(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "compromise-shortlist.sqlite3"
+            taste_lab_store = SQLiteTasteLabStore(database_path=database_path)
+            taste_lab_store.save_ratings(
+                ratings=(
+                    taste_lab_rating(
+                        profile_id="profile-1",
+                        title="Loud Action Seed",
+                        genres=("Action",),
+                        label=TasteLabRatingLabel.LOVED,
+                    ),
+                    taste_lab_rating(
+                        profile_id="profile-1",
+                        title="Action Comedy Bridge",
+                        genres=("Action", "Comedy"),
+                        label=TasteLabRatingLabel.LOVED,
+                    ),
+                ),
+            )
+            taste_lab_store.save_ratings(
+                ratings=(
+                    taste_lab_rating(
+                        profile_id="profile-2",
+                        title="Silly Comedy Seed",
+                        genres=("Comedy",),
+                        label=TasteLabRatingLabel.LOVED,
+                    ),
+                    taste_lab_rating(
+                        profile_id="profile-2",
+                        title="Action Comedy Bridge",
+                        genres=("Action", "Comedy"),
+                        label=TasteLabRatingLabel.LOVED,
+                    ),
+                ),
+            )
+            snapshot_store = SQLiteRecommendationSnapshotStore(
+                database_path=database_path
+            )
+            post_shortlist = recommendation_shortlist_endpoint(
+                create_app(
+                    recommendation_snapshot_store=snapshot_store,
+                    taste_lab_store=taste_lab_store,
+                    candidate_source=CompromiseCandidateSource(),
+                ),
+                method="POST",
+            )
+
+            payload = post_shortlist(
+                RecommendationShortlistRequestPayload(
+                    sessionId="household-compromise-session",
+                    source="live_tmdb",
+                    participantIds=["profile-1", "profile-2"],
+                )
+            )
+
+            snapshot = snapshot_store.load_snapshot("household-compromise-session")
+
+            self.assertEqual(payload[0].title, "Action Comedy Bridge")
+            self.assertIsNotNone(snapshot)
+            assert snapshot is not None
+            compromise_candidate = snapshot.candidates[0]
+            self.assertEqual(compromise_candidate.title, "Action Comedy Bridge")
+            self.assertEqual(compromise_candidate.fit_bucket, "compromise")
+            self.assertEqual(len(compromise_candidate.user_scores), 2)
+            self.assertIn(
+                "genre",
+                compromise_candidate.scoring_evidence[0].signal_families,
+            )
+
 
 def recommendation_shortlist_endpoint(app, method: str = "GET"):
     for route in app.routes:
@@ -782,6 +854,59 @@ def persistent_memory_candidate(
         original_language="en",
         spoken_languages=("en",),
     )
+
+
+def taste_lab_rating(
+    *,
+    profile_id: str,
+    title: str,
+    genres: tuple[str, ...],
+    label: TasteLabRatingLabel,
+) -> TasteLabRatingExport:
+    return TasteLabRatingExport(
+        household_id="default-household",
+        profile_id=profile_id,
+        movie=TasteLabMovieIdentity(
+            source_movie_id=f"fixture:{title.casefold().replace(' ', '-')}",
+            title=title,
+            genres=genres,
+        ),
+        label=label,
+        rated_at="2026-07-07T12:00:00Z",
+    )
+
+
+class CompromiseCandidateSource:
+    def fetch_candidates(
+        self,
+        *,
+        session: SessionContext,
+        household_defaults: HouseholdDefaults,
+        limit: int = 20,
+    ) -> tuple[Candidate, ...]:
+        return (
+            persistent_memory_candidate(
+                index=101,
+                title="Pure Action Night",
+                genres=("Action",),
+            ),
+            persistent_memory_candidate(
+                index=102,
+                title="Pure Comedy Night",
+                genres=("Comedy",),
+            ),
+            persistent_memory_candidate(
+                index=103,
+                title="Action Comedy Bridge",
+                genres=("Action", "Comedy"),
+            ),
+            persistent_memory_candidate(index=104, title="Quiet Drama", genres=("Drama",)),
+            persistent_memory_candidate(
+                index=105,
+                title="Puzzle Mystery",
+                genres=("Mystery",),
+            ),
+        )
 
 
 def live_candidate(*, index: int, title: str) -> Candidate:
