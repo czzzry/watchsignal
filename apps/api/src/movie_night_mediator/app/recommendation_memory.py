@@ -4,6 +4,8 @@ from movie_night_mediator.app.backfill import ManualBackfillService
 from movie_night_mediator.domain import (
     BackfillTasteLabel,
     ProfileTasteEvidence,
+    TasteMemoryEventType,
+    TasteMemorySignalStatus,
     TitleResolutionStatus,
     WatchedStatusScope,
 )
@@ -61,6 +63,56 @@ def profile_memory_evidence(
         )
 
     return tuple(evidence)
+
+
+def persistent_taste_memory_evidence(
+    *,
+    taste_memory_service,
+    household_id: str,
+    profile_id: str,
+) -> tuple[ProfileTasteEvidence, ...]:
+    evidence = []
+    for event in taste_memory_service.list_profile_events(
+        household_id=household_id,
+        profile_id=profile_id,
+    ):
+        evidence_source = _evidence_source_for_event(event.event_type)
+        if evidence_source is None:
+            continue
+        if event.status != TasteMemorySignalStatus.ACTIVE:
+            continue
+        if event.preference_value is None and event.familiarity is None:
+            continue
+
+        evidence.append(
+            ProfileTasteEvidence(
+                source=evidence_source,
+                source_movie_id=event.source_movie_id,
+                title=event.title,
+                genres=event.genres,
+                preference_value=event.preference_value,
+                familiarity=event.familiarity,
+                source_label=event.sentiment_label,
+                rated_at=event.occurred_at,
+            )
+        )
+
+    return tuple(evidence)
+
+
+def _evidence_source_for_event(
+    event_type: TasteMemoryEventType,
+) -> str | None:
+    if event_type == TasteMemoryEventType.APP_OWNED_RATING:
+        return "memory:app_memory"
+
+    if event_type == TasteMemoryEventType.SEEN_BEFORE:
+        return "memory:seen_before"
+
+    if event_type == TasteMemoryEventType.POST_WATCH_FEEDBACK:
+        return "memory:post_watch_feedback"
+
+    return None
 
 
 def watched_source_movie_ids(

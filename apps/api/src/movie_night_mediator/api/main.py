@@ -46,6 +46,7 @@ from movie_night_mediator.app.recommendation_snapshot import (
     RecommendationSnapshotService,
 )
 from movie_night_mediator.app.recommendation_memory import (
+    persistent_taste_memory_evidence,
     profile_memory_evidence,
     watched_source_movie_ids,
 )
@@ -587,6 +588,7 @@ def create_app(
                     snapshot_service=recommendation_snapshot_service,
                     taste_lab_service=taste_lab_service,
                     backfill_service=backfill_service,
+                    taste_memory_service=taste_memory_service,
                 )
             ]
 
@@ -598,6 +600,7 @@ def create_app(
                     payload=payload,
                     taste_lab_service=taste_lab_service,
                     backfill_service=backfill_service,
+                    taste_memory_service=taste_memory_service,
                 ),
                 snapshot_service=recommendation_snapshot_service,
                 excluded_source_movie_ids=tuple(payload.excludedSourceMovieIds),
@@ -1066,6 +1069,7 @@ def _live_candidate_shortlist_items(
     snapshot_service: RecommendationSnapshotService,
     taste_lab_service: TasteLabService,
     backfill_service: ManualBackfillService,
+    taste_memory_service: TasteMemoryService,
 ) -> tuple[OfflineShortlistItem, ...]:
     try:
         resolved_candidate_source = candidate_source or TmdbCandidateSource()
@@ -1081,6 +1085,7 @@ def _live_candidate_shortlist_items(
                 payload=payload,
                 taste_lab_service=taste_lab_service,
                 backfill_service=backfill_service,
+                taste_memory_service=taste_memory_service,
             ),
             limit=payload.shortlistSize,
             candidate_limit=80 + len(payload.excludedSourceMovieIds) + len(watched_ids),
@@ -1300,6 +1305,7 @@ def _shortlist_users_from_taste_profile(
     payload: RecommendationShortlistRequestPayload,
     taste_lab_service: TasteLabService,
     backfill_service: ManualBackfillService,
+    taste_memory_service: TasteMemoryService,
 ) -> tuple[UserProfile, ...]:
     base_profiles = (DEMO_HUSBAND_PROFILE, DEMO_WIFE_PROFILE)
     users: list[UserProfile] = []
@@ -1318,6 +1324,11 @@ def _shortlist_users_from_taste_profile(
                     summary.watchsignal_taste_evidence
                     + profile_memory_evidence(
                         backfill_service=backfill_service,
+                        household_id=payload.householdId,
+                        profile_id=profile_id,
+                    )
+                    + persistent_taste_memory_evidence(
+                        taste_memory_service=taste_memory_service,
                         household_id=payload.householdId,
                         profile_id=profile_id,
                     )

@@ -12,6 +12,7 @@ from movie_night_mediator.api.main import (
     create_app,
 )
 from movie_night_mediator.app.backfill import ManualBackfillService
+from movie_night_mediator.app.taste_memory import TasteMemoryService
 from movie_night_mediator.app.shortlist import get_offline_demo_shortlist
 from movie_night_mediator.domain import (
     BackfillTasteLabel,
@@ -27,6 +28,7 @@ from movie_night_mediator.domain import (
 from movie_night_mediator.storage import SQLiteBackfillStore
 from movie_night_mediator.storage import SQLiteRecommendationSnapshotStore
 from movie_night_mediator.storage import SQLiteTasteLabStore
+from movie_night_mediator.storage import SQLiteTasteMemoryStore
 from movie_night_mediator.taste_lab import (
     TasteLabMovieIdentity,
     TasteLabRatingExport,
@@ -524,6 +526,75 @@ class ShortlistApiTest(unittest.TestCase):
             }
             self.assertIn("app_memory:Edge of Tomorrow", labels)
 
+    def test_post_recommendation_shortlist_uses_persistent_taste_memory_events(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "persistent-memory-shortlist.sqlite3"
+            taste_memory_store = SQLiteTasteMemoryStore(database_path=database_path)
+            snapshot_store = SQLiteRecommendationSnapshotStore(
+                database_path=database_path
+            )
+            post_shortlist = recommendation_shortlist_endpoint(
+                create_app(
+                    recommendation_snapshot_store=snapshot_store,
+                    taste_memory_store=taste_memory_store,
+                    candidate_source=PersistentMemoryCandidateSource(),
+                ),
+                method="POST",
+            )
+
+            before_payload = post_shortlist(
+                RecommendationShortlistRequestPayload(
+                    sessionId="persistent-memory-before",
+                    source="live_tmdb",
+                    participantIds=["profile-1"],
+                )
+            )
+            TasteMemoryService(taste_memory_store).record_app_owned_rating(
+                household_id="default-household",
+                profile_id="profile-1",
+                source_movie_id="tmdb:midnight-cipher",
+                title="Midnight Cipher",
+                taste_label=BackfillTasteLabel.LOVED,
+                occurred_at="2026-07-07T12:00:00Z",
+            )
+            after_payload = post_shortlist(
+                RecommendationShortlistRequestPayload(
+                    sessionId="persistent-memory-after",
+                    source="live_tmdb",
+                    participantIds=["profile-1"],
+                )
+            )
+            other_profile_payload = post_shortlist(
+                RecommendationShortlistRequestPayload(
+                    sessionId="persistent-memory-other-profile",
+                    source="live_tmdb",
+                    participantIds=["profile-2"],
+                )
+            )
+
+            after_snapshot = snapshot_store.load_snapshot("persistent-memory-after")
+
+            self.assertNotEqual(before_payload[0].title, "Midnight Cipher Returns")
+            self.assertEqual(after_payload[0].title, "Midnight Cipher Returns")
+            self.assertNotEqual(
+                other_profile_payload[0].title,
+                "Midnight Cipher Returns",
+            )
+            self.assertIsNotNone(after_snapshot)
+            assert after_snapshot is not None
+            memory_candidate = next(
+                candidate
+                for candidate in after_snapshot.candidates
+                if candidate.title == "Midnight Cipher Returns"
+            )
+            self.assertIn("Memory signals: 1", memory_candidate.why_short)
+            self.assertIn(
+                "title_similarity",
+                memory_candidate.scoring_evidence[0].signal_families,
+            )
+
 
 def recommendation_shortlist_endpoint(app, method: str = "GET"):
     for route in app.routes:
@@ -650,6 +721,67 @@ class MemoryEvidenceCandidateSource:
             live_candidate(index=4, title="Paddington 2"),
             live_candidate(index=5, title="The Shining"),
         )
+
+
+class PersistentMemoryCandidateSource:
+    def fetch_candidates(
+        self,
+        *,
+        session: SessionContext,
+        household_defaults: HouseholdDefaults,
+        limit: int = 20,
+        ) -> tuple[Candidate, ...]:
+        return (
+            persistent_memory_candidate(
+                index=1,
+                title="Distant Planet",
+                genres=("Mystery", "Comedy"),
+            ),
+            persistent_memory_candidate(
+                index=2,
+                title="Midnight Cipher Returns",
+                genres=(),
+            ),
+            persistent_memory_candidate(index=3, title="Arrival", genres=("Drama",)),
+            persistent_memory_candidate(
+                index=4,
+                title="Paddington 2",
+                genres=("Comedy",),
+            ),
+            persistent_memory_candidate(
+                index=5,
+                title="The Shining",
+                genres=("Horror",),
+            ),
+        )
+
+
+def persistent_memory_candidate(
+    *,
+    index: int,
+    title: str,
+    genres: tuple[str, ...],
+) -> Candidate:
+    return Candidate(
+        source_movie_id=f"tmdb:{index}",
+        title=title,
+        media_type=MediaType.MOVIE,
+        release_year=2020 + index,
+        runtime_min=95 + index,
+        poster_url=f"https://example.test/poster-{index}.jpg",
+        genres=genres,
+        overview=f"Live overview {index}.",
+        providers=("Amazon Prime Video",),
+        provider_availability=(
+            ProviderAvailability(
+                provider_name="Amazon Prime Video",
+                access_type=ProviderAccessType.FLATRATE,
+                region="DE",
+            ),
+        ),
+        original_language="en",
+        spoken_languages=("en",),
+    )
 
 
 def live_candidate(*, index: int, title: str) -> Candidate:
