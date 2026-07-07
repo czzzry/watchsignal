@@ -50,6 +50,19 @@ export type TasteLabRatingExportPayload = {
   queueProvenance?: TasteLabQueueProvenancePayload | null;
 };
 
+export type SetupProfilePayload = {
+  id: string;
+  label: string;
+  order: number;
+  avatarKey: string;
+  colorKey: string;
+};
+
+export type SetupStatePayload = {
+  householdLabel: string;
+  profiles: SetupProfilePayload[];
+};
+
 const DEFAULT_TASTE_LAB_API_BASE_URL = "http://127.0.0.1:8000";
 
 export async function seedTasteLabCandidates(
@@ -146,6 +159,19 @@ export async function getTasteLabRatings(
   }
 
   return (await response.json()) as TasteLabRatingExportPayload[];
+}
+
+export async function ensureTesterProfile(): Promise<SetupStatePayload> {
+  const response = await fetch("/api/setup/profiles/tester", {
+    method: "POST",
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseApiError(response));
+  }
+
+  return (await response.json()) as SetupStatePayload;
 }
 
 function tasteLabApiUrl(path: string): string {

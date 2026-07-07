@@ -10,7 +10,7 @@ MVP Plus 3 is **Directed Discovery And Real Tester Profile**.
 Current tracker:
 
 ```text
-MVP+3: [██████░░░░░░░░░░░░░░] 3/10 issues done
+MVP+3: [████████░░░░░░░░░░░░] 4/10 issues done
 ```
 
 The issue count is ten.
@@ -35,7 +35,7 @@ Implementation and acceptance slices:
 
 - #63 - MVP+3 Slice 1 - Contracts And Acceptance Gate - done
 - #64 - MVP+3 Slice 2 - Persistent Tester Profile Foundation - done
-- #65 - MVP+3 Slice 3 - Taste Lab Profile Selection And Durable Ratings
+- #65 - MVP+3 Slice 3 - Taste Lab Profile Selection And Durable Ratings - done
 - #66 - MVP+3 Slice 4 - Main Flow Uses Selected Profiles And Calibration Evidence
 - #67 - MVP+3 Slice 5 - Directed Nudge Interpreter Contract - done
 - #68 - MVP+3 Slice 6 - Actor And Person Candidate Filtering
@@ -150,12 +150,12 @@ Existing Taste Lab evidence read models should continue feeding WatchSignal prof
 
 ### Acceptance criteria
 
-- [ ] Taste Lab shows the selected rating profile.
-- [ ] The user can choose `Cezary - tester` for Taste Lab rating.
-- [ ] Saved ratings include the tester profile id.
-- [ ] Ratings survive reload or local restart boundaries.
-- [ ] The profile evidence read model can read the tester profile's Taste Lab ratings.
-- [ ] Tests prove ratings remain profile-specific.
+- [x] Taste Lab shows the selected rating profile.
+- [x] The user can choose `Cezary - tester` for Taste Lab rating.
+- [x] Saved ratings include the tester profile id.
+- [x] Ratings survive reload or local restart boundaries.
+- [x] The profile evidence read model can read the tester profile's Taste Lab ratings.
+- [x] Tests prove ratings remain profile-specific.
 
 ### Validation commands
 
@@ -170,6 +170,8 @@ pnpm build:web
 ### Stop condition
 
 Stop when Taste Lab can be used as the founder's real private calibration path.
+
+Completed by dynamic Taste Lab profile loading through the setup profile API and a backend regression proving `Cezary - tester` owns durable Taste Lab ratings.
 
 ### Risk notes
 
