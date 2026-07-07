@@ -5,39 +5,40 @@ It is not a commitment to build everything next.
 It is a parking lot for mature-product needs, rough edges, and future issue candidates.
 GitHub issue publication remains a separate action that should only happen with explicit founder approval.
 
-## Current MVP Plus 2 Focus
+## Current MVP Plus 3 Scoping
 
-### Memory, Steering, And Rich Recommendation Intelligence
+### Directed Discovery And Real Tester Profile
 
-Goal: prove that WatchSignal has memory and taste steering, not just a one-night flow.
-MVP plus 1 proved that Taste Lab ratings can update WatchSignal taste evidence.
-MVP plus 2 should make the main product feel materially more mature by combining profile identity, shared watchlist memory, Show 5 more, Steer next 5, LLM intent interpretation, and richer recommendation intelligence.
+MVP+3: [scoping: unknown total]
 
-Taste Lab should remain private and optional for now.
-The main app should benefit from its saved signals without making Taste Lab part of the normal couch-flow UI.
-The main app should not add a competing manual backfill flow because Taste Lab remains the future intentional calibration and bulk-rating service.
+Goal: prove that WatchSignal can support a real persistent tester profile, calibrate it through Taste Lab, and turn natural-language nudges into better next-five recommendation batches.
+MVP plus 2 proved that WatchSignal has memory and taste steering.
+MVP plus 3 should make that loop dogfoodable with a real profile named `Cezary - tester`, profile-specific Taste Lab ratings, directed discovery, five-more redo semantics, saved titles, and visible evidence that calibration plus nudging changed results.
+
+The phase should include persistent profiles and the founder dogfood path.
+It should not expand into hosted accounts, full profile analytics, a public Taste Lab redesign, or famous-person taste matching.
 
 Questions to resolve:
-- What contract lets Treehouse workers parallelize profile memory, watchlist, intent, continuation, enrichment, scoring, and evaluation?
-- What is the smallest profile identity setup that makes saved and rated signals feel owned by real people?
-- How should a shared household watchlist work without becoming an automatic taste vote?
-- How should natural-language tonight intent become structured filters and soft signals without giving the LLM ranking authority?
-- How should Show 5 more and Steer next 5 preserve prior reactions and filters?
-- How much MovieLens Tag Genome or offline feature enrichment can be used safely in MVP plus 2?
-- What recommendation-quality report proves that richer profile and enrichment evidence improved ranking behavior?
+- What contract lets implementation work parallelize profile persistence, Taste Lab ownership, nudge interpretation, person filtering, five-more behavior, bookmarks, explanations, and evaluation?
+- What is the smallest profile management surface that makes `Cezary - tester` durable and renameable?
+- How should Taste Lab choose and persist the active rating profile?
+- How should the main flow use selected real profiles without breaking the two-person movie-night model?
+- How should a user ask for "five more" in the same direction, a different direction, more like this, avoid this, or with a new nudge?
+- How should requests like "scary but not bleak" or "Jack Nicholson in it" become structured filters and soft signals?
+- What acceptance gate proves that profile calibration plus directed nudging improved recommendation behavior?
 
 Candidate work:
-- MVP plus 2 PRD and issue breakdown.
-- MVP plus 2 architecture and data contracts.
-- Profile labels and lightweight avatars.
-- Shared household watchlist with remove.
-- App-owned watched and rating actions.
-- Small profile memory panel.
-- Tonight intent interpreter with confirm-before-apply and clarification behavior.
-- Show 5 more and Steer next 5.
-- Hybrid TMDb plus MovieLens Tag Genome or offline feature enrichment.
-- Rich recommendation scoring and evidence.
-- MVP plus 2 evaluation and acceptance gate.
+- MVP plus 3 PRD and issue breakdown.
+- MVP plus 3 architecture and data contracts.
+- Persistent tester profile foundation.
+- Taste Lab profile selection and durable ratings.
+- Main-flow selected profiles and calibration evidence.
+- Directed nudge interpreter.
+- Actor and person candidate filtering.
+- Five-more redo semantics and UI.
+- Bookmark library lite.
+- Recommendation explanation trust polish.
+- MVP plus 3 dogfood and evaluation gate.
 
 ## Mature Product Backlog
 
@@ -119,9 +120,15 @@ Candidate work:
 - Avoid publishing private household data, real secrets, or overly personal context.
 - Consider a concise technical case-study page once the product story stabilizes.
 
+### Stretch Taste Identity Ideas
+
+- Prototype famous-person taste matching after the real-profile calibration loop works.
+- Explore whether public interviews, curated lists, or existing datasets can model famous movie tastes without creating legal or accuracy risk.
+- Compare a user's taste profile to a small set of taste archetypes only after private profile evidence is reliable.
+
 ## Not Now
 
 - Do not publish local backlog items as GitHub issues without explicit founder approval.
 - Do not add paid vendors without founder approval.
-- Do not turn MVP plus 1 into a broad mature-product rebuild.
+- Do not turn MVP plus 3 into a broad mature-product rebuild.
 - Do not redesign every screen before improving the core recommendation loop.
