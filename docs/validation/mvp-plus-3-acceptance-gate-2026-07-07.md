@@ -4,19 +4,19 @@ Date: 2026-07-07
 
 Phase: MVP+3 - Directed Discovery And Real Tester Profile
 
-Issue status: 9/10 implementation issues done.
+Issue status: 10/10 implementation issues done.
 
-Status: Not accepted yet.
+Status: Accepted.
 
 ## Decision
 
-MVP Plus 3 is not complete yet because the required phone-sized browser smoke did not pass in this local environment.
-The product implementation is materially complete through issue #71, and the recommendation-quality proof passes.
-The remaining blocker is #72 phone-sized browser proof.
+MVP Plus 3 is complete.
+The phase has both product-flow proof and recommendation-quality proof.
+No new MVP Plus 3 scope was added during acceptance.
 
 ## Product-Flow Proof
 
-The backend-backed dogfood smoke was upgraded to seed and verify the MVP Plus 3 profile path before opening the browser:
+The backend-backed dogfood smoke now seeds and verifies the MVP Plus 3 profile path before opening the browser:
 
 - Creates `Cezary - tester` through the setup API.
 - Promotes `Cezary - tester` into the first participant slot.
@@ -25,16 +25,31 @@ The backend-backed dogfood smoke was upgraded to seed and verify the MVP Plus 3 
 - Saves a Taste Lab `loved` rating for `Cezary - tester`.
 - Reads the tester Taste Lab summary and verifies at least one preference evidence signal.
 - Starts a production web build and temporary backend database for the dogfood run.
-- Asserts that the result screen exposes `Current signals` and `Cezary - tester: 1 signals` when the browser run can proceed.
+- Asserts that the result screen exposes `Current signals` and `Cezary - tester: 1 signals`.
 
-The browser portion did not complete because every available local browser launch path failed before a stable DevTools session was available.
+The completed phone-sized run used a normal Chrome app instance with DevTools already open:
 
-Attempts:
+```sh
+open -na "Google Chrome" --args --remote-debugging-port=9222 --user-data-dir=/private/tmp/movie-night-mediator-chrome-9222 --no-first-run --no-default-browser-check about:blank
+```
 
-- `pnpm beta:dogfood` with Brave Browser failed with `SIGABRT` before DevTools.
-- `CHROME_BIN="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" pnpm beta:dogfood` failed with `SIGABRT` before DevTools.
-- Repo-local Playwright headless shell launched further after adding headless-safe flags, then failed with a macOS Mach port rendezvous permission error.
-- Repo-local Chrome for Testing failed with `SIGABRT` before DevTools.
+Then the dogfood command was run against that browser:
+
+```sh
+MOBILE_UX_SMOKE_DEBUGGING_URL=http://127.0.0.1:9222 pnpm beta:dogfood
+```
+
+Observed coverage:
+
+- Temporary backend and production web server started.
+- `Cezary - tester` profile was created and used as the first active participant.
+- Taste Lab evidence was seeded and visible in the result evidence panel.
+- Main pass-the-phone recommendation flow completed through both participants.
+- Watchlist add, watched, and remove actions completed.
+- Session outcome was saved.
+- Post-watch feedback was saved for `Cezary - tester` and `Husband`.
+- Recent-session history reloaded and showed session outcome, feedback, and reaction evidence.
+- Viewport was 390 x 844 mobile.
 
 ## Recommendation-Quality Proof
 
@@ -68,11 +83,11 @@ Passed:
 pnpm beta:preflight
 ```
 
-Warnings were expected in this dirty local slice:
+Passed:
 
-- `API_BASE_URL` was unset.
-- TMDb credentials were unset.
-- The worktree had local #72 changes.
+```sh
+pnpm check
+```
 
 Passed:
 
@@ -86,22 +101,23 @@ Passed:
 python3 scripts/mvp_plus_3_evaluation.py
 ```
 
-Failed:
+Passed:
 
 ```sh
-pnpm beta:dogfood
+MOBILE_UX_SMOKE_DEBUGGING_URL=http://127.0.0.1:9222 pnpm beta:dogfood
 ```
 
-Reason: local browser startup failed before the script could complete phone-sized UX proof.
+## Closed Risks
 
-## Open Risks
+- Phone-sized browser proof passed through a normal Chrome DevTools session.
+- The upgraded smoke seed path completed end to end.
+- Visible result evidence now fetches Taste Lab summaries immediately after session creation and continuation.
+- Profile labels in post-watch feedback smoke now match the MVP Plus 3 tester-profile flow.
 
-- Phone-sized browser proof remains open.
-- The upgraded smoke seed path has not completed end to end because browser startup is blocked.
+## Remaining Caveats
+
 - Live TMDb actor coverage was not revalidated because TMDb credentials are not present in this environment.
 - The recommendation-quality report is deterministic and local; it is not a broad recommendation benchmark.
 
-## Recommended Next Step
-
-Run `pnpm beta:dogfood` on a machine or browser surface where Chromium DevTools can start successfully.
-Once that passes, update this note to accepted, mark #72 done, close #72, and update the MVP Plus 3 tracker to 10/10.
+These are not MVP Plus 3 blockers.
+They should be treated as next-phase validation depth, not unfinished MVP Plus 3 scope.

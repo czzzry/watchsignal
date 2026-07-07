@@ -136,8 +136,8 @@ async function main() {
         await clickButton(tab, "Watched best pick");
       }
       await clickButton(tab, "Save outcome");
-      await clickButtonInSection(tab, "Husband", "Loved");
-      await clickButtonInSection(tab, "Wife", "Fine");
+      await clickButtonInSection(tab, "Cezary - tester", "Loved");
+      await clickButtonInSection(tab, "Husband", "Fine");
       await clickButton(tab, "Save feedback");
       await clickButton(tab, "Start new night");
       await clickSummary(tab, "Recent nights");

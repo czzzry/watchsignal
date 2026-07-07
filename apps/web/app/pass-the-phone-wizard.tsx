@@ -630,6 +630,7 @@ export function PassThePhoneWizard({
 
         setSharedSession(session);
         setSessionSource("api");
+        await loadTasteProfileSummariesForSession(session);
       } catch (error) {
         setSharedSession(null);
         setSessionSource("demo");
@@ -695,6 +696,7 @@ export function PassThePhoneWizard({
       );
 
       setSharedSession(continuedSession);
+      await loadTasteProfileSummariesForSession(continuedSession);
       resetBatch(candidates);
       setStep("founder");
     } catch (error) {
@@ -1254,10 +1256,9 @@ export function PassThePhoneWizard({
 
     try {
       const history = await getSessionDebugHistory(sharedSession.sessionId);
-      const summaries = await Promise.all(
-        history.participantIds.map((profileId) =>
-          getTasteProfileSummary(history.householdId, profileId),
-        ),
+      const summaries = await tasteProfileSummariesForSession(
+        history.householdId,
+        history.participantIds,
       );
       setDebugHistory(history);
       setTasteProfileSummaries(summaries);
@@ -1268,6 +1269,30 @@ export function PassThePhoneWizard({
       setDebugHistoryStatus("failed");
       setDebugHistoryMessage(toDebugHistoryErrorMessage(error));
     }
+  }
+
+  async function loadTasteProfileSummariesForSession(
+    session: SharedSessionPayload,
+  ): Promise<void> {
+    try {
+      setTasteProfileSummaries(
+        await tasteProfileSummariesForSession(
+          session.householdId,
+          session.participantIds,
+        ),
+      );
+    } catch {
+      setTasteProfileSummaries([]);
+    }
+  }
+
+  async function tasteProfileSummariesForSession(
+    householdId: string,
+    profileIds: string[],
+  ): Promise<TasteProfileSummaryPayload[]> {
+    return Promise.all(
+      profileIds.map((profileId) => getTasteProfileSummary(householdId, profileId)),
+    );
   }
 
   async function loadProfileMemorySummaries(): Promise<void> {

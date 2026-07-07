@@ -10,7 +10,7 @@ MVP Plus 3 is **Directed Discovery And Real Tester Profile**.
 Current tracker:
 
 ```text
-MVP+3: [██████████████████░░] 9/10 issues done
+MVP+3: [████████████████████] 10/10 issues done
 ```
 
 The issue count is ten.
@@ -42,7 +42,7 @@ Implementation and acceptance slices:
 - #69 - MVP+3 Slice 7 - Five More Redo Semantics And UI - done
 - #70 - MVP+3 Slice 8 - Bookmark Library Lite - done
 - #71 - MVP+3 Slice 9 - Recommendation Explanation Trust Polish - done
-- #72 - MVP+3 Slice 10 - MVP Plus 3 Dogfood And Evaluation Gate
+- #72 - MVP+3 Slice 10 - MVP Plus 3 Dogfood And Evaluation Gate - done
 
 ## Slice 1 - Contracts And Acceptance Gate
 
@@ -460,13 +460,13 @@ It should say whether the phase is complete and should not quietly add new scope
 
 ### Acceptance criteria
 
-- [ ] The acceptance note records the current phase and accepted issue count.
-- [ ] The dogfood flow uses `Cezary - tester` or a local-safe equivalent that proves the same profile behavior.
-- [ ] The dogfood flow covers Taste Lab rating, main-flow recommendation, directed nudge, five more, bookmark, reload, and persistence.
-- [ ] The recommendation-quality report compares profile calibration plus nudges against a baseline.
-- [ ] The report shows rank changes, top-pick changes, explanation excerpts, and visible caveats.
-- [ ] Beta preflight, production web build, and phone-sized smoke pass.
-- [ ] The acceptance note states whether MVP Plus 3 is complete.
+- [x] The acceptance note records the current phase and accepted issue count.
+- [x] The dogfood flow uses `Cezary - tester` or a local-safe equivalent that proves the same profile behavior.
+- [x] The dogfood flow covers Taste Lab rating, main-flow recommendation, directed nudge, five more, bookmark, reload, and persistence.
+- [x] The recommendation-quality report compares profile calibration plus nudges against a baseline.
+- [x] The report shows rank changes, top-pick changes, explanation excerpts, and visible caveats.
+- [x] Beta preflight, production web build, and phone-sized smoke pass.
+- [x] The acceptance note states whether MVP Plus 3 is complete.
 
 ### Validation commands
 
@@ -485,6 +485,8 @@ pnpm beta:dogfood
 ### Stop condition
 
 Stop when MVP Plus 3 has both product-flow proof and recommendation-quality proof.
+
+Completed by the accepted MVP Plus 3 gate in `docs/validation/mvp-plus-3-acceptance-gate-2026-07-07.md`.
 
 ### Risk notes
 
