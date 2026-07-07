@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi.routing import APIRoute
 
 from movie_night_mediator.api.main import (
+    SetupProfileCreatePayload,
     SetupProfileRenamePayload,
     SetupStatePayload,
     create_app,
@@ -16,6 +17,8 @@ from movie_night_mediator.app.setup import SQLiteSetupStore
 
 GENERIC_UPDATED_SETUP = {
     "householdLabel": "Household",
+    "activeProfileId": "profile-1",
+    "partnerProfileId": "profile-2",
     "profiles": [
         {
             "id": "profile-1",
@@ -57,6 +60,8 @@ class SetupApiTest(unittest.TestCase):
                 payload_to_dict(payload),
                 {
                     "householdLabel": "Household",
+                    "activeProfileId": "profile-1",
+                    "partnerProfileId": "profile-2",
                     "profiles": [
                         {
                             "id": "profile-1",
@@ -127,6 +132,8 @@ class SetupApiTest(unittest.TestCase):
                 [profile.color_key for profile in loaded_setup.profiles],
                 ["amber", "violet"],
             )
+            self.assertEqual(loaded_setup.active_profile_id, "profile-1")
+            self.assertEqual(loaded_setup.partner_profile_id, "profile-2")
             self.assertEqual(
                 loaded_setup.defaults.availability_region,
                 "Library region",
@@ -215,6 +222,8 @@ class SetupApiTest(unittest.TestCase):
                 [profile.color_key for profile in loaded_setup.profiles],
                 ["cyan", "rose"],
             )
+            self.assertEqual(loaded_setup.active_profile_id, "profile-1")
+            self.assertEqual(loaded_setup.partner_profile_id, "profile-2")
 
     def test_post_tester_profile_creates_stable_profile_without_losing_partner(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -230,6 +239,8 @@ class SetupApiTest(unittest.TestCase):
                 [profile["id"] for profile in payload_to_dict(payload)["profiles"]],
                 ["cezary-tester", "profile-1", "profile-2"],
             )
+            self.assertEqual(payload_to_dict(payload)["activeProfileId"], "cezary-tester")
+            self.assertEqual(payload_to_dict(payload)["partnerProfileId"], "profile-1")
             self.assertEqual(
                 [profile["label"] for profile in payload_to_dict(payload)["profiles"]],
                 ["Cezary - tester", "Husband", "Wife"],
@@ -257,6 +268,49 @@ class SetupApiTest(unittest.TestCase):
                 profile for profile in profiles if profile["id"] == "cezary-tester"
             )
             self.assertEqual(tester_profile["label"], "Cezary")
+
+    def test_post_profile_creates_name_only_profile_and_selects_it(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "setup.sqlite3"
+            endpoints = setup_route_endpoints(
+                create_app(setup_store=SQLiteSetupStore(database_path=database_path))
+            )
+
+            payload = endpoints["POST", "/setup/profiles"](
+                SetupProfileCreatePayload(label="Cezary"),
+            )
+
+            result = payload_to_dict(payload)
+            self.assertEqual(result["activeProfileId"], "cezary")
+            self.assertEqual(result["partnerProfileId"], "profile-1")
+            self.assertIn(
+                {
+                    "id": "cezary",
+                    "label": "Cezary",
+                    "order": 3,
+                    "avatarKey": "comet",
+                    "colorKey": "amber",
+                },
+                result["profiles"],
+            )
+
+    def test_put_setup_resolves_invalid_or_self_pairing_to_distinct_profiles(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "setup.sqlite3"
+            endpoints = setup_route_endpoints(
+                create_app(setup_store=SQLiteSetupStore(database_path=database_path))
+            )
+            setup = {
+                **GENERIC_UPDATED_SETUP,
+                "activeProfileId": "profile-2",
+                "partnerProfileId": "profile-2",
+            }
+
+            payload = endpoints["PUT", "/setup"](SetupStatePayload(**setup))
+
+            result = payload_to_dict(payload)
+            self.assertEqual(result["activeProfileId"], "profile-2")
+            self.assertEqual(result["partnerProfileId"], "profile-1")
 
 
 def setup_route_endpoints(app):

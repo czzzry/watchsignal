@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+import re
 from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
@@ -8,10 +9,14 @@ from pathlib import Path
 from movie_night_mediator.storage import SQLiteSettings
 
 CURRENT_SETUP_ID = "current"
+DEFAULT_HUSBAND_PROFILE_ID = "profile-1"
+DEFAULT_WIFE_PROFILE_ID = "profile-2"
 TESTER_PROFILE_ID = "cezary-tester"
 TESTER_PROFILE_LABEL = "Cezary - tester"
 TESTER_PROFILE_AVATAR_KEY = "comet"
 TESTER_PROFILE_COLOR_KEY = "amber"
+AVATAR_KEYS = ("spark", "moon", "comet", "ticket")
+COLOR_KEYS = ("cyan", "rose", "amber", "violet")
 
 
 @dataclass(frozen=True)
@@ -38,6 +43,8 @@ class SetupState:
     household_label: str
     profiles: tuple[SetupProfile, ...]
     defaults: SetupDefaults
+    active_profile_id: str
+    partner_profile_id: str
 
 
 def default_setup_state() -> SetupState:
@@ -67,6 +74,8 @@ def default_setup_state() -> SetupState:
             shortlist_size=5,
             avoid_already_watched=True,
         ),
+        active_profile_id=DEFAULT_HUSBAND_PROFILE_ID,
+        partner_profile_id=DEFAULT_WIFE_PROFILE_ID,
     )
 
 
@@ -92,6 +101,8 @@ class SQLiteSetupStore:
                 """
                 SELECT
                     household_label,
+                    active_profile_id,
+                    partner_profile_id,
                     session_type,
                     input_mode,
                     availability_region,
@@ -117,21 +128,29 @@ class SQLiteSetupStore:
                 (CURRENT_SETUP_ID,),
             ).fetchall()
 
-        if len(profile_rows) < 2:
+        profiles = tuple(
+            SetupProfile(
+                id=row["profile_id"],
+                label=row["display_label"],
+                order=row["sort_order"],
+                avatar_key=row["avatar_key"],
+                color_key=row["color_key"],
+            )
+            for row in profile_rows
+        )
+
+        if len(profiles) < 2:
             return default_setup_state()
+
+        active_profile_id, partner_profile_id = _resolve_pairing(
+            profiles,
+            active_profile_id=setup_row["active_profile_id"],
+            partner_profile_id=setup_row["partner_profile_id"],
+        )
 
         return SetupState(
             household_label=setup_row["household_label"],
-            profiles=tuple(
-                SetupProfile(
-                    id=row["profile_id"],
-                    label=row["display_label"],
-                    order=row["sort_order"],
-                    avatar_key=row["avatar_key"],
-                    color_key=row["color_key"],
-                )
-                for row in profile_rows
-            ),
+            profiles=profiles,
             defaults=SetupDefaults(
                 session_type=setup_row["session_type"],
                 input_mode=setup_row["input_mode"],
@@ -140,11 +159,18 @@ class SQLiteSetupStore:
                 shortlist_size=setup_row["shortlist_size"],
                 avoid_already_watched=bool(setup_row["avoid_already_watched"]),
             ),
+            active_profile_id=active_profile_id,
+            partner_profile_id=partner_profile_id,
         )
 
     def save_setup(self, setup: SetupState) -> SetupState:
         if len(setup.profiles) < 2:
             raise ValueError("A setup must include at least two participant profiles.")
+        active_profile_id, partner_profile_id = _resolve_pairing(
+            setup.profiles,
+            active_profile_id=setup.active_profile_id,
+            partner_profile_id=setup.partner_profile_id,
+        )
 
         self.initialize_schema()
         with closing(self._connect()) as connection:
@@ -154,6 +180,8 @@ class SQLiteSetupStore:
                     INSERT INTO setup_state (
                         setup_id,
                         household_label,
+                        active_profile_id,
+                        partner_profile_id,
                         session_type,
                         input_mode,
                         availability_region,
@@ -161,9 +189,11 @@ class SQLiteSetupStore:
                         shortlist_size,
                         avoid_already_watched
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(setup_id) DO UPDATE SET
                         household_label = excluded.household_label,
+                        active_profile_id = excluded.active_profile_id,
+                        partner_profile_id = excluded.partner_profile_id,
                         session_type = excluded.session_type,
                         input_mode = excluded.input_mode,
                         availability_region = excluded.availability_region,
@@ -174,6 +204,8 @@ class SQLiteSetupStore:
                     (
                         CURRENT_SETUP_ID,
                         setup.household_label,
+                        active_profile_id,
+                        partner_profile_id,
                         setup.defaults.session_type,
                         setup.defaults.input_mode,
                         setup.defaults.availability_region,
@@ -265,6 +297,43 @@ class SQLiteSetupStore:
                 household_label=setup.household_label,
                 profiles=reordered_profiles,
                 defaults=setup.defaults,
+                active_profile_id=TESTER_PROFILE_ID,
+                partner_profile_id=next(
+                    profile.id
+                    for profile in reordered_profiles
+                    if profile.id != TESTER_PROFILE_ID
+                ),
+            )
+        )
+
+    def create_profile(self, display_label: str) -> SetupState:
+        normalized_display_label = display_label.strip()
+        if not normalized_display_label:
+            raise ValueError("Profile creation requires a display label.")
+
+        setup = self.load_setup()
+        existing_ids = {profile.id for profile in setup.profiles}
+        profile_id = _unique_profile_id(normalized_display_label, existing_ids)
+        next_order = max((profile.order for profile in setup.profiles), default=0) + 1
+        created_profile = SetupProfile(
+            id=profile_id,
+            label=normalized_display_label,
+            order=next_order,
+            avatar_key=AVATAR_KEYS[(next_order - 1) % len(AVATAR_KEYS)],
+            color_key=COLOR_KEYS[(next_order - 1) % len(COLOR_KEYS)],
+        )
+        next_profiles = (*setup.profiles, created_profile)
+        partner_profile_id = next(
+            profile.id for profile in next_profiles if profile.id != profile_id
+        )
+
+        return self.save_setup(
+            SetupState(
+                household_label=setup.household_label,
+                profiles=next_profiles,
+                defaults=setup.defaults,
+                active_profile_id=profile_id,
+                partner_profile_id=partner_profile_id,
             )
         )
 
@@ -300,6 +369,8 @@ class SQLiteSetupStore:
                 household_label=setup.household_label,
                 profiles=renamed_profiles,
                 defaults=setup.defaults,
+                active_profile_id=setup.active_profile_id,
+                partner_profile_id=setup.partner_profile_id,
             )
         )
 
@@ -312,6 +383,8 @@ class SQLiteSetupStore:
                     CREATE TABLE IF NOT EXISTS setup_state (
                         setup_id TEXT PRIMARY KEY,
                         household_label TEXT NOT NULL,
+                        active_profile_id TEXT,
+                        partner_profile_id TEXT,
                         session_type TEXT NOT NULL,
                         input_mode TEXT NOT NULL,
                         availability_region TEXT NOT NULL,
@@ -336,16 +409,29 @@ class SQLiteSetupStore:
                 )
                 columns = {
                     row["name"]
+                    for row in connection.execute("PRAGMA table_info(setup_state)")
+                }
+                if "active_profile_id" not in columns:
+                    connection.execute(
+                        "ALTER TABLE setup_state ADD COLUMN active_profile_id TEXT"
+                    )
+                if "partner_profile_id" not in columns:
+                    connection.execute(
+                        "ALTER TABLE setup_state ADD COLUMN partner_profile_id TEXT"
+                    )
+
+                profile_columns = {
+                    row["name"]
                     for row in connection.execute("PRAGMA table_info(setup_profiles)")
                 }
                 added_avatar_key = False
                 added_color_key = False
-                if "avatar_key" not in columns:
+                if "avatar_key" not in profile_columns:
                     connection.execute(
                         "ALTER TABLE setup_profiles ADD COLUMN avatar_key TEXT NOT NULL DEFAULT 'spark'"
                     )
                     added_avatar_key = True
-                if "color_key" not in columns:
+                if "color_key" not in profile_columns:
                     connection.execute(
                         "ALTER TABLE setup_profiles ADD COLUMN color_key TEXT NOT NULL DEFAULT 'cyan'"
                     )
@@ -372,3 +458,51 @@ class SQLiteSetupStore:
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
         return connection
+
+
+def _resolve_pairing(
+    profiles: tuple[SetupProfile, ...],
+    *,
+    active_profile_id: str | None,
+    partner_profile_id: str | None,
+) -> tuple[str, str]:
+    profile_ids = tuple(profile.id for profile in profiles)
+    profile_id_set = set(profile_ids)
+    if len(profile_id_set) < 2:
+        raise ValueError("Household mode requires two distinct profiles.")
+
+    resolved_active_profile_id = (
+        active_profile_id.strip()
+        if active_profile_id is not None and active_profile_id.strip()
+        else profile_ids[0]
+    )
+    if resolved_active_profile_id not in profile_id_set:
+        resolved_active_profile_id = profile_ids[0]
+
+    resolved_partner_profile_id = (
+        partner_profile_id.strip()
+        if partner_profile_id is not None and partner_profile_id.strip()
+        else ""
+    )
+    if (
+        resolved_partner_profile_id not in profile_id_set
+        or resolved_partner_profile_id == resolved_active_profile_id
+    ):
+        resolved_partner_profile_id = next(
+            profile_id
+            for profile_id in profile_ids
+            if profile_id != resolved_active_profile_id
+        )
+
+    return resolved_active_profile_id, resolved_partner_profile_id
+
+
+def _unique_profile_id(display_label: str, existing_ids: set[str]) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", display_label.lower()).strip("-")
+    base_id = slug or "profile"
+    profile_id = base_id
+    suffix = 2
+    while profile_id in existing_ids:
+        profile_id = f"{base_id}-{suffix}"
+        suffix += 1
+    return profile_id

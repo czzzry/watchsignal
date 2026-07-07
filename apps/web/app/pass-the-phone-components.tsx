@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { SetupLoadResult } from "./setup-api";
+import type { SetupLoadResult, SetupProfile } from "./setup-api";
 import {
   reactionLabels,
   type DemoCandidate,
@@ -121,6 +121,13 @@ export function SetupStep({
   onSessionModeChange,
   peopleMode,
   onPeopleModeChange,
+  activeProfileId,
+  partnerProfileId,
+  profileSetupBusy,
+  profileSetupMessage,
+  onActiveProfileChange,
+  onPartnerProfileChange,
+  onCreateProfile,
   languageMode,
   onLanguageModeChange,
   isSyncing,
@@ -163,6 +170,13 @@ export function SetupStep({
   onSessionModeChange: (mode: SessionMode) => void;
   peopleMode: PeopleMode;
   onPeopleModeChange: (mode: PeopleMode) => void;
+  activeProfileId: string;
+  partnerProfileId: string;
+  profileSetupBusy: boolean;
+  profileSetupMessage: string | null;
+  onActiveProfileChange: (profileId: string) => void | Promise<void>;
+  onPartnerProfileChange: (profileId: string) => void | Promise<void>;
+  onCreateProfile: (label: string) => void | Promise<void>;
   languageMode: LanguageMode;
   onLanguageModeChange: (mode: LanguageMode) => void;
   isSyncing: boolean;
@@ -200,6 +214,7 @@ export function SetupStep({
   const [expandedControl, setExpandedControl] = useState<"people" | "language" | null>(
     null,
   );
+  const [newProfileName, setNewProfileName] = useState("");
   const sessionDateLabel = formatSessionDate(new Date());
   const completedCount = onboardingCompletion?.completedProfileIds.length ?? 0;
   const totalCount = onboardingCompletion?.requiredProfileIds.length ?? 2;
@@ -210,6 +225,9 @@ export function SetupStep({
     wife: wifeLabel,
   };
   const selectedPeopleLabel = peopleModeLabels[peopleMode];
+  const selectedPartnerProfile = setupLoad.setup.profiles.find(
+    (profile) => profile.id === partnerProfileId,
+  );
   const selectedLanguageLabel = languageModeLabels[languageMode];
   const selectedLanguageDisplayLabel = languageMode === "english"
     ? "English audio & subtitles"
@@ -345,17 +363,68 @@ export function SetupStep({
                   </span>
                 </button>
                 {expandedControl === "people" ? (
-                  <div className="startupInlineOptions" role="group" aria-label="People mode">
-                    {(Object.keys(peopleModeLabels) as PeopleMode[]).map((mode) => (
+                  <div className="startupInlineOptions startupProfileOptions" aria-label="People and profile setup">
+                    <div className="startupProfileGroup" role="group" aria-label="People mode">
+                      {(Object.keys(peopleModeLabels) as PeopleMode[]).map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          className={mode === peopleMode ? "startupOptionPill startupOptionPillActive" : "startupOptionPill"}
+                          onClick={() => onPeopleModeChange(mode)}
+                        >
+                          {peopleModeLabels[mode]}
+                        </button>
+                      ))}
+                    </div>
+
+                    <ProfileSelectRow
+                      label="Me"
+                      value={activeProfileId}
+                      profiles={setupLoad.setup.profiles}
+                      disabled={profileSetupBusy}
+                      onChange={onActiveProfileChange}
+                    />
+                    {peopleMode === "couple" ? (
+                      <ProfileSelectRow
+                        label="Partner"
+                        value={partnerProfileId}
+                        profiles={setupLoad.setup.profiles.filter(
+                          (profile) => profile.id !== activeProfileId,
+                        )}
+                        disabled={profileSetupBusy}
+                        onChange={onPartnerProfileChange}
+                      />
+                    ) : null}
+
+                    <form
+                      className="startupProfileCreate"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void onCreateProfile(newProfileName);
+                        setNewProfileName("");
+                      }}
+                    >
+                      <input
+                        value={newProfileName}
+                        onChange={(event) => setNewProfileName(event.target.value)}
+                        placeholder="Add profile name"
+                        maxLength={28}
+                        disabled={profileSetupBusy}
+                      />
                       <button
-                        key={mode}
-                        type="button"
-                        className={mode === peopleMode ? "startupOptionPill startupOptionPillActive" : "startupOptionPill"}
-                        onClick={() => onPeopleModeChange(mode)}
+                        type="submit"
+                        className="secondaryAction compactAction"
+                        disabled={profileSetupBusy || newProfileName.trim().length === 0}
                       >
-                        {peopleModeLabels[mode]}
+                        Add
                       </button>
-                    ))}
+                    </form>
+                    {peopleMode === "couple" && !selectedPartnerProfile ? (
+                      <p className="startupProfileNote">Add another profile before household mode can start.</p>
+                    ) : null}
+                    {profileSetupMessage ? (
+                      <p className="startupProfileNote">{profileSetupMessage}</p>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
@@ -768,6 +837,37 @@ function formatTonightIntentSignal(signal: string): string {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function ProfileSelectRow({
+  label,
+  value,
+  profiles,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  profiles: SetupProfile[];
+  disabled: boolean;
+  onChange: (profileId: string) => void | Promise<void>;
+}) {
+  return (
+    <label className="startupProfileSelect">
+      <span>{label}</span>
+      <select
+        value={value}
+        disabled={disabled}
+        onChange={(event) => void onChange(event.target.value)}
+      >
+        {profiles.map((profile) => (
+          <option key={profile.id} value={profile.id}>
+            {profile.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
 }
 
 function SetupControlIcon({

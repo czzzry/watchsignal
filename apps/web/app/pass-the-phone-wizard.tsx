@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { SetupLoadResult } from "./setup-api";
+import {
+  createSetupProfile,
+  saveSetupState,
+  type SetupLoadResult,
+} from "./setup-api";
 import {
   type DemoCandidate,
   type ReactionValue,
@@ -95,13 +99,33 @@ export function PassThePhoneWizard({
   apiHealth,
   setupLoad,
 }: PassThePhoneWizardProps) {
-  const profiles = setupLoad.setup.profiles
+  const [currentSetup, setCurrentSetup] = useState(setupLoad.setup);
+  const [profileSetupMessage, setProfileSetupMessage] = useState<string | null>(null);
+  const [profileSetupBusy, setProfileSetupBusy] = useState(false);
+  const effectiveSetupLoad = useMemo(
+    () => ({
+      ...setupLoad,
+      setup: currentSetup,
+    }),
+    [setupLoad, currentSetup],
+  );
+  const profiles = currentSetup.profiles
     .slice()
     .sort((first, second) => first.order - second.order);
-  const founderProfile = profiles[0];
-  const wifeProfile = profiles[1];
-  const founderLabel = profiles[0]?.label || "Husband";
-  const wifeLabel = profiles[1]?.label || "Wife";
+  const activeProfile =
+    profiles.find((profile) => profile.id === currentSetup.activeProfileId) ?? profiles[0];
+  const partnerProfile =
+    profiles.find(
+      (profile) =>
+        profile.id === currentSetup.partnerProfileId &&
+        profile.id !== activeProfile?.id,
+    ) ??
+    profiles.find((profile) => profile.id !== activeProfile?.id) ??
+    profiles[1];
+  const founderProfile = activeProfile;
+  const wifeProfile = partnerProfile;
+  const founderLabel = founderProfile?.label || "Husband";
+  const wifeLabel = wifeProfile?.label || "Wife";
   const founderAvatarKey = founderProfile?.avatarKey || "spark";
   const wifeAvatarKey = wifeProfile?.avatarKey || "moon";
   const founderColorKey = founderProfile?.colorKey || "cyan";
@@ -197,7 +221,7 @@ export function PassThePhoneWizard({
   const [selectedHistoryMessage, setSelectedHistoryMessage] = useState<string | null>(
     null,
   );
-  const rawParticipantIds = [profiles[0]?.id || "husband", profiles[1]?.id || "wife"];
+  const rawParticipantIds = [founderProfile?.id || "husband", wifeProfile?.id || "wife"];
   const isCoupleSession = peopleMode === "couple";
   const participantIds =
     peopleMode === "couple"
@@ -319,6 +343,73 @@ export function PassThePhoneWizard({
         ? null
         : "Live session sync is unavailable, so tonight is running in local mode.",
     );
+  }
+
+  async function saveProfilePairing(
+    nextActiveProfileId: string,
+    nextPartnerProfileId: string,
+  ): Promise<void> {
+    const profileIds = currentSetup.profiles.map((profile) => profile.id);
+    if (
+      !profileIds.includes(nextActiveProfileId) ||
+      !profileIds.includes(nextPartnerProfileId) ||
+      nextActiveProfileId === nextPartnerProfileId
+    ) {
+      setProfileSetupMessage("Household mode needs two different profiles.");
+      return;
+    }
+
+    const nextSetup = {
+      ...currentSetup,
+      activeProfileId: nextActiveProfileId,
+      partnerProfileId: nextPartnerProfileId,
+    };
+    setCurrentSetup(nextSetup);
+    setProfileSetupBusy(true);
+    const result = effectiveSetupLoad.canPersist
+      ? await saveSetupState(nextSetup)
+      : {
+          setup: nextSetup,
+          source: "fallback" as const,
+          detail: "Setup API is unavailable. Profile pairing is local for this screen.",
+          canPersist: false,
+        };
+    setCurrentSetup(result.setup);
+    setProfileSetupMessage(result.detail);
+    setProfileSetupBusy(false);
+  }
+
+  async function chooseActiveProfile(profileId: string): Promise<void> {
+    const nextPartnerProfileId =
+      currentSetup.partnerProfileId !== profileId
+        ? currentSetup.partnerProfileId
+        : currentSetup.profiles.find((profile) => profile.id !== profileId)?.id ?? "";
+    await saveProfilePairing(profileId, nextPartnerProfileId);
+  }
+
+  async function choosePartnerProfile(profileId: string): Promise<void> {
+    await saveProfilePairing(currentSetup.activeProfileId, profileId);
+  }
+
+  async function createProfile(label: string): Promise<void> {
+    const trimmedLabel = label.trim();
+    if (!trimmedLabel) {
+      setProfileSetupMessage("Add a profile name first.");
+      return;
+    }
+
+    setProfileSetupBusy(true);
+    const result = effectiveSetupLoad.canPersist
+      ? await createSetupProfile(trimmedLabel, currentSetup)
+      : {
+          setup: currentSetup,
+          source: "fallback" as const,
+          detail: "Setup API is unavailable. Profile creation needs the backend.",
+          canPersist: false,
+        };
+    setCurrentSetup(result.setup);
+    setProfileSetupMessage(result.detail);
+    setProfileSetupBusy(false);
   }
 
   async function refreshOnboardingCompletion(): Promise<OnboardingCompletionPayload | null> {
@@ -610,7 +701,7 @@ export function PassThePhoneWizard({
         householdId: "default-household",
         activeMode: toApiSessionMode(sessionMode),
         participantIds,
-        shortlistSize: setupLoad.setup.defaults.shortlistSize,
+        shortlistSize: effectiveSetupLoad.setup.defaults.shortlistSize,
         tonightIntent: activeTonightIntent,
         tonightIntents: activeTonightIntents,
       });
@@ -679,7 +770,7 @@ export function PassThePhoneWizard({
         householdId: sharedSession.householdId,
         activeMode: toApiSessionMode(sessionMode),
         participantIds,
-        shortlistSize: setupLoad.setup.defaults.shortlistSize,
+        shortlistSize: effectiveSetupLoad.setup.defaults.shortlistSize,
         tonightIntent: latestTonightIntent(nextTonightIntents),
         tonightIntents: nextTonightIntents,
         excludedSourceMovieIds: continuationExcludedSourceMovieIds(
@@ -1044,12 +1135,19 @@ export function PassThePhoneWizard({
         <SetupStep
           founderLabel={founderLabel}
           wifeLabel={wifeLabel}
-          setupLoad={setupLoad}
+          setupLoad={effectiveSetupLoad}
           apiHealth={apiHealth}
           sessionMode={sessionMode}
           onSessionModeChange={setSessionMode}
           peopleMode={peopleMode}
           onPeopleModeChange={setPeopleMode}
+          activeProfileId={currentSetup.activeProfileId}
+          partnerProfileId={currentSetup.partnerProfileId}
+          profileSetupBusy={profileSetupBusy}
+          profileSetupMessage={profileSetupMessage}
+          onActiveProfileChange={chooseActiveProfile}
+          onPartnerProfileChange={choosePartnerProfile}
+          onCreateProfile={createProfile}
           languageMode={languageMode}
           onLanguageModeChange={setLanguageMode}
           isSyncing={isSyncing}

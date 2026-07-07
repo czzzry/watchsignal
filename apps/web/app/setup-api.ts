@@ -20,6 +20,8 @@ export type SetupDefaults = {
 export type SetupState = {
   householdLabel: string;
   profiles: SetupProfile[];
+  activeProfileId: string;
+  partnerProfileId: string;
   defaults: SetupDefaults;
 };
 
@@ -32,6 +34,8 @@ export type SetupLoadResult = {
 
 export const fallbackSetup: SetupState = {
   householdLabel: "Household",
+  activeProfileId: "profile-1",
+  partnerProfileId: "profile-2",
   profiles: [
     {
       id: "profile-1",
@@ -134,6 +138,46 @@ export async function saveSetupState(setup: SetupState): Promise<SetupLoadResult
   }
 }
 
+export async function createSetupProfile(
+  label: string,
+  fallbackSetupState: SetupState = fallbackSetup,
+): Promise<SetupLoadResult> {
+  try {
+    const response = await fetch("/api/setup/profiles", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ label }),
+    });
+    const payload = (await response.json()) as unknown;
+    const savedSetup = parseSetupState(payload);
+
+    if (!response.ok || !savedSetup) {
+      return {
+        setup: fallbackSetupState,
+        source: "fallback",
+        detail: "Profile could not be created.",
+        canPersist: false,
+      };
+    }
+
+    return {
+      setup: savedSetup,
+      source: "backend",
+      detail: `${label.trim()} is now the active profile.`,
+      canPersist: true,
+    };
+  } catch {
+    return {
+      setup: fallbackSetupState,
+      source: "fallback",
+      detail: "Setup API is not reachable. Profile could not be created.",
+      canPersist: false,
+    };
+  }
+}
+
 function fallbackLoadResult(detail: string): SetupLoadResult {
   return {
     setup: fallbackSetup,
@@ -172,11 +216,45 @@ function parseSetupState(payload: unknown): SetupState | null {
     return null;
   }
 
+  const activeProfileId =
+    typeof candidate.activeProfileId === "string" && candidate.activeProfileId.trim()
+      ? candidate.activeProfileId
+      : profiles[0].id;
+  const resolvedActiveProfileId = profiles.some((profile) => profile.id === activeProfileId)
+    ? activeProfileId
+    : profiles[0].id;
+
   return {
     householdLabel: candidate.householdLabel,
     profiles,
+    activeProfileId: resolvedActiveProfileId,
+    partnerProfileId: resolvePartnerProfileId(
+      profiles,
+      resolvedActiveProfileId,
+      typeof candidate.partnerProfileId === "string" ? candidate.partnerProfileId : null,
+    ),
     defaults,
   };
+}
+
+function resolvePartnerProfileId(
+  profiles: SetupProfile[],
+  activeProfileId: string,
+  partnerProfileId: string | null,
+): string {
+  const profileIds = profiles.map((profile) => profile.id);
+  const resolvedActiveProfileId = profileIds.includes(activeProfileId)
+    ? activeProfileId
+    : profileIds[0];
+  if (
+    partnerProfileId &&
+    profileIds.includes(partnerProfileId) &&
+    partnerProfileId !== resolvedActiveProfileId
+  ) {
+    return partnerProfileId;
+  }
+
+  return profileIds.find((profileId) => profileId !== resolvedActiveProfileId) ?? profileIds[1];
 }
 
 function parseProfile(profile: unknown): SetupProfile | null {

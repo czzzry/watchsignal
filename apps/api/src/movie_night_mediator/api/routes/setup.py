@@ -31,10 +31,16 @@ class SetupDefaultsPayload(BaseModel):
 class SetupStatePayload(BaseModel):
     householdLabel: str = Field(min_length=1)
     profiles: list[SetupProfilePayload] = Field(min_length=2)
+    activeProfileId: str | None = Field(default=None)
+    partnerProfileId: str | None = Field(default=None)
     defaults: SetupDefaultsPayload
 
 
 class SetupProfileRenamePayload(BaseModel):
+    label: str = Field(min_length=1)
+
+
+class SetupProfileCreatePayload(BaseModel):
     label: str = Field(min_length=1)
 
 
@@ -60,6 +66,17 @@ def register_setup_routes(
     )
     def post_tester_profile() -> SetupStatePayload:
         return _setup_state_to_payload(setup_store.ensure_tester_profile())
+
+    @app.post(
+        "/setup/profiles",
+        response_model=SetupStatePayload,
+        tags=["setup"],
+    )
+    def post_profile(payload: SetupProfileCreatePayload) -> SetupStatePayload:
+        try:
+            return _setup_state_to_payload(setup_store.create_profile(payload.label))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.patch(
         "/setup/profiles/{profile_id}",
@@ -105,12 +122,16 @@ def _payload_to_setup_state(payload: SetupStatePayload) -> SetupState:
             shortlist_size=payload.defaults.shortlistSize,
             avoid_already_watched=payload.defaults.avoidAlreadyWatched,
         ),
+        active_profile_id=payload.activeProfileId or "",
+        partner_profile_id=payload.partnerProfileId or "",
     )
 
 
 def _setup_state_to_payload(setup: SetupState) -> SetupStatePayload:
     return SetupStatePayload(
         householdLabel=setup.household_label,
+        activeProfileId=setup.active_profile_id,
+        partnerProfileId=setup.partner_profile_id,
         profiles=[
             SetupProfilePayload(
                 id=profile.id,
