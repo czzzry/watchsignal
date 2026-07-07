@@ -10,7 +10,7 @@ MVP Plus 3 is **Directed Discovery And Real Tester Profile**.
 Current tracker:
 
 ```text
-MVP+3: [░░░░░░░░░░░░░░░░░░░░] 0/10 issues done
+MVP+3: [██░░░░░░░░░░░░░░░░░░] 1/10 issues done
 ```
 
 The issue count is ten.
@@ -33,7 +33,7 @@ Parent PRD issue:
 
 Implementation and acceptance slices:
 
-- #63 - MVP+3 Slice 1 - Contracts And Acceptance Gate
+- #63 - MVP+3 Slice 1 - Contracts And Acceptance Gate - done
 - #64 - MVP+3 Slice 2 - Persistent Tester Profile Foundation
 - #65 - MVP+3 Slice 3 - Taste Lab Profile Selection And Durable Ratings
 - #66 - MVP+3 Slice 4 - Main Flow Uses Selected Profiles And Calibration Evidence
@@ -60,16 +60,16 @@ It should also define the final phone-sized dogfood path and recommendation-qual
 
 ### Acceptance criteria
 
-- [ ] Profile contract uses stable ids and renameable display labels.
-- [ ] `Cezary - tester` is represented as a normal persistent profile, not special-case UI text.
-- [ ] Taste Lab rating ownership is defined by profile id.
-- [ ] Main recommendation session profile selection is explicit.
-- [ ] Nudge interpretation contract supports filters, soft signals, clarification, confidence, and deterministic fallback.
-- [ ] Actor/person requests are represented without giving the LLM ranking authority.
-- [ ] Five-more contract distinguishes same direction, different direction, more like this, avoid this, and add nudge.
-- [ ] Bookmark contract stores source movie identity, provenance, remove behavior, and no automatic taste boost.
-- [ ] Evidence contract can explain durable profile signals and tonight-level nudges separately.
-- [ ] Acceptance gate contract names the phone-sized dogfood flow and fixed recommendation scenarios.
+- [x] Profile contract uses stable ids and renameable display labels.
+- [x] `Cezary - tester` is represented as a normal persistent profile, not special-case UI text.
+- [x] Taste Lab rating ownership is defined by profile id.
+- [x] Main recommendation session profile selection is explicit.
+- [x] Nudge interpretation contract supports filters, soft signals, clarification, confidence, and deterministic fallback.
+- [x] Actor/person requests are represented without giving the LLM ranking authority.
+- [x] Five-more contract distinguishes same direction, different direction, more like this, avoid this, and add nudge.
+- [x] Bookmark contract stores source movie identity, provenance, remove behavior, and no automatic taste boost.
+- [x] Evidence contract can explain durable profile signals and tonight-level nudges separately.
+- [x] Acceptance gate contract names the phone-sized dogfood flow and fixed recommendation scenarios.
 
 ### Validation commands
 
@@ -80,6 +80,9 @@ pnpm check
 ### Stop condition
 
 Stop when later slices can build against shared contracts without inventing incompatible payloads.
+
+Completed by the executable contract module in `apps/api/src/movie_night_mediator/mvp_plus_3/contracts.py` and contract tests in `apps/api/tests/test_mvp_plus_3_contracts.py`.
+Treehouse fanout can now start with Slices 2, 3, 5, and 8.
 
 ### Risk notes
 
