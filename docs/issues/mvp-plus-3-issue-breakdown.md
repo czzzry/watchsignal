@@ -1,8 +1,7 @@
 # MVP Plus 3 Issue Breakdown
 
 This proposed issue set breaks [docs/prd-mvp-plus-3.md](../prd-mvp-plus-3.md) into bounded vertical slices.
-It has not been published to GitHub Issues yet.
-Publication should wait for founder approval of the slice count and granularity.
+It has been published to GitHub Issues as the locked MVP Plus 3 tracker.
 
 ## Current MVP Phase
 
@@ -11,12 +10,11 @@ MVP Plus 3 is **Directed Discovery And Real Tester Profile**.
 Current tracker:
 
 ```text
-MVP+3: [scoping: unknown total]
+MVP+3: [░░░░░░░░░░░░░░░░░░░░] 0/10 issues done
 ```
 
-The issue count is not locked yet.
-New work discovered before acceptance should either adjust this proposal or move to the next-phase backlog.
-New work discovered after acceptance should be classified as in-scope risk closure, a scope-change candidate that needs founder approval, or next-phase backlog.
+The issue count is ten.
+New work discovered during execution should be classified as in-scope risk closure, a scope-change candidate that needs founder approval, or next-phase backlog.
 
 ## Phase Promise
 
@@ -31,20 +29,20 @@ The phase is done only when both are true:
 
 Parent PRD issue:
 
-- MVP+3 PRD - Directed Discovery And Real Tester Profile
+- #62 - MVP+3 PRD - Directed Discovery And Real Tester Profile
 
 Implementation and acceptance slices:
 
-- MVP+3 Slice 1 - Contracts And Acceptance Gate
-- MVP+3 Slice 2 - Persistent Tester Profile Foundation
-- MVP+3 Slice 3 - Taste Lab Profile Selection And Durable Ratings
-- MVP+3 Slice 4 - Main Flow Uses Selected Profiles And Calibration Evidence
-- MVP+3 Slice 5 - Directed Nudge Interpreter Contract
-- MVP+3 Slice 6 - Actor And Person Candidate Filtering
-- MVP+3 Slice 7 - Five More Redo Semantics And UI
-- MVP+3 Slice 8 - Bookmark Library Lite
-- MVP+3 Slice 9 - Recommendation Explanation Trust Polish
-- MVP+3 Slice 10 - MVP Plus 3 Dogfood And Evaluation Gate
+- #63 - MVP+3 Slice 1 - Contracts And Acceptance Gate
+- #64 - MVP+3 Slice 2 - Persistent Tester Profile Foundation
+- #65 - MVP+3 Slice 3 - Taste Lab Profile Selection And Durable Ratings
+- #66 - MVP+3 Slice 4 - Main Flow Uses Selected Profiles And Calibration Evidence
+- #67 - MVP+3 Slice 5 - Directed Nudge Interpreter Contract
+- #68 - MVP+3 Slice 6 - Actor And Person Candidate Filtering
+- #69 - MVP+3 Slice 7 - Five More Redo Semantics And UI
+- #70 - MVP+3 Slice 8 - Bookmark Library Lite
+- #71 - MVP+3 Slice 9 - Recommendation Explanation Trust Polish
+- #72 - MVP+3 Slice 10 - MVP Plus 3 Dogfood And Evaluation Gate
 
 ## Slice 1 - Contracts And Acceptance Gate
 

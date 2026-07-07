@@ -4,7 +4,7 @@ This note defines the first shared contract surface for MVP Plus 3.
 The goal is to let profile, Taste Lab, directed discovery, bookmark, explanation, and evaluation work proceed without incompatible assumptions.
 
 MVP Plus 3 is **Directed Discovery And Real Tester Profile**.
-The tracker is still in scoping until the founder accepts the issue breakdown.
+The locked tracker is [#63 through #72](../issues/mvp-plus-3-issue-breakdown.md).
 
 ## Contract Principles
 

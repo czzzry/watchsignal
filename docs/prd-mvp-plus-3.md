@@ -15,10 +15,10 @@ MVP Plus 3 should prove this promise:
 
 ## Phase Status
 
-MVP+3: [scoping: unknown total]
+MVP+3: [░░░░░░░░░░░░░░░░░░░░] 0/10 issues done.
 
-The issue count is not locked yet.
-After the issue breakdown is accepted, new work should be classified as in-scope risk closure, a scope-change candidate that needs founder approval, or next-phase backlog.
+The issue count is locked at ten implementation slices.
+New work should be classified as in-scope risk closure, a scope-change candidate that needs founder approval, or next-phase backlog.
 
 ## Solution
 
