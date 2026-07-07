@@ -19,7 +19,7 @@ import type {
 } from "./pass-the-phone-model";
 
 export const fallbackPosterUrl =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 342 513'%3E%3Crect width='342' height='513' fill='%23e1eef2'/%3E%3Crect x='42' y='78' width='258' height='357' rx='18' fill='%23ffffff' stroke='%23245f73' stroke-width='8'/%3E%3Ccircle cx='126' cy='184' r='32' fill='%23245f73'/%3E%3Ccircle cx='216' cy='184' r='32' fill='%23245f73'/%3E%3Cpath d='M102 306h138' stroke='%23245f73' stroke-width='16' stroke-linecap='round'/%3E%3C/svg%3E";
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 342 513'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%2307131d'/%3E%3Cstop offset='.48' stop-color='%23142b3a'/%3E%3Cstop offset='1' stop-color='%23331854'/%3E%3C/linearGradient%3E%3CradialGradient id='r' cx='.35' cy='.28' r='.72'%3E%3Cstop stop-color='%2378f0ff' stop-opacity='.34'/%3E%3Cstop offset='.52' stop-color='%237e6cff' stop-opacity='.13'/%3E%3Cstop offset='1' stop-color='%23000000' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='342' height='513' fill='url(%23g)'/%3E%3Crect width='342' height='513' fill='url(%23r)'/%3E%3Ccircle cx='258' cy='82' r='38' fill='%23fff1c7' opacity='.9'/%3E%3Cpath d='M0 372 C58 318 102 332 151 292 C211 243 264 261 342 205 L342 513 L0 513 Z' fill='%23060b12' opacity='.78'/%3E%3Cpath d='M42 406 C96 363 139 371 188 332 C238 292 281 296 314 268' fill='none' stroke='%2378f0ff' stroke-opacity='.34' stroke-width='5'/%3E%3Ctext x='171' y='462' text-anchor='middle' font-family='Arial, sans-serif' font-size='24' font-weight='700' fill='%23eef7ff' letter-spacing='3'%3EWATCHSIGNAL%3C/text%3E%3C/svg%3E";
 
 export const demoCandidateViewModels: CandidateViewModel[] = demoCandidates.map(
   toDemoCandidateViewModel,
@@ -424,6 +424,9 @@ export function toSessionCandidate(
       candidate.topCast?.slice(0, 3) ??
       fixture?.topCast ??
       [],
+    matchedPersonNames:
+      candidate.matchedPersonNames?.slice(0, 3) ??
+      fixture?.matchedPersonNames,
     genres: candidate.genres ?? fixture?.genres ?? [],
     criticScore: fixture?.criticScore,
     safePickStatus: toSafePickStatus(candidate.safePickStatus),

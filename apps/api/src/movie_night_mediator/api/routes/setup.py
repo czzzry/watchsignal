@@ -34,6 +34,10 @@ class SetupStatePayload(BaseModel):
     defaults: SetupDefaultsPayload
 
 
+class SetupProfileRenamePayload(BaseModel):
+    label: str = Field(min_length=1)
+
+
 def register_setup_routes(
     app: FastAPI,
     *,
@@ -48,6 +52,30 @@ def register_setup_routes(
         _validate_profile_uniqueness(payload.profiles)
         saved_setup = setup_store.save_setup(_payload_to_setup_state(payload))
         return _setup_state_to_payload(saved_setup)
+
+    @app.post(
+        "/setup/profiles/tester",
+        response_model=SetupStatePayload,
+        tags=["setup"],
+    )
+    def post_tester_profile() -> SetupStatePayload:
+        return _setup_state_to_payload(setup_store.ensure_tester_profile())
+
+    @app.patch(
+        "/setup/profiles/{profile_id}",
+        response_model=SetupStatePayload,
+        tags=["setup"],
+    )
+    def patch_profile(
+        profile_id: str,
+        payload: SetupProfileRenamePayload,
+    ) -> SetupStatePayload:
+        try:
+            return _setup_state_to_payload(
+                setup_store.rename_profile(profile_id, payload.label)
+            )
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 def _validate_profile_uniqueness(profiles: list[SetupProfilePayload]) -> None:

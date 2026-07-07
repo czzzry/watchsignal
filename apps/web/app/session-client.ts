@@ -39,6 +39,7 @@ export type ShortlistCandidatePayload = SessionShortlistItemPayload & {
   availability?: string | null;
   providerNames?: string[];
   topCast?: string[];
+  matchedPersonNames?: string[];
   languageAccess?: string | null;
   tone?: string | null;
   reason?: string | null;
@@ -164,9 +165,11 @@ export type WatchlistEntryPayload = {
   title: string;
   savedAt: string;
   savedByProfileId?: string | null;
+  savedByDisplayLabel?: string | null;
   posterUrl?: string | null;
   releaseYear?: number | null;
   isTasteSignal: boolean;
+  canBeRecommendationSeed: boolean;
 };
 
 export type SaveWatchlistEntryRequest = {
@@ -174,6 +177,7 @@ export type SaveWatchlistEntryRequest = {
   sourceMovieId: string;
   title: string;
   savedByProfileId?: string | null;
+  savedByDisplayLabel?: string | null;
   posterUrl?: string | null;
   releaseYear?: number | null;
 };
@@ -382,6 +386,7 @@ export type LoadShortlistRequest = {
 };
 
 export type LoadShortlistResponse = {
+  recommendationSource: "demo" | "live_tmdb" | string;
   shortlist: ShortlistCandidatePayload[];
 };
 
@@ -422,12 +427,15 @@ export async function loadRecommendationShortlist(
 ): Promise<LoadShortlistResponse> {
   const payload = await postJson<unknown>("/api/recommendations/shortlist", request);
   const shortlist = parseShortlistPayload(payload);
+  const recommendationSource = isRecord(payload)
+    ? stringValue(payload.recommendationSource) ?? stringValue(payload.recommendation_source)
+    : null;
 
   if (shortlist.length === 0) {
     throw new Error("Recommendation API returned an empty shortlist.");
   }
 
-  return { shortlist };
+  return { recommendationSource: recommendationSource ?? "demo", shortlist };
 }
 
 export async function submitSessionReactions(
@@ -697,6 +705,9 @@ function parseShortlistCandidate(
     topCast:
       stringArrayValue(candidate.topCast) ||
       stringArrayValue(candidate.top_cast),
+    matchedPersonNames:
+      stringArrayValue(candidate.matchedPersonNames) ||
+      stringArrayValue(candidate.matched_person_names),
     languageAccess:
       stringValue(candidate.languageAccess) ??
       stringValue(candidate.language_access),

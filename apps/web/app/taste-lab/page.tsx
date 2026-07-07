@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  ensureTesterProfile,
   getTasteLabQueue,
   getTasteLabRatings,
   seedDefaultTasteLabCandidates,
   submitTasteLabRatings,
+  type SetupProfilePayload,
   type TasteLabCandidatePayload,
   type TasteLabRatingExportPayload,
   type TasteLabRatingInputPayload,
@@ -13,9 +15,29 @@ import {
 } from "../taste-lab-client";
 
 const householdId = "default-household";
-const profiles = [
-  { id: "profile-1", label: "Husband" },
-  { id: "profile-2", label: "Wife" },
+const testerProfileId = "cezary-tester";
+const fallbackProfiles: SetupProfilePayload[] = [
+  {
+    id: testerProfileId,
+    label: "Cezary - tester",
+    order: 1,
+    avatarKey: "comet",
+    colorKey: "amber",
+  },
+  {
+    id: "profile-1",
+    label: "Husband",
+    order: 2,
+    avatarKey: "spark",
+    colorKey: "cyan",
+  },
+  {
+    id: "profile-2",
+    label: "Wife",
+    order: 3,
+    avatarKey: "moon",
+    colorKey: "rose",
+  },
 ];
 
 const labels: {
@@ -31,7 +53,8 @@ const labels: {
 ];
 
 export default function TasteLabPage() {
-  const [profileId, setProfileId] = useState(profiles[0].id);
+  const [profiles, setProfiles] = useState<SetupProfilePayload[]>(fallbackProfiles);
+  const [profileId, setProfileId] = useState(testerProfileId);
   const [queue, setQueue] = useState<TasteLabCandidatePayload[]>([]);
   const [ratings, setRatings] = useState<Record<string, TasteLabRatingLabel>>({});
   const [history, setHistory] = useState<TasteLabRatingExportPayload[]>([]);
@@ -44,8 +67,32 @@ export default function TasteLabPage() {
   const activeProfile = profiles.find((profile) => profile.id === profileId) ?? profiles[0];
 
   useEffect(() => {
+    void loadProfiles();
+  }, []);
+
+  useEffect(() => {
     void refresh(profileId);
   }, [profileId]);
+
+  async function loadProfiles() {
+    try {
+      const setup = await ensureTesterProfile();
+      const sortedProfiles = [...setup.profiles].sort(
+        (first, second) => first.order - second.order,
+      );
+      setProfiles(sortedProfiles);
+      setProfileId((currentProfileId) =>
+        sortedProfiles.some((profile) => profile.id === currentProfileId)
+          ? currentProfileId
+          : sortedProfiles.some((profile) => profile.id === testerProfileId)
+            ? testerProfileId
+            : sortedProfiles[0]?.id ?? testerProfileId,
+      );
+    } catch {
+      setProfiles(fallbackProfiles);
+      setProfileId(testerProfileId);
+    }
+  }
 
   async function refresh(nextProfileId = profileId) {
     setBusy(true);
@@ -56,7 +103,7 @@ export default function TasteLabPage() {
         nextQueue.length > 0
           ? "Queue ready."
           : savedRatings.length > 0
-            ? `No unrated demo movies remain for ${profileLabel(nextProfileId)}.`
+            ? `No unrated demo movies remain for ${profileLabel(nextProfileId, profiles)}.`
           : "No candidates yet. Load the high-signal queue to start.",
       );
     } catch (error) {
@@ -99,7 +146,7 @@ export default function TasteLabPage() {
         nextQueue.length > 0
           ? "High-signal queue loaded. Rate this batch, then confirm at the bottom."
           : savedRatings.length > 0
-            ? `All high-signal starter movies are already answered for ${activeProfile.label}. Switch profiles or reset the test data to start over.`
+            ? `All high-signal starter movies are already answered for ${profileLabel(profileId, profiles)}. Switch profiles or reset the test data to start over.`
             : "High-signal queue loaded, but no batch came back.",
       );
     } catch (error) {
@@ -148,7 +195,7 @@ export default function TasteLabPage() {
       setStatus(
         nextQueue.length > 0
           ? `${selectedRatings.length} signal${selectedRatings.length === 1 ? "" : "s"} saved. Next batch is ready.`
-          : `${selectedRatings.length} signal${selectedRatings.length === 1 ? "" : "s"} saved. No unrated demo movies remain for ${activeProfile.label}.`,
+          : `${selectedRatings.length} signal${selectedRatings.length === 1 ? "" : "s"} saved. No unrated demo movies remain for ${profileLabel(profileId, profiles)}.`,
       );
     } catch (error) {
       const savedAt = new Date().toISOString();
@@ -322,8 +369,15 @@ export default function TasteLabPage() {
   );
 }
 
-function profileLabel(profileId: string): string {
-  return profiles.find((profile) => profile.id === profileId)?.label ?? profileId;
+function profileLabel(
+  profileId: string,
+  profiles: SetupProfilePayload[] = fallbackProfiles,
+): string {
+  return (
+    profiles.find((profile) => profile.id === profileId)?.label
+    ?? fallbackProfiles.find((profile) => profile.id === profileId)?.label
+    ?? profileId
+  );
 }
 
 function posterUrl(path: string): string {

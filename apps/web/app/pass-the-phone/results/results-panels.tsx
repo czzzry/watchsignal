@@ -207,6 +207,7 @@ export function ResultsActions({
   isSyncing,
   isBestPickSaved,
   watchlistStatus,
+  continuationOpen,
   onShowMore,
   onSaveBestPick,
   onReset,
@@ -215,6 +216,7 @@ export function ResultsActions({
   isSyncing: boolean;
   isBestPickSaved: boolean;
   watchlistStatus: WatchlistStatus;
+  continuationOpen: boolean;
   onShowMore: () => void | Promise<void>;
   onSaveBestPick: () => void | Promise<void>;
   onReset: () => void;
@@ -227,8 +229,15 @@ export function ResultsActions({
           className="resultsPrimaryAction"
           onClick={onShowMore}
           disabled={!canPersist || isSyncing}
+          aria-expanded={continuationOpen}
         >
-          <span>{isSyncing ? "Finding five more..." : "Show 5 more"}</span>
+          <span>
+            {isSyncing
+              ? "Finding five more..."
+              : continuationOpen
+                ? "Hide options"
+                : "Show 5 more"}
+          </span>
           <RedoIcon />
         </button>
         <button
@@ -339,7 +348,9 @@ function WatchlistItem({
   onPosterFallback: PosterFallbackHandler;
 }) {
   const savedByLabel = entry.savedByProfileId
-    ? participantEntries.find((participant) => participant.id === entry.savedByProfileId)?.label ?? entry.savedByProfileId
+    ? entry.savedByDisplayLabel ??
+      participantEntries.find((participant) => participant.id === entry.savedByProfileId)?.label ??
+      entry.savedByProfileId
     : null;
 
   return (
@@ -586,6 +597,7 @@ export function SteerNextPanel({
   activeIntents,
   text,
   pendingIntent,
+  referenceTitle,
   clarificationText,
   message,
   busy,
@@ -594,11 +606,14 @@ export function SteerNextPanel({
   onInterpret,
   onClarificationTextChange,
   onAnswerClarification,
+  onAdd,
   onApply,
+  onContinue,
 }: {
   activeIntents: TonightIntentInterpretationPayload[];
   text: string;
   pendingIntent: TonightIntentInterpretationPayload | null;
+  referenceTitle?: string | null;
   clarificationText: string;
   message: string | null;
   busy: boolean;
@@ -607,24 +622,40 @@ export function SteerNextPanel({
   onInterpret: () => void | Promise<void>;
   onClarificationTextChange: (text: string) => void;
   onAnswerClarification: () => void | Promise<void>;
+  onAdd: () => void;
   onApply: () => void | Promise<void>;
+  onContinue: () => void | Promise<void>;
 }) {
   const pendingSignals = pendingIntent?.softSignals.slice(0, 4) ?? [];
   const hasClarification = pendingIntent?.status === "clarification_required";
   const hasConfirmation = pendingIntent?.status === "confirmation_required";
+  const quickSteers = [
+    "different direction",
+    referenceTitle ? `more like ${referenceTitle}` : "more like the winner",
+    referenceTitle ? `avoid movies like ${referenceTitle}` : "avoid this direction",
+  ];
 
   return (
-    <section className="tonightIntentPanel steerNextPanel" aria-labelledby="steer-next-heading">
+    <section className="tonightIntentPanel steerNextPanel continuationPanel" aria-labelledby="steer-next-heading">
       <div className="tonightIntentHeader">
         <div>
-          <p className="eyebrow">Steer next 5</p>
-          <h3 id="steer-next-heading">Add one more tonight nudge</h3>
+          <p className="eyebrow">Next five</p>
+          <h3 id="steer-next-heading">Keep going or steer first?</h3>
         </div>
       </div>
 
+      <button
+        type="button"
+        className="primaryAction continuationSameDirectionAction"
+        onClick={onContinue}
+        disabled={busy || !canPersist}
+      >
+        {activeIntents.length > 0 ? "Find 5 with current steers" : "Find 5 in the same direction"}
+      </button>
+
       {activeIntents.length > 0 ? (
         <div className="tonightIntentActive">
-          <strong>Still active</strong>
+          <strong>Steers queued for the next batch</strong>
           <div className="tonightIntentSignals">
             {activeIntents.map((intent, index) => (
               <span key={`${intent.rawText}-${index}`}>
@@ -636,13 +667,26 @@ export function SteerNextPanel({
       ) : null}
 
       <div className="tonightIntentComposer">
-        <label htmlFor="steer-next-input">New steer</label>
+        <label htmlFor="steer-next-input">Optional steer</label>
+        <div className="tonightIntentQuickActions">
+          {quickSteers.map((quickSteer) => (
+            <button
+              key={quickSteer}
+              type="button"
+              className="secondaryButton compactButton"
+              onClick={() => onTextChange(quickSteer)}
+              disabled={busy || !canPersist}
+            >
+              {quickSteer}
+            </button>
+          ))}
+        </div>
         <div className="tonightIntentInputRow">
           <input
             id="steer-next-input"
             value={text}
             onChange={(event) => onTextChange(event.target.value)}
-            placeholder="actually more action"
+            placeholder="scarier, sadder, Jack Nicholson..."
             disabled={busy || !canPersist}
           />
           <button
@@ -668,11 +712,19 @@ export function SteerNextPanel({
           ) : null}
           <button
             type="button"
+            className="secondaryAction compactAction"
+            onClick={onAdd}
+            disabled={busy || !canPersist}
+          >
+            Add steer
+          </button>
+          <button
+            type="button"
             className="primaryAction compactAction"
             onClick={onApply}
             disabled={busy || !canPersist}
           >
-            Apply steer and show 5
+            Add and find 5
           </button>
         </div>
       ) : null}
@@ -701,6 +753,86 @@ export function SteerNextPanel({
       ) : null}
 
       {message ? <p className="tonightIntentNote">{message}</p> : null}
+    </section>
+  );
+}
+
+export function RecommendationEvidencePanel({
+  bestPick,
+  activeIntents,
+  recommendationSource,
+  participantEntries,
+  tasteProfileSummaries,
+}: {
+  bestPick: RankedCandidate;
+  activeIntents: TonightIntentInterpretationPayload[];
+  recommendationSource: string;
+  participantEntries: ResultsParticipantEntry[];
+  tasteProfileSummaries: TasteProfileSummaryPayload[];
+}) {
+  const matchedPersonNames = bestPick.matchedPersonNames?.slice(0, 3) ?? [];
+  const sourceLabel =
+    recommendationSource === "live_tmdb" ? "Live TMDb" : "Demo catalog";
+  const sourceDetail =
+    recommendationSource === "live_tmdb"
+      ? "Broad live candidate pool."
+      : "Small seeded pool for local demo mode.";
+  const profileRows = participantEntries.map((participant) => {
+    const summary = tasteProfileSummaries.find(
+      (profileSummary) => profileSummary.profileId === participant.id,
+    );
+    return {
+      label: participant.label,
+      evidenceCount: summary?.preferenceEvidenceCount ?? 0,
+      ratingCount: summary?.ratingCount ?? 0,
+    };
+  });
+
+  return (
+    <section className="recommendationEvidencePanel" aria-labelledby="recommendation-evidence-heading">
+      <div>
+        <p className="eyebrow">Why these 5</p>
+        <h3 id="recommendation-evidence-heading">Current signals</h3>
+      </div>
+      <div className="recommendationEvidenceGrid">
+        <div>
+          <strong>Tonight</strong>
+          {activeIntents.length > 0 ? (
+            <div className="tonightIntentSignals">
+              {activeIntents.slice(0, 3).map((intent, index) => (
+                <span key={`${intent.rawText}-${index}`}>{intent.rawText}</span>
+              ))}
+            </div>
+          ) : (
+            <p>No extra steer applied.</p>
+          )}
+        </div>
+        <div>
+          <strong>Source</strong>
+          <div className="tonightIntentSignals">
+            <span>{sourceLabel}</span>
+          </div>
+          <p>{sourceDetail}</p>
+        </div>
+        <div>
+          <strong>Taste Lab</strong>
+          <div className="tonightIntentSignals">
+            {profileRows.map((profileRow) => (
+              <span key={profileRow.label}>
+                {profileRow.label}: {profileRow.evidenceCount} signals
+              </span>
+            ))}
+          </div>
+        </div>
+        <div>
+          <strong>Best pick</strong>
+          <p>
+            {matchedPersonNames.length > 0
+              ? `Matched ${matchedPersonNames.join(", ")}.`
+              : `${bestPick.title} led the shared score.`}
+          </p>
+        </div>
+      </div>
     </section>
   );
 }

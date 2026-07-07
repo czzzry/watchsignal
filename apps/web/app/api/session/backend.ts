@@ -14,12 +14,19 @@ export async function putBackendSession(
   return sendBackendSession("PUT", path, body);
 }
 
+export async function patchBackendSession(
+  path: string,
+  body: unknown,
+): Promise<Response> {
+  return sendBackendSession("PATCH", path, body);
+}
+
 export async function deleteBackendSession(path: string): Promise<Response> {
   return sendBackendSession("DELETE", path, undefined);
 }
 
 async function sendBackendSession(
-  method: "DELETE" | "POST" | "PUT",
+  method: "DELETE" | "PATCH" | "POST" | "PUT",
   path: string,
   body: unknown,
 ): Promise<Response> {

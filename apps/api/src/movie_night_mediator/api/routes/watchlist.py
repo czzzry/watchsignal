@@ -13,9 +13,11 @@ class WatchlistEntryPayload(BaseModel):
     title: str
     savedAt: str
     savedByProfileId: str | None = None
+    savedByDisplayLabel: str | None = None
     posterUrl: str | None = None
     releaseYear: int | None = None
     isTasteSignal: bool = False
+    canBeRecommendationSeed: bool = False
 
 
 class SaveWatchlistEntryPayload(BaseModel):
@@ -23,6 +25,7 @@ class SaveWatchlistEntryPayload(BaseModel):
     sourceMovieId: str = Field(min_length=1)
     title: str = Field(min_length=1)
     savedByProfileId: str | None = None
+    savedByDisplayLabel: str | None = None
     posterUrl: str | None = None
     releaseYear: int | None = None
 
@@ -59,6 +62,7 @@ def register_watchlist_routes(
                 source_movie_id=payload.sourceMovieId,
                 title=payload.title,
                 saved_by_profile_id=payload.savedByProfileId,
+                saved_by_display_label=payload.savedByDisplayLabel,
                 poster_url=payload.posterUrl,
                 release_year=payload.releaseYear,
             )
@@ -92,7 +96,9 @@ def _watchlist_entry_to_payload(entry: WatchlistEntry) -> WatchlistEntryPayload:
         title=entry.title,
         savedAt=entry.saved_at,
         savedByProfileId=entry.saved_by_profile_id,
+        savedByDisplayLabel=entry.saved_by_display_label,
         posterUrl=entry.poster_url,
         releaseYear=entry.release_year,
         isTasteSignal=entry.is_taste_signal,
+        canBeRecommendationSeed=entry.can_be_recommendation_seed,
     )

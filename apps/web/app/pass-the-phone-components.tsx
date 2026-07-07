@@ -68,6 +68,7 @@ import {
   BackupTitles,
   DebugHistoryPanel as ResultsDebugHistoryPanel,
   OutcomePanel,
+  RecommendationEvidencePanel,
   ResultsActions,
   type ResultsParticipantEntry,
   SessionEvidencePanel,
@@ -252,6 +253,11 @@ export function SetupStep({
   const summaryLine = onboardingRequired
     ? `${completedCount} of ${totalCount} ready`
     : "Step 1 of 3";
+  const setupProgress = onboardingRequired
+    ? totalCount > 0
+      ? Math.round((completedCount / totalCount) * 100)
+      : 0
+    : 33;
   const utilityLine = onboardingRequired
     ? missingLabels || (isCoupleSession ? "Both profiles complete" : `${selectedPeopleLabel} ready`)
     : isCoupleSession
@@ -309,11 +315,11 @@ export function SetupStep({
           <div className="startupSceneVignette" aria-hidden="true" />
           <div className="startupSceneHorizon" aria-hidden="true" />
           <div
-            className={onboardingRequired ? "heroVisual startupOrbWrap heroVisualSetup" : "heroVisual startupOrbWrap heroVisualReady"}
+            className="heroVisual startupOrbWrap heroVisualReady"
             aria-hidden="true"
           >
-            <div className={onboardingRequired ? "heroSignal heroSignalSetup" : "heroSignal heroSignalReady"}>
-              {onboardingRequired ? <div className="heroSignalCore" /> : <StartupConceptHero />}
+            <div className="heroSignal heroSignalReady">
+              <StartupConceptHero />
             </div>
           </div>
 
@@ -398,7 +404,6 @@ export function SetupStep({
                     </span>
                   </span>
                   <strong className="startupControlValue">{availabilityDisplayLabel}</strong>
-                  <span className="startupRowSummaryAction">Change</span>
                 </div>
               </div>
             </div>
@@ -408,7 +413,10 @@ export function SetupStep({
             <div className="startupMicroProgress startupMicroProgressInline" aria-hidden="true">
               <p className="startupMicroProgressLabel">{summaryLine}</p>
               <div className="startupMicroProgressTrack">
-                <span className="startupMicroProgressFill" />
+                <span
+                  className="startupMicroProgressFill"
+                  style={{ width: `${setupProgress}%` }}
+                />
               </div>
             </div>
 
@@ -847,6 +855,7 @@ export function ReactionStep({
   onSeenIt: () => void;
   onBack: () => void;
 }) {
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
   const confidenceScore = candidate.taste.founder && candidate.taste.wife
     ? Math.round((candidate.taste.founder + candidate.taste.wife) / 2)
     : 87;
@@ -913,12 +922,18 @@ export function ReactionStep({
               ))}
             </div>
           ) : null}
-          <div className="movieReasonBlock">
+          <div className={detailsExpanded ? "movieReasonBlock movieReasonBlockExpanded" : "movieReasonBlock"}>
             <p className="movieReason movieReasonLead">{reactionSummary}</p>
             <p className="movieReason movieReasonSubtle">{reactionDetail}</p>
             <div className="movieReasonActions">
-              <button type="button" className="ghostInlineButton" disabled={isSyncing}>
-                More
+              <button
+                type="button"
+                className="ghostInlineButton"
+                disabled={isSyncing}
+                onClick={() => setDetailsExpanded((current) => !current)}
+                aria-expanded={detailsExpanded}
+              >
+                {detailsExpanded ? "Less" : "More"}
               </button>
             </div>
           </div>
@@ -1747,6 +1762,7 @@ export function ResultsStep({
   sessionSource,
   sharedSession,
   activeTonightIntents,
+  recommendationSource,
   steerText,
   pendingSteerIntent,
   steerClarificationText,
@@ -1762,6 +1778,7 @@ export function ResultsStep({
   onInterpretSteer,
   onSteerClarificationTextChange,
   onAnswerSteerClarification,
+  onAddSteer,
   onApplySteer,
   isSyncing,
   reviewMode,
@@ -1777,6 +1794,7 @@ export function ResultsStep({
   sessionSource: SessionSource;
   sharedSession: SharedSessionPayload | null;
   activeTonightIntents: TonightIntentInterpretationPayload[];
+  recommendationSource: string;
   steerText: string;
   pendingSteerIntent: TonightIntentInterpretationPayload | null;
   steerClarificationText: string;
@@ -1792,11 +1810,13 @@ export function ResultsStep({
   onInterpretSteer: () => void | Promise<void>;
   onSteerClarificationTextChange: (text: string) => void;
   onAnswerSteerClarification: () => void | Promise<void>;
+  onAddSteer: () => void;
   onApplySteer: () => void | Promise<void>;
   isSyncing: boolean;
   reviewMode: boolean;
 }) {
   const bestPick = rankedCandidates[0];
+  const [continuationOpen, setContinuationOpen] = useState(false);
   const [outcomeType, setOutcomeType] = useState<SessionOutcomeType | null>(null);
   const [otherPickId, setOtherPickId] = useState<string | null>(null);
   const [outcomeNote, setOutcomeNote] = useState("");
@@ -1960,6 +1980,7 @@ export function ResultsStep({
         sourceMovieId: bestPick.id,
         title: bestPick.title,
         savedByProfileId: participantEntries[0]?.id ?? null,
+        savedByDisplayLabel: participantEntries[0]?.label ?? null,
         posterUrl: bestPick.posterUrl,
         releaseYear: bestPick.year,
       });
@@ -2120,15 +2141,44 @@ export function ResultsStep({
         onPosterFallback={handlePosterFallback}
       />
 
+      <RecommendationEvidencePanel
+        bestPick={bestPick}
+        activeIntents={activeTonightIntents}
+        recommendationSource={recommendationSource}
+        participantEntries={participantEntries}
+        tasteProfileSummaries={tasteProfileSummaries}
+      />
+
       <ResultsActions
         canPersist={canPersist}
         isSyncing={isSyncing}
         isBestPickSaved={bestPickWatchlistEntry !== undefined}
         watchlistStatus={watchlistStatus}
-        onShowMore={onShowMore}
+        continuationOpen={continuationOpen}
+        onShowMore={() => setContinuationOpen((current) => !current)}
         onSaveBestPick={handleSaveBestPick}
         onReset={onReset}
       />
+
+      {continuationOpen ? (
+        <ResultsSteerNextPanel
+          activeIntents={activeTonightIntents}
+          text={steerText}
+          pendingIntent={pendingSteerIntent}
+          referenceTitle={bestPick.title}
+          clarificationText={steerClarificationText}
+          message={steerMessage}
+          busy={isSyncing}
+          canPersist={canPersist}
+          onTextChange={onSteerTextChange}
+          onInterpret={onInterpretSteer}
+          onClarificationTextChange={onSteerClarificationTextChange}
+          onAnswerClarification={onAnswerSteerClarification}
+          onAdd={onAddSteer}
+          onApply={onApplySteer}
+          onContinue={onShowMore}
+        />
+      ) : null}
 
       {!canPersist ? <p className="debugMessage quietCallout">Outcome saving only works when the backend session stays connected.</p> : null}
       {watchlistMessage ? <p className="debugMessage quietCallout">{watchlistMessage}</p> : null}
@@ -2168,21 +2218,6 @@ export function ResultsStep({
         onFeedbackChange={handleFeedbackChange}
         onFeedbackNoteChange={handleFeedbackNoteChange}
         onSaveFeedback={handleSaveFeedback}
-      />
-
-      <ResultsSteerNextPanel
-        activeIntents={activeTonightIntents}
-        text={steerText}
-        pendingIntent={pendingSteerIntent}
-        clarificationText={steerClarificationText}
-        message={steerMessage}
-        busy={isSyncing}
-        canPersist={canPersist}
-        onTextChange={onSteerTextChange}
-        onInterpret={onInterpretSteer}
-        onClarificationTextChange={onSteerClarificationTextChange}
-        onAnswerClarification={onAnswerSteerClarification}
-        onApply={onApplySteer}
       />
 
       {reviewMode ? (

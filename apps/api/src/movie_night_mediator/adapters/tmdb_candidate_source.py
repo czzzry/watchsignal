@@ -13,6 +13,7 @@ from movie_night_mediator.domain.models import (
     Candidate,
     HouseholdDefaults,
     MediaType,
+    PersonCandidateConstraint,
     ProviderAccessType,
     ProviderAvailability,
     SessionContext,
@@ -120,6 +121,15 @@ class TmdbCandidateSource:
 
         region = (session.region or household_defaults.default_region or self._config.default_region).upper()
         language = self._config.default_language
+        if session.person_constraints:
+            return self._fetch_person_constrained_candidates(
+                session=session,
+                household_defaults=household_defaults,
+                limit=limit,
+                region=region,
+                language=language,
+            )
+
         provider_id = self._provider_id_for_session(session, household_defaults)
         discover_params = {
             "include_adult": "false",
@@ -165,6 +175,93 @@ class TmdbCandidateSource:
 
         return tuple(candidates)
 
+    def _fetch_person_constrained_candidates(
+        self,
+        *,
+        session: SessionContext,
+        household_defaults: HouseholdDefaults,
+        limit: int,
+        region: str,
+        language: str,
+    ) -> tuple[Candidate, ...]:
+        candidates: list[Candidate] = []
+        matched_names_by_movie_id: dict[int, list[str]] = {}
+        movie_ids: list[int] = []
+
+        for constraint in session.person_constraints:
+            person_id = self._person_id_for_constraint(
+                constraint,
+                region=region,
+                language=language,
+            )
+            if person_id is None:
+                continue
+
+            credits_payload = self._client.get_json(
+                f"/person/{person_id}/movie_credits",
+                params={"language": language},
+            )
+            for credit in _person_movie_credits(credits_payload):
+                movie_id = _int_value(credit.get("id"))
+                if movie_id is None:
+                    continue
+
+                matched_names_by_movie_id.setdefault(movie_id, []).append(
+                    constraint.raw_name
+                )
+                if movie_id not in movie_ids:
+                    movie_ids.append(movie_id)
+
+        for movie_id in movie_ids:
+            details_payload = self._client.get_json(
+                f"/movie/{movie_id}",
+                params={"language": language},
+            )
+            providers_payload = self._client.get_json(
+                f"/movie/{movie_id}/watch/providers",
+            )
+            candidate = self._candidate_from_payloads(
+                details_payload,
+                details_payload,
+                providers_payload,
+                region=region,
+                session=session,
+                household_defaults=household_defaults,
+                matched_person_names=tuple(
+                    dict.fromkeys(matched_names_by_movie_id.get(movie_id, ()))
+                ),
+            )
+            if candidate is not None:
+                candidates.append(candidate)
+            if len(candidates) >= limit:
+                break
+
+        return tuple(candidates)
+
+    def _person_id_for_constraint(
+        self,
+        constraint: PersonCandidateConstraint,
+        *,
+        region: str,
+        language: str,
+    ) -> int | None:
+        if constraint.provider_person_id is not None:
+            return _int_value(constraint.provider_person_id)
+
+        search_payload = self._client.get_json(
+            "/search/person",
+            params={
+                "include_adult": "false",
+                "language": language,
+                "query": constraint.raw_name,
+                "region": region,
+            },
+        )
+        for result in _objects(search_payload.get("results")):
+            return _int_value(result.get("id"))
+
+        return None
+
     def _provider_id_for_session(
         self,
         session: SessionContext,
@@ -186,6 +283,7 @@ class TmdbCandidateSource:
         region: str,
         session: SessionContext,
         household_defaults: HouseholdDefaults,
+        matched_person_names: tuple[str, ...] = (),
     ) -> Candidate | None:
         tmdb_id = _int_value(details.get("id")) or _int_value(result.get("id"))
         title = _string_value(details.get("title")) or _string_value(result.get("title"))
@@ -222,6 +320,7 @@ class TmdbCandidateSource:
             or "und",
             spoken_languages=_spoken_language_codes(details),
             english_subtitles_verified=False,
+            matched_person_names=matched_person_names,
         )
         classification = self._classifier.classify(
             candidate,
@@ -274,6 +373,21 @@ def _genre_names(details: Mapping[str, object]) -> tuple[str, ...]:
         for genre in _objects(details.get("genres"))
         if (name := _string_value(genre.get("name"))) is not None
     )
+
+
+def _person_movie_credits(
+    credits: Mapping[str, object],
+) -> tuple[Mapping[str, object], ...]:
+    results: list[Mapping[str, object]] = []
+    seen_movie_ids: set[int] = set()
+    for credit in (*_objects(credits.get("cast")), *_objects(credits.get("crew"))):
+        movie_id = _int_value(credit.get("id"))
+        if movie_id is None or movie_id in seen_movie_ids:
+            continue
+        seen_movie_ids.add(movie_id)
+        results.append(credit)
+
+    return tuple(results)
 
 
 def _spoken_language_codes(details: Mapping[str, object]) -> tuple[str, ...]:

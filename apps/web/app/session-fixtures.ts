@@ -13,6 +13,7 @@ export type DemoCandidate = {
    */
   posterUrl: string;
   topCast: string[];
+  matchedPersonNames?: string[];
   genres: string[];
   /**
    * Hard-coded fixture value used as a display confidence cue.

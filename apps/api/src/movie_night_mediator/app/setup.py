@@ -8,6 +8,10 @@ from pathlib import Path
 from movie_night_mediator.storage import SQLiteSettings
 
 CURRENT_SETUP_ID = "current"
+TESTER_PROFILE_ID = "cezary-tester"
+TESTER_PROFILE_LABEL = "Cezary - tester"
+TESTER_PROFILE_AVATAR_KEY = "comet"
+TESTER_PROFILE_COLOR_KEY = "amber"
 
 
 @dataclass(frozen=True)
@@ -208,6 +212,96 @@ class SQLiteSetupStore:
                 )
 
         return self.load_setup()
+
+    def ensure_tester_profile(self) -> SetupState:
+        setup = self.load_setup()
+        existing_tester = next(
+            (profile for profile in setup.profiles if profile.id == TESTER_PROFILE_ID),
+            None,
+        )
+        if existing_tester is None:
+            tester_profile = SetupProfile(
+                id=TESTER_PROFILE_ID,
+                label=TESTER_PROFILE_LABEL,
+                order=1,
+                avatar_key=TESTER_PROFILE_AVATAR_KEY,
+                color_key=TESTER_PROFILE_COLOR_KEY,
+            )
+            remaining_profiles = setup.profiles
+        else:
+            tester_profile = existing_tester
+            remaining_profiles = tuple(
+                profile for profile in setup.profiles if profile.id != TESTER_PROFILE_ID
+            )
+
+        reordered_profiles = (
+            SetupProfile(
+                id=tester_profile.id,
+                label=tester_profile.label,
+                order=1,
+                avatar_key=tester_profile.avatar_key,
+                color_key=tester_profile.color_key,
+            ),
+            *(
+                SetupProfile(
+                    id=profile.id,
+                    label=profile.label,
+                    order=index,
+                    avatar_key=profile.avatar_key,
+                    color_key=profile.color_key,
+                )
+                for index, profile in enumerate(
+                    sorted(remaining_profiles, key=lambda profile: profile.order),
+                    start=2,
+                )
+            ),
+        )
+
+        if reordered_profiles == setup.profiles:
+            return setup
+
+        return self.save_setup(
+            SetupState(
+                household_label=setup.household_label,
+                profiles=reordered_profiles,
+                defaults=setup.defaults,
+            )
+        )
+
+    def rename_profile(self, profile_id: str, display_label: str) -> SetupState:
+        normalized_profile_id = profile_id.strip()
+        normalized_display_label = display_label.strip()
+        if not normalized_profile_id:
+            raise ValueError("Profile rename requires a profile id.")
+        if not normalized_display_label:
+            raise ValueError("Profile rename requires a display label.")
+
+        setup = self.load_setup()
+        renamed_profiles = tuple(
+            SetupProfile(
+                id=profile.id,
+                label=(
+                    normalized_display_label
+                    if profile.id == normalized_profile_id
+                    else profile.label
+                ),
+                order=profile.order,
+                avatar_key=profile.avatar_key,
+                color_key=profile.color_key,
+            )
+            for profile in setup.profiles
+        )
+
+        if renamed_profiles == setup.profiles:
+            raise LookupError("Profile not found.")
+
+        return self.save_setup(
+            SetupState(
+                household_label=setup.household_label,
+                profiles=renamed_profiles,
+                defaults=setup.defaults,
+            )
+        )
 
     def initialize_schema(self) -> None:
         self.database_path.parent.mkdir(parents=True, exist_ok=True)

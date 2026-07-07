@@ -2,7 +2,7 @@
 
 import { createServer } from "node:net";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { platform, tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
@@ -14,6 +14,8 @@ const startedProcesses = [];
 let chromeProfileDir = null;
 let backendTempDir = null;
 
+loadDotEnv();
+
 main().catch(async (error) => {
   console.error(error instanceof Error ? error.message : String(error));
   await cleanup();
@@ -22,6 +24,8 @@ main().catch(async (error) => {
 
 async function main() {
   const checkTonightIntent = process.env.MOBILE_UX_SMOKE_TONIGHT_INTENT === "1";
+  const expectedRecommendationSource =
+    process.env.MOBILE_UX_SMOKE_EXPECT_RECOMMENDATION_SOURCE;
   const useBackendMode =
     process.env.MOBILE_UX_SMOKE_EXPECT_API === "1" || checkTonightIntent;
   const outcomeMode = process.env.MOBILE_UX_SMOKE_OUTCOME === "other" ? "other" : "recommended";
@@ -87,7 +91,15 @@ async function main() {
     try {
       await waitForText(tab, "Tonight", "results screen");
       await waitForText(tab, "Backups we also liked", "results backups");
-      await waitForText(tab, "Steer next 5", "results steering panel");
+      if (useBackendMode) {
+        await waitForText(tab, "Current signals", "results evidence panel");
+        await waitForText(tab, "Cezary - tester: 1 signals", "tester Taste Lab evidence");
+        if (expectedRecommendationSource === "live_tmdb") {
+          await waitForText(tab, "Live TMDb", "recommendation source");
+        } else if (expectedRecommendationSource === "demo") {
+          await waitForText(tab, "Demo catalog", "recommendation source");
+        }
+      }
       await waitForRankedShortlist(tab);
       await assertNoHorizontalOverflow(tab, "results screen");
       await captureScreenshot(tab, screenshotDir, "03-results");
@@ -105,10 +117,12 @@ async function main() {
     }
 
     if (process.env.MOBILE_UX_SMOKE_STEER_NEXT === "1") {
+      await clickButton(tab, "Show 5 more");
+      await waitForText(tab, "Keep going or steer first?", "continuation chooser");
       await fillInput(tab, "#steer-next-input", "actually more action");
       await clickButton(tab, "Review");
-      await waitForText(tab, "Apply steer and show 5", "steer next confirmation");
-      await clickButton(tab, "Apply steer and show 5");
+      await waitForText(tab, "Add and find 5", "steer next confirmation");
+      await clickButton(tab, "Add and find 5");
       await waitForText(tab, "1 of 5", "steered next first pass");
       await assertNoHorizontalOverflow(tab, "steered next first pass");
       console.log("Steer next 5 smoke path passed.");
@@ -117,6 +131,8 @@ async function main() {
 
     if (process.env.MOBILE_UX_SMOKE_SHOW_MORE === "1") {
       await clickButton(tab, "Show 5 more");
+      await waitForText(tab, "Keep going or steer first?", "continuation chooser");
+      await clickButton(tab, "Find 5 in the same direction");
       await waitForText(tab, "1 of 5", "show five more first pass");
       await assertNoHorizontalOverflow(tab, "show five more first pass");
       console.log("Show 5 more smoke path passed.");
@@ -132,8 +148,8 @@ async function main() {
         await clickButton(tab, "Watched best pick");
       }
       await clickButton(tab, "Save outcome");
-      await clickButtonInSection(tab, "Husband", "Loved");
-      await clickButtonInSection(tab, "Wife", "Fine");
+      await clickButtonInSection(tab, "Cezary - tester", "Loved");
+      await clickButtonInSection(tab, "Husband", "Fine");
       await clickButton(tab, "Save feedback");
       await clickButton(tab, "Start new night");
       await clickSummary(tab, "Recent nights");
@@ -289,10 +305,14 @@ async function startApiServer() {
 }
 
 async function seedBackendOnboarding(apiBaseUrl) {
-  const setup = await getJson(new URL("/setup", apiBaseUrl));
+  const setup = await postJson(new URL("/setup/profiles/tester", apiBaseUrl));
   const profiles = Array.isArray(setup?.profiles) ? setup.profiles : [];
   if (profiles.length < 2) {
     throw new Error("Backend-backed UX smoke could not load two setup profiles.");
+  }
+  const testerProfile = profiles.find((profile) => profile?.id === "cezary-tester");
+  if (!testerProfile) {
+    throw new Error("Backend-backed UX smoke could not create the tester profile.");
   }
 
   for (const profile of profiles.slice(0, 2)) {
@@ -315,6 +335,46 @@ async function seedBackendOnboarding(apiBaseUrl) {
       },
       isComplete: true,
     });
+  }
+
+  await postJson(
+    new URL(
+      `/taste-lab/${encodeURIComponent(testerProfile.id)}/ratings`,
+      apiBaseUrl,
+    ),
+    {
+      householdId: "default-household",
+      ratings: [
+        {
+          movie: {
+            sourceMovieId: "tmdb:694",
+            title: "The Shining",
+            genres: ["Horror", "Thriller"],
+          },
+          label: "loved",
+          queueProvenance: {
+            queueSource: "mobile_ux_smoke",
+            generatedAt: "2026-07-07T00:00:00Z",
+            rank: 1,
+            signalScore: 1,
+            scoreComponents: {
+              mvp_plus_3_tester_profile_seed: 1,
+            },
+          },
+          ratedAt: "2026-07-07T00:00:00Z",
+        },
+      ],
+    },
+  );
+
+  const summary = await getJson(
+    new URL(
+      `/taste-profile/${encodeURIComponent(testerProfile.id)}/summary?householdId=default-household`,
+      apiBaseUrl,
+    ),
+  );
+  if (summary?.preferenceEvidenceCount < 1) {
+    throw new Error("Backend-backed UX smoke could not seed tester Taste Lab evidence.");
   }
 }
 
@@ -426,6 +486,10 @@ async function startChrome() {
       "--disable-background-networking",
       "--disable-extensions",
       "--disable-gpu",
+      "--disable-dev-shm-usage",
+      "--disable-setuid-sandbox",
+      "--no-sandbox",
+      "--single-process",
       "about:blank",
     ],
     { stdio: ["ignore", "ignore", "pipe"], detached: true },
@@ -462,6 +526,45 @@ async function connectToChrome(debuggingUrl) {
     throw new Error("Chrome did not expose a DevTools websocket URL.");
   }
   return new CdpConnection(wsUrl);
+}
+
+function loadDotEnv() {
+  const envPath = join(repoRoot, ".env");
+  if (!existsSync(envPath)) {
+    return;
+  }
+
+  const lines = readFileSync(envPath, "utf8").split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) {
+      continue;
+    }
+
+    const separatorIndex = trimmed.indexOf("=");
+    if (separatorIndex <= 0) {
+      continue;
+    }
+
+    const key = trimmed.slice(0, separatorIndex).trim();
+    const value = trimmed.slice(separatorIndex + 1).trim();
+    if (!key || process.env[key] !== undefined) {
+      continue;
+    }
+
+    process.env[key] = unquoteEnvValue(value);
+  }
+}
+
+function unquoteEnvValue(value) {
+  if (
+    (value.startsWith("\"") && value.endsWith("\"")) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    return value.slice(1, -1);
+  }
+
+  return value;
 }
 
 async function createMobileTab(browser, url) {
@@ -957,6 +1060,23 @@ async function putJson(url, body) {
   });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status} while writing ${url}.`);
+  }
+  return response.json();
+}
+
+async function postJson(url, body = undefined) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers:
+      body === undefined
+        ? undefined
+        : {
+            "Content-Type": "application/json",
+          },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status} while posting ${url}.`);
   }
   return response.json();
 }

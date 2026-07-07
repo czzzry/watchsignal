@@ -6,7 +6,11 @@ from pathlib import Path
 
 from fastapi.routing import APIRoute
 
-from movie_night_mediator.api.main import SetupStatePayload, create_app
+from movie_night_mediator.api.main import (
+    SetupProfileRenamePayload,
+    SetupStatePayload,
+    create_app,
+)
 from movie_night_mediator.app.setup import SQLiteSetupStore
 
 
@@ -43,11 +47,11 @@ class SetupApiTest(unittest.TestCase):
     def test_get_setup_returns_generic_defaults_when_nothing_is_persisted(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             database_path = Path(directory) / "setup.sqlite3"
-            get_setup, _ = setup_route_endpoints(
+            endpoints = setup_route_endpoints(
                 create_app(setup_store=SQLiteSetupStore(database_path=database_path))
             )
 
-            payload = get_setup()
+            payload = endpoints["GET", "/setup"]()
 
             self.assertEqual(
                 payload_to_dict(payload),
@@ -85,12 +89,14 @@ class SetupApiTest(unittest.TestCase):
     def test_put_setup_persists_updated_setup_for_later_get(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             database_path = Path(directory) / "setup.sqlite3"
-            get_setup, put_setup = setup_route_endpoints(
+            endpoints = setup_route_endpoints(
                 create_app(setup_store=SQLiteSetupStore(database_path=database_path))
             )
 
-            put_payload = put_setup(SetupStatePayload(**GENERIC_UPDATED_SETUP))
-            get_payload = get_setup()
+            put_payload = endpoints["PUT", "/setup"](
+                SetupStatePayload(**GENERIC_UPDATED_SETUP)
+            )
+            get_payload = endpoints["GET", "/setup"]()
 
             self.assertEqual(payload_to_dict(put_payload), GENERIC_UPDATED_SETUP)
             self.assertEqual(payload_to_dict(get_payload), GENERIC_UPDATED_SETUP)
@@ -98,11 +104,13 @@ class SetupApiTest(unittest.TestCase):
     def test_api_write_survives_sqlite_service_round_trip(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             database_path = Path(directory) / "setup.sqlite3"
-            _, put_setup = setup_route_endpoints(
+            endpoints = setup_route_endpoints(
                 create_app(setup_store=SQLiteSetupStore(database_path=database_path))
             )
 
-            response = put_setup(SetupStatePayload(**GENERIC_UPDATED_SETUP))
+            response = endpoints["PUT", "/setup"](
+                SetupStatePayload(**GENERIC_UPDATED_SETUP)
+            )
             loaded_setup = SQLiteSetupStore(database_path=database_path).load_setup()
 
             self.assertEqual(payload_to_dict(response), GENERIC_UPDATED_SETUP)
@@ -208,6 +216,48 @@ class SetupApiTest(unittest.TestCase):
                 ["cyan", "rose"],
             )
 
+    def test_post_tester_profile_creates_stable_profile_without_losing_partner(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "setup.sqlite3"
+            endpoints = setup_route_endpoints(
+                create_app(setup_store=SQLiteSetupStore(database_path=database_path))
+            )
+
+            payload = endpoints["POST", "/setup/profiles/tester"]()
+            payload_again = endpoints["POST", "/setup/profiles/tester"]()
+
+            self.assertEqual(
+                [profile["id"] for profile in payload_to_dict(payload)["profiles"]],
+                ["cezary-tester", "profile-1", "profile-2"],
+            )
+            self.assertEqual(
+                [profile["label"] for profile in payload_to_dict(payload)["profiles"]],
+                ["Cezary - tester", "Husband", "Wife"],
+            )
+            self.assertEqual(
+                [profile["id"] for profile in payload_to_dict(payload_again)["profiles"]],
+                ["cezary-tester", "profile-1", "profile-2"],
+            )
+
+    def test_patch_profile_renames_without_changing_stable_id(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "setup.sqlite3"
+            endpoints = setup_route_endpoints(
+                create_app(setup_store=SQLiteSetupStore(database_path=database_path))
+            )
+            endpoints["POST", "/setup/profiles/tester"]()
+
+            payload = endpoints["PATCH", "/setup/profiles/{profile_id}"](
+                "cezary-tester",
+                SetupProfileRenamePayload(label="Cezary"),
+            )
+
+            profiles = payload_to_dict(payload)["profiles"]
+            tester_profile = next(
+                profile for profile in profiles if profile["id"] == "cezary-tester"
+            )
+            self.assertEqual(tester_profile["label"], "Cezary")
+
 
 def setup_route_endpoints(app):
     routes = {}
@@ -218,7 +268,7 @@ def setup_route_endpoints(app):
         for method in route.methods:
             routes[(method, route.path)] = route.endpoint
 
-    return routes[("GET", "/setup")], routes[("PUT", "/setup")]
+    return routes
 
 
 def payload_to_dict(payload: SetupStatePayload) -> dict:

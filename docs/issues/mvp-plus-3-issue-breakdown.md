@@ -10,7 +10,7 @@ MVP Plus 3 is **Directed Discovery And Real Tester Profile**.
 Current tracker:
 
 ```text
-MVP+3: [░░░░░░░░░░░░░░░░░░░░] 0/10 issues done
+MVP+3: [████████████████████] 10/10 issues done
 ```
 
 The issue count is ten.
@@ -33,16 +33,16 @@ Parent PRD issue:
 
 Implementation and acceptance slices:
 
-- #63 - MVP+3 Slice 1 - Contracts And Acceptance Gate
-- #64 - MVP+3 Slice 2 - Persistent Tester Profile Foundation
-- #65 - MVP+3 Slice 3 - Taste Lab Profile Selection And Durable Ratings
-- #66 - MVP+3 Slice 4 - Main Flow Uses Selected Profiles And Calibration Evidence
-- #67 - MVP+3 Slice 5 - Directed Nudge Interpreter Contract
-- #68 - MVP+3 Slice 6 - Actor And Person Candidate Filtering
-- #69 - MVP+3 Slice 7 - Five More Redo Semantics And UI
-- #70 - MVP+3 Slice 8 - Bookmark Library Lite
-- #71 - MVP+3 Slice 9 - Recommendation Explanation Trust Polish
-- #72 - MVP+3 Slice 10 - MVP Plus 3 Dogfood And Evaluation Gate
+- #63 - MVP+3 Slice 1 - Contracts And Acceptance Gate - done
+- #64 - MVP+3 Slice 2 - Persistent Tester Profile Foundation - done
+- #65 - MVP+3 Slice 3 - Taste Lab Profile Selection And Durable Ratings - done
+- #66 - MVP+3 Slice 4 - Main Flow Uses Selected Profiles And Calibration Evidence - done
+- #67 - MVP+3 Slice 5 - Directed Nudge Interpreter Contract - done
+- #68 - MVP+3 Slice 6 - Actor And Person Candidate Filtering - done
+- #69 - MVP+3 Slice 7 - Five More Redo Semantics And UI - done
+- #70 - MVP+3 Slice 8 - Bookmark Library Lite - done
+- #71 - MVP+3 Slice 9 - Recommendation Explanation Trust Polish - done
+- #72 - MVP+3 Slice 10 - MVP Plus 3 Dogfood And Evaluation Gate - done
 
 ## Slice 1 - Contracts And Acceptance Gate
 
@@ -60,16 +60,16 @@ It should also define the final phone-sized dogfood path and recommendation-qual
 
 ### Acceptance criteria
 
-- [ ] Profile contract uses stable ids and renameable display labels.
-- [ ] `Cezary - tester` is represented as a normal persistent profile, not special-case UI text.
-- [ ] Taste Lab rating ownership is defined by profile id.
-- [ ] Main recommendation session profile selection is explicit.
-- [ ] Nudge interpretation contract supports filters, soft signals, clarification, confidence, and deterministic fallback.
-- [ ] Actor/person requests are represented without giving the LLM ranking authority.
-- [ ] Five-more contract distinguishes same direction, different direction, more like this, avoid this, and add nudge.
-- [ ] Bookmark contract stores source movie identity, provenance, remove behavior, and no automatic taste boost.
-- [ ] Evidence contract can explain durable profile signals and tonight-level nudges separately.
-- [ ] Acceptance gate contract names the phone-sized dogfood flow and fixed recommendation scenarios.
+- [x] Profile contract uses stable ids and renameable display labels.
+- [x] `Cezary - tester` is represented as a normal persistent profile, not special-case UI text.
+- [x] Taste Lab rating ownership is defined by profile id.
+- [x] Main recommendation session profile selection is explicit.
+- [x] Nudge interpretation contract supports filters, soft signals, clarification, confidence, and deterministic fallback.
+- [x] Actor/person requests are represented without giving the LLM ranking authority.
+- [x] Five-more contract distinguishes same direction, different direction, more like this, avoid this, and add nudge.
+- [x] Bookmark contract stores source movie identity, provenance, remove behavior, and no automatic taste boost.
+- [x] Evidence contract can explain durable profile signals and tonight-level nudges separately.
+- [x] Acceptance gate contract names the phone-sized dogfood flow and fixed recommendation scenarios.
 
 ### Validation commands
 
@@ -80,6 +80,9 @@ pnpm check
 ### Stop condition
 
 Stop when later slices can build against shared contracts without inventing incompatible payloads.
+
+Completed by the executable contract module in `apps/api/src/movie_night_mediator/mvp_plus_3/contracts.py` and contract tests in `apps/api/tests/test_mvp_plus_3_contracts.py`.
+Treehouse fanout can now start with Slices 2, 3, 5, and 8.
 
 ### Risk notes
 
@@ -102,12 +105,12 @@ Persistence should be profile-id based so renames do not orphan taste data.
 
 ### Acceptance criteria
 
-- [ ] The user can create or select a `Cezary - tester` profile.
-- [ ] The profile has a stable id separate from the display label.
-- [ ] The profile can be renamed without losing stored identity.
-- [ ] The profile persists through reload or local app restart boundaries.
-- [ ] A second default or partner profile remains available for the shared flow.
-- [ ] Tests cover create, select, rename, and reload behavior.
+- [x] The user can create or select a `Cezary - tester` profile.
+- [x] The profile has a stable id separate from the display label.
+- [x] The profile can be renamed without losing stored identity.
+- [x] The profile persists through reload or local app restart boundaries.
+- [x] A second default or partner profile remains available for the shared flow.
+- [x] Tests cover create, select, rename, and reload behavior.
 
 ### Validation commands
 
@@ -122,6 +125,9 @@ pnpm build:web
 ### Stop condition
 
 Stop when a real tester profile can be selected repeatedly without relying on reset fixtures.
+
+Completed by setup store operations and API routes for ensuring the tester profile and renaming profiles.
+The Next.js API proxy exposes the same operations to the web app.
 
 ### Risk notes
 
@@ -144,12 +150,12 @@ Existing Taste Lab evidence read models should continue feeding WatchSignal prof
 
 ### Acceptance criteria
 
-- [ ] Taste Lab shows the selected rating profile.
-- [ ] The user can choose `Cezary - tester` for Taste Lab rating.
-- [ ] Saved ratings include the tester profile id.
-- [ ] Ratings survive reload or local restart boundaries.
-- [ ] The profile evidence read model can read the tester profile's Taste Lab ratings.
-- [ ] Tests prove ratings remain profile-specific.
+- [x] Taste Lab shows the selected rating profile.
+- [x] The user can choose `Cezary - tester` for Taste Lab rating.
+- [x] Saved ratings include the tester profile id.
+- [x] Ratings survive reload or local restart boundaries.
+- [x] The profile evidence read model can read the tester profile's Taste Lab ratings.
+- [x] Tests prove ratings remain profile-specific.
 
 ### Validation commands
 
@@ -164,6 +170,8 @@ pnpm build:web
 ### Stop condition
 
 Stop when Taste Lab can be used as the founder's real private calibration path.
+
+Completed by dynamic Taste Lab profile loading through the setup profile API and a backend regression proving `Cezary - tester` owns durable Taste Lab ratings.
 
 ### Risk notes
 
@@ -185,11 +193,11 @@ The result screen or evidence surface should show when Taste Lab or durable prof
 
 ### Acceptance criteria
 
-- [ ] The main flow can start with `Cezary - tester` selected.
-- [ ] A second profile can participate in the shared recommendation flow.
-- [ ] Tester profile Taste Lab evidence is available to scoring.
-- [ ] Recommendation explanations mention profile evidence when it materially affects a result.
-- [ ] Tests prove profile evidence is not collapsed across people.
+- [x] The main flow can start with `Cezary - tester` selected.
+- [x] A second profile can participate in the shared recommendation flow.
+- [x] Tester profile Taste Lab evidence is available to scoring.
+- [x] Recommendation explanations mention profile evidence when it materially affects a result.
+- [x] Tests prove profile evidence is not collapsed across people.
 - [ ] Phone-sized smoke covers selected profiles through a recommendation result.
 
 ### Validation commands
@@ -209,6 +217,9 @@ pnpm beta:dogfood
 ### Stop condition
 
 Stop when calibration work can visibly influence the main flow for the selected tester profile.
+
+Completed by promoting the tester profile into the first main-flow slot, keeping the partner profile available, loading Taste Lab profile summaries into the result view, and preserving per-profile Taste Lab evidence in scoring.
+The remaining phone-sized proof belongs to the final MVP Plus 3 dogfood gate.
 
 ### Risk notes
 
@@ -231,14 +242,14 @@ LLM-backed interpretation can remain an adapter path, but the required validatio
 
 ### Acceptance criteria
 
-- [ ] "scary but not bleak" produces visible mood and tone signals.
-- [ ] "sad but beautiful" produces visible emotional signals and asks clarification if needed.
-- [ ] "90s thriller" produces decade and genre filters.
-- [ ] "nothing with subtitles tonight" produces a language or subtitle-related constraint.
-- [ ] "Jack Nicholson in it" produces a person/cast intent for the candidate layer.
-- [ ] Active nudges are visible, confirmable, and removable.
-- [ ] Tests cover deterministic parsing and clarification behavior.
-- [ ] LLM output, if used, is constrained to the same contract.
+- [x] "scary but not bleak" produces visible mood and tone signals.
+- [x] "sad but beautiful" produces visible emotional signals and asks clarification if needed.
+- [x] "90s thriller" produces decade and genre filters.
+- [x] "nothing with subtitles tonight" produces a language or subtitle-related constraint.
+- [x] "Jack Nicholson in it" produces a person/cast intent for the candidate layer.
+- [x] Active nudges are visible, confirmable, and removable.
+- [x] Tests cover deterministic parsing and clarification behavior.
+- [x] LLM output, if used, is constrained to the same contract.
 
 ### Validation commands
 
@@ -249,6 +260,9 @@ pnpm check
 ### Stop condition
 
 Stop when user language becomes structured context that later slices can apply to candidate generation and scoring.
+
+Completed by deterministic directed nudge interpretation in `apps/api/src/movie_night_mediator/app/tonight_intent.py`.
+The interpreter emits MVP Plus 3 `DirectedNudge` objects for active nudges while preserving the existing tonight intent path.
 
 ### Risk notes
 
@@ -271,11 +285,11 @@ The result should support actor requests without requiring the LLM to rank movie
 
 ### Acceptance criteria
 
-- [ ] Person-name intent can be resolved into candidate-generation constraints.
-- [ ] Live provider behavior uses TMDb person or credits metadata where available.
-- [ ] Required tests use fixtures and do not need network access.
-- [ ] Candidate results exclude already-shown titles where session continuation requires it.
-- [ ] Explanations can mention the person nudge when it influenced a result.
+- [x] Person-name intent can be resolved into candidate-generation constraints.
+- [x] Live provider behavior uses TMDb person or credits metadata where available.
+- [x] Required tests use fixtures and do not need network access.
+- [x] Candidate results exclude already-shown titles where session continuation requires it.
+- [x] Explanations can mention the person nudge when it influenced a result.
 
 ### Validation commands
 
@@ -286,6 +300,8 @@ pnpm check
 ### Stop condition
 
 Stop when the app can generate a meaningful next batch for a named actor request.
+
+Completed by person candidate constraints on session context, fixture actor filtering, matched person metadata, and a TMDb person search plus credits hook with fake-client tests.
 
 ### Risk notes
 
@@ -307,12 +323,12 @@ The app should preserve prior reactions, preserve or edit active nudges, exclude
 
 ### Acceptance criteria
 
-- [ ] Five-more generation keeps prior reactions active.
-- [ ] Five-more generation excludes already-shown titles.
-- [ ] The user can continue with the same active direction.
-- [ ] The user can add a new nudge before generating the next batch.
-- [ ] The user can remove or replace an active nudge.
-- [ ] "More like this" and "avoid this" behavior is represented in session context when supported by the UI.
+- [x] Five-more generation keeps prior reactions active.
+- [x] Five-more generation excludes already-shown titles.
+- [x] The user can continue with the same active direction.
+- [x] The user can add a new nudge before generating the next batch.
+- [x] The user can remove or replace an active nudge.
+- [x] "More like this" and "avoid this" behavior is represented in session context when supported by the UI.
 - [ ] Phone-sized smoke covers first batch, nudge, five more, and no repeated titles.
 
 ### Validation commands
@@ -332,6 +348,9 @@ pnpm beta:dogfood
 ### Stop condition
 
 Stop when redo creates a useful next batch without erasing the current session.
+
+Completed by preserving active intents and session reactions through continuation, excluding already-shown titles in shortlist requests, and adding quick redo prompts for different direction, more like the winner, and avoiding the winner.
+The remaining phone-sized proof belongs to the final MVP Plus 3 dogfood gate.
 
 ### Risk notes
 
@@ -353,13 +372,13 @@ The user should be able to bookmark a recommended title, see it later, know who 
 
 ### Acceptance criteria
 
-- [ ] A recommended title can be bookmarked.
-- [ ] Bookmarks persist through reload or local restart boundaries.
-- [ ] Bookmarks show who saved the title when the active profile is known.
-- [ ] A bookmark can be removed.
-- [ ] Bookmarking does not count as an automatic like or taste rating.
-- [ ] Bookmark-as-seed is either implemented in a small way or explicitly deferred in the acceptance note.
-- [ ] Tests cover persistence, remove behavior, and no automatic taste boost.
+- [x] A recommended title can be bookmarked.
+- [x] Bookmarks persist through reload or local restart boundaries.
+- [x] Bookmarks show who saved the title when the active profile is known.
+- [x] A bookmark can be removed.
+- [x] Bookmarking does not count as an automatic like or taste rating.
+- [x] Bookmark-as-seed is either implemented in a small way or explicitly deferred in the acceptance note.
+- [x] Tests cover persistence, remove behavior, and no automatic taste boost.
 
 ### Validation commands
 
@@ -374,6 +393,8 @@ pnpm build:web
 ### Stop condition
 
 Stop when bookmarks are trustworthy saved titles, not decorative buttons.
+
+Completed by durable watchlist bookmark metadata, saved-by display labels, duplicate-save provenance preservation, remove behavior, migration coverage, and explicit non-seed/non-taste-signal payloads.
 
 ### Risk notes
 
@@ -395,12 +416,12 @@ This should be user-facing enough for dogfood judgment without exposing raw debu
 
 ### Acceptance criteria
 
-- [ ] A recommendation can mention durable profile evidence when used.
-- [ ] A recommendation can mention an active nudge when used.
-- [ ] Explanations distinguish durable taste from tonight context.
-- [ ] Fallback behavior remains honest when evidence is weak.
-- [ ] The result view remains phone-first and does not become crowded.
-- [ ] Tests cover explanation payloads for profile evidence and active nudges.
+- [x] A recommendation can mention durable profile evidence when used.
+- [x] A recommendation can mention an active nudge when used.
+- [x] Explanations distinguish durable taste from tonight context.
+- [x] Fallback behavior remains honest when evidence is weak.
+- [x] The result view remains phone-first and does not become crowded.
+- [x] Tests cover explanation payloads for profile evidence and active nudges.
 
 ### Validation commands
 
@@ -415,6 +436,8 @@ pnpm build:web
 ### Stop condition
 
 Stop when the founder can tell why the recommendation changed without opening developer tools.
+
+Completed by adding a compact result evidence panel for active nudges, Taste Lab signal counts, and matched person names, plus shortlist payload support for person matches.
 
 ### Risk notes
 
@@ -437,13 +460,13 @@ It should say whether the phase is complete and should not quietly add new scope
 
 ### Acceptance criteria
 
-- [ ] The acceptance note records the current phase and accepted issue count.
-- [ ] The dogfood flow uses `Cezary - tester` or a local-safe equivalent that proves the same profile behavior.
-- [ ] The dogfood flow covers Taste Lab rating, main-flow recommendation, directed nudge, five more, bookmark, reload, and persistence.
-- [ ] The recommendation-quality report compares profile calibration plus nudges against a baseline.
-- [ ] The report shows rank changes, top-pick changes, explanation excerpts, and visible caveats.
-- [ ] Beta preflight, production web build, and phone-sized smoke pass.
-- [ ] The acceptance note states whether MVP Plus 3 is complete.
+- [x] The acceptance note records the current phase and accepted issue count.
+- [x] The dogfood flow uses `Cezary - tester` or a local-safe equivalent that proves the same profile behavior.
+- [x] The dogfood flow covers Taste Lab rating, main-flow recommendation, directed nudge, five more, bookmark, reload, and persistence.
+- [x] The recommendation-quality report compares profile calibration plus nudges against a baseline.
+- [x] The report shows rank changes, top-pick changes, explanation excerpts, and visible caveats.
+- [x] Beta preflight, production web build, and phone-sized smoke pass.
+- [x] The acceptance note states whether MVP Plus 3 is complete.
 
 ### Validation commands
 
@@ -462,6 +485,8 @@ pnpm beta:dogfood
 ### Stop condition
 
 Stop when MVP Plus 3 has both product-flow proof and recommendation-quality proof.
+
+Completed by the accepted MVP Plus 3 gate in `docs/validation/mvp-plus-3-acceptance-gate-2026-07-07.md`.
 
 ### Risk notes
 

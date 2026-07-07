@@ -142,6 +142,7 @@ export function PassThePhoneWizard({
   const [sessionSource, setSessionSource] = useState<SessionSource>(
     apiHealth.connected ? "api" : "demo",
   );
+  const [recommendationSource, setRecommendationSource] = useState<string>("demo");
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("ready");
   const [showLaunchSting, setShowLaunchSting] = useState(true);
   const [reviewMode, setReviewMode] = useState(false);
@@ -297,6 +298,7 @@ export function PassThePhoneWizard({
     setStep("setup");
     resetBatch();
     setSharedSession(null);
+    setRecommendationSource("demo");
     setDebugHistory(null);
     setTasteProfileSummaries([]);
     setDebugHistoryStatus("idle");
@@ -585,6 +587,7 @@ export function PassThePhoneWizard({
 
     resetBatch();
     setSharedSession(null);
+    setRecommendationSource("demo");
     setDebugHistory(null);
     setTasteProfileSummaries([]);
     setDebugHistoryStatus("idle");
@@ -612,6 +615,7 @@ export function PassThePhoneWizard({
         tonightIntents: activeTonightIntents,
       });
       const candidates = shortlistResponse.shortlist.map(toSessionCandidate);
+      setRecommendationSource(shortlistResponse.recommendationSource);
 
       if (candidates.length === 0) {
         throw new Error("Recommendation API returned no usable picks for this session.");
@@ -630,6 +634,7 @@ export function PassThePhoneWizard({
 
         setSharedSession(session);
         setSessionSource("api");
+        await loadTasteProfileSummariesForSession(session);
       } catch (error) {
         setSharedSession(null);
         setSessionSource("demo");
@@ -684,6 +689,7 @@ export function PassThePhoneWizard({
         sessionReactions: scoringReactionSignals(sharedSession),
       });
       const candidates = shortlistResponse.shortlist.map(toSessionCandidate);
+      setRecommendationSource(shortlistResponse.recommendationSource);
 
       if (candidates.length !== 5) {
         throw new Error("Recommendation API did not return five fresh picks.");
@@ -695,6 +701,7 @@ export function PassThePhoneWizard({
       );
 
       setSharedSession(continuedSession);
+      await loadTasteProfileSummariesForSession(continuedSession);
       resetBatch(candidates);
       setStep("founder");
     } catch (error) {
@@ -844,6 +851,18 @@ export function PassThePhoneWizard({
     setSteerClarificationText("");
     setSteerMessage(null);
     await continueWithTonightIntents(nextTonightIntents);
+  }
+
+  function addSteerToNextFive(): void {
+    if (pendingSteerIntent?.status !== "confirmation_required") {
+      return;
+    }
+
+    setActiveTonightIntents((current) => [...current, pendingSteerIntent]);
+    setPendingSteerIntent(null);
+    setSteerText("");
+    setSteerClarificationText("");
+    setSteerMessage("Added. You can add another steer or find five more now.");
   }
 
   function applyTonightIntent(): void {
@@ -1183,6 +1202,7 @@ export function PassThePhoneWizard({
           sessionSource={sessionSource}
           sharedSession={sharedSession}
           activeTonightIntents={activeTonightIntents}
+          recommendationSource={recommendationSource}
           steerText={steerText}
           pendingSteerIntent={pendingSteerIntent}
           steerClarificationText={steerClarificationText}
@@ -1198,6 +1218,7 @@ export function PassThePhoneWizard({
           onInterpretSteer={interpretSteerText}
           onSteerClarificationTextChange={setSteerClarificationText}
           onAnswerSteerClarification={answerSteerClarification}
+          onAddSteer={addSteerToNextFive}
           onApplySteer={applySteerAndShowMore}
           isSyncing={isSyncing}
           reviewMode={reviewMode}
@@ -1254,10 +1275,9 @@ export function PassThePhoneWizard({
 
     try {
       const history = await getSessionDebugHistory(sharedSession.sessionId);
-      const summaries = await Promise.all(
-        history.participantIds.map((profileId) =>
-          getTasteProfileSummary(history.householdId, profileId),
-        ),
+      const summaries = await tasteProfileSummariesForSession(
+        history.householdId,
+        history.participantIds,
       );
       setDebugHistory(history);
       setTasteProfileSummaries(summaries);
@@ -1268,6 +1288,30 @@ export function PassThePhoneWizard({
       setDebugHistoryStatus("failed");
       setDebugHistoryMessage(toDebugHistoryErrorMessage(error));
     }
+  }
+
+  async function loadTasteProfileSummariesForSession(
+    session: SharedSessionPayload,
+  ): Promise<void> {
+    try {
+      setTasteProfileSummaries(
+        await tasteProfileSummariesForSession(
+          session.householdId,
+          session.participantIds,
+        ),
+      );
+    } catch {
+      setTasteProfileSummaries([]);
+    }
+  }
+
+  async function tasteProfileSummariesForSession(
+    householdId: string,
+    profileIds: string[],
+  ): Promise<TasteProfileSummaryPayload[]> {
+    return Promise.all(
+      profileIds.map((profileId) => getTasteProfileSummary(householdId, profileId)),
+    );
   }
 
   async function loadProfileMemorySummaries(): Promise<void> {

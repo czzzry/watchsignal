@@ -14,6 +14,7 @@ from movie_night_mediator.api.main import (
     TasteLabSubmitRatingsPayload,
     create_app,
 )
+from movie_night_mediator.app.setup import SQLiteSetupStore
 from movie_night_mediator.storage import SQLiteTasteLabStore
 from movie_night_mediator.taste_lab import TasteLabRatingLabel
 from movie_night_mediator.taste_lab.seed_queue_artifact import write_seed_queue_artifact
@@ -275,6 +276,58 @@ class TasteLabApiTest(unittest.TestCase):
         self.assertEqual(other_summary.profileId, "robin")
         self.assertEqual(other_summary.ratingCount, 0)
 
+    def test_tester_profile_can_own_durable_ratings(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "taste-lab.sqlite3"
+            routes = taste_lab_route_endpoints(
+                create_app(
+                    setup_store=SQLiteSetupStore(database_path=database_path),
+                    taste_lab_store=SQLiteTasteLabStore(database_path=database_path),
+                )
+            )
+
+            setup = routes["ensure_tester_profile"]()
+            tester_profile = next(
+                profile
+                for profile in setup.profiles
+                if profile.id == "cezary-tester"
+            )
+            routes["seed_candidates"]([_candidate_payload(1)], householdId="default-household")
+            queue = routes["get_queue"](
+                profile_id=tester_profile.id,
+                householdId="default-household",
+                limit=1,
+            )
+
+            routes["post_ratings"](
+                profile_id=tester_profile.id,
+                payload=TasteLabSubmitRatingsPayload(
+                    householdId="default-household",
+                    ratings=[
+                        TasteLabRatingInputPayload(
+                            movie=queue[0].movie,
+                            label=TasteLabRatingLabel.LOVED,
+                            queueProvenance=queue[0].queueProvenance,
+                            ratedAt="2026-07-07T08:00:00Z",
+                        )
+                    ],
+                ),
+            )
+
+            tester_ratings = routes["get_ratings"](
+                profile_id=tester_profile.id,
+                householdId="default-household",
+            )
+            partner_ratings = routes["get_ratings"](
+                profile_id="profile-2",
+                householdId="default-household",
+            )
+
+        self.assertEqual(tester_profile.label, "Cezary - tester")
+        self.assertEqual(tester_ratings[0].profileId, "cezary-tester")
+        self.assertEqual(tester_ratings[0].movie.sourceMovieId, "movielens:1")
+        self.assertEqual(partner_ratings, [])
+
 
 def taste_lab_route_endpoints(app):
     routes = {}
@@ -294,6 +347,7 @@ def taste_lab_route_endpoints(app):
         "get_taste_profile_summary": routes[
             ("GET", "/taste-profile/{profile_id}/summary")
         ],
+        "ensure_tester_profile": routes[("POST", "/setup/profiles/tester")],
     }
 
 

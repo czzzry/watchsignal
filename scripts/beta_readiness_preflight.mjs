@@ -8,6 +8,8 @@ const repoRoot = new URL("..", import.meta.url).pathname;
 
 const checks = [];
 
+loadDotEnv();
+
 function ok(label, detail = "") {
   checks.push({ level: "ok", label, detail });
 }
@@ -30,6 +32,45 @@ function run(command, args) {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
   });
+}
+
+function loadDotEnv() {
+  const envPath = join(repoRoot, ".env");
+  if (!existsSync(envPath)) {
+    return;
+  }
+
+  const lines = readFileSync(envPath, "utf8").split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) {
+      continue;
+    }
+
+    const separatorIndex = trimmed.indexOf("=");
+    if (separatorIndex <= 0) {
+      continue;
+    }
+
+    const key = trimmed.slice(0, separatorIndex).trim();
+    const value = trimmed.slice(separatorIndex + 1).trim();
+    if (!key || process.env[key] !== undefined) {
+      continue;
+    }
+
+    process.env[key] = unquoteEnvValue(value);
+  }
+}
+
+function unquoteEnvValue(value) {
+  if (
+    (value.startsWith("\"") && value.endsWith("\"")) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    return value.slice(1, -1);
+  }
+
+  return value;
 }
 
 function checkRequiredPath(relativePath, label = relativePath) {
@@ -134,12 +175,29 @@ checkOptionalEnv(
   "The web app defaults to http://127.0.0.1:8000 when this is unset.",
 );
 
-if (process.env.TMDB_READ_ACCESS_TOKEN || process.env.TMDB_API_KEY) {
+const liveRecommendationsRequested =
+  process.env.MOVIE_NIGHT_RECOMMENDATION_SOURCE === "live_tmdb";
+const hasTmdbCredentials =
+  Boolean(process.env.TMDB_READ_ACCESS_TOKEN) || Boolean(process.env.TMDB_API_KEY);
+
+if (hasTmdbCredentials) {
   ok("TMDb credentials are available");
 } else {
+  const detail =
+    "Demo-safe fixture mode still works. Live TMDb mode needs TMDB_READ_ACCESS_TOKEN or TMDB_API_KEY.";
+  if (liveRecommendationsRequested) {
+    fail("TMDb credentials are not set", detail);
+  } else {
+    warn("TMDb credentials are not set", detail);
+  }
+}
+
+if (liveRecommendationsRequested) {
+  ok("MOVIE_NIGHT_RECOMMENDATION_SOURCE is live_tmdb");
+} else {
   warn(
-    "TMDb credentials are not set",
-    "Demo-safe fixture mode still works. Live TMDb mode needs TMDB_READ_ACCESS_TOKEN or TMDB_API_KEY.",
+    "MOVIE_NIGHT_RECOMMENDATION_SOURCE is not live_tmdb",
+    "Dogfood recommendations will use the small demo catalog unless the web server is started in live mode.",
   );
 }
 
