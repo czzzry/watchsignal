@@ -10,7 +10,7 @@ MVP Plus 3 is **Directed Discovery And Real Tester Profile**.
 Current tracker:
 
 ```text
-MVP+3: [████████░░░░░░░░░░░░] 4/10 issues done
+MVP+3: [████████████░░░░░░░░] 6/10 issues done
 ```
 
 The issue count is ten.
@@ -38,9 +38,9 @@ Implementation and acceptance slices:
 - #65 - MVP+3 Slice 3 - Taste Lab Profile Selection And Durable Ratings - done
 - #66 - MVP+3 Slice 4 - Main Flow Uses Selected Profiles And Calibration Evidence
 - #67 - MVP+3 Slice 5 - Directed Nudge Interpreter Contract - done
-- #68 - MVP+3 Slice 6 - Actor And Person Candidate Filtering
+- #68 - MVP+3 Slice 6 - Actor And Person Candidate Filtering - done
 - #69 - MVP+3 Slice 7 - Five More Redo Semantics And UI
-- #70 - MVP+3 Slice 8 - Bookmark Library Lite
+- #70 - MVP+3 Slice 8 - Bookmark Library Lite - done
 - #71 - MVP+3 Slice 9 - Recommendation Explanation Trust Polish
 - #72 - MVP+3 Slice 10 - MVP Plus 3 Dogfood And Evaluation Gate
 
@@ -282,11 +282,11 @@ The result should support actor requests without requiring the LLM to rank movie
 
 ### Acceptance criteria
 
-- [ ] Person-name intent can be resolved into candidate-generation constraints.
-- [ ] Live provider behavior uses TMDb person or credits metadata where available.
-- [ ] Required tests use fixtures and do not need network access.
-- [ ] Candidate results exclude already-shown titles where session continuation requires it.
-- [ ] Explanations can mention the person nudge when it influenced a result.
+- [x] Person-name intent can be resolved into candidate-generation constraints.
+- [x] Live provider behavior uses TMDb person or credits metadata where available.
+- [x] Required tests use fixtures and do not need network access.
+- [x] Candidate results exclude already-shown titles where session continuation requires it.
+- [x] Explanations can mention the person nudge when it influenced a result.
 
 ### Validation commands
 
@@ -297,6 +297,8 @@ pnpm check
 ### Stop condition
 
 Stop when the app can generate a meaningful next batch for a named actor request.
+
+Completed by person candidate constraints on session context, fixture actor filtering, matched person metadata, and a TMDb person search plus credits hook with fake-client tests.
 
 ### Risk notes
 
@@ -364,13 +366,13 @@ The user should be able to bookmark a recommended title, see it later, know who 
 
 ### Acceptance criteria
 
-- [ ] A recommended title can be bookmarked.
-- [ ] Bookmarks persist through reload or local restart boundaries.
-- [ ] Bookmarks show who saved the title when the active profile is known.
-- [ ] A bookmark can be removed.
-- [ ] Bookmarking does not count as an automatic like or taste rating.
-- [ ] Bookmark-as-seed is either implemented in a small way or explicitly deferred in the acceptance note.
-- [ ] Tests cover persistence, remove behavior, and no automatic taste boost.
+- [x] A recommended title can be bookmarked.
+- [x] Bookmarks persist through reload or local restart boundaries.
+- [x] Bookmarks show who saved the title when the active profile is known.
+- [x] A bookmark can be removed.
+- [x] Bookmarking does not count as an automatic like or taste rating.
+- [x] Bookmark-as-seed is either implemented in a small way or explicitly deferred in the acceptance note.
+- [x] Tests cover persistence, remove behavior, and no automatic taste boost.
 
 ### Validation commands
 
@@ -385,6 +387,8 @@ pnpm build:web
 ### Stop condition
 
 Stop when bookmarks are trustworthy saved titles, not decorative buttons.
+
+Completed by durable watchlist bookmark metadata, saved-by display labels, duplicate-save provenance preservation, remove behavior, migration coverage, and explicit non-seed/non-taste-signal payloads.
 
 ### Risk notes
 
