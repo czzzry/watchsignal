@@ -55,9 +55,10 @@ class SQLiteTasteLabStore:
                         generated_at,
                         candidate_rank,
                         signal_score,
-                        score_components_json
+                        score_components_json,
+                        queue_reason
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(household_id, source_movie_id) DO UPDATE SET
                         title = excluded.title,
                         release_year = excluded.release_year,
@@ -69,6 +70,7 @@ class SQLiteTasteLabStore:
                         candidate_rank = excluded.candidate_rank,
                         signal_score = excluded.signal_score,
                         score_components_json = excluded.score_components_json,
+                        queue_reason = excluded.queue_reason,
                         updated_at = CURRENT_TIMESTAMP
                     """,
                     [
@@ -94,7 +96,8 @@ class SQLiteTasteLabStore:
                     generated_at,
                     candidate_rank,
                     signal_score,
-                    score_components_json
+                    score_components_json,
+                    queue_reason
                 FROM taste_lab_candidates
                 WHERE household_id = ?
                 ORDER BY candidate_rank ASC, signal_score DESC, title ASC
@@ -137,9 +140,10 @@ class SQLiteTasteLabStore:
                         generated_at,
                         candidate_rank,
                         signal_score,
-                        score_components_json
+                        score_components_json,
+                        queue_reason
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(household_id, profile_id, source_movie_id)
                     DO UPDATE SET
                         schema_version = excluded.schema_version,
@@ -159,6 +163,7 @@ class SQLiteTasteLabStore:
                         candidate_rank = excluded.candidate_rank,
                         signal_score = excluded.signal_score,
                         score_components_json = excluded.score_components_json,
+                        queue_reason = excluded.queue_reason,
                         updated_at = CURRENT_TIMESTAMP
                     """,
                     [_rating_to_parameters(rating) for rating in ratings],
@@ -204,13 +209,52 @@ class SQLiteTasteLabStore:
                     generated_at,
                     candidate_rank,
                     signal_score,
-                    score_components_json
+                    score_components_json,
+                    queue_reason
                 FROM taste_lab_ratings
                 WHERE household_id = ?
                 AND profile_id = ?
                 ORDER BY rated_at ASC, title ASC
                 """,
                 (normalized_household_id, normalized_profile_id),
+            ).fetchall()
+
+        return tuple(_row_to_rating(row) for row in rows)
+
+    def list_household_ratings(
+        self,
+        *,
+        household_id: str,
+    ) -> tuple[TasteLabRatingExport, ...]:
+        normalized_household_id = _require_non_empty(household_id, "household_id")
+        self.initialize_schema()
+        with closing(self._connect()) as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    schema_version,
+                    household_id,
+                    profile_id,
+                    source_movie_id,
+                    title,
+                    release_year,
+                    tmdb_id,
+                    poster_path,
+                    genres_json,
+                    label,
+                    familiarity,
+                    rated_at,
+                    queue_source,
+                    generated_at,
+                    candidate_rank,
+                    signal_score,
+                    score_components_json,
+                    queue_reason
+                FROM taste_lab_ratings
+                WHERE household_id = ?
+                ORDER BY profile_id ASC, rated_at ASC, title ASC
+                """,
+                (normalized_household_id,),
             ).fetchall()
 
         return tuple(_row_to_rating(row) for row in rows)
@@ -234,6 +278,7 @@ class SQLiteTasteLabStore:
                         candidate_rank INTEGER,
                         signal_score REAL,
                         score_components_json TEXT NOT NULL,
+                        queue_reason TEXT,
                         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                         updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                         PRIMARY KEY (household_id, source_movie_id)
@@ -266,11 +311,24 @@ class SQLiteTasteLabStore:
                         candidate_rank INTEGER,
                         signal_score REAL,
                         score_components_json TEXT NOT NULL,
+                        queue_reason TEXT,
                         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                         updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                         PRIMARY KEY (household_id, profile_id, source_movie_id)
                     );
                     """
+                )
+                _ensure_column(
+                    connection,
+                    table_name="taste_lab_candidates",
+                    column_name="queue_reason",
+                    definition="TEXT",
+                )
+                _ensure_column(
+                    connection,
+                    table_name="taste_lab_ratings",
+                    column_name="queue_reason",
+                    definition="TEXT",
                 )
 
     def _connect(self) -> sqlite3.Connection:
@@ -299,6 +357,7 @@ def _candidate_to_parameters(
         provenance.rank,
         provenance.signal_score,
         json.dumps(dict(provenance.score_components)),
+        provenance.queue_reason,
     )
 
 
@@ -326,6 +385,7 @@ def _rating_to_parameters(rating: TasteLabRatingExport) -> tuple[object, ...]:
         provenance.rank if provenance else None,
         provenance.signal_score if provenance else None,
         json.dumps(dict(provenance.score_components)) if provenance else "{}",
+        provenance.queue_reason if provenance else None,
     )
 
 
@@ -345,6 +405,7 @@ def _row_to_candidate(row: sqlite3.Row) -> TasteLabCandidate:
             rank=row["candidate_rank"],
             signal_score=row["signal_score"],
             score_components=json.loads(row["score_components_json"]),
+            queue_reason=row["queue_reason"],
         ),
     )
 
@@ -358,6 +419,7 @@ def _row_to_rating(row: sqlite3.Row) -> TasteLabRatingExport:
             rank=row["candidate_rank"],
             signal_score=row["signal_score"],
             score_components=json.loads(row["score_components_json"]),
+            queue_reason=row["queue_reason"],
         )
 
     return TasteLabRatingExport(
@@ -385,3 +447,20 @@ def _require_non_empty(value: str, field_name: str) -> str:
         raise ValueError(f"{field_name} cannot be empty.")
 
     return normalized_value
+
+
+def _ensure_column(
+    connection: sqlite3.Connection,
+    *,
+    table_name: str,
+    column_name: str,
+    definition: str,
+) -> None:
+    columns = {
+        row["name"]
+        for row in connection.execute(f"PRAGMA table_info({table_name})").fetchall()
+    }
+    if column_name not in columns:
+        connection.execute(
+            f"ALTER TABLE {table_name} ADD COLUMN {column_name} {definition}"
+        )

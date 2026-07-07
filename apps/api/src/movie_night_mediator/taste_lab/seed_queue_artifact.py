@@ -187,6 +187,7 @@ def _payload_to_candidate(payload: Mapping[str, Any]) -> TasteLabCandidate:
             rank=provenance_payload.get("rank"),
             signal_score=provenance_payload.get("signal_score"),
             score_components=provenance_payload.get("score_components", {}),
+            queue_reason=provenance_payload.get("queue_reason"),
         ),
     )
 

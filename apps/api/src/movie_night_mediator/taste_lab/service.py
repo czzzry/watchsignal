@@ -59,6 +59,13 @@ class TasteLabStore(Protocol):
     ) -> tuple[TasteLabRatingExport, ...]:
         raise NotImplementedError
 
+    def list_household_ratings(
+        self,
+        *,
+        household_id: str,
+    ) -> tuple[TasteLabRatingExport, ...]:
+        raise NotImplementedError
+
 
 class TasteLabMemorySink(Protocol):
     def record_taste_lab_rating(
@@ -105,6 +112,9 @@ class TasteLabService:
             household_id=normalized_household_id,
             profile_id=normalized_profile_id,
         )
+        household_ratings = self.store.list_household_ratings(
+            household_id=normalized_household_id,
+        )
         previously_answered_ids = {rating.movie.source_movie_id for rating in ratings}
         unanswered_candidates = tuple(
             candidate
@@ -115,6 +125,8 @@ class TasteLabService:
         return _informative_queue(
             unanswered_candidates,
             ratings=ratings,
+            household_ratings=household_ratings,
+            profile_id=normalized_profile_id,
             limit=limit,
         )
 
@@ -192,16 +204,30 @@ def _informative_queue(
     candidates: tuple[TasteLabCandidate, ...],
     *,
     ratings: tuple[TasteLabRatingExport, ...],
+    household_ratings: tuple[TasteLabRatingExport, ...],
+    profile_id: str,
     limit: int,
 ) -> tuple[TasteLabCandidate, ...]:
     if len(candidates) <= limit:
-        return candidates
+        return tuple(
+            _with_queue_reason(
+                candidate,
+                _queue_reason(
+                    candidate,
+                    rated_genre_counts=_rated_genre_counts(ratings),
+                    partner_ratings_by_movie_id=_partner_ratings_by_movie_id(
+                        household_ratings,
+                        profile_id=profile_id,
+                    ),
+                ),
+            )
+            for candidate in candidates
+        )
 
-    rated_genre_counts = Counter(
-        genre
-        for rating in ratings
-        if rating.is_importable_preference
-        for genre in rating.movie.genres
+    rated_genre_counts = _rated_genre_counts(ratings)
+    partner_ratings_by_movie_id = _partner_ratings_by_movie_id(
+        household_ratings,
+        profile_id=profile_id,
     )
     rated_title_tokens = tuple(_title_tokens(rating.movie.title) for rating in ratings)
     selected: list[TasteLabCandidate] = []
@@ -210,6 +236,7 @@ def _informative_queue(
         key=lambda candidate: _candidate_calibration_score(
             candidate,
             rated_genre_counts=rated_genre_counts,
+            partner_ratings_by_movie_id=partner_ratings_by_movie_id,
         ),
         reverse=True,
     )
@@ -232,7 +259,16 @@ def _informative_queue(
         )
         index_to_take = non_duplicate_index if non_duplicate_index is not None else 0
         candidate = remaining.pop(index_to_take)
-        selected.append(candidate)
+        selected.append(
+            _with_queue_reason(
+                candidate,
+                _queue_reason(
+                    candidate,
+                    rated_genre_counts=rated_genre_counts,
+                    partner_ratings_by_movie_id=partner_ratings_by_movie_id,
+                ),
+            )
+        )
         for genre in candidate.movie.genres:
             rated_genre_counts[genre] += 1
 
@@ -243,6 +279,7 @@ def _candidate_calibration_score(
     candidate: TasteLabCandidate,
     *,
     rated_genre_counts: Counter[str],
+    partner_ratings_by_movie_id: dict[str, tuple[TasteLabRatingExport, ...]],
 ) -> tuple[float, float, int, str]:
     signal_score = candidate.queue_provenance.signal_score or 0.0
     score_components = candidate.queue_provenance.score_components
@@ -250,15 +287,108 @@ def _candidate_calibration_score(
         candidate.movie.genres,
         rated_genre_counts=rated_genre_counts,
     )
+    household_score = _household_prompt_score(
+        candidate,
+        partner_ratings_by_movie_id=partner_ratings_by_movie_id,
+    )
     boundary_score = (
         float(score_components.get("divisiveness", 0.0)) * 0.12
         + float(score_components.get("discrimination_proxy", 0.0)) * 0.12
         + float(score_components.get("coverage", 0.0)) * 0.08
         + float(score_components.get("non_redundancy", 0.0)) * 0.08
     )
-    total_score = signal_score + genre_coverage_score + boundary_score
+    total_score = signal_score + genre_coverage_score + household_score + boundary_score
     rank = candidate.queue_provenance.rank or 999_999
     return (round(total_score, 6), signal_score, -rank, candidate.movie.title)
+
+
+def _rated_genre_counts(
+    ratings: tuple[TasteLabRatingExport, ...],
+) -> Counter[str]:
+    return Counter(
+        genre
+        for rating in ratings
+        if rating.is_importable_preference
+        for genre in rating.movie.genres
+    )
+
+
+def _partner_ratings_by_movie_id(
+    household_ratings: tuple[TasteLabRatingExport, ...],
+    *,
+    profile_id: str,
+) -> dict[str, tuple[TasteLabRatingExport, ...]]:
+    grouped: dict[str, list[TasteLabRatingExport]] = {}
+    for rating in household_ratings:
+        if rating.profile_id == profile_id or not rating.is_importable_preference:
+            continue
+        grouped.setdefault(rating.movie.source_movie_id, []).append(rating)
+    return {
+        source_movie_id: tuple(ratings)
+        for source_movie_id, ratings in grouped.items()
+    }
+
+
+def _household_prompt_score(
+    candidate: TasteLabCandidate,
+    *,
+    partner_ratings_by_movie_id: dict[str, tuple[TasteLabRatingExport, ...]],
+) -> float:
+    partner_ratings = partner_ratings_by_movie_id.get(candidate.movie.source_movie_id, ())
+    if not partner_ratings:
+        return 0.0
+    values = [
+        rating.preference_value
+        for rating in partner_ratings
+        if rating.preference_value is not None
+    ]
+    if not values:
+        return 0.0
+    strongest = max(abs(value) for value in values)
+    return 0.75 + (0.3 * strongest)
+
+
+def _queue_reason(
+    candidate: TasteLabCandidate,
+    *,
+    rated_genre_counts: Counter[str],
+    partner_ratings_by_movie_id: dict[str, tuple[TasteLabRatingExport, ...]],
+) -> str:
+    partner_ratings = partner_ratings_by_movie_id.get(candidate.movie.source_movie_id, ())
+    if any((rating.preference_value or 0.0) > 0 for rating in partner_ratings):
+        return "partner_compromise_probe"
+    if any((rating.preference_value or 0.0) < 0 for rating in partner_ratings):
+        return "partner_disagreement_probe"
+    if candidate.movie.genres and any(
+        rated_genre_counts[genre] == 0
+        for genre in candidate.movie.genres
+    ):
+        return "uncertain_genre_coverage"
+    score_components = candidate.queue_provenance.score_components
+    if (
+        float(score_components.get("divisiveness", 0.0)) >= 0.7
+        or float(score_components.get("discrimination_proxy", 0.0)) >= 0.7
+    ):
+        return "taste_boundary_probe"
+    return "high_signal_unrated"
+
+
+def _with_queue_reason(
+    candidate: TasteLabCandidate,
+    queue_reason: str,
+) -> TasteLabCandidate:
+    provenance = candidate.queue_provenance
+    return TasteLabCandidate(
+        movie=candidate.movie,
+        queue_provenance=TasteLabQueueProvenance(
+            queue_source=provenance.queue_source,
+            generated_at=provenance.generated_at,
+            rank=provenance.rank,
+            signal_score=provenance.signal_score,
+            score_components=provenance.score_components,
+            queue_reason=queue_reason,
+        ),
+    )
 
 
 def _genre_coverage_score(

@@ -14,12 +14,14 @@ from movie_night_mediator.domain import (
     UserProfile,
 )
 from movie_night_mediator.scoring import HeuristicScorer
-from movie_night_mediator.taste_lab import (
+from movie_night_mediator.taste_lab.export_contract import (
     TasteLabMovieIdentity,
+    TasteLabQueueProvenance,
     TasteLabRatingExport,
     TasteLabRatingLabel,
 )
 from movie_night_mediator.taste_lab.profile import build_taste_profile_summary
+from movie_night_mediator.taste_lab.service import TasteLabCandidate, TasteLabService
 
 TARGET_SOURCE_MOVIE_ID = "fixture:shared-puzzle"
 
@@ -112,6 +114,33 @@ class TasteLabEvaluationReport:
         }
 
 
+@dataclass(frozen=True)
+class TasteLabCalibrationQueueCoverageReport:
+    naive_genre_coverage: tuple[str, ...]
+    informative_genre_coverage: tuple[str, ...]
+    naive_partner_prompt_count: int
+    informative_partner_prompt_count: int
+    informative_reasons: tuple[str, ...]
+
+    @property
+    def improves_coverage(self) -> bool:
+        return (
+            len(self.informative_genre_coverage) > len(self.naive_genre_coverage)
+            and self.informative_partner_prompt_count
+            > self.naive_partner_prompt_count
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "naive_genre_coverage": list(self.naive_genre_coverage),
+            "informative_genre_coverage": list(self.informative_genre_coverage),
+            "naive_partner_prompt_count": self.naive_partner_prompt_count,
+            "informative_partner_prompt_count": self.informative_partner_prompt_count,
+            "informative_reasons": list(self.informative_reasons),
+            "improves_coverage": self.improves_coverage,
+        }
+
+
 def run_fixture_evaluation() -> TasteLabEvaluationReport:
     strategies = (
         TasteLabEvaluationStrategy(
@@ -153,6 +182,44 @@ def run_fixture_evaluation() -> TasteLabEvaluationReport:
         target_title="Shared Puzzle",
         baseline_strategy_name="no_taste_lab",
         results=tuple(evaluate_strategy(strategy) for strategy in strategies),
+    )
+
+
+def evaluate_calibration_queue_coverage() -> TasteLabCalibrationQueueCoverageReport:
+    candidates = (
+        _lab_candidate("fixture:drama-one", "Drama One", ("Drama",), rank=1),
+        _lab_candidate("fixture:drama-two", "Drama Two", ("Drama",), rank=2),
+        _lab_candidate("fixture:drama-three", "Drama Three", ("Drama",), rank=3),
+        _lab_candidate("fixture:shared-comedy", "Shared Comedy", ("Comedy",), rank=8),
+        _lab_candidate("fixture:horror-boundary", "Horror Boundary", ("Horror",), rank=9),
+    )
+    sandy_ratings = (
+        _rating("sandy", "Drama Seed", ("Drama",), TasteLabRatingLabel.LOVED),
+    )
+    robin_ratings = (
+        _rating("robin", "Shared Comedy", ("Comedy",), TasteLabRatingLabel.LOVED),
+        _rating("robin", "Horror Boundary", ("Horror",), TasteLabRatingLabel.HATED),
+    )
+    store = _FixtureTasteLabStore(
+        candidates=candidates,
+        ratings=(*sandy_ratings, *robin_ratings),
+    )
+    informative_queue = TasteLabService(store).next_batch(
+        household_id="default-household",
+        profile_id="sandy",
+        limit=3,
+    )
+    naive_queue = candidates[:3]
+
+    return TasteLabCalibrationQueueCoverageReport(
+        naive_genre_coverage=_queue_genre_coverage(naive_queue),
+        informative_genre_coverage=_queue_genre_coverage(informative_queue),
+        naive_partner_prompt_count=_partner_prompt_count(naive_queue),
+        informative_partner_prompt_count=_partner_prompt_count(informative_queue),
+        informative_reasons=tuple(
+            candidate.queue_provenance.queue_reason or ""
+            for candidate in informative_queue
+        ),
     )
 
 
@@ -223,6 +290,107 @@ def taste_lab_ratings_to_onboarding_seeds(
             )
         )
     return tuple(seeds)
+
+
+class _FixtureTasteLabStore:
+    def __init__(
+        self,
+        *,
+        candidates: tuple[TasteLabCandidate, ...],
+        ratings: tuple[TasteLabRatingExport, ...],
+    ) -> None:
+        self.candidates = candidates
+        self.ratings = ratings
+
+    def upsert_candidates(
+        self,
+        *,
+        household_id: str,
+        candidates: tuple[TasteLabCandidate, ...],
+    ) -> None:
+        self.candidates = candidates
+
+    def list_candidates(self, *, household_id: str) -> tuple[TasteLabCandidate, ...]:
+        return self.candidates
+
+    def save_ratings(
+        self,
+        *,
+        ratings: tuple[TasteLabRatingExport, ...],
+    ) -> tuple[TasteLabRatingExport, ...]:
+        self.ratings = (*self.ratings, *ratings)
+        return ratings
+
+    def list_ratings(
+        self,
+        *,
+        household_id: str,
+        profile_id: str,
+    ) -> tuple[TasteLabRatingExport, ...]:
+        return tuple(
+            rating
+            for rating in self.ratings
+            if rating.household_id == household_id and rating.profile_id == profile_id
+        )
+
+    def list_household_ratings(
+        self,
+        *,
+        household_id: str,
+    ) -> tuple[TasteLabRatingExport, ...]:
+        return tuple(
+            rating
+            for rating in self.ratings
+            if rating.household_id == household_id
+        )
+
+
+def _lab_candidate(
+    source_movie_id: str,
+    title: str,
+    genres: tuple[str, ...],
+    *,
+    rank: int,
+) -> TasteLabCandidate:
+    return TasteLabCandidate(
+        movie=TasteLabMovieIdentity(
+            source_movie_id=source_movie_id,
+            title=title,
+            genres=genres,
+        ),
+        queue_provenance=TasteLabQueueProvenance(
+            queue_source="fixture_signal_queue",
+            rank=rank,
+            signal_score=1 - (rank / 20),
+            score_components={
+                "divisiveness": 0.9,
+                "discrimination_proxy": 0.9,
+                "coverage": 0.9,
+                "non_redundancy": 0.9,
+            },
+        ),
+    )
+
+
+def _queue_genre_coverage(
+    queue: tuple[TasteLabCandidate, ...],
+) -> tuple[str, ...]:
+    return tuple(
+        sorted({
+            genre
+            for candidate in queue
+            for genre in candidate.movie.genres
+        })
+    )
+
+
+def _partner_prompt_count(queue: tuple[TasteLabCandidate, ...]) -> int:
+    return sum(
+        1
+        for candidate in queue
+        if candidate.queue_provenance.queue_reason
+        in {"partner_compromise_probe", "partner_disagreement_probe"}
+    )
 
 
 def _evaluation_candidates() -> tuple[Candidate, ...]:

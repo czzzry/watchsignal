@@ -109,6 +109,7 @@ class TasteLabStorageTest(unittest.TestCase):
         self.assertEqual(ratings[0].movie.title, "Signal Movie 4")
         self.assertEqual(ratings[0].label, TasteLabRatingLabel.MEH)
         self.assertEqual(ratings[0].queue_provenance.rank, 4)
+        self.assertEqual(ratings[0].queue_provenance.queue_reason, "test_reason")
 
 
 def _candidate_set(count: int) -> tuple[TasteLabCandidate, ...]:
@@ -142,6 +143,7 @@ def _provenance(index: int) -> TasteLabQueueProvenance:
             "recognizability": 0.8,
             "divisiveness": 0.7,
         },
+        queue_reason="test_reason",
     )
 
 
