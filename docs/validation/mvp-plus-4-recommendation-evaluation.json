@@ -1,0 +1,428 @@
+{
+  "command": "pnpm eval:mvp4",
+  "phase": "MVP+4: Recommendation Memory And Evaluation",
+  "report_date": "2026-07-07",
+  "results": [
+    {
+      "actual_movement": "same",
+      "after_explanation": "Fits compromise mode with signal from Sci-Fi, Drama. Cezary - tester: 0.87, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.",
+      "after_signal_families": [
+        "genre",
+        "title_similarity",
+        "feature_tag"
+      ],
+      "before_explanation": "Fits compromise mode with signal from Sci-Fi, Drama. Cezary - tester: 0.87, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.",
+      "before_signal_families": [
+        "genre",
+        "title_similarity",
+        "feature_tag"
+      ],
+      "category": "attribution",
+      "expected_movement": "same",
+      "name": "profile_attribution_pairing_uses_both_household_profiles",
+      "passed": true,
+      "target_enrichment_provider_after": "fixed-mvp-plus-4-eval",
+      "target_enrichment_provider_before": "fixed-mvp-plus-4-eval",
+      "target_matched_person_names_after": [],
+      "target_rank_after": 1,
+      "target_rank_before": 1,
+      "target_title": "Arrival",
+      "top_five_after": [
+        "Arrival",
+        "Paddington 2",
+        "Edge of Tomorrow Again",
+        "Dinner Party Mystery",
+        "The Shining"
+      ],
+      "top_five_before": [
+        "Arrival",
+        "Paddington 2",
+        "Edge of Tomorrow Again",
+        "Dinner Party Mystery",
+        "The Shining"
+      ]
+    },
+    {
+      "actual_movement": "up",
+      "after_explanation": "Fits compromise mode with signal from Horror, Thriller. Cezary - tester: 0.92, Taste Lab signals: 1. Evidence: genre, title_similarity.",
+      "after_signal_families": [
+        "genre",
+        "title_similarity"
+      ],
+      "before_explanation": "Fits compromise mode with signal from Horror, Thriller. Wife: 0.5, Taste Lab signals: 1.",
+      "before_signal_families": [],
+      "category": "attribution",
+      "expected_movement": "up",
+      "name": "active_profile_taste_lab_isolation",
+      "passed": true,
+      "target_enrichment_provider_after": "fixed-mvp-plus-4-eval",
+      "target_enrichment_provider_before": "fixed-mvp-plus-4-eval",
+      "target_matched_person_names_after": [
+        "Jack Nicholson"
+      ],
+      "target_rank_after": 1,
+      "target_rank_before": 4,
+      "target_title": "The Shining",
+      "top_five_after": [
+        "The Shining",
+        "Mission: Impossible - Fallout",
+        "Arrival",
+        "Dinner Party Mystery",
+        "Manchester by the Sea"
+      ],
+      "top_five_before": [
+        "Paddington 2",
+        "Dinner Party Mystery",
+        "Arrival",
+        "The Shining",
+        "Manchester by the Sea"
+      ]
+    },
+    {
+      "actual_movement": "removed",
+      "after_explanation": null,
+      "after_signal_families": [],
+      "before_explanation": "Fits compromise mode with signal from Sci-Fi, Drama. Cezary - tester: 0.87, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.",
+      "before_signal_families": [
+        "genre",
+        "title_similarity",
+        "feature_tag"
+      ],
+      "category": "attribution",
+      "expected_movement": "removed",
+      "name": "avoid_repeat_removes_already_watched_title",
+      "passed": true,
+      "target_enrichment_provider_after": "fixed-mvp-plus-4-eval",
+      "target_enrichment_provider_before": "fixed-mvp-plus-4-eval",
+      "target_matched_person_names_after": [],
+      "target_rank_after": null,
+      "target_rank_before": 1,
+      "target_title": "Arrival",
+      "top_five_after": [
+        "Paddington 2",
+        "Edge of Tomorrow Again",
+        "Dinner Party Mystery",
+        "The Shining",
+        "Manchester by the Sea"
+      ],
+      "top_five_before": [
+        "Arrival",
+        "Paddington 2",
+        "Edge of Tomorrow Again",
+        "Dinner Party Mystery",
+        "The Shining"
+      ]
+    },
+    {
+      "actual_movement": "up",
+      "after_explanation": "Fits compromise mode with signal from Horror, Thriller. Cezary - tester: 0.5, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: tonight_intent.",
+      "after_signal_families": [
+        "tonight_intent"
+      ],
+      "before_explanation": "Fits compromise mode with signal from Horror, Thriller. Cezary - tester: 0.5, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1.",
+      "before_signal_families": [],
+      "category": "recommendation",
+      "expected_movement": "up",
+      "name": "scary_steer_moves_horror_pick_up",
+      "passed": true,
+      "target_enrichment_provider_after": "fixed-mvp-plus-4-eval",
+      "target_enrichment_provider_before": "fixed-mvp-plus-4-eval",
+      "target_matched_person_names_after": [
+        "Jack Nicholson"
+      ],
+      "target_rank_after": 1,
+      "target_rank_before": 5,
+      "target_title": "The Shining",
+      "top_five_after": [
+        "The Shining",
+        "Arrival",
+        "Paddington 2",
+        "Edge of Tomorrow Again",
+        "Dinner Party Mystery"
+      ],
+      "top_five_before": [
+        "Arrival",
+        "Paddington 2",
+        "Edge of Tomorrow Again",
+        "Dinner Party Mystery",
+        "The Shining"
+      ]
+    },
+    {
+      "actual_movement": "up",
+      "after_explanation": "Fits compromise mode with signal from Drama. Cezary - tester: 0.5, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: tonight_intent.",
+      "after_signal_families": [
+        "tonight_intent"
+      ],
+      "before_explanation": "Fits compromise mode with signal from Drama. Cezary - tester: 0.5, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1.",
+      "before_signal_families": [],
+      "category": "recommendation",
+      "expected_movement": "up",
+      "name": "sad_steer_moves_melancholy_drama_up",
+      "passed": true,
+      "target_enrichment_provider_after": "fixed-mvp-plus-4-eval",
+      "target_enrichment_provider_before": "fixed-mvp-plus-4-eval",
+      "target_matched_person_names_after": [],
+      "target_rank_after": 1,
+      "target_rank_before": 6,
+      "target_title": "Manchester by the Sea",
+      "top_five_after": [
+        "Manchester by the Sea",
+        "Arrival",
+        "Past Lives",
+        "Paddington 2",
+        "Edge of Tomorrow Again"
+      ],
+      "top_five_before": [
+        "Arrival",
+        "Paddington 2",
+        "Edge of Tomorrow Again",
+        "Dinner Party Mystery",
+        "The Shining"
+      ]
+    },
+    {
+      "actual_movement": "same",
+      "after_explanation": "Fits compromise mode with signal from Action, Thriller. Cezary - tester: 0.5, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1.",
+      "after_signal_families": [],
+      "before_explanation": "Fits compromise mode with signal from Action, Thriller. Cezary - tester: 0.5, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1.",
+      "before_signal_families": [],
+      "category": "recommendation",
+      "expected_movement": "up",
+      "name": "named_actor_steer_surfaces_matching_cast",
+      "passed": false,
+      "target_enrichment_provider_after": "fixed-mvp-plus-4-eval",
+      "target_enrichment_provider_before": "fixed-mvp-plus-4-eval",
+      "target_matched_person_names_after": [
+        "Tom Cruise"
+      ],
+      "target_rank_after": 7,
+      "target_rank_before": 7,
+      "target_title": "Mission: Impossible - Fallout",
+      "top_five_after": [
+        "Arrival",
+        "Paddington 2",
+        "Edge of Tomorrow Again",
+        "Dinner Party Mystery",
+        "The Shining"
+      ],
+      "top_five_before": [
+        "Arrival",
+        "Paddington 2",
+        "Edge of Tomorrow Again",
+        "Dinner Party Mystery",
+        "The Shining"
+      ]
+    },
+    {
+      "actual_movement": "up",
+      "after_explanation": "Fits compromise mode with signal from Comedy, Adventure. Cezary - tester: 0.5, Taste Lab signals: 1; Wife: 0.78, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag, tonight_intent.",
+      "after_signal_families": [
+        "genre",
+        "title_similarity",
+        "feature_tag",
+        "tonight_intent"
+      ],
+      "before_explanation": "Fits compromise mode with signal from Comedy, Adventure. Cezary - tester: 0.5, Taste Lab signals: 1; Wife: 0.78, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.",
+      "before_signal_families": [
+        "genre",
+        "title_similarity",
+        "feature_tag"
+      ],
+      "category": "recommendation",
+      "expected_movement": "up",
+      "name": "comfort_movie_steer_moves_warm_comedy_up",
+      "passed": true,
+      "target_enrichment_provider_after": "fixed-mvp-plus-4-eval",
+      "target_enrichment_provider_before": "fixed-mvp-plus-4-eval",
+      "target_matched_person_names_after": [],
+      "target_rank_after": 1,
+      "target_rank_before": 2,
+      "target_title": "Paddington 2",
+      "top_five_after": [
+        "Paddington 2",
+        "Arrival",
+        "Edge of Tomorrow Again",
+        "Dinner Party Mystery",
+        "The Shining"
+      ],
+      "top_five_before": [
+        "Arrival",
+        "Paddington 2",
+        "Edge of Tomorrow Again",
+        "Dinner Party Mystery",
+        "The Shining"
+      ]
+    },
+    {
+      "actual_movement": "same",
+      "after_explanation": "Fits compromise mode with signal from Action, Sci-Fi. Action profile: 1.0, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag, session_reaction.",
+      "after_signal_families": [
+        "genre",
+        "title_similarity",
+        "feature_tag",
+        "session_reaction"
+      ],
+      "before_explanation": "Fits compromise mode with signal from Action, Sci-Fi. Action profile: 1.0, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.",
+      "before_signal_families": [
+        "genre",
+        "title_similarity",
+        "feature_tag"
+      ],
+      "category": "recommendation",
+      "expected_movement": "down",
+      "name": "post_watch_no_moves_similar_title_down",
+      "passed": false,
+      "target_enrichment_provider_after": "fixed-mvp-plus-4-eval",
+      "target_enrichment_provider_before": "fixed-mvp-plus-4-eval",
+      "target_matched_person_names_after": [],
+      "target_rank_after": 1,
+      "target_rank_before": 1,
+      "target_title": "Edge of Tomorrow Again",
+      "top_five_after": [
+        "Edge of Tomorrow Again",
+        "Mission: Impossible - Fallout",
+        "Arrival",
+        "Dinner Party Mystery",
+        "The Shining"
+      ],
+      "top_five_before": [
+        "Edge of Tomorrow Again",
+        "Mission: Impossible - Fallout",
+        "Arrival",
+        "Dinner Party Mystery",
+        "The Shining"
+      ]
+    },
+    {
+      "actual_movement": "up",
+      "after_explanation": "Fits compromise mode with signal from Mystery, Comedy. Watchlist rater: 0.86. Evidence: genre, feature_tag.",
+      "after_signal_families": [
+        "genre",
+        "feature_tag"
+      ],
+      "before_explanation": "Fits compromise mode with signal from Mystery, Comedy. Cezary - tester: 0.5, Taste Lab signals: 1.",
+      "before_signal_families": [],
+      "category": "recommendation",
+      "expected_movement": "up",
+      "name": "watchlist_loved_moves_saved_style_up",
+      "passed": true,
+      "target_enrichment_provider_after": "fixed-mvp-plus-4-eval",
+      "target_enrichment_provider_before": "fixed-mvp-plus-4-eval",
+      "target_matched_person_names_after": [],
+      "target_rank_after": 1,
+      "target_rank_before": 3,
+      "target_title": "Dinner Party Mystery",
+      "top_five_after": [
+        "Dinner Party Mystery",
+        "Paddington 2",
+        "Arrival",
+        "The Shining",
+        "Manchester by the Sea"
+      ],
+      "top_five_before": [
+        "Arrival",
+        "Edge of Tomorrow Again",
+        "Dinner Party Mystery",
+        "The Shining",
+        "Manchester by the Sea"
+      ]
+    },
+    {
+      "actual_movement": "same",
+      "after_explanation": "Fits compromise mode with signal from Mystery, Comedy. Action and mystery: 0.86, Taste Lab signals: 2; Mystery fan: 0.86, Taste Lab signals: 2. Evidence: genre, feature_tag.",
+      "after_signal_families": [
+        "genre",
+        "feature_tag"
+      ],
+      "before_explanation": "Fits husband-first mode with signal from Mystery, Comedy. Action and mystery: 0.86, Taste Lab signals: 2; Mystery fan: 0.86, Taste Lab signals: 2. Evidence: genre, feature_tag.",
+      "before_signal_families": [
+        "genre",
+        "feature_tag"
+      ],
+      "category": "recommendation",
+      "expected_movement": "shared fit stays first while one-sided action drops",
+      "name": "partner_compromise_prefers_shared_fit_over_one_sided_pick",
+      "passed": true,
+      "target_enrichment_provider_after": "fixed-mvp-plus-4-eval",
+      "target_enrichment_provider_before": "fixed-mvp-plus-4-eval",
+      "target_matched_person_names_after": [],
+      "target_rank_after": 1,
+      "target_rank_before": 1,
+      "target_title": "Dinner Party Mystery",
+      "top_five_after": [
+        "Dinner Party Mystery",
+        "Paddington 2",
+        "Arrival",
+        "Manchester by the Sea",
+        "Past Lives"
+      ],
+      "top_five_before": [
+        "Dinner Party Mystery",
+        "Paddington 2",
+        "Mission: Impossible - Fallout",
+        "Edge of Tomorrow Again",
+        "Arrival"
+      ]
+    },
+    {
+      "actual_movement": "same",
+      "after_explanation": "Fits compromise mode with signal from Sci-Fi, Drama. Cezary - tester: 0.87, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag, tonight_intent.",
+      "after_signal_families": [
+        "genre",
+        "title_similarity",
+        "feature_tag",
+        "tonight_intent"
+      ],
+      "before_explanation": "Fits compromise mode with signal from Sci-Fi, Drama. Cezary - tester: 0.87, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.",
+      "before_signal_families": [
+        "genre",
+        "title_similarity",
+        "feature_tag"
+      ],
+      "category": "attribution",
+      "expected_movement": "same",
+      "name": "live_tmdb_candidate_shape_keeps_provider_evidence_visible",
+      "passed": true,
+      "target_enrichment_provider_after": "fixed-live-tmdb-eval",
+      "target_enrichment_provider_before": "fixed-live-tmdb-eval",
+      "target_matched_person_names_after": [],
+      "target_rank_after": 1,
+      "target_rank_before": 1,
+      "target_title": "Arrival",
+      "top_five_after": [
+        "Arrival",
+        "Paddington 2",
+        "Edge of Tomorrow Again",
+        "Dinner Party Mystery",
+        "The Shining"
+      ],
+      "top_five_before": [
+        "Arrival",
+        "Paddington 2",
+        "Edge of Tomorrow Again",
+        "Dinner Party Mystery",
+        "The Shining"
+      ]
+    }
+  ],
+  "risk_notes": [
+    "This is a deterministic local harness, not a live TMDb acceptance run.",
+    "Recommendation scenarios use directional movement so useful tuning does not depend on exact ranks.",
+    "Attribution scenarios are strict because profile ownership and repeat avoidance must not drift.",
+    "Known recommendation gaps are reported without failing the command so later MVP+4 slices have a visible baseline."
+  ],
+  "scenario_count": 11,
+  "summary": {
+    "attribution_passed": true,
+    "attribution_scenarios": 4,
+    "known_gaps": [
+      "named_actor_steer_surfaces_matching_cast",
+      "post_watch_no_moves_similar_title_down"
+    ],
+    "mvp_plus_4_evaluation_harness_passed": true,
+    "recommendation_pass_rate": 0.7143,
+    "recommendation_passed": 5,
+    "recommendation_scenarios": 7
+  }
+}
