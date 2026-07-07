@@ -69,6 +69,7 @@ import {
   continueSharedSession,
   createSharedSession,
   getOnboardingCompletion,
+  getProfileMemoryEvents,
   getProfileMemorySummary,
   getProfileOnboarding,
   getRecentSessions,
@@ -85,6 +86,7 @@ import {
   type RecentSessionSummaryPayload,
   type SharedSessionPayload,
   type TasteProfileSummaryPayload,
+  type TasteMemoryEventPayload,
   type TonightIntentInterpretationPayload,
 } from "./session-client";
 
@@ -185,6 +187,9 @@ export function PassThePhoneWizard({
   >([]);
   const [profileMemorySummaries, setProfileMemorySummaries] = useState<
     ProfileMemorySummaryPayload[]
+  >([]);
+  const [profileMemoryEvents, setProfileMemoryEvents] = useState<
+    TasteMemoryEventPayload[]
   >([]);
   const [profileMemoryMessage, setProfileMemoryMessage] = useState<string | null>(null);
   const [tonightIntentText, setTonightIntentText] = useState("");
@@ -328,6 +333,9 @@ export function PassThePhoneWizard({
     setDebugHistoryStatus("idle");
     setDebugHistoryMessage(null);
     setActiveTonightIntents([]);
+    if (apiHealth.connected) {
+      void loadProfileMemorySummaries();
+    }
     setPendingTonightIntent(null);
     setTonightIntentText("");
     setTonightIntentClarificationText("");
@@ -1189,6 +1197,7 @@ export function PassThePhoneWizard({
           onboardingMessage={onboardingMessage}
           onboardingPrompt={onboardingPrompt}
           profileMemorySummaries={profileMemorySummaries}
+          profileMemoryEvents={profileMemoryEvents}
           profileMemoryMessage={profileMemoryMessage}
           tonightIntentText={tonightIntentText}
           onTonightIntentTextChange={setTonightIntentText}
@@ -1447,15 +1456,24 @@ export function PassThePhoneWizard({
 
   async function loadProfileMemorySummaries(): Promise<void> {
     try {
-      const summaries = await Promise.all(
-        rawParticipantIds.map((profileId) =>
-          getProfileMemorySummary("default-household", profileId),
+      const [summaries, eventGroups] = await Promise.all([
+        Promise.all(
+          rawParticipantIds.map((profileId) =>
+            getProfileMemorySummary("default-household", profileId),
+          ),
         ),
-      );
+        Promise.all(
+          rawParticipantIds.map((profileId) =>
+            getProfileMemoryEvents("default-household", profileId),
+          ),
+        ),
+      ]);
       setProfileMemorySummaries(summaries);
+      setProfileMemoryEvents(eventGroups.flat());
       setProfileMemoryMessage(null);
     } catch (error) {
       setProfileMemorySummaries([]);
+      setProfileMemoryEvents([]);
       setProfileMemoryMessage(toErrorMessage(error));
     }
   }
