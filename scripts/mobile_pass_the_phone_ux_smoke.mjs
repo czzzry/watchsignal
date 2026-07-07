@@ -87,7 +87,6 @@ async function main() {
     try {
       await waitForText(tab, "Tonight", "results screen");
       await waitForText(tab, "Backups we also liked", "results backups");
-      await waitForText(tab, "Steer next 5", "results steering panel");
       if (useBackendMode) {
         await waitForText(tab, "Current signals", "results evidence panel");
         await waitForText(tab, "Cezary - tester: 1 signals", "tester Taste Lab evidence");
@@ -109,10 +108,12 @@ async function main() {
     }
 
     if (process.env.MOBILE_UX_SMOKE_STEER_NEXT === "1") {
+      await clickButton(tab, "Show 5 more");
+      await waitForText(tab, "Keep going or steer first?", "continuation chooser");
       await fillInput(tab, "#steer-next-input", "actually more action");
       await clickButton(tab, "Review");
-      await waitForText(tab, "Apply steer and show 5", "steer next confirmation");
-      await clickButton(tab, "Apply steer and show 5");
+      await waitForText(tab, "Add and find 5", "steer next confirmation");
+      await clickButton(tab, "Add and find 5");
       await waitForText(tab, "1 of 5", "steered next first pass");
       await assertNoHorizontalOverflow(tab, "steered next first pass");
       console.log("Steer next 5 smoke path passed.");
@@ -121,6 +122,8 @@ async function main() {
 
     if (process.env.MOBILE_UX_SMOKE_SHOW_MORE === "1") {
       await clickButton(tab, "Show 5 more");
+      await waitForText(tab, "Keep going or steer first?", "continuation chooser");
+      await clickButton(tab, "Find 5 in the same direction");
       await waitForText(tab, "1 of 5", "show five more first pass");
       await assertNoHorizontalOverflow(tab, "show five more first pass");
       console.log("Show 5 more smoke path passed.");

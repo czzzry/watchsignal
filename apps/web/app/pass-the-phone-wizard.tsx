@@ -848,6 +848,18 @@ export function PassThePhoneWizard({
     await continueWithTonightIntents(nextTonightIntents);
   }
 
+  function addSteerToNextFive(): void {
+    if (pendingSteerIntent?.status !== "confirmation_required") {
+      return;
+    }
+
+    setActiveTonightIntents((current) => [...current, pendingSteerIntent]);
+    setPendingSteerIntent(null);
+    setSteerText("");
+    setSteerClarificationText("");
+    setSteerMessage("Added. You can add another steer or find five more now.");
+  }
+
   function applyTonightIntent(): void {
     if (pendingTonightIntent?.status !== "confirmation_required") {
       return;
@@ -1200,6 +1212,7 @@ export function PassThePhoneWizard({
           onInterpretSteer={interpretSteerText}
           onSteerClarificationTextChange={setSteerClarificationText}
           onAnswerSteerClarification={answerSteerClarification}
+          onAddSteer={addSteerToNextFive}
           onApplySteer={applySteerAndShowMore}
           isSyncing={isSyncing}
           reviewMode={reviewMode}

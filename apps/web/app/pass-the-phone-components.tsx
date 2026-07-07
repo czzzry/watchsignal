@@ -1777,6 +1777,7 @@ export function ResultsStep({
   onInterpretSteer,
   onSteerClarificationTextChange,
   onAnswerSteerClarification,
+  onAddSteer,
   onApplySteer,
   isSyncing,
   reviewMode,
@@ -1807,11 +1808,13 @@ export function ResultsStep({
   onInterpretSteer: () => void | Promise<void>;
   onSteerClarificationTextChange: (text: string) => void;
   onAnswerSteerClarification: () => void | Promise<void>;
+  onAddSteer: () => void;
   onApplySteer: () => void | Promise<void>;
   isSyncing: boolean;
   reviewMode: boolean;
 }) {
   const bestPick = rankedCandidates[0];
+  const [continuationOpen, setContinuationOpen] = useState(false);
   const [outcomeType, setOutcomeType] = useState<SessionOutcomeType | null>(null);
   const [otherPickId, setOtherPickId] = useState<string | null>(null);
   const [outcomeNote, setOutcomeNote] = useState("");
@@ -2148,10 +2151,31 @@ export function ResultsStep({
         isSyncing={isSyncing}
         isBestPickSaved={bestPickWatchlistEntry !== undefined}
         watchlistStatus={watchlistStatus}
-        onShowMore={onShowMore}
+        continuationOpen={continuationOpen}
+        onShowMore={() => setContinuationOpen((current) => !current)}
         onSaveBestPick={handleSaveBestPick}
         onReset={onReset}
       />
+
+      {continuationOpen ? (
+        <ResultsSteerNextPanel
+          activeIntents={activeTonightIntents}
+          text={steerText}
+          pendingIntent={pendingSteerIntent}
+          referenceTitle={bestPick.title}
+          clarificationText={steerClarificationText}
+          message={steerMessage}
+          busy={isSyncing}
+          canPersist={canPersist}
+          onTextChange={onSteerTextChange}
+          onInterpret={onInterpretSteer}
+          onClarificationTextChange={onSteerClarificationTextChange}
+          onAnswerClarification={onAnswerSteerClarification}
+          onAdd={onAddSteer}
+          onApply={onApplySteer}
+          onContinue={onShowMore}
+        />
+      ) : null}
 
       {!canPersist ? <p className="debugMessage quietCallout">Outcome saving only works when the backend session stays connected.</p> : null}
       {watchlistMessage ? <p className="debugMessage quietCallout">{watchlistMessage}</p> : null}
@@ -2191,22 +2215,6 @@ export function ResultsStep({
         onFeedbackChange={handleFeedbackChange}
         onFeedbackNoteChange={handleFeedbackNoteChange}
         onSaveFeedback={handleSaveFeedback}
-      />
-
-      <ResultsSteerNextPanel
-        activeIntents={activeTonightIntents}
-        text={steerText}
-        pendingIntent={pendingSteerIntent}
-        referenceTitle={bestPick.title}
-        clarificationText={steerClarificationText}
-        message={steerMessage}
-        busy={isSyncing}
-        canPersist={canPersist}
-        onTextChange={onSteerTextChange}
-        onInterpret={onInterpretSteer}
-        onClarificationTextChange={onSteerClarificationTextChange}
-        onAnswerClarification={onAnswerSteerClarification}
-        onApply={onApplySteer}
       />
 
       {reviewMode ? (

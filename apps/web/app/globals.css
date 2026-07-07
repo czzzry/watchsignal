@@ -3357,6 +3357,19 @@ summary:focus-visible {
     rgba(255, 255, 255, 0.028);
 }
 
+.continuationPanel {
+  border-color: rgba(120, 240, 255, 0.16);
+  background:
+    linear-gradient(135deg, rgba(120, 240, 255, 0.08), rgba(191, 143, 255, 0.06)),
+    rgba(255, 255, 255, 0.032);
+}
+
+.continuationSameDirectionAction {
+  width: 100%;
+  min-height: 44px;
+  font-size: 0.9rem;
+}
+
 .tonightIntentHeader {
   display: flex;
   align-items: flex-start;
