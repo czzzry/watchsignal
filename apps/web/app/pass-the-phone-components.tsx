@@ -253,6 +253,11 @@ export function SetupStep({
   const summaryLine = onboardingRequired
     ? `${completedCount} of ${totalCount} ready`
     : "Step 1 of 3";
+  const setupProgress = onboardingRequired
+    ? totalCount > 0
+      ? Math.round((completedCount / totalCount) * 100)
+      : 0
+    : 33;
   const utilityLine = onboardingRequired
     ? missingLabels || (isCoupleSession ? "Both profiles complete" : `${selectedPeopleLabel} ready`)
     : isCoupleSession
@@ -310,11 +315,11 @@ export function SetupStep({
           <div className="startupSceneVignette" aria-hidden="true" />
           <div className="startupSceneHorizon" aria-hidden="true" />
           <div
-            className={onboardingRequired ? "heroVisual startupOrbWrap heroVisualSetup" : "heroVisual startupOrbWrap heroVisualReady"}
+            className="heroVisual startupOrbWrap heroVisualReady"
             aria-hidden="true"
           >
-            <div className={onboardingRequired ? "heroSignal heroSignalSetup" : "heroSignal heroSignalReady"}>
-              {onboardingRequired ? <div className="heroSignalCore" /> : <StartupConceptHero />}
+            <div className="heroSignal heroSignalReady">
+              <StartupConceptHero />
             </div>
           </div>
 
@@ -399,7 +404,6 @@ export function SetupStep({
                     </span>
                   </span>
                   <strong className="startupControlValue">{availabilityDisplayLabel}</strong>
-                  <span className="startupRowSummaryAction">Change</span>
                 </div>
               </div>
             </div>
@@ -409,7 +413,10 @@ export function SetupStep({
             <div className="startupMicroProgress startupMicroProgressInline" aria-hidden="true">
               <p className="startupMicroProgressLabel">{summaryLine}</p>
               <div className="startupMicroProgressTrack">
-                <span className="startupMicroProgressFill" />
+                <span
+                  className="startupMicroProgressFill"
+                  style={{ width: `${setupProgress}%` }}
+                />
               </div>
             </div>
 
@@ -848,6 +855,7 @@ export function ReactionStep({
   onSeenIt: () => void;
   onBack: () => void;
 }) {
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
   const confidenceScore = candidate.taste.founder && candidate.taste.wife
     ? Math.round((candidate.taste.founder + candidate.taste.wife) / 2)
     : 87;
@@ -914,12 +922,18 @@ export function ReactionStep({
               ))}
             </div>
           ) : null}
-          <div className="movieReasonBlock">
+          <div className={detailsExpanded ? "movieReasonBlock movieReasonBlockExpanded" : "movieReasonBlock"}>
             <p className="movieReason movieReasonLead">{reactionSummary}</p>
             <p className="movieReason movieReasonSubtle">{reactionDetail}</p>
             <div className="movieReasonActions">
-              <button type="button" className="ghostInlineButton" disabled={isSyncing}>
-                More
+              <button
+                type="button"
+                className="ghostInlineButton"
+                disabled={isSyncing}
+                onClick={() => setDetailsExpanded((current) => !current)}
+                aria-expanded={detailsExpanded}
+              >
+                {detailsExpanded ? "Less" : "More"}
               </button>
             </div>
           </div>
