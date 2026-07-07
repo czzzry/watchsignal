@@ -45,6 +45,10 @@ from movie_night_mediator.app.profile_memory import (
 from movie_night_mediator.app.recommendation_snapshot import (
     RecommendationSnapshotService,
 )
+from movie_night_mediator.app.recommendation_memory import (
+    profile_memory_evidence,
+    watched_source_movie_ids,
+)
 from movie_night_mediator.app.session import (
     SessionTransitionError,
     SharedSessionService,
@@ -564,6 +568,7 @@ def create_app(
                     candidate_source=candidate_source,
                     snapshot_service=recommendation_snapshot_service,
                     taste_lab_service=taste_lab_service,
+                    backfill_service=backfill_service,
                 )
             ]
 
@@ -574,9 +579,14 @@ def create_app(
                 users=_shortlist_users_from_taste_profile(
                     payload=payload,
                     taste_lab_service=taste_lab_service,
+                    backfill_service=backfill_service,
                 ),
                 snapshot_service=recommendation_snapshot_service,
                 excluded_source_movie_ids=tuple(payload.excludedSourceMovieIds),
+                watched_source_movie_ids=_shortlist_watched_source_movie_ids(
+                    payload=payload,
+                    backfill_service=backfill_service,
+                ),
                 session_reactions=_shortlist_session_reactions_from_payload(payload),
             )
         ]
@@ -1037,9 +1047,14 @@ def _live_candidate_shortlist_items(
     candidate_source: CandidateSource | None,
     snapshot_service: RecommendationSnapshotService,
     taste_lab_service: TasteLabService,
+    backfill_service: ManualBackfillService,
 ) -> tuple[OfflineShortlistItem, ...]:
     try:
         resolved_candidate_source = candidate_source or TmdbCandidateSource()
+        watched_ids = _shortlist_watched_source_movie_ids(
+            payload=payload,
+            backfill_service=backfill_service,
+        )
         shortlist = get_candidate_source_shortlist_items(
             resolved_candidate_source,
             session=_shortlist_session_from_payload(payload),
@@ -1047,11 +1062,13 @@ def _live_candidate_shortlist_items(
             users=_shortlist_users_from_taste_profile(
                 payload=payload,
                 taste_lab_service=taste_lab_service,
+                backfill_service=backfill_service,
             ),
             limit=payload.shortlistSize,
-            candidate_limit=20 + len(payload.excludedSourceMovieIds),
+            candidate_limit=20 + len(payload.excludedSourceMovieIds) + len(watched_ids),
             snapshot_service=snapshot_service,
             excluded_source_movie_ids=tuple(payload.excludedSourceMovieIds),
+            watched_source_movie_ids=watched_ids,
             session_reactions=_shortlist_session_reactions_from_payload(payload),
         )
     except TmdbCandidateSourceError as error:
@@ -1218,6 +1235,7 @@ def _shortlist_users_from_taste_profile(
     *,
     payload: RecommendationShortlistRequestPayload,
     taste_lab_service: TasteLabService,
+    backfill_service: ManualBackfillService,
 ) -> tuple[UserProfile, ...]:
     base_profiles = (DEMO_HUSBAND_PROFILE, DEMO_WIFE_PROFILE)
     users: list[UserProfile] = []
@@ -1232,11 +1250,30 @@ def _shortlist_users_from_taste_profile(
             replace(
                 base_profile,
                 user_id=profile_id,
-                taste_profile_evidence=summary.watchsignal_taste_evidence,
+                taste_profile_evidence=(
+                    summary.watchsignal_taste_evidence
+                    + profile_memory_evidence(
+                        backfill_service=backfill_service,
+                        household_id=payload.householdId,
+                        profile_id=profile_id,
+                    )
+                ),
             )
         )
 
     return tuple(users)
+
+
+def _shortlist_watched_source_movie_ids(
+    *,
+    payload: RecommendationShortlistRequestPayload,
+    backfill_service: ManualBackfillService,
+) -> tuple[str, ...]:
+    return watched_source_movie_ids(
+        backfill_service=backfill_service,
+        household_id=payload.householdId,
+        profile_ids=tuple(payload.participantIds),
+    )
 
 
 def _offline_shortlist_item_to_payload(

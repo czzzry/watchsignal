@@ -80,6 +80,7 @@ def get_offline_demo_shortlist(
     users: tuple[UserProfile, ...] | None = None,
     snapshot_service: RecommendationSnapshotService | None = None,
     excluded_source_movie_ids: tuple[str, ...] = (),
+    watched_source_movie_ids: tuple[str, ...] = (),
     enrichment_service: CandidateEnrichmentService | None = None,
     session_reactions: tuple[ScoringSessionReaction, ...] = (),
 ) -> tuple[OfflineShortlistItem, ...]:
@@ -102,6 +103,10 @@ def get_offline_demo_shortlist(
             session=resolved_session,
             household_defaults=DEMO_HOUSEHOLD_DEFAULTS,
         )
+    )
+    domain_candidates = _mark_already_watched(
+        domain_candidates,
+        watched_source_movie_ids=watched_source_movie_ids,
     )
     domain_candidates_by_source_id = {
         candidate.source_movie_id: candidate for candidate in domain_candidates
@@ -192,6 +197,7 @@ def get_candidate_source_shortlist(
     scorer: HeuristicScorer | None = None,
     snapshot_service: RecommendationSnapshotService | None = None,
     excluded_source_movie_ids: tuple[str, ...] = (),
+    watched_source_movie_ids: tuple[str, ...] = (),
     enrichment_service: CandidateEnrichmentService | None = None,
     session_reactions: tuple[ScoringSessionReaction, ...] = (),
 ) -> tuple[RankedCandidate, ...]:
@@ -208,6 +214,10 @@ def get_candidate_source_shortlist(
     )
     candidates = (enrichment_service or CandidateEnrichmentService()).enrich_candidates(
         candidates
+    )
+    candidates = _mark_already_watched(
+        candidates,
+        watched_source_movie_ids=watched_source_movie_ids,
     )
     result = _score_candidate_source_candidates(
         candidates,
@@ -232,6 +242,7 @@ def get_candidate_source_shortlist_items(
     scorer: HeuristicScorer | None = None,
     snapshot_service: RecommendationSnapshotService | None = None,
     excluded_source_movie_ids: tuple[str, ...] = (),
+    watched_source_movie_ids: tuple[str, ...] = (),
     enrichment_service: CandidateEnrichmentService | None = None,
     session_reactions: tuple[ScoringSessionReaction, ...] = (),
 ) -> tuple[OfflineShortlistItem, ...]:
@@ -248,6 +259,10 @@ def get_candidate_source_shortlist_items(
     )
     candidates = (enrichment_service or CandidateEnrichmentService()).enrich_candidates(
         candidates
+    )
+    candidates = _mark_already_watched(
+        candidates,
+        watched_source_movie_ids=watched_source_movie_ids,
     )
     ranked_candidates = _score_candidate_source_candidates(
         candidates,
@@ -297,6 +312,23 @@ def _score_candidate_source_candidates(
             snapshot_service=snapshot_service,
         ).score_and_save_snapshot(request)
     return result.ranked_candidates
+
+
+def _mark_already_watched(
+    candidates: tuple[Candidate, ...],
+    *,
+    watched_source_movie_ids: tuple[str, ...],
+) -> tuple[Candidate, ...]:
+    if not watched_source_movie_ids:
+        return candidates
+
+    watched_id_set = set(watched_source_movie_ids)
+    return tuple(
+        replace(candidate, already_watched=True)
+        if candidate.source_movie_id in watched_id_set
+        else candidate
+        for candidate in candidates
+    )
 
 
 def _candidate_source_shortlist_item(
