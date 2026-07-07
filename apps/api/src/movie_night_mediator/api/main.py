@@ -299,6 +299,8 @@ class RecommendationShortlistRequestPayload(BaseModel):
         max_length=2,
     )
     shortlistSize: int = Field(default=5, ge=1, le=10)
+    availabilityRegion: str | None = Field(default=None, min_length=1)
+    serviceConstraint: str | None = Field(default=None, min_length=1)
     source: Literal["demo", "live_tmdb"] = "demo"
     tonightIntent: dict[str, object] | None = None
     tonightIntents: list[dict[str, object]] = Field(default_factory=list)
@@ -1058,7 +1060,7 @@ def _live_candidate_shortlist_items(
         shortlist = get_candidate_source_shortlist_items(
             resolved_candidate_source,
             session=_shortlist_session_from_payload(payload),
-            household_defaults=HouseholdDefaults(),
+            household_defaults=_shortlist_household_defaults_from_payload(payload),
             users=_shortlist_users_from_taste_profile(
                 payload=payload,
                 taste_lab_service=taste_lab_service,
@@ -1083,6 +1085,19 @@ def _live_candidate_shortlist_items(
     return shortlist
 
 
+def _shortlist_household_defaults_from_payload(
+    payload: RecommendationShortlistRequestPayload,
+) -> HouseholdDefaults:
+    return HouseholdDefaults(
+        default_region=_shortlist_region_from_payload(payload.availabilityRegion),
+        default_service=_shortlist_service_from_payload(
+            payload.serviceConstraint,
+            payload.availabilityRegion,
+        )
+        or "",
+    )
+
+
 def _shortlist_session_from_payload(
     payload: RecommendationShortlistRequestPayload,
 ) -> SessionContext:
@@ -1096,8 +1111,11 @@ def _shortlist_session_from_payload(
         audience_mode=audience_mode,
         session_mode=payload.activeMode,
         viewer_user_ids=tuple(payload.participantIds),
-        region="DE",
-        service_constraint="Prime Video",
+        region=_shortlist_region_from_payload(payload.availabilityRegion),
+        service_constraint=_shortlist_service_from_payload(
+            payload.serviceConstraint,
+            payload.availabilityRegion,
+        ),
         mood_text=_tonight_intent_mood_text(
             payload.tonightIntent,
             payload.tonightIntents,
@@ -1116,6 +1134,36 @@ def _shortlist_session_from_payload(
             payload.tonightIntents,
         ),
     )
+
+
+def _shortlist_region_from_payload(availability_region: str | None) -> str:
+    if availability_region is None:
+        return "DE"
+
+    normalized = availability_region.strip().casefold()
+    if "united states" in normalized or normalized.endswith(" us"):
+        return "US"
+    if "germany" in normalized or normalized.endswith(" de"):
+        return "DE"
+    return "DE"
+
+
+def _shortlist_service_from_payload(
+    service_constraint: str | None,
+    availability_region: str | None,
+) -> str | None:
+    if service_constraint is not None:
+        service = service_constraint.strip()
+        return service or None
+    if availability_region is None:
+        return "Prime Video"
+
+    normalized = availability_region.strip().casefold()
+    if "any streaming" in normalized or "no provider" in normalized:
+        return None
+    if "prime" in normalized:
+        return "Prime Video"
+    return availability_region.strip() or "Prime Video"
 
 
 def _shortlist_session_reactions_from_payload(

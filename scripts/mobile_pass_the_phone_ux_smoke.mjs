@@ -60,6 +60,12 @@ async function main() {
     await waitForLaunchStingToFinish(tab);
     await assertNoHorizontalOverflow(tab, "setup screen");
     await captureScreenshot(tab, screenshotDir, "01-setup");
+    if (useBackendMode) {
+      await clickButton(tab, "Availability");
+      await clickButton(tab, "Any streaming");
+      await waitForText(tab, "Any streaming", "editable availability setting");
+      await assertNoHorizontalOverflow(tab, "availability setting");
+    }
     if (checkTonightIntent) {
       await verifyTonightIntentSetup(tab);
       await captureScreenshot(tab, screenshotDir, "01-tonight-intent");

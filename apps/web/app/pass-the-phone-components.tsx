@@ -97,6 +97,19 @@ const languageModeLabels: Record<LanguageMode, string> = {
   anything: "No rules",
 };
 
+const availabilityOptions = [
+  {
+    value: "Prime Video Germany",
+    label: "Prime Video",
+    detail: "Live TMDb filters to Prime Video in Germany.",
+  },
+  {
+    value: "Any streaming Germany",
+    label: "Any streaming",
+    detail: "Live TMDb allows any flatrate streaming provider in Germany.",
+  },
+];
+
 const seenMemoryLabels: Record<SeenMemoryValue, string> = {
   loved: "Loved it",
   fine: "Ok",
@@ -128,6 +141,7 @@ export function SetupStep({
   onActiveProfileChange,
   onPartnerProfileChange,
   onCreateProfile,
+  onAvailabilityRegionChange,
   languageMode,
   onLanguageModeChange,
   isSyncing,
@@ -177,6 +191,7 @@ export function SetupStep({
   onActiveProfileChange: (profileId: string) => void | Promise<void>;
   onPartnerProfileChange: (profileId: string) => void | Promise<void>;
   onCreateProfile: (label: string) => void | Promise<void>;
+  onAvailabilityRegionChange: (availabilityRegion: string) => void | Promise<void>;
   languageMode: LanguageMode;
   onLanguageModeChange: (mode: LanguageMode) => void;
   isSyncing: boolean;
@@ -211,9 +226,9 @@ export function SetupStep({
   onSelectRecentSession: (sessionId: string) => void | Promise<void>;
   reviewMode: boolean;
 }) {
-  const [expandedControl, setExpandedControl] = useState<"people" | "language" | null>(
-    null,
-  );
+  const [expandedControl, setExpandedControl] = useState<
+    "people" | "language" | "availability" | null
+  >(null);
   const [newProfileName, setNewProfileName] = useState("");
   const sessionDateLabel = formatSessionDate(new Date());
   const completedCount = onboardingCompletion?.completedProfileIds.length ?? 0;
@@ -232,9 +247,11 @@ export function SetupStep({
   const selectedLanguageDisplayLabel = languageMode === "english"
     ? "English audio & subtitles"
     : selectedLanguageLabel;
-  const availabilityDisplayLabel = setupLoad.setup.defaults.availabilityRegion.includes("Prime Video")
-    ? "Prime Video"
-    : setupLoad.setup.defaults.availabilityRegion;
+  const selectedAvailabilityOption = availabilityOptions.find(
+    (option) => option.value === setupLoad.setup.defaults.availabilityRegion,
+  );
+  const availabilityDisplayLabel =
+    selectedAvailabilityOption?.label ?? setupLoad.setup.defaults.availabilityRegion;
   const missingLabels =
     onboardingCompletion?.incompleteProfileIds
       .map(
@@ -464,8 +481,17 @@ export function SetupStep({
                 ) : null}
               </div>
 
-              <div className="startupControlRow startupControlRowStatic">
-                <div className="startupRowSummaryStatic startupRowSummaryStaticAvailability">
+              <div className="startupControlRow">
+                <button
+                  type="button"
+                  className="startupRowSummaryButton"
+                  onClick={() =>
+                    setExpandedControl((current) =>
+                      current === "availability" ? null : "availability",
+                    )
+                  }
+                  aria-expanded={expandedControl === "availability"}
+                >
                   <span className="startupRowSummaryMain">
                     <SetupControlIcon kind="availability" />
                     <span className="startupControlLabelGroup">
@@ -473,7 +499,29 @@ export function SetupStep({
                     </span>
                   </span>
                   <strong className="startupControlValue">{availabilityDisplayLabel}</strong>
-                </div>
+                </button>
+                {expandedControl === "availability" ? (
+                  <div className="startupInlineOptions" role="group" aria-label="Availability">
+                    {availabilityOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={
+                          option.value === setupLoad.setup.defaults.availabilityRegion
+                            ? "startupOptionPill startupOptionPillActive"
+                            : "startupOptionPill"
+                        }
+                        onClick={() => void onAvailabilityRegionChange(option.value)}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                    <p className="startupProfileNote">
+                      {selectedAvailabilityOption?.detail ??
+                        "Demo fixtures may still show their fixed catalog availability."}
+                    </p>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
@@ -1863,6 +1911,7 @@ export function ResultsStep({
   sharedSession,
   activeTonightIntents,
   recommendationSource,
+  availabilityRegion,
   steerText,
   pendingSteerIntent,
   steerClarificationText,
@@ -1895,6 +1944,7 @@ export function ResultsStep({
   sharedSession: SharedSessionPayload | null;
   activeTonightIntents: TonightIntentInterpretationPayload[];
   recommendationSource: string;
+  availabilityRegion: string;
   steerText: string;
   pendingSteerIntent: TonightIntentInterpretationPayload | null;
   steerClarificationText: string;
@@ -2245,6 +2295,7 @@ export function ResultsStep({
         bestPick={bestPick}
         activeIntents={activeTonightIntents}
         recommendationSource={recommendationSource}
+        availabilityRegion={availabilityRegion}
         participantEntries={participantEntries}
         tasteProfileSummaries={tasteProfileSummaries}
         debugHistory={debugHistory}

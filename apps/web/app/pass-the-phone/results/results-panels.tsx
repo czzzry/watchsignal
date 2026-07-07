@@ -763,6 +763,7 @@ export function RecommendationEvidencePanel({
   bestPick,
   activeIntents,
   recommendationSource,
+  availabilityRegion,
   participantEntries,
   tasteProfileSummaries,
   debugHistory,
@@ -770,6 +771,7 @@ export function RecommendationEvidencePanel({
   bestPick: RankedCandidate;
   activeIntents: TonightIntentInterpretationPayload[];
   recommendationSource: string;
+  availabilityRegion: string;
   participantEntries: ResultsParticipantEntry[];
   tasteProfileSummaries: TasteProfileSummaryPayload[];
   debugHistory: DebugHistorySessionPayload | null;
@@ -786,7 +788,7 @@ export function RecommendationEvidencePanel({
   const sourceDetail =
     recommendationSource === "live_tmdb"
       ? "Broad live candidate pool."
-      : "Small seeded pool for local demo mode.";
+      : "Small seeded pool for local demo mode. Provider labels are fixed fixtures.";
   const profileRows = participantEntries.map((participant) => {
     const summary = tasteProfileSummaries.find(
       (profileSummary) => profileSummary.profileId === participant.id,
@@ -823,6 +825,12 @@ export function RecommendationEvidencePanel({
             <span>{sourceLabel}</span>
           </div>
           <p>{sourceDetail}</p>
+        </div>
+        <div>
+          <strong>Availability</strong>
+          <p>
+            {availabilityRegion}. Best pick shows {bestPick.availability.toLowerCase()}.
+          </p>
         </div>
         <div>
           <strong>Profiles</strong>
