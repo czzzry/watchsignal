@@ -834,6 +834,14 @@ function ProfileMemoryPanel({
   }
 
   const labelsByIndex = [founderLabel, wifeLabel];
+  const snapshots = summaries.map((summary, index) =>
+    buildProfileTasteSnapshot(
+      summary,
+      events.filter((event) => event.profileId === summary.profileId),
+      labelsByIndex[index] ?? summary.profileId,
+    ),
+  );
+  const householdSnapshot = buildHouseholdTasteSnapshot(snapshots);
 
   return (
     <section className="profileMemoryPanel" aria-labelledby="profile-memory-heading">
@@ -845,8 +853,15 @@ function ProfileMemoryPanel({
         <span>Profile ledger</span>
       </div>
       {message ? <p className="profileMemoryNote">{message}</p> : null}
+      {householdSnapshot ? (
+        <div className="profileTasteSnapshot profileTasteSnapshotHousehold">
+          <span>Household overlap</span>
+          <strong>{householdSnapshot}</strong>
+        </div>
+      ) : null}
       <div className="profileMemoryGrid">
         {summaries.map((summary, index) => {
+          const snapshot = snapshots[index];
           const topSignals = summary.signals.slice(0, 3);
           const profileEvents = events
             .filter((event) => event.profileId === summary.profileId)
@@ -861,6 +876,11 @@ function ProfileMemoryPanel({
               <div className="profileMemoryCardHeader">
                 <strong>{labelsByIndex[index] ?? summary.profileId}</strong>
                 <span>{summary.visibleAppMemoryCount} app memories</span>
+              </div>
+              <div className="profileTasteSnapshot" aria-label={`${snapshot.label} taste snapshot`}>
+                <span>Taste snapshot</span>
+                <strong>{snapshot.summary}</strong>
+                <p>{snapshot.detail}</p>
               </div>
               <div className="profileMemoryFacts">
                 <span>{summary.sharedSavedCount} saved</span>
@@ -914,6 +934,107 @@ function ProfileMemoryPanel({
       </div>
     </section>
   );
+}
+
+type ProfileTasteSnapshot = {
+  label: string;
+  summary: string;
+  detail: string;
+  likes: string[];
+  avoids: string[];
+  signalCount: number;
+};
+
+function buildProfileTasteSnapshot(
+  summary: ProfileMemorySummaryPayload,
+  events: TasteMemoryEventPayload[],
+  label: string,
+): ProfileTasteSnapshot {
+  const positiveLabels = new Map<string, number>();
+  const avoidLabels = new Map<string, number>();
+
+  for (const signal of summary.signals) {
+    if (signal.source === "private_calibration") {
+      addWeightedLabel(positiveLabels, signal.label, signal.count);
+    }
+  }
+
+  for (const event of events) {
+    const target = eventPreferenceIsNegative(event) ? avoidLabels : positiveLabels;
+    if (event.eventType === "seen_before") {
+      addWeightedLabel(avoidLabels, "repeats", 1);
+      continue;
+    }
+    for (const genre of event.genres) {
+      addWeightedLabel(target, genre, 1);
+    }
+    if (event.effectLabel) {
+      addWeightedLabel(target, cleanupEffectLabel(event.effectLabel), 1);
+    }
+  }
+
+  const likes = topLabels(positiveLabels, 3);
+  const avoids = topLabels(avoidLabels, 2);
+  const signalCount =
+    summary.visibleAppMemoryCount + summary.privateCalibrationCount + events.length;
+  const confidence =
+    signalCount >= 8 ? "growing confidence" : signalCount >= 3 ? "early signal" : "low confidence";
+
+  return {
+    label,
+    summary: likes.length > 0 ? likes.join(", ") : "Still learning",
+    detail:
+      avoids.length > 0
+        ? `${confidence}; avoids ${avoids.join(", ")}`
+        : `${confidence}; no strong avoids yet`,
+    likes,
+    avoids,
+    signalCount,
+  };
+}
+
+function buildHouseholdTasteSnapshot(snapshots: ProfileTasteSnapshot[]): string | null {
+  if (snapshots.length < 2) {
+    return null;
+  }
+
+  const [first, second] = snapshots;
+  const sharedLikes = first.likes.filter((label) => second.likes.includes(label));
+  if (sharedLikes.length > 0) {
+    return `Both show signal for ${sharedLikes.slice(0, 2).join(", ")}`;
+  }
+
+  if (first.signalCount + second.signalCount < 3) {
+    return "Still collecting household signal";
+  }
+
+  return `${first.label} and ${second.label} have distinct early signals`;
+}
+
+function addWeightedLabel(labels: Map<string, number>, label: string, weight: number): void {
+  const normalized = label.trim();
+  if (!normalized) {
+    return;
+  }
+  labels.set(normalized, (labels.get(normalized) ?? 0) + weight);
+}
+
+function topLabels(labels: Map<string, number>, limit: number): string[] {
+  return [...labels.entries()]
+    .sort((first, second) => second[1] - first[1] || first[0].localeCompare(second[0]))
+    .slice(0, limit)
+    .map(([label]) => label);
+}
+
+function cleanupEffectLabel(label: string): string {
+  return label
+    .replace(/^weakly\s+/i, "")
+    .replace(/\s+style$/i, "")
+    .replace(/\s+picks$/i, "");
+}
+
+function eventPreferenceIsNegative(event: TasteMemoryEventPayload): boolean {
+  return event.sentimentLabel === "no" || event.sentimentLabel === "hated";
 }
 
 function eventIcon(event: TasteMemoryEventPayload): string {

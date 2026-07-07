@@ -170,6 +170,7 @@ async function main() {
       await clickButtonInSection(tab, "Husband", "Fine");
       await clickButton(tab, "Save feedback");
       await clickButton(tab, "Start new night");
+      await waitForText(tab, "Taste snapshot", "profile taste snapshot");
       await waitForText(tab, "Profile ledger", "profile taste ledger");
       await waitForText(tab, "Post-watch", "profile taste ledger event");
       await clickSummary(tab, "Recent nights");
