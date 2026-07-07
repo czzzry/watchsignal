@@ -12,6 +12,12 @@ From the repo root:
 pnpm smoke:ux:mobile
 ```
 
+For the Beta Readiness dogfood path, use the backend-backed shorthand:
+
+```sh
+pnpm beta:dogfood
+```
+
 The script starts the Next.js web app on a temporary localhost port unless `MOBILE_UX_SMOKE_URL` is set.
 By default it points the web app at an unused local API port so the flow uses demo data and does not write household or session data to the backend.
 For browser startup it prefers, in order, `MOBILE_UX_SMOKE_BROWSER_BIN`, `BRAVE_BIN`, `CHROME_BIN`, the standard macOS Brave app path, the standard macOS Chrome and Chromium app paths, and then common PATH names such as `brave-browser` and `google-chrome`.
@@ -39,6 +45,14 @@ MOBILE_UX_SMOKE_BROWSER_BIN=/path/to/browser pnpm smoke:ux:mobile
 
 ```sh
 CHROME_BIN=/path/to/chrome pnpm smoke:ux:mobile
+```
+
+On some macOS setups, direct headless browser launch exits early.
+When that happens, start Chrome through macOS and point the smoke at the exposed DevTools endpoint:
+
+```sh
+/usr/bin/open -na 'Google Chrome' --args --headless=new --remote-debugging-port=60420 --user-data-dir=/private/tmp/movie-night-chrome-smoke-60420 --disable-gpu --no-first-run --no-default-browser-check about:blank
+MOBILE_UX_SMOKE_EXPECT_API=1 MOBILE_UX_SMOKE_DEBUGGING_URL=http://127.0.0.1:60420 pnpm smoke:ux:mobile
 ```
 
 ## What It Clicks
