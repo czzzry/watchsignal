@@ -412,6 +412,29 @@ export function PassThePhoneWizard({
     setProfileSetupBusy(false);
   }
 
+  async function saveAvailabilityRegion(availabilityRegion: string): Promise<void> {
+    const nextSetup = {
+      ...currentSetup,
+      defaults: {
+        ...currentSetup.defaults,
+        availabilityRegion,
+      },
+    };
+    setCurrentSetup(nextSetup);
+    setProfileSetupBusy(true);
+    const result = effectiveSetupLoad.canPersist
+      ? await saveSetupState(nextSetup)
+      : {
+          setup: nextSetup,
+          source: "fallback" as const,
+          detail: "Setup API is unavailable. Availability is local for this screen.",
+          canPersist: false,
+        };
+    setCurrentSetup(result.setup);
+    setProfileSetupMessage(result.detail);
+    setProfileSetupBusy(false);
+  }
+
   async function refreshOnboardingCompletion(): Promise<OnboardingCompletionPayload | null> {
     if (!apiHealth.connected) {
       return null;
@@ -702,6 +725,10 @@ export function PassThePhoneWizard({
         activeMode: toApiSessionMode(sessionMode),
         participantIds,
         shortlistSize: effectiveSetupLoad.setup.defaults.shortlistSize,
+        availabilityRegion: effectiveSetupLoad.setup.defaults.availabilityRegion,
+        serviceConstraint: serviceConstraintFromAvailability(
+          effectiveSetupLoad.setup.defaults.availabilityRegion,
+        ),
         tonightIntent: activeTonightIntent,
         tonightIntents: activeTonightIntents,
       });
@@ -771,6 +798,10 @@ export function PassThePhoneWizard({
         activeMode: toApiSessionMode(sessionMode),
         participantIds,
         shortlistSize: effectiveSetupLoad.setup.defaults.shortlistSize,
+        availabilityRegion: effectiveSetupLoad.setup.defaults.availabilityRegion,
+        serviceConstraint: serviceConstraintFromAvailability(
+          effectiveSetupLoad.setup.defaults.availabilityRegion,
+        ),
         tonightIntent: latestTonightIntent(nextTonightIntents),
         tonightIntents: nextTonightIntents,
         excludedSourceMovieIds: continuationExcludedSourceMovieIds(
@@ -1148,6 +1179,7 @@ export function PassThePhoneWizard({
           onActiveProfileChange={chooseActiveProfile}
           onPartnerProfileChange={choosePartnerProfile}
           onCreateProfile={createProfile}
+          onAvailabilityRegionChange={saveAvailabilityRegion}
           languageMode={languageMode}
           onLanguageModeChange={setLanguageMode}
           isSyncing={isSyncing}
@@ -1301,6 +1333,7 @@ export function PassThePhoneWizard({
           sharedSession={sharedSession}
           activeTonightIntents={activeTonightIntents}
           recommendationSource={recommendationSource}
+          availabilityRegion={effectiveSetupLoad.setup.defaults.availabilityRegion}
           steerText={steerText}
           pendingSteerIntent={pendingSteerIntent}
           steerClarificationText={steerClarificationText}
@@ -1465,4 +1498,15 @@ export function PassThePhoneWizard({
       setSelectedHistoryMessage(toDebugHistoryErrorMessage(error));
     }
   }
+}
+
+function serviceConstraintFromAvailability(availabilityRegion: string): string | null {
+  const normalized = availabilityRegion.trim().toLowerCase();
+  if (normalized.includes("any streaming") || normalized.includes("no provider")) {
+    return null;
+  }
+  if (normalized.includes("prime")) {
+    return "Prime Video";
+  }
+  return availabilityRegion.trim() || null;
 }

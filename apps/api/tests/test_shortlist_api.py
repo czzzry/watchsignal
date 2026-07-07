@@ -276,6 +276,37 @@ class ShortlistApiTest(unittest.TestCase):
                 "tmdb-metadata-fallback",
             )
 
+    def test_post_recommendation_shortlist_uses_availability_settings(self) -> None:
+        candidate_source = RecordingSixCandidateSource()
+        post_shortlist = recommendation_shortlist_endpoint(
+            create_app(candidate_source=candidate_source),
+            method="POST",
+        )
+
+        post_shortlist(
+            RecommendationShortlistRequestPayload(
+                sessionId="availability-session",
+                source="live_tmdb",
+                availabilityRegion="Any streaming Germany",
+                serviceConstraint=None,
+            )
+        )
+
+        self.assertEqual(candidate_source.sessions[0].region, "DE")
+        self.assertIsNone(candidate_source.sessions[0].service_constraint)
+
+        post_shortlist(
+            RecommendationShortlistRequestPayload(
+                sessionId="prime-session",
+                source="live_tmdb",
+                availabilityRegion="Prime Video Germany",
+                serviceConstraint="Prime Video",
+            )
+        )
+
+        self.assertEqual(candidate_source.sessions[1].region, "DE")
+        self.assertEqual(candidate_source.sessions[1].service_constraint, "Prime Video")
+
     def test_post_recommendation_shortlist_combines_additive_tonight_intents(
         self,
     ) -> None:
@@ -549,6 +580,7 @@ class RecordingCandidateSource(FakeCandidateSource):
     def __init__(self) -> None:
         self.mood_texts: tuple[str | None, ...] = ()
         self.person_constraints = ()
+        self.sessions: list[SessionContext] = []
 
     def fetch_candidates(
         self,
@@ -557,6 +589,7 @@ class RecordingCandidateSource(FakeCandidateSource):
         household_defaults: HouseholdDefaults,
         limit: int = 20,
     ) -> tuple[Candidate, ...]:
+        self.sessions.append(session)
         self.mood_texts = (*self.mood_texts, session.mood_text)
         self.person_constraints = (
             *self.person_constraints,
@@ -580,6 +613,25 @@ class SixCandidateSource(FakeCandidateSource):
         return tuple(
             live_candidate(index=index, title=f"Live Pick {index}")
             for index in range(1, min(limit, 6) + 1)
+        )
+
+
+class RecordingSixCandidateSource(SixCandidateSource):
+    def __init__(self) -> None:
+        self.sessions: list[SessionContext] = []
+
+    def fetch_candidates(
+        self,
+        *,
+        session: SessionContext,
+        household_defaults: HouseholdDefaults,
+        limit: int = 20,
+    ) -> tuple[Candidate, ...]:
+        self.sessions.append(session)
+        return super().fetch_candidates(
+            session=session,
+            household_defaults=household_defaults,
+            limit=limit,
         )
 
 

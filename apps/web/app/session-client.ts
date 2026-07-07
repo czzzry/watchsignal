@@ -379,6 +379,8 @@ export type LoadShortlistRequest = {
   activeMode: ApiSessionMode;
   participantIds: string[];
   shortlistSize: number;
+  availabilityRegion?: string;
+  serviceConstraint?: string | null;
   tonightIntent?: TonightIntentInterpretationPayload | null;
   tonightIntents?: TonightIntentInterpretationPayload[];
   excludedSourceMovieIds?: string[];
