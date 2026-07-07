@@ -142,6 +142,7 @@ export function PassThePhoneWizard({
   const [sessionSource, setSessionSource] = useState<SessionSource>(
     apiHealth.connected ? "api" : "demo",
   );
+  const [recommendationSource, setRecommendationSource] = useState<string>("demo");
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("ready");
   const [showLaunchSting, setShowLaunchSting] = useState(true);
   const [reviewMode, setReviewMode] = useState(false);
@@ -297,6 +298,7 @@ export function PassThePhoneWizard({
     setStep("setup");
     resetBatch();
     setSharedSession(null);
+    setRecommendationSource("demo");
     setDebugHistory(null);
     setTasteProfileSummaries([]);
     setDebugHistoryStatus("idle");
@@ -585,6 +587,7 @@ export function PassThePhoneWizard({
 
     resetBatch();
     setSharedSession(null);
+    setRecommendationSource("demo");
     setDebugHistory(null);
     setTasteProfileSummaries([]);
     setDebugHistoryStatus("idle");
@@ -612,6 +615,7 @@ export function PassThePhoneWizard({
         tonightIntents: activeTonightIntents,
       });
       const candidates = shortlistResponse.shortlist.map(toSessionCandidate);
+      setRecommendationSource(shortlistResponse.recommendationSource);
 
       if (candidates.length === 0) {
         throw new Error("Recommendation API returned no usable picks for this session.");
@@ -685,6 +689,7 @@ export function PassThePhoneWizard({
         sessionReactions: scoringReactionSignals(sharedSession),
       });
       const candidates = shortlistResponse.shortlist.map(toSessionCandidate);
+      setRecommendationSource(shortlistResponse.recommendationSource);
 
       if (candidates.length !== 5) {
         throw new Error("Recommendation API did not return five fresh picks.");
@@ -1197,6 +1202,7 @@ export function PassThePhoneWizard({
           sessionSource={sessionSource}
           sharedSession={sharedSession}
           activeTonightIntents={activeTonightIntents}
+          recommendationSource={recommendationSource}
           steerText={steerText}
           pendingSteerIntent={pendingSteerIntent}
           steerClarificationText={steerClarificationText}

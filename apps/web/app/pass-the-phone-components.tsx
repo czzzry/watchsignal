@@ -1762,6 +1762,7 @@ export function ResultsStep({
   sessionSource,
   sharedSession,
   activeTonightIntents,
+  recommendationSource,
   steerText,
   pendingSteerIntent,
   steerClarificationText,
@@ -1793,6 +1794,7 @@ export function ResultsStep({
   sessionSource: SessionSource;
   sharedSession: SharedSessionPayload | null;
   activeTonightIntents: TonightIntentInterpretationPayload[];
+  recommendationSource: string;
   steerText: string;
   pendingSteerIntent: TonightIntentInterpretationPayload | null;
   steerClarificationText: string;
@@ -2142,6 +2144,7 @@ export function ResultsStep({
       <RecommendationEvidencePanel
         bestPick={bestPick}
         activeIntents={activeTonightIntents}
+        recommendationSource={recommendationSource}
         participantEntries={participantEntries}
         tasteProfileSummaries={tasteProfileSummaries}
       />

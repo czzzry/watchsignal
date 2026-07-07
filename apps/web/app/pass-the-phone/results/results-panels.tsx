@@ -760,15 +760,23 @@ export function SteerNextPanel({
 export function RecommendationEvidencePanel({
   bestPick,
   activeIntents,
+  recommendationSource,
   participantEntries,
   tasteProfileSummaries,
 }: {
   bestPick: RankedCandidate;
   activeIntents: TonightIntentInterpretationPayload[];
+  recommendationSource: string;
   participantEntries: ResultsParticipantEntry[];
   tasteProfileSummaries: TasteProfileSummaryPayload[];
 }) {
   const matchedPersonNames = bestPick.matchedPersonNames?.slice(0, 3) ?? [];
+  const sourceLabel =
+    recommendationSource === "live_tmdb" ? "Live TMDb" : "Demo catalog";
+  const sourceDetail =
+    recommendationSource === "live_tmdb"
+      ? "Broad live candidate pool."
+      : "Small seeded pool for local demo mode.";
   const profileRows = participantEntries.map((participant) => {
     const summary = tasteProfileSummaries.find(
       (profileSummary) => profileSummary.profileId === participant.id,
@@ -798,6 +806,13 @@ export function RecommendationEvidencePanel({
           ) : (
             <p>No extra steer applied.</p>
           )}
+        </div>
+        <div>
+          <strong>Source</strong>
+          <div className="tonightIntentSignals">
+            <span>{sourceLabel}</span>
+          </div>
+          <p>{sourceDetail}</p>
         </div>
         <div>
           <strong>Taste Lab</strong>

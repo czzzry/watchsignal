@@ -386,6 +386,7 @@ export type LoadShortlistRequest = {
 };
 
 export type LoadShortlistResponse = {
+  recommendationSource: "demo" | "live_tmdb" | string;
   shortlist: ShortlistCandidatePayload[];
 };
 
@@ -426,12 +427,15 @@ export async function loadRecommendationShortlist(
 ): Promise<LoadShortlistResponse> {
   const payload = await postJson<unknown>("/api/recommendations/shortlist", request);
   const shortlist = parseShortlistPayload(payload);
+  const recommendationSource = isRecord(payload)
+    ? stringValue(payload.recommendationSource) ?? stringValue(payload.recommendation_source)
+    : null;
 
   if (shortlist.length === 0) {
     throw new Error("Recommendation API returned an empty shortlist.");
   }
 
-  return { shortlist };
+  return { recommendationSource: recommendationSource ?? "demo", shortlist };
 }
 
 export async function submitSessionReactions(

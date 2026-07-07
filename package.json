@@ -6,6 +6,7 @@
     "beta:preflight": "node scripts/beta_readiness_preflight.mjs",
     "beta:check": "pnpm beta:preflight && pnpm check",
     "beta:dogfood": "MOBILE_UX_SMOKE_EXPECT_API=1 pnpm smoke:ux:mobile",
+    "beta:dogfood:live": "MOVIE_NIGHT_RECOMMENDATION_SOURCE=live_tmdb MOBILE_UX_SMOKE_EXPECT_API=1 MOBILE_UX_SMOKE_EXPECT_RECOMMENDATION_SOURCE=live_tmdb pnpm smoke:ux:mobile",
     "dev:web": "pnpm --dir apps/web dev",
     "build:web": "pnpm --dir apps/web build",
     "smoke:ux:mobile": "node scripts/mobile_pass_the_phone_ux_smoke.mjs",

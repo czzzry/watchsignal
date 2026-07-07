@@ -2,7 +2,7 @@
 
 import { createServer } from "node:net";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { platform, tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
@@ -14,6 +14,8 @@ const startedProcesses = [];
 let chromeProfileDir = null;
 let backendTempDir = null;
 
+loadDotEnv();
+
 main().catch(async (error) => {
   console.error(error instanceof Error ? error.message : String(error));
   await cleanup();
@@ -22,6 +24,8 @@ main().catch(async (error) => {
 
 async function main() {
   const checkTonightIntent = process.env.MOBILE_UX_SMOKE_TONIGHT_INTENT === "1";
+  const expectedRecommendationSource =
+    process.env.MOBILE_UX_SMOKE_EXPECT_RECOMMENDATION_SOURCE;
   const useBackendMode =
     process.env.MOBILE_UX_SMOKE_EXPECT_API === "1" || checkTonightIntent;
   const outcomeMode = process.env.MOBILE_UX_SMOKE_OUTCOME === "other" ? "other" : "recommended";
@@ -90,6 +94,11 @@ async function main() {
       if (useBackendMode) {
         await waitForText(tab, "Current signals", "results evidence panel");
         await waitForText(tab, "Cezary - tester: 1 signals", "tester Taste Lab evidence");
+        if (expectedRecommendationSource === "live_tmdb") {
+          await waitForText(tab, "Live TMDb", "recommendation source");
+        } else if (expectedRecommendationSource === "demo") {
+          await waitForText(tab, "Demo catalog", "recommendation source");
+        }
       }
       await waitForRankedShortlist(tab);
       await assertNoHorizontalOverflow(tab, "results screen");
@@ -517,6 +526,45 @@ async function connectToChrome(debuggingUrl) {
     throw new Error("Chrome did not expose a DevTools websocket URL.");
   }
   return new CdpConnection(wsUrl);
+}
+
+function loadDotEnv() {
+  const envPath = join(repoRoot, ".env");
+  if (!existsSync(envPath)) {
+    return;
+  }
+
+  const lines = readFileSync(envPath, "utf8").split(/\r?\n/);
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) {
+      continue;
+    }
+
+    const separatorIndex = trimmed.indexOf("=");
+    if (separatorIndex <= 0) {
+      continue;
+    }
+
+    const key = trimmed.slice(0, separatorIndex).trim();
+    const value = trimmed.slice(separatorIndex + 1).trim();
+    if (!key || process.env[key] !== undefined) {
+      continue;
+    }
+
+    process.env[key] = unquoteEnvValue(value);
+  }
+}
+
+function unquoteEnvValue(value) {
+  if (
+    (value.startsWith("\"") && value.endsWith("\"")) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    return value.slice(1, -1);
+  }
+
+  return value;
 }
 
 async function createMobileTab(browser, url) {

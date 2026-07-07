@@ -116,6 +116,15 @@ The setting is read by the Next.js API route and is not exposed to the browser a
 Live mode automatically uses a longer backend proxy timeout because the TMDb candidate fetch can take longer than demo fixture loading.
 Set `API_REQUEST_TIMEOUT_MS` if a local environment needs a different timeout.
 If TMDb credentials are missing or the live source fails, the UI will surface the backend error and continue using the local fallback behavior.
+The results screen also labels the recommendation source as `Demo catalog` or `Live TMDb` under `Current signals`.
+Use the live dogfood script when you want that label to be asserted by the browser smoke:
+
+```sh
+pnpm beta:dogfood:live
+```
+
+The live dogfood script sets `MOVIE_NIGHT_RECOMMENDATION_SOURCE=live_tmdb` and fails unless the results screen shows `Live TMDb`.
+It still requires `TMDB_READ_ACCESS_TOKEN` or `TMDB_API_KEY` to be available to the API process.
 
 When the package manager tries to perform registry verification in an offline or restricted sandbox, you can start the already-installed web server directly and point the smoke at it:
 
