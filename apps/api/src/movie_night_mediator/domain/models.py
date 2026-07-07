@@ -416,6 +416,38 @@ class UserProfile:
 
 
 @dataclass(frozen=True)
+class PersonCandidateConstraint:
+    raw_name: str
+    normalized_name: str
+    provider: str = "tmdb"
+    provider_person_id: str | None = None
+
+    def __post_init__(self) -> None:
+        raw_name = self.raw_name.strip()
+        normalized_name = self.normalized_name.strip()
+        provider = self.provider.strip()
+        provider_person_id = (
+            self.provider_person_id.strip()
+            if self.provider_person_id is not None
+            else None
+        )
+
+        if not raw_name:
+            raise ValueError("Person candidate constraints require a raw name.")
+
+        if not normalized_name:
+            raise ValueError("Person candidate constraints require a normalized name.")
+
+        if not provider:
+            raise ValueError("Person candidate constraints require a provider.")
+
+        object.__setattr__(self, "raw_name", raw_name)
+        object.__setattr__(self, "normalized_name", normalized_name)
+        object.__setattr__(self, "provider", provider)
+        object.__setattr__(self, "provider_person_id", provider_person_id)
+
+
+@dataclass(frozen=True)
 class SessionContext:
     session_id: str
     requested_media_type: MediaType = MediaType.MOVIE
@@ -429,6 +461,7 @@ class SessionContext:
     service_constraint: str | None = None
     language_constraint: str | None = None
     allow_rewatch: bool = False
+    person_constraints: tuple[PersonCandidateConstraint, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -590,12 +623,18 @@ class Candidate:
     enrichment_provider: str = "tmdb-metadata-fallback"
     enrichment_feature_scores: Mapping[str, float] = field(default_factory=dict)
     matched_enrichment_source_movie_id: str | None = None
+    matched_person_names: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(
             self,
             "enrichment_feature_scores",
             MappingProxyType(dict(self.enrichment_feature_scores)),
+        )
+        object.__setattr__(
+            self,
+            "matched_person_names",
+            tuple(name.strip() for name in self.matched_person_names if name.strip()),
         )
 
 

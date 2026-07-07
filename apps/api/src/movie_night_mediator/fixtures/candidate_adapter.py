@@ -41,6 +41,7 @@ class FixtureCandidate:
     tone: str | None = None
     reason: str | None = None
     top_cast: tuple[str, ...] = ()
+    matched_person_names: tuple[str, ...] = ()
     provider_availability: tuple[FixtureProviderAvailability, ...] = ()
     original_language: str = "en"
     spoken_languages: tuple[str, ...] = ("en",)
@@ -83,6 +84,7 @@ def fixture_candidate_to_domain(
         english_subtitles_verified=fixture.english_subtitles_verified,
         already_watched=fixture.already_watched,
         is_interesting_safe_pick=fixture.is_interesting_safe_pick,
+        matched_person_names=fixture.matched_person_names,
     )
     classification = (classifier or SafePickClassifier()).classify(
         candidate,
@@ -100,6 +102,7 @@ def fixture_candidates_to_domain(
     classifier: SafePickClassifier | None = None,
 ) -> tuple[Candidate, ...]:
     resolved_classifier = classifier or SafePickClassifier()
+    filtered_fixtures = _filter_fixtures_by_person_constraints(fixtures, session)
     return tuple(
         fixture_candidate_to_domain(
             fixture,
@@ -107,7 +110,7 @@ def fixture_candidates_to_domain(
             household_defaults=household_defaults,
             classifier=resolved_classifier,
         )
-        for fixture in fixtures
+        for fixture in filtered_fixtures
     )
 
 
@@ -144,3 +147,34 @@ def fixture_candidates_to_shortlist(
         ).score_and_save_snapshot(request)
 
     return result.ranked_candidates[:limit]
+
+
+def _filter_fixtures_by_person_constraints(
+    fixtures: tuple[FixtureCandidate, ...],
+    session: SessionContext,
+) -> tuple[FixtureCandidate, ...]:
+    if not session.person_constraints:
+        return fixtures
+
+    filtered: list[FixtureCandidate] = []
+    for fixture in fixtures:
+        matched_names = tuple(
+            constraint.raw_name
+            for constraint in session.person_constraints
+            if _fixture_matches_person_constraint(fixture, constraint.normalized_name)
+        )
+        if matched_names:
+            filtered.append(replace(fixture, matched_person_names=matched_names))
+
+    return tuple(filtered)
+
+
+def _fixture_matches_person_constraint(
+    fixture: FixtureCandidate,
+    normalized_name: str,
+) -> bool:
+    normalized_candidate_names = {
+        person_name.casefold()
+        for person_name in (*fixture.top_cast, *fixture.matched_person_names)
+    }
+    return normalized_name.casefold() in normalized_candidate_names

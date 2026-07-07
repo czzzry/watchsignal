@@ -1,6 +1,25 @@
 from __future__ import annotations
 
-from movie_night_mediator.domain.models import Candidate, MediaType
+from movie_night_mediator.domain.models import (
+    Candidate,
+    MediaType,
+    PersonCandidateConstraint,
+)
+from movie_night_mediator.mvp_plus_3 import PersonCandidateIntent
+
+
+def person_intents_to_candidate_constraints(
+    person_intents: tuple[PersonCandidateIntent, ...],
+) -> tuple[PersonCandidateConstraint, ...]:
+    return tuple(
+        PersonCandidateConstraint(
+            raw_name=intent.raw_name,
+            normalized_name=intent.normalized_name,
+            provider=intent.provider,
+            provider_person_id=intent.provider_person_id,
+        )
+        for intent in person_intents
+    )
 
 
 def load_fixture_candidates() -> tuple[Candidate, ...]:
@@ -36,4 +55,3 @@ def load_fixture_candidates() -> tuple[Candidate, ...]:
             overview="A family's isolated winter turns terrifying.",
         ),
     )
-
