@@ -24,6 +24,7 @@ class WatchlistApiTest(unittest.TestCase):
                     sourceMovieId="tmdb:603",
                     title="The Matrix",
                     savedByProfileId="husband",
+                    savedByDisplayLabel="Cezary - tester",
                     posterUrl="https://image.example/matrix.jpg",
                     releaseYear=1999,
                 )
@@ -42,10 +43,12 @@ class WatchlistApiTest(unittest.TestCase):
             ]
 
             self.assertEqual(saved.sourceMovieId, "tmdb:603")
+            self.assertEqual(saved.savedByDisplayLabel, "Cezary - tester")
             self.assertEqual(duplicate.savedByProfileId, "wife")
             self.assertEqual(len(listed), 1)
             self.assertEqual(listed[0]["title"], "The Matrix Reloaded Back To Matrix")
             self.assertFalse(listed[0]["isTasteSignal"])
+            self.assertFalse(listed[0]["canBeRecommendationSeed"])
 
             routes["delete_watchlist"](
                 "tmdb:603",
@@ -56,6 +59,44 @@ class WatchlistApiTest(unittest.TestCase):
                 routes["get_watchlist"](householdId="default-household"),
                 [],
             )
+
+    def test_watchlist_round_trip_survives_new_app_instance(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "watchlist-api.sqlite3"
+            first_routes = watchlist_route_endpoints(
+                create_app(
+                    watchlist_store=SQLiteWatchlistStore(database_path=database_path),
+                )
+            )
+
+            first_routes["post_watchlist"](
+                SaveWatchlistEntryPayload(
+                    householdId="default-household",
+                    sourceMovieId="tmdb:155",
+                    title="The Dark Knight",
+                    savedByProfileId="cezary-tester",
+                    savedByDisplayLabel="Cezary - tester",
+                )
+            )
+
+            restarted_routes = watchlist_route_endpoints(
+                create_app(
+                    watchlist_store=SQLiteWatchlistStore(database_path=database_path),
+                )
+            )
+            listed = [
+                payload_to_dict(item)
+                for item in restarted_routes["get_watchlist"](
+                    householdId="default-household"
+                )
+            ]
+
+            self.assertEqual(len(listed), 1)
+            self.assertEqual(listed[0]["sourceMovieId"], "tmdb:155")
+            self.assertEqual(listed[0]["savedByProfileId"], "cezary-tester")
+            self.assertEqual(listed[0]["savedByDisplayLabel"], "Cezary - tester")
+            self.assertFalse(listed[0]["isTasteSignal"])
+            self.assertFalse(listed[0]["canBeRecommendationSeed"])
 
 
 def watchlist_route_endpoints(app):

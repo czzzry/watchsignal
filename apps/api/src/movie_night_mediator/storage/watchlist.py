@@ -29,6 +29,7 @@ class SQLiteWatchlistStore:
         source_movie_id: str,
         title: str,
         saved_by_profile_id: str | None = None,
+        saved_by_display_label: str | None = None,
         poster_url: str | None = None,
         release_year: int | None = None,
     ):
@@ -44,6 +45,10 @@ class SQLiteWatchlistStore:
             saved_by_profile_id,
             "saved_by_profile_id",
         )
+        normalized_saved_by_label = _optional_non_empty(
+            saved_by_display_label,
+            "saved_by_display_label",
+        )
         normalized_poster_url = _optional_non_empty(poster_url, "poster_url")
 
         self.initialize_schema()
@@ -56,16 +61,21 @@ class SQLiteWatchlistStore:
                         source_movie_id,
                         title,
                         saved_by_profile_id,
+                        saved_by_display_label,
                         poster_url,
                         release_year
                     )
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(household_id, source_movie_id)
                     DO UPDATE SET
                         title = excluded.title,
                         saved_by_profile_id = COALESCE(
                             excluded.saved_by_profile_id,
                             watchlist_entries.saved_by_profile_id
+                        ),
+                        saved_by_display_label = COALESCE(
+                            excluded.saved_by_display_label,
+                            watchlist_entries.saved_by_display_label
                         ),
                         poster_url = excluded.poster_url,
                         release_year = excluded.release_year
@@ -75,6 +85,7 @@ class SQLiteWatchlistStore:
                         normalized_source_movie_id,
                         normalized_title,
                         normalized_saved_by,
+                        normalized_saved_by_label,
                         normalized_poster_url,
                         release_year,
                     ),
@@ -110,6 +121,7 @@ class SQLiteWatchlistStore:
                     source_movie_id,
                     title,
                     saved_by_profile_id,
+                    saved_by_display_label,
                     poster_url,
                     release_year,
                     saved_at
@@ -133,6 +145,7 @@ class SQLiteWatchlistStore:
                     source_movie_id,
                     title,
                     saved_by_profile_id,
+                    saved_by_display_label,
                     poster_url,
                     release_year,
                     saved_at
@@ -174,6 +187,7 @@ class SQLiteWatchlistStore:
                         source_movie_id TEXT NOT NULL,
                         title TEXT NOT NULL,
                         saved_by_profile_id TEXT,
+                        saved_by_display_label TEXT,
                         poster_url TEXT,
                         release_year INTEGER,
                         saved_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -181,6 +195,17 @@ class SQLiteWatchlistStore:
                     );
                     """
                 )
+                columns = {
+                    row["name"]
+                    for row in connection.execute(
+                        "PRAGMA table_info(watchlist_entries)"
+                    ).fetchall()
+                }
+                if "saved_by_display_label" not in columns:
+                    connection.execute(
+                        "ALTER TABLE watchlist_entries "
+                        "ADD COLUMN saved_by_display_label TEXT"
+                    )
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.database_path)
@@ -197,6 +222,7 @@ def _row_to_entry(row: sqlite3.Row):
         source_movie_id=row["source_movie_id"],
         title=row["title"],
         saved_by_profile_id=row["saved_by_profile_id"],
+        saved_by_display_label=row["saved_by_display_label"],
         poster_url=row["poster_url"],
         release_year=row["release_year"],
         saved_at=row["saved_at"],

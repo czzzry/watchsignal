@@ -12,11 +12,16 @@ class WatchlistEntry:
     title: str
     saved_at: str
     saved_by_profile_id: str | None = None
+    saved_by_display_label: str | None = None
     poster_url: str | None = None
     release_year: int | None = None
 
     @property
     def is_taste_signal(self) -> bool:
+        return False
+
+    @property
+    def can_be_recommendation_seed(self) -> bool:
         return False
 
 
@@ -31,6 +36,7 @@ class SharedWatchlistService:
         source_movie_id: str,
         title: str,
         saved_by_profile_id: str | None = None,
+        saved_by_display_label: str | None = None,
         poster_url: str | None = None,
         release_year: int | None = None,
     ) -> WatchlistEntry:
@@ -39,6 +45,7 @@ class SharedWatchlistService:
             source_movie_id=source_movie_id,
             title=title,
             saved_by_profile_id=saved_by_profile_id,
+            saved_by_display_label=saved_by_display_label,
             poster_url=poster_url,
             release_year=release_year,
         )
