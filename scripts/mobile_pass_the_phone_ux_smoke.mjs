@@ -33,8 +33,15 @@ async function main() {
   }
   const webUrl = targetUrl || (await startWebServer(startedApi?.apiUrl));
   const reviewUrl =
-    process.env.MOBILE_UX_SMOKE_REVIEW === "1" ? withReviewMode(webUrl) : webUrl;
-  const chrome = await startChrome();
+    process.env.MOBILE_UX_SMOKE_REVIEW === "1" || useBackendMode
+      ? withReviewMode(webUrl)
+      : webUrl;
+  const chrome = process.env.MOBILE_UX_SMOKE_DEBUGGING_URL
+    ? {
+        debuggingUrl: process.env.MOBILE_UX_SMOKE_DEBUGGING_URL,
+        browserInstall: { label: "external DevTools browser" },
+      }
+    : await startChrome();
   const browser = await connectToChrome(chrome.debuggingUrl);
   const tab = await createMobileTab(browser, reviewUrl);
 
@@ -134,9 +141,9 @@ async function main() {
       await clickButton(tab, "Load");
       await waitForText(tab, "View details", "recent sessions history card");
       await clickButton(tab, "View details");
-      await waitForText(tab, "What happened after", "recent session detail");
-      await waitForText(tab, "How did everyone feel?", "recent session detail");
-      await waitForText(tab, "Scoring snapshot", "recent session evidence");
+      await waitForText(tab, "Session outcome", "recent session detail");
+      await waitForText(tab, "Post-watch feedback", "recent session detail");
+      await waitForText(tab, "Founder reactions", "recent session evidence");
     }
 
     console.log("Mobile pass-the-phone UX smoke passed.");
@@ -157,7 +164,11 @@ async function main() {
       );
     }
   } finally {
-    await browser.close();
+    if (process.env.MOBILE_UX_SMOKE_DEBUGGING_URL) {
+      browser.disconnect();
+    } else {
+      await browser.close();
+    }
     await cleanup();
   }
 }
@@ -219,6 +230,7 @@ async function startWebServer(apiBaseUrl = null) {
         XDG_CACHE_HOME: resolveToolPath("cache"),
       },
       stdio: ["ignore", "pipe", "pipe"],
+      detached: true,
     },
   );
   startedProcesses.push(child);
@@ -262,6 +274,7 @@ async function startApiServer() {
         UV_CACHE_DIR: resolveToolPath("uv-cache"),
       },
       stdio: ["ignore", "pipe", "pipe"],
+      detached: true,
     },
   );
   startedProcesses.push(child);
@@ -415,7 +428,7 @@ async function startChrome() {
       "--disable-gpu",
       "about:blank",
     ],
-    { stdio: ["ignore", "ignore", "pipe"] },
+    { stdio: ["ignore", "ignore", "pipe"], detached: true },
   );
   startedProcesses.push(child);
   child.stderr.setEncoding("utf8");
@@ -1212,11 +1225,7 @@ async function onceChildClose(child) {
 }
 
 async function cleanup() {
-  for (const child of startedProcesses.reverse()) {
-    if (child.exitCode === null && !child.killed) {
-      child.kill("SIGTERM");
-    }
-  }
+  await Promise.all(startedProcesses.reverse().map(stopChildProcess));
   if (chromeProfileDir) {
     await removeTempDir(chromeProfileDir);
     chromeProfileDir = null;
@@ -1224,6 +1233,35 @@ async function cleanup() {
   if (backendTempDir) {
     await removeTempDir(backendTempDir);
     backendTempDir = null;
+  }
+}
+
+async function stopChildProcess(child) {
+  if (child.exitCode !== null) {
+    return;
+  }
+
+  signalChildProcess(child, "SIGTERM");
+  const closed = await Promise.race([
+    onceChildClose(child).then(() => true),
+    new Promise((resolve) => setTimeout(() => resolve(false), 3_000)),
+  ]);
+  if (closed || child.exitCode !== null) {
+    return;
+  }
+
+  signalChildProcess(child, "SIGKILL");
+  await Promise.race([
+    onceChildClose(child),
+    new Promise((resolve) => setTimeout(resolve, 1_000)),
+  ]);
+}
+
+function signalChildProcess(child, signal) {
+  try {
+    process.kill(-child.pid, signal);
+  } catch {
+    child.kill(signal);
   }
 }
 
@@ -1302,5 +1340,11 @@ class CdpConnection {
   async close() {
     await this.ready;
     this.socket.close();
+    this.socket.unref?.();
+  }
+
+  disconnect() {
+    this.socket.close();
+    this.socket.unref?.();
   }
 }

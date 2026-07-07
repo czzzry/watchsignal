@@ -19,9 +19,19 @@ from movie_night_mediator.app.app_owned_movie_actions import (
     AppOwnedMovieActionService,
     AppOwnedProfileRating,
 )
-from movie_night_mediator.app.debug_history import (
-    DebugPersistedSessionEvidence,
-    build_persisted_session_evidence,
+from movie_night_mediator.api.routes.history import (
+    register_debug_history_routes,
+    register_history_routes,
+)
+from movie_night_mediator.api.routes.memory import register_profile_memory_routes
+from movie_night_mediator.api.routes.setup import (
+    SetupStatePayload,
+    register_setup_routes,
+)
+from movie_night_mediator.api.routes.watchlist import (
+    SaveWatchlistEntryPayload,
+    WatchlistEntryPayload,
+    register_watchlist_routes,
 )
 from movie_night_mediator.app.feedback import PostWatchFeedbackService
 from movie_night_mediator.app.history import SessionHistoryService
@@ -29,8 +39,6 @@ from movie_night_mediator.app.onboarding import SQLiteOnboardingStore
 from movie_night_mediator.app.outcome import SessionOutcomeService
 from movie_night_mediator.app.profile_memory import (
     ProfileMemoryService,
-    ProfileMemorySignal,
-    ProfileMemorySummary,
 )
 from movie_night_mediator.app.recommendation_snapshot import (
     RecommendationSnapshotService,
@@ -41,14 +49,10 @@ from movie_night_mediator.app.session import (
 )
 from movie_night_mediator.app.setup import (
     SQLiteSetupStore,
-    SetupDefaults,
-    SetupProfile,
-    SetupState,
 )
 from movie_night_mediator.app.tonight_intent import TonightIntentInterpreter
 from movie_night_mediator.app.watchlist import (
     SharedWatchlistService,
-    WatchlistEntry,
 )
 from movie_night_mediator.app.shortlist import (
     OfflineShortlistItem,
@@ -66,7 +70,6 @@ from movie_night_mediator.domain import (
     OutcomeSelectionOrigin,
     ParticipantOnboarding,
     PostWatchFeedback,
-    RecommendationSnapshot,
     SessionContext,
     SessionMode,
     SessionOutcome,
@@ -114,29 +117,6 @@ from movie_night_mediator.taste_lab import (
     TasteProfileSummary,
     default_taste_lab_candidates,
 )
-
-
-class SetupProfilePayload(BaseModel):
-    id: str = Field(min_length=1)
-    label: str = Field(min_length=1)
-    order: int
-    avatarKey: str = Field(default="spark", min_length=1)
-    colorKey: str = Field(default="cyan", min_length=1)
-
-
-class SetupDefaultsPayload(BaseModel):
-    sessionType: str = Field(min_length=1)
-    inputMode: str = Field(min_length=1)
-    availabilityRegion: str = Field(min_length=1)
-    languageAccess: str = Field(min_length=1)
-    shortlistSize: int = Field(ge=1)
-    avoidAlreadyWatched: bool
-
-
-class SetupStatePayload(BaseModel):
-    householdLabel: str = Field(min_length=1)
-    profiles: list[SetupProfilePayload] = Field(min_length=2)
-    defaults: SetupDefaultsPayload
 
 
 class TitleResolutionCandidatePayload(BaseModel):
@@ -363,136 +343,6 @@ class SharedSessionPayload(BaseModel):
     bestPickSourceMovieId: str | None = None
 
 
-class DebugHistoryShortlistItemPayload(BaseModel):
-    sourceMovieId: str
-    title: str
-    candidateRank: int
-
-
-class DebugHistoryReactionPayload(BaseModel):
-    participantId: str
-    sourceMovieId: str
-    reactionLabel: str
-
-
-class DebugHistoryFeedbackPayload(BaseModel):
-    userId: str
-    sourceMovieId: str
-    feedbackLabel: str
-    hasFreeTextNote: bool
-
-
-class DebugHistoryOutcomePayload(BaseModel):
-    outcomeType: str
-    selectedSourceMovieId: str | None = None
-    selectedTitle: str | None = None
-    selectionOrigin: str | None = None
-    hasNotes: bool
-
-
-class DebugHistoryUserScorePayload(BaseModel):
-    userId: str
-    score: float
-
-
-class DebugHistoryCandidateInputPayload(BaseModel):
-    sourceMovieId: str
-    title: str
-    genres: list[str]
-    providers: list[str]
-    providerAccess: list[str]
-    safetyStatus: str
-    alreadyWatched: bool
-    isInterestingSafePick: bool
-    enrichmentStatus: str
-    enrichmentProvider: str
-    enrichmentFeatureScores: dict[str, float]
-    matchedEnrichmentSourceMovieId: str | None = None
-
-
-class DebugHistoryEnrichmentCoveragePayload(BaseModel):
-    candidateCount: int
-    enrichedCandidateCount: int
-    fallbackCandidateCount: int
-    enrichmentRate: float
-
-
-class DebugHistorySignalContributionPayload(BaseModel):
-    family: str
-    label: str
-    value: float
-
-
-class DebugHistoryScoringEvidencePayload(BaseModel):
-    sourceMovieId: str
-    enrichmentStatus: str
-    signalFamilies: list[str]
-    contributions: list[DebugHistorySignalContributionPayload]
-
-
-class DebugHistoryRecommendationCandidatePayload(BaseModel):
-    sourceMovieId: str
-    title: str
-    candidateRank: int
-    fitBucket: str
-    groupScore: float
-    userScores: list[DebugHistoryUserScorePayload]
-    whyShort: str
-    hardFilterPass: bool
-    isInterestingPick: bool
-    scoringEvidence: list[DebugHistoryScoringEvidencePayload]
-
-
-class DebugHistoryRecommendationSnapshotPayload(BaseModel):
-    sessionId: str
-    candidateInputs: list[DebugHistoryCandidateInputPayload]
-    enrichmentCoverage: DebugHistoryEnrichmentCoveragePayload
-    candidates: list[DebugHistoryRecommendationCandidatePayload]
-    isUncertain: bool
-    uncertaintyReason: str | None = None
-    recommendedFollowUp: str | None = None
-    interestingSafePickId: str | None = None
-
-
-class DebugHistorySessionPayload(BaseModel):
-    sessionId: str
-    householdId: str
-    activeMode: str
-    state: str
-    participantIds: list[str]
-    shortlist: list[DebugHistoryShortlistItemPayload]
-    previousShortlist: list[DebugHistoryShortlistItemPayload]
-    founderReactions: list[DebugHistoryReactionPayload]
-    wifeReactions: list[DebugHistoryReactionPayload]
-    previousFounderReactions: list[DebugHistoryReactionPayload]
-    previousWifeReactions: list[DebugHistoryReactionPayload]
-    shownSourceMovieIds: list[str]
-    batchCount: int
-    rerankedSourceMovieIds: list[str]
-    bestPickSourceMovieId: str | None = None
-    sessionOutcome: DebugHistoryOutcomePayload | None = None
-    postWatchFeedback: list[DebugHistoryFeedbackPayload]
-    recommendationSnapshot: DebugHistoryRecommendationSnapshotPayload | None = None
-    unavailableEvidence: list[str]
-
-
-class RecentSessionFeedbackPayload(BaseModel):
-    userId: str
-    feedbackLabel: str
-
-
-class RecentSessionSummaryPayload(BaseModel):
-    sessionId: str
-    activeMode: str
-    state: str
-    participantIds: list[str]
-    bestPickSourceMovieId: str | None = None
-    bestPickTitle: str | None = None
-    outcomeType: str | None = None
-    outcomeTitle: str | None = None
-    feedback: list[RecentSessionFeedbackPayload]
-
-
 class TasteLabMoviePayload(BaseModel):
     sourceMovieId: str = Field(min_length=1)
     title: str = Field(min_length=1)
@@ -577,25 +427,6 @@ class TasteProfileSummaryPayload(BaseModel):
     evidence: list[TasteProfileEvidencePayload]
 
 
-class ProfileMemorySignalPayload(BaseModel):
-    label: str
-    count: int
-    source: str
-
-
-class ProfileMemorySummaryPayload(BaseModel):
-    householdId: str
-    profileId: str
-    sharedSavedCount: int
-    savedByProfileCount: int
-    recentReactionCount: int
-    watchedCount: int
-    ratedCount: int
-    visibleAppMemoryCount: int
-    privateCalibrationCount: int
-    signals: list[ProfileMemorySignalPayload]
-
-
 class TonightIntentInterpretRequestPayload(BaseModel):
     text: str = Field(min_length=1)
 
@@ -608,26 +439,6 @@ class TonightIntentInterpretationPayload(BaseModel):
     filters: dict[str, object]
     softSignals: list[str]
     confidence: str
-
-
-class WatchlistEntryPayload(BaseModel):
-    householdId: str
-    sourceMovieId: str
-    title: str
-    savedAt: str
-    savedByProfileId: str | None = None
-    posterUrl: str | None = None
-    releaseYear: int | None = None
-    isTasteSignal: bool = False
-
-
-class SaveWatchlistEntryPayload(BaseModel):
-    householdId: str = Field(default=DEFAULT_HOUSEHOLD_ID, min_length=1)
-    sourceMovieId: str = Field(min_length=1)
-    title: str = Field(min_length=1)
-    savedByProfileId: str | None = None
-    posterUrl: str | None = None
-    releaseYear: int | None = None
 
 
 def create_app(
@@ -703,6 +514,20 @@ def create_app(
         taste_lab_service=taste_lab_service,
     )
     tonight_intent_interpreter = TonightIntentInterpreter()
+    register_history_routes(app, history_service=history_service)
+    register_debug_history_routes(
+        app,
+        session_service=session_service,
+        feedback_service=feedback_service,
+        outcome_service=outcome_service,
+        recommendation_snapshot_store=resolved_recommendation_snapshot_store,
+    )
+    register_watchlist_routes(app, watchlist_service=watchlist_service)
+    register_setup_routes(app, setup_store=resolved_setup_store)
+    register_profile_memory_routes(
+        app,
+        profile_memory_service=profile_memory_service,
+    )
 
     @app.get("/health", tags=["system"])
     def health() -> dict[str, str]:
@@ -752,32 +577,6 @@ def create_app(
             )
         ]
 
-    @app.get("/setup", response_model=SetupStatePayload, tags=["setup"])
-    def get_setup() -> SetupStatePayload:
-        return _setup_state_to_payload(resolved_setup_store.load_setup())
-
-    @app.put("/setup", response_model=SetupStatePayload, tags=["setup"])
-    def put_setup(payload: SetupStatePayload) -> SetupStatePayload:
-        _validate_profile_uniqueness(payload.profiles)
-        saved_setup = resolved_setup_store.save_setup(_payload_to_setup_state(payload))
-        return _setup_state_to_payload(saved_setup)
-
-    @app.get(
-        "/profiles/{profile_id}/memory",
-        response_model=ProfileMemorySummaryPayload,
-        tags=["profiles"],
-    )
-    def get_profile_memory(
-        profile_id: str,
-        householdId: str = DEFAULT_HOUSEHOLD_ID,
-    ) -> ProfileMemorySummaryPayload:
-        return _profile_memory_summary_to_payload(
-            profile_memory_service.summarize_profile(
-                household_id=householdId,
-                profile_id=profile_id,
-            )
-        )
-
     @app.post(
         "/tonight-intent/interpret",
         response_model=TonightIntentInterpretationPayload,
@@ -793,58 +592,6 @@ def create_app(
             raise HTTPException(status_code=400, detail=str(error)) from error
 
         return _intent_interpretation_to_payload(interpretation)
-
-    @app.get(
-        "/watchlist",
-        response_model=list[WatchlistEntryPayload],
-        tags=["watchlist"],
-    )
-    def get_watchlist(
-        householdId: str = DEFAULT_HOUSEHOLD_ID,
-    ) -> list[WatchlistEntryPayload]:
-        return [
-            _watchlist_entry_to_payload(entry)
-            for entry in watchlist_service.list_movies(household_id=householdId)
-        ]
-
-    @app.post(
-        "/watchlist",
-        response_model=WatchlistEntryPayload,
-        tags=["watchlist"],
-    )
-    def post_watchlist_entry(
-        payload: SaveWatchlistEntryPayload,
-    ) -> WatchlistEntryPayload:
-        try:
-            entry = watchlist_service.save_movie(
-                household_id=payload.householdId,
-                source_movie_id=payload.sourceMovieId,
-                title=payload.title,
-                saved_by_profile_id=payload.savedByProfileId,
-                poster_url=payload.posterUrl,
-                release_year=payload.releaseYear,
-            )
-        except ValueError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
-
-        return _watchlist_entry_to_payload(entry)
-
-    @app.delete(
-        "/watchlist/{source_movie_id}",
-        status_code=204,
-        tags=["watchlist"],
-    )
-    def delete_watchlist_entry(
-        source_movie_id: str,
-        householdId: str = DEFAULT_HOUSEHOLD_ID,
-    ) -> None:
-        try:
-            watchlist_service.remove_movie(
-                household_id=householdId,
-                source_movie_id=source_movie_id,
-            )
-        except ValueError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
 
     @app.get(
         "/onboarding/completion",
@@ -1006,23 +753,6 @@ def create_app(
         return [
             _post_watch_feedback_to_payload(feedback)
             for feedback in feedback_records
-        ]
-
-    @app.get(
-        "/history/sessions",
-        response_model=list[RecentSessionSummaryPayload],
-        tags=["history"],
-    )
-    def get_recent_sessions(
-        householdId: str = DEFAULT_HOUSEHOLD_ID,
-        limit: int = Query(default=6, ge=1, le=20),
-    ) -> list[RecentSessionSummaryPayload]:
-        return [
-            _recent_session_summary_to_payload(summary)
-            for summary in history_service.list_recent_sessions(
-                household_id=householdId,
-                limit=limit,
-            )
         ]
 
     @app.post(
@@ -1294,35 +1024,6 @@ def create_app(
 
         return _shared_session_to_payload(session)
 
-    @app.get(
-        "/debug/history/sessions/{session_id}",
-        response_model=DebugHistorySessionPayload,
-        tags=["debug"],
-    )
-    def get_debug_history_session(session_id: str) -> DebugHistorySessionPayload:
-        session = session_service.load_session(session_id)
-        if session is None:
-            raise HTTPException(status_code=404, detail="Shared session not found.")
-
-        feedback_records = feedback_service.list_feedback(
-            household_id=session.household_id,
-            session_id=session.session_id,
-        )
-        outcome = outcome_service.load_outcome(
-            household_id=session.household_id,
-            session_id=session.session_id,
-        )
-        recommendation_snapshot = resolved_recommendation_snapshot_store.load_snapshot(
-            session.session_id
-        )
-        evidence = build_persisted_session_evidence(
-            session=session,
-            outcome=outcome,
-            feedback=feedback_records,
-            recommendation_snapshot=recommendation_snapshot,
-        )
-        return _debug_history_session_to_payload(evidence)
-
     return app
 
 
@@ -1443,12 +1144,6 @@ def _shortlist_users_from_taste_profile(
     return tuple(users)
 
 
-def _validate_profile_uniqueness(profiles: list[SetupProfilePayload]) -> None:
-    profile_ids = [profile.id for profile in profiles]
-    if len(set(profile_ids)) != len(profile_ids):
-        raise HTTPException(status_code=400, detail="Profile ids must be unique.")
-
-
 def _offline_shortlist_item_to_payload(
     item: OfflineShortlistItem,
 ) -> RecommendationShortlistItemPayload:
@@ -1487,54 +1182,6 @@ def _offline_shortlist_item_to_payload(
         originalLanguage=item.original_language,
         spokenLanguages=list(item.spoken_languages),
         englishSubtitlesVerified=item.english_subtitles_verified,
-    )
-
-
-def _payload_to_setup_state(payload: SetupStatePayload) -> SetupState:
-    return SetupState(
-        household_label=payload.householdLabel,
-        profiles=tuple(
-            SetupProfile(
-                id=profile.id,
-                label=profile.label,
-                order=profile.order,
-                avatar_key=profile.avatarKey,
-                color_key=profile.colorKey,
-            )
-            for profile in payload.profiles
-        ),
-        defaults=SetupDefaults(
-            session_type=payload.defaults.sessionType,
-            input_mode=payload.defaults.inputMode,
-            availability_region=payload.defaults.availabilityRegion,
-            language_access=payload.defaults.languageAccess,
-            shortlist_size=payload.defaults.shortlistSize,
-            avoid_already_watched=payload.defaults.avoidAlreadyWatched,
-        ),
-    )
-
-
-def _setup_state_to_payload(setup: SetupState) -> SetupStatePayload:
-    return SetupStatePayload(
-        householdLabel=setup.household_label,
-        profiles=[
-            SetupProfilePayload(
-                id=profile.id,
-                label=profile.label,
-                order=profile.order,
-                avatarKey=profile.avatar_key,
-                colorKey=profile.color_key,
-            )
-            for profile in setup.profiles
-        ],
-        defaults=SetupDefaultsPayload(
-            sessionType=setup.defaults.session_type,
-            inputMode=setup.defaults.input_mode,
-            availabilityRegion=setup.defaults.availability_region,
-            languageAccess=setup.defaults.language_access,
-            shortlistSize=setup.defaults.shortlist_size,
-            avoidAlreadyWatched=setup.defaults.avoid_already_watched,
-        ),
     )
 
 
@@ -1687,71 +1334,6 @@ def _session_outcome_to_payload(
         selectedTitle=outcome.selected_title,
         selectionOrigin=outcome.selection_origin,
         notes=outcome.notes,
-    )
-
-
-def _recent_session_summary_to_payload(
-    summary,
-) -> RecentSessionSummaryPayload:
-    return RecentSessionSummaryPayload(
-        sessionId=summary.session_id,
-        activeMode=summary.active_mode,
-        state=summary.state,
-        participantIds=list(summary.participant_ids),
-        bestPickSourceMovieId=summary.best_pick_source_movie_id,
-        bestPickTitle=summary.best_pick_title,
-        outcomeType=summary.outcome.outcome_type.value if summary.outcome is not None else None,
-        outcomeTitle=summary.outcome.selected_title if summary.outcome is not None else None,
-        feedback=[
-            RecentSessionFeedbackPayload(
-                userId=feedback.user_id,
-                feedbackLabel=feedback.feedback_label,
-            )
-            for feedback in summary.feedback
-        ],
-    )
-
-
-def _watchlist_entry_to_payload(entry: WatchlistEntry) -> WatchlistEntryPayload:
-    return WatchlistEntryPayload(
-        householdId=entry.household_id,
-        sourceMovieId=entry.source_movie_id,
-        title=entry.title,
-        savedAt=entry.saved_at,
-        savedByProfileId=entry.saved_by_profile_id,
-        posterUrl=entry.poster_url,
-        releaseYear=entry.release_year,
-        isTasteSignal=entry.is_taste_signal,
-    )
-
-
-def _profile_memory_summary_to_payload(
-    summary: ProfileMemorySummary,
-) -> ProfileMemorySummaryPayload:
-    return ProfileMemorySummaryPayload(
-        householdId=summary.household_id,
-        profileId=summary.profile_id,
-        sharedSavedCount=summary.shared_saved_count,
-        savedByProfileCount=summary.saved_by_profile_count,
-        recentReactionCount=summary.recent_reaction_count,
-        watchedCount=summary.watched_count,
-        ratedCount=summary.rated_count,
-        visibleAppMemoryCount=summary.visible_app_memory_count,
-        privateCalibrationCount=summary.private_calibration_count,
-        signals=[
-            _profile_memory_signal_to_payload(signal)
-            for signal in summary.signals
-        ],
-    )
-
-
-def _profile_memory_signal_to_payload(
-    signal: ProfileMemorySignal,
-) -> ProfileMemorySignalPayload:
-    return ProfileMemorySignalPayload(
-        label=signal.label,
-        count=signal.count,
-        source=signal.source,
     )
 
 
@@ -2034,175 +1616,6 @@ def _shared_session_to_payload(
             for item in reranked_shortlist
         ],
         bestPickSourceMovieId=session.best_pick_source_movie_id,
-    )
-
-
-def _debug_history_session_to_payload(
-    evidence: DebugPersistedSessionEvidence,
-) -> DebugHistorySessionPayload:
-    return DebugHistorySessionPayload(
-        sessionId=evidence.session_id,
-        householdId=evidence.household_id,
-        activeMode=evidence.active_mode,
-        state=evidence.state,
-        participantIds=list(evidence.participant_ids),
-        shortlist=[
-            DebugHistoryShortlistItemPayload(
-                sourceMovieId=item.source_movie_id,
-                title=item.title,
-                candidateRank=item.candidate_rank,
-            )
-            for item in evidence.shortlist
-        ],
-        previousShortlist=[
-            DebugHistoryShortlistItemPayload(
-                sourceMovieId=item.source_movie_id,
-                title=item.title,
-                candidateRank=item.candidate_rank,
-            )
-            for item in evidence.previous_shortlist
-        ],
-        founderReactions=[
-            DebugHistoryReactionPayload(
-                participantId=reaction.participant_id,
-                sourceMovieId=reaction.source_movie_id,
-                reactionLabel=reaction.reaction_label,
-            )
-            for reaction in evidence.founder_reactions
-        ],
-        wifeReactions=[
-            DebugHistoryReactionPayload(
-                participantId=reaction.participant_id,
-                sourceMovieId=reaction.source_movie_id,
-                reactionLabel=reaction.reaction_label,
-            )
-            for reaction in evidence.wife_reactions
-        ],
-        previousFounderReactions=[
-            DebugHistoryReactionPayload(
-                participantId=reaction.participant_id,
-                sourceMovieId=reaction.source_movie_id,
-                reactionLabel=reaction.reaction_label,
-            )
-            for reaction in evidence.previous_founder_reactions
-        ],
-        previousWifeReactions=[
-            DebugHistoryReactionPayload(
-                participantId=reaction.participant_id,
-                sourceMovieId=reaction.source_movie_id,
-                reactionLabel=reaction.reaction_label,
-            )
-            for reaction in evidence.previous_wife_reactions
-        ],
-        shownSourceMovieIds=list(evidence.shown_source_movie_ids),
-        batchCount=evidence.batch_count,
-        rerankedSourceMovieIds=list(evidence.reranked_source_movie_ids),
-        bestPickSourceMovieId=evidence.best_pick_source_movie_id,
-        sessionOutcome=(
-            DebugHistoryOutcomePayload(
-                outcomeType=evidence.session_outcome.outcome_type,
-                selectedSourceMovieId=evidence.session_outcome.selected_source_movie_id,
-                selectedTitle=evidence.session_outcome.selected_title,
-                selectionOrigin=evidence.session_outcome.selection_origin,
-                hasNotes=evidence.session_outcome.has_notes,
-            )
-            if evidence.session_outcome is not None
-            else None
-        ),
-        postWatchFeedback=[
-            DebugHistoryFeedbackPayload(
-                userId=feedback.user_id,
-                sourceMovieId=feedback.source_movie_id,
-                feedbackLabel=feedback.feedback_label,
-                hasFreeTextNote=feedback.has_free_text_note,
-            )
-            for feedback in evidence.post_watch_feedback
-        ],
-        recommendationSnapshot=(
-            _recommendation_snapshot_to_payload(evidence.recommendation_snapshot)
-            if evidence.recommendation_snapshot is not None
-            else None
-        ),
-        unavailableEvidence=list(evidence.unavailable_evidence),
-    )
-
-
-def _recommendation_snapshot_to_payload(
-    snapshot: RecommendationSnapshot,
-) -> DebugHistoryRecommendationSnapshotPayload:
-    (
-        candidate_count,
-        enriched_candidate_count,
-        fallback_candidate_count,
-        enrichment_rate,
-    ) = snapshot.enrichment_coverage
-    return DebugHistoryRecommendationSnapshotPayload(
-        sessionId=snapshot.session_id,
-        candidateInputs=[
-            DebugHistoryCandidateInputPayload(
-                sourceMovieId=candidate.source_movie_id,
-                title=candidate.title,
-                genres=list(candidate.genres),
-                providers=list(candidate.providers),
-                providerAccess=list(candidate.provider_access),
-                safetyStatus=candidate.safety_status,
-                alreadyWatched=candidate.already_watched,
-                isInterestingSafePick=candidate.is_interesting_safe_pick,
-                enrichmentStatus=candidate.enrichment_status,
-                enrichmentProvider=candidate.enrichment_provider,
-                enrichmentFeatureScores=dict(candidate.enrichment_feature_scores),
-                matchedEnrichmentSourceMovieId=(
-                    candidate.matched_enrichment_source_movie_id
-                ),
-            )
-            for candidate in snapshot.candidate_inputs
-        ],
-        enrichmentCoverage=DebugHistoryEnrichmentCoveragePayload(
-            candidateCount=candidate_count,
-            enrichedCandidateCount=enriched_candidate_count,
-            fallbackCandidateCount=fallback_candidate_count,
-            enrichmentRate=enrichment_rate,
-        ),
-        candidates=[
-            DebugHistoryRecommendationCandidatePayload(
-                sourceMovieId=candidate.source_movie_id,
-                title=candidate.title,
-                candidateRank=candidate.candidate_rank,
-                fitBucket=candidate.fit_bucket,
-                groupScore=candidate.group_score,
-                userScores=[
-                    DebugHistoryUserScorePayload(
-                        userId=user_score.user_id,
-                        score=user_score.score,
-                    )
-                    for user_score in candidate.user_scores
-                ],
-                whyShort=candidate.why_short,
-                hardFilterPass=candidate.hard_filter_pass,
-                isInterestingPick=candidate.is_interesting_pick,
-                scoringEvidence=[
-                    DebugHistoryScoringEvidencePayload(
-                        sourceMovieId=evidence.source_movie_id,
-                        enrichmentStatus=evidence.enrichment_status.value,
-                        signalFamilies=list(evidence.signal_families),
-                        contributions=[
-                            DebugHistorySignalContributionPayload(
-                                family=contribution.family,
-                                label=contribution.label,
-                                value=contribution.value,
-                            )
-                            for contribution in evidence.contributions
-                        ],
-                    )
-                    for evidence in candidate.scoring_evidence
-                ],
-            )
-            for candidate in snapshot.candidates
-        ],
-        isUncertain=snapshot.is_uncertain,
-        uncertaintyReason=snapshot.uncertainty_reason,
-        recommendedFollowUp=snapshot.recommended_follow_up,
-        interestingSafePickId=snapshot.interesting_safe_pick_id,
     )
 
 

@@ -1452,6 +1452,10 @@ summary:focus-visible {
   overflow: visible;
 }
 
+.disclosurePanel.startupDisclosure.historyDisclosure {
+  display: grid;
+}
+
 .disclosurePanel.startupDisclosure summary {
   padding: 0;
   color: rgba(255,255,255,0.4);
@@ -3553,10 +3557,6 @@ summary:focus-visible {
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-}
-
-.cinematicResultsPanel > .quietCallout {
-  display: none;
 }
 
 .sharedWhyCard p {
