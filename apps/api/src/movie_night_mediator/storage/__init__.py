@@ -9,6 +9,7 @@ from movie_night_mediator.storage.session import SQLiteSessionStore
 from movie_night_mediator.storage.settings import SQLITE_PATH_ENV_VAR, SQLiteSettings
 from movie_night_mediator.storage.sqlite import SQLiteHouseholdStore
 from movie_night_mediator.storage.taste_lab import SQLiteTasteLabStore
+from movie_night_mediator.storage.taste_memory import SQLiteTasteMemoryStore
 from movie_night_mediator.storage.watchlist import SQLiteWatchlistStore
 
 __all__ = [
@@ -22,5 +23,6 @@ __all__ = [
     "SQLiteSessionStore",
     "SQLiteSettings",
     "SQLiteTasteLabStore",
+    "SQLiteTasteMemoryStore",
     "SQLiteWatchlistStore",
 ]
