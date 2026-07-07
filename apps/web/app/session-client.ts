@@ -355,6 +355,23 @@ export type ProfileMemorySummaryPayload = {
   signals: ProfileMemorySignalPayload[];
 };
 
+export type TasteMemoryEventPayload = {
+  eventId: string;
+  householdId: string;
+  profileId: string;
+  eventType: string;
+  source: string;
+  sourceMovieId: string;
+  title: string;
+  genres: string[];
+  sentimentLabel?: string | null;
+  preferenceValue?: number | null;
+  familiarity?: string | null;
+  effectLabel?: string | null;
+  status: string;
+  occurredAt: string;
+};
+
 export type TonightIntentInterpretationPayload = {
   rawText: string;
   status: "confirmation_required" | "clarification_required";
@@ -478,6 +495,16 @@ export async function getProfileMemorySummary(
   const query = new URLSearchParams({ householdId });
   return getJson(
     `/api/profiles/${encodeURIComponent(profileId)}/memory?${query.toString()}`,
+  );
+}
+
+export async function getProfileMemoryEvents(
+  householdId: string,
+  profileId: string,
+): Promise<TasteMemoryEventPayload[]> {
+  const query = new URLSearchParams({ householdId });
+  return getJson(
+    `/api/profiles/${encodeURIComponent(profileId)}/memory/events?${query.toString()}`,
   );
 }
 

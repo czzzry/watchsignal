@@ -3396,6 +3396,94 @@ summary:focus-visible {
   line-height: 1.35;
 }
 
+.profileMemoryLedger {
+  display: grid;
+  gap: 6px;
+}
+
+.profileMemoryLedgerRow {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  padding: 7px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.profileMemoryIcon {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.profileMemoryIconLoved {
+  border-color: rgba(119, 255, 166, 0.34);
+  background: rgba(119, 255, 166, 0.12);
+  color: rgba(175, 255, 203, 0.95);
+}
+
+.profileMemoryIconFine {
+  border-color: rgba(255, 219, 91, 0.34);
+  background: rgba(255, 219, 91, 0.12);
+  color: rgba(255, 235, 153, 0.95);
+}
+
+.profileMemoryIconNo {
+  border-color: rgba(255, 113, 164, 0.34);
+  background: rgba(255, 113, 164, 0.12);
+  color: rgba(255, 177, 207, 0.95);
+}
+
+.profileMemoryIconSeen {
+  border-color: rgba(190, 207, 230, 0.32);
+  background: rgba(190, 207, 230, 0.1);
+  color: rgba(229, 237, 247, 0.94);
+}
+
+.profileMemoryLedgerText {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.profileMemoryLedgerText strong,
+.profileMemoryLedgerText span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profileMemoryLedgerText strong {
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.76rem;
+  line-height: 1.15;
+}
+
+.profileMemoryLedgerText span,
+.profileMemoryStatus {
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 0.62rem;
+  line-height: 1.1;
+}
+
+.profileMemoryStatus {
+  justify-self: end;
+  border-radius: 999px;
+  padding: 4px 6px;
+  background: rgba(255, 255, 255, 0.05);
+  white-space: nowrap;
+}
+
 .tonightIntentPanel {
   display: grid;
   gap: 12px;

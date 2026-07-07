@@ -61,6 +61,7 @@ import {
   type SessionOutcomePayload,
   type SessionOutcomeType,
   type TasteProfileSummaryPayload,
+  type TasteMemoryEventPayload,
   type TonightIntentInterpretationPayload,
   type WatchlistEntryPayload,
 } from "./session-client";
@@ -151,6 +152,7 @@ export function SetupStep({
   onboardingMessage,
   onboardingPrompt,
   profileMemorySummaries,
+  profileMemoryEvents,
   profileMemoryMessage,
   tonightIntentText,
   onTonightIntentTextChange,
@@ -201,6 +203,7 @@ export function SetupStep({
   onboardingMessage: string | null;
   onboardingPrompt: OnboardingPromptState;
   profileMemorySummaries: ProfileMemorySummaryPayload[];
+  profileMemoryEvents: TasteMemoryEventPayload[];
   profileMemoryMessage: string | null;
   tonightIntentText: string;
   onTonightIntentTextChange: (text: string) => void;
@@ -558,6 +561,7 @@ export function SetupStep({
         founderLabel={founderLabel}
         wifeLabel={wifeLabel}
         summaries={profileMemorySummaries}
+        events={profileMemoryEvents}
         message={profileMemoryMessage}
       />
 
@@ -816,14 +820,16 @@ function ProfileMemoryPanel({
   founderLabel,
   wifeLabel,
   summaries,
+  events,
   message,
 }: {
   founderLabel: string;
   wifeLabel: string;
   summaries: ProfileMemorySummaryPayload[];
+  events: TasteMemoryEventPayload[];
   message: string | null;
 }) {
-  if (summaries.length === 0 && !message) {
+  if (summaries.length === 0 && events.length === 0 && !message) {
     return null;
   }
 
@@ -836,12 +842,19 @@ function ProfileMemoryPanel({
           <p className="eyebrow">Memory</p>
           <h3 id="profile-memory-heading">What WatchSignal remembers</h3>
         </div>
-        <span>Small view</span>
+        <span>Profile ledger</span>
       </div>
       {message ? <p className="profileMemoryNote">{message}</p> : null}
       <div className="profileMemoryGrid">
         {summaries.map((summary, index) => {
           const topSignals = summary.signals.slice(0, 3);
+          const profileEvents = events
+            .filter((event) => event.profileId === summary.profileId)
+            .slice()
+            .sort((first, second) =>
+              second.occurredAt.localeCompare(first.occurredAt),
+            )
+            .slice(0, 4);
 
           return (
             <article key={summary.profileId} className="profileMemoryCard">
@@ -871,12 +884,108 @@ function ProfileMemoryPanel({
                   {summary.privateCalibrationCount} private calibration signals available.
                 </p>
               ) : null}
+              {profileEvents.length > 0 ? (
+                <div className="profileMemoryLedger" aria-label={`${labelsByIndex[index] ?? summary.profileId} taste ledger`}>
+                  {profileEvents.map((event) => (
+                    <div key={event.eventId} className="profileMemoryLedgerRow">
+                      <span
+                        className={`profileMemoryIcon profileMemoryIcon${eventTone(event)}`}
+                        aria-hidden="true"
+                      >
+                        {eventIcon(event)}
+                      </span>
+                      <span className="profileMemoryLedgerText">
+                        <strong>{event.title}</strong>
+                        <span>
+                          {eventVerb(event)}
+                          {event.effectLabel ? ` · ${event.effectLabel}` : ""}
+                        </span>
+                      </span>
+                      <span className="profileMemoryStatus">{eventStatusLabel(event.status)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="profileMemoryNote">Ledger is waiting for rated movies.</p>
+              )}
             </article>
           );
         })}
       </div>
     </section>
   );
+}
+
+function eventIcon(event: TasteMemoryEventPayload): string {
+  if (event.eventType === "watchlist_saved") {
+    return "⌑";
+  }
+
+  if (event.eventType === "seen_before") {
+    return "◉";
+  }
+
+  if (event.eventType === "post_watch_feedback") {
+    return "✓";
+  }
+
+  if (event.sentimentLabel === "no" || event.sentimentLabel === "hated") {
+    return "×";
+  }
+
+  if (event.sentimentLabel === "fine" || event.sentimentLabel === "meh") {
+    return "◐";
+  }
+
+  return "♥";
+}
+
+function eventTone(event: TasteMemoryEventPayload): string {
+  if (event.eventType === "seen_before") {
+    return "Seen";
+  }
+
+  if (event.sentimentLabel === "no" || event.sentimentLabel === "hated") {
+    return "No";
+  }
+
+  if (event.sentimentLabel === "fine" || event.sentimentLabel === "meh") {
+    return "Fine";
+  }
+
+  return "Loved";
+}
+
+function eventVerb(event: TasteMemoryEventPayload): string {
+  if (event.eventType === "taste_lab_rating") {
+    return `Taste Lab: ${event.sentimentLabel ?? "rated"}`;
+  }
+
+  if (event.eventType === "watchlist_saved") {
+    return "Saved for later";
+  }
+
+  if (event.eventType === "seen_before") {
+    return "Seen before";
+  }
+
+  if (event.eventType === "post_watch_feedback") {
+    return `Post-watch: ${event.sentimentLabel ?? "rated"}`;
+  }
+
+  return event.sentimentLabel ? `Rated ${event.sentimentLabel}` : "Rated";
+}
+
+function eventStatusLabel(status: string): string {
+  if (status === "too_weak_yet") {
+    return "Too weak yet";
+  }
+
+  return status
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function formatTonightIntentSignal(signal: string): string {
