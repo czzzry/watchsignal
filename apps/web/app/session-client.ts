@@ -39,6 +39,7 @@ export type ShortlistCandidatePayload = SessionShortlistItemPayload & {
   availability?: string | null;
   providerNames?: string[];
   topCast?: string[];
+  matchedPersonNames?: string[];
   languageAccess?: string | null;
   tone?: string | null;
   reason?: string | null;
@@ -164,9 +165,11 @@ export type WatchlistEntryPayload = {
   title: string;
   savedAt: string;
   savedByProfileId?: string | null;
+  savedByDisplayLabel?: string | null;
   posterUrl?: string | null;
   releaseYear?: number | null;
   isTasteSignal: boolean;
+  canBeRecommendationSeed: boolean;
 };
 
 export type SaveWatchlistEntryRequest = {
@@ -174,6 +177,7 @@ export type SaveWatchlistEntryRequest = {
   sourceMovieId: string;
   title: string;
   savedByProfileId?: string | null;
+  savedByDisplayLabel?: string | null;
   posterUrl?: string | null;
   releaseYear?: number | null;
 };
@@ -697,6 +701,9 @@ function parseShortlistCandidate(
     topCast:
       stringArrayValue(candidate.topCast) ||
       stringArrayValue(candidate.top_cast),
+    matchedPersonNames:
+      stringArrayValue(candidate.matchedPersonNames) ||
+      stringArrayValue(candidate.matched_person_names),
     languageAccess:
       stringValue(candidate.languageAccess) ??
       stringValue(candidate.language_access),

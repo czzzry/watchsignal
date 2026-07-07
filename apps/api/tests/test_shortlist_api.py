@@ -294,6 +294,37 @@ class ShortlistApiTest(unittest.TestCase):
             ("something funny from the 90s + actually more action",),
         )
 
+    def test_post_recommendation_shortlist_turns_people_filter_into_constraint(
+        self,
+    ) -> None:
+        candidate_source = RecordingCandidateSource()
+        post_shortlist = recommendation_shortlist_endpoint(
+            create_app(candidate_source=candidate_source),
+            method="POST",
+        )
+
+        payload = post_shortlist(
+            RecommendationShortlistRequestPayload(
+                sessionId="person-steered-session",
+                source="live_tmdb",
+                tonightIntents=[
+                    {
+                        "rawText": "something with Tom Cruise in it",
+                        "filters": {"people": ["Tom Cruise"]},
+                    },
+                ],
+            )
+        )
+
+        self.assertEqual(
+            tuple(
+                constraint.raw_name
+                for constraint in candidate_source.person_constraints[0]
+            ),
+            ("Tom Cruise",),
+        )
+        self.assertEqual(payload[0].matchedPersonNames, ["Tom Cruise"])
+
     def test_post_recommendation_shortlist_consumes_saved_taste_lab_profile_evidence(
         self,
     ) -> None:
@@ -389,6 +420,10 @@ class FakeCandidateSource:
                 ),
                 original_language="en",
                 spoken_languages=("en",),
+                matched_person_names=tuple(
+                    constraint.raw_name
+                    for constraint in session.person_constraints
+                ),
             )
             for index in range(1, min(limit, 5) + 1)
         )
@@ -397,6 +432,7 @@ class FakeCandidateSource:
 class RecordingCandidateSource(FakeCandidateSource):
     def __init__(self) -> None:
         self.mood_texts: tuple[str | None, ...] = ()
+        self.person_constraints = ()
 
     def fetch_candidates(
         self,
@@ -406,6 +442,10 @@ class RecordingCandidateSource(FakeCandidateSource):
         limit: int = 20,
     ) -> tuple[Candidate, ...]:
         self.mood_texts = (*self.mood_texts, session.mood_text)
+        self.person_constraints = (
+            *self.person_constraints,
+            session.person_constraints,
+        )
         return super().fetch_candidates(
             session=session,
             household_defaults=household_defaults,

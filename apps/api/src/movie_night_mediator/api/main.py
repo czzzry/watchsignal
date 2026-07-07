@@ -75,6 +75,7 @@ from movie_night_mediator.domain import (
     SessionMode,
     SessionOutcome,
     SessionOutcomeType,
+    PersonCandidateConstraint,
     ScoringSessionReaction,
     SessionReaction,
     SessionReactionLabel,
@@ -260,6 +261,7 @@ class RecommendationShortlistItemPayload(BaseModel):
     providerAvailability: list[RecommendationProviderAvailabilityPayload]
     posterUrl: str | None = None
     topCast: list[str] = Field(default_factory=list)
+    matchedPersonNames: list[str] = Field(default_factory=list)
     safePickStatus: str = Field(min_length=1)
     availability: str = Field(min_length=1)
     languageAccess: str = Field(min_length=1)
@@ -1082,6 +1084,19 @@ def _shortlist_session_from_payload(
             payload.tonightIntent,
             payload.tonightIntents,
         ),
+        genre_hint=_tonight_intent_first_string_filter(
+            payload.tonightIntent,
+            payload.tonightIntents,
+            key="genres",
+        ),
+        language_constraint=_tonight_intent_language_constraint(
+            payload.tonightIntent,
+            payload.tonightIntents,
+        ),
+        person_constraints=_tonight_intent_person_constraints(
+            payload.tonightIntent,
+            payload.tonightIntents,
+        ),
     )
 
 
@@ -1118,6 +1133,84 @@ def _tonight_intent_mood_text(
         return None
 
     return " + ".join(dict.fromkeys(raw_texts))
+
+
+def _tonight_intent_first_string_filter(
+    tonight_intent: dict[str, object] | None,
+    tonight_intents: list[dict[str, object]] | None = None,
+    *,
+    key: str,
+) -> str | None:
+    for value in _tonight_intent_filter_values(
+        tonight_intent,
+        tonight_intents,
+        key=key,
+    ):
+        return value
+    return None
+
+
+def _tonight_intent_language_constraint(
+    tonight_intent: dict[str, object] | None,
+    tonight_intents: list[dict[str, object]] | None = None,
+) -> str | None:
+    if _tonight_intent_first_string_filter(
+        tonight_intent,
+        tonight_intents,
+        key="exclude_subtitled",
+    ):
+        return "English audio"
+    return None
+
+
+def _tonight_intent_person_constraints(
+    tonight_intent: dict[str, object] | None,
+    tonight_intents: list[dict[str, object]] | None = None,
+) -> tuple[PersonCandidateConstraint, ...]:
+    person_names = tuple(
+        dict.fromkeys(
+            _tonight_intent_filter_values(
+                tonight_intent,
+                tonight_intents,
+                key="people",
+            )
+        )
+    )
+    return tuple(
+        PersonCandidateConstraint(
+            raw_name=person_name,
+            normalized_name=person_name.casefold(),
+        )
+        for person_name in person_names
+    )
+
+
+def _tonight_intent_filter_values(
+    tonight_intent: dict[str, object] | None,
+    tonight_intents: list[dict[str, object]] | None = None,
+    *,
+    key: str,
+) -> tuple[str, ...]:
+    values: list[str] = []
+    intent_payloads = list(tonight_intents or [])
+    if tonight_intent and tonight_intent not in intent_payloads:
+        intent_payloads.append(tonight_intent)
+
+    for intent in intent_payloads:
+        filters = intent.get("filters")
+        if not isinstance(filters, dict):
+            continue
+        value = filters.get(key)
+        if isinstance(value, str) and value.strip():
+            values.append(value.strip())
+        elif isinstance(value, list):
+            values.extend(
+                item.strip()
+                for item in value
+                if isinstance(item, str) and item.strip()
+            )
+
+    return tuple(values)
 
 
 def _shortlist_users_from_taste_profile(
@@ -1169,6 +1262,7 @@ def _offline_shortlist_item_to_payload(
         ],
         posterUrl=item.poster_url,
         topCast=list(item.top_cast),
+        matchedPersonNames=list(item.matched_person_names),
         safePickStatus=item.safe_pick_status,
         availability=item.availability,
         languageAccess=item.language_access,

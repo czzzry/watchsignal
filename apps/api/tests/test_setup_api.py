@@ -228,15 +228,15 @@ class SetupApiTest(unittest.TestCase):
 
             self.assertEqual(
                 [profile["id"] for profile in payload_to_dict(payload)["profiles"]],
-                ["profile-1", "profile-2", "cezary-tester"],
+                ["cezary-tester", "profile-1", "profile-2"],
             )
             self.assertEqual(
                 [profile["label"] for profile in payload_to_dict(payload)["profiles"]],
-                ["Husband", "Wife", "Cezary - tester"],
+                ["Cezary - tester", "Husband", "Wife"],
             )
             self.assertEqual(
                 [profile["id"] for profile in payload_to_dict(payload_again)["profiles"]],
-                ["profile-1", "profile-2", "cezary-tester"],
+                ["cezary-tester", "profile-1", "profile-2"],
             )
 
     def test_patch_profile_renames_without_changing_stable_id(self) -> None:

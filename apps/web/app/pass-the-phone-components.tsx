@@ -68,6 +68,7 @@ import {
   BackupTitles,
   DebugHistoryPanel as ResultsDebugHistoryPanel,
   OutcomePanel,
+  RecommendationEvidencePanel,
   ResultsActions,
   type ResultsParticipantEntry,
   SessionEvidencePanel,
@@ -1960,6 +1961,7 @@ export function ResultsStep({
         sourceMovieId: bestPick.id,
         title: bestPick.title,
         savedByProfileId: participantEntries[0]?.id ?? null,
+        savedByDisplayLabel: participantEntries[0]?.label ?? null,
         posterUrl: bestPick.posterUrl,
         releaseYear: bestPick.year,
       });
@@ -2120,6 +2122,13 @@ export function ResultsStep({
         onPosterFallback={handlePosterFallback}
       />
 
+      <RecommendationEvidencePanel
+        bestPick={bestPick}
+        activeIntents={activeTonightIntents}
+        participantEntries={participantEntries}
+        tasteProfileSummaries={tasteProfileSummaries}
+      />
+
       <ResultsActions
         canPersist={canPersist}
         isSyncing={isSyncing}
@@ -2174,6 +2183,7 @@ export function ResultsStep({
         activeIntents={activeTonightIntents}
         text={steerText}
         pendingIntent={pendingSteerIntent}
+        referenceTitle={bestPick.title}
         clarificationText={steerClarificationText}
         message={steerMessage}
         busy={isSyncing}

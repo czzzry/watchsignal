@@ -339,7 +339,9 @@ function WatchlistItem({
   onPosterFallback: PosterFallbackHandler;
 }) {
   const savedByLabel = entry.savedByProfileId
-    ? participantEntries.find((participant) => participant.id === entry.savedByProfileId)?.label ?? entry.savedByProfileId
+    ? entry.savedByDisplayLabel ??
+      participantEntries.find((participant) => participant.id === entry.savedByProfileId)?.label ??
+      entry.savedByProfileId
     : null;
 
   return (
@@ -586,6 +588,7 @@ export function SteerNextPanel({
   activeIntents,
   text,
   pendingIntent,
+  referenceTitle,
   clarificationText,
   message,
   busy,
@@ -599,6 +602,7 @@ export function SteerNextPanel({
   activeIntents: TonightIntentInterpretationPayload[];
   text: string;
   pendingIntent: TonightIntentInterpretationPayload | null;
+  referenceTitle?: string | null;
   clarificationText: string;
   message: string | null;
   busy: boolean;
@@ -612,6 +616,11 @@ export function SteerNextPanel({
   const pendingSignals = pendingIntent?.softSignals.slice(0, 4) ?? [];
   const hasClarification = pendingIntent?.status === "clarification_required";
   const hasConfirmation = pendingIntent?.status === "confirmation_required";
+  const quickSteers = [
+    "different direction",
+    referenceTitle ? `more like ${referenceTitle}` : "more like the winner",
+    referenceTitle ? `avoid movies like ${referenceTitle}` : "avoid this direction",
+  ];
 
   return (
     <section className="tonightIntentPanel steerNextPanel" aria-labelledby="steer-next-heading">
@@ -637,6 +646,19 @@ export function SteerNextPanel({
 
       <div className="tonightIntentComposer">
         <label htmlFor="steer-next-input">New steer</label>
+        <div className="tonightIntentQuickActions">
+          {quickSteers.map((quickSteer) => (
+            <button
+              key={quickSteer}
+              type="button"
+              className="secondaryButton compactButton"
+              onClick={() => onTextChange(quickSteer)}
+              disabled={busy || !canPersist}
+            >
+              {quickSteer}
+            </button>
+          ))}
+        </div>
         <div className="tonightIntentInputRow">
           <input
             id="steer-next-input"
@@ -701,6 +723,71 @@ export function SteerNextPanel({
       ) : null}
 
       {message ? <p className="tonightIntentNote">{message}</p> : null}
+    </section>
+  );
+}
+
+export function RecommendationEvidencePanel({
+  bestPick,
+  activeIntents,
+  participantEntries,
+  tasteProfileSummaries,
+}: {
+  bestPick: RankedCandidate;
+  activeIntents: TonightIntentInterpretationPayload[];
+  participantEntries: ResultsParticipantEntry[];
+  tasteProfileSummaries: TasteProfileSummaryPayload[];
+}) {
+  const matchedPersonNames = bestPick.matchedPersonNames?.slice(0, 3) ?? [];
+  const profileRows = participantEntries.map((participant) => {
+    const summary = tasteProfileSummaries.find(
+      (profileSummary) => profileSummary.profileId === participant.id,
+    );
+    return {
+      label: participant.label,
+      evidenceCount: summary?.preferenceEvidenceCount ?? 0,
+      ratingCount: summary?.ratingCount ?? 0,
+    };
+  });
+
+  return (
+    <section className="recommendationEvidencePanel" aria-labelledby="recommendation-evidence-heading">
+      <div>
+        <p className="eyebrow">Why these 5</p>
+        <h3 id="recommendation-evidence-heading">Current signals</h3>
+      </div>
+      <div className="recommendationEvidenceGrid">
+        <div>
+          <strong>Tonight</strong>
+          {activeIntents.length > 0 ? (
+            <div className="tonightIntentSignals">
+              {activeIntents.slice(0, 3).map((intent, index) => (
+                <span key={`${intent.rawText}-${index}`}>{intent.rawText}</span>
+              ))}
+            </div>
+          ) : (
+            <p>No extra steer applied.</p>
+          )}
+        </div>
+        <div>
+          <strong>Taste Lab</strong>
+          <div className="tonightIntentSignals">
+            {profileRows.map((profileRow) => (
+              <span key={profileRow.label}>
+                {profileRow.label}: {profileRow.evidenceCount} signals
+              </span>
+            ))}
+          </div>
+        </div>
+        <div>
+          <strong>Best pick</strong>
+          <p>
+            {matchedPersonNames.length > 0
+              ? `Matched ${matchedPersonNames.join(", ")}.`
+              : `${bestPick.title} led the shared score.`}
+          </p>
+        </div>
+      </div>
     </section>
   );
 }

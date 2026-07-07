@@ -215,24 +215,55 @@ class SQLiteSetupStore:
 
     def ensure_tester_profile(self) -> SetupState:
         setup = self.load_setup()
-        existing_profile_ids = {profile.id for profile in setup.profiles}
-        if TESTER_PROFILE_ID in existing_profile_ids:
+        existing_tester = next(
+            (profile for profile in setup.profiles if profile.id == TESTER_PROFILE_ID),
+            None,
+        )
+        if existing_tester is None:
+            tester_profile = SetupProfile(
+                id=TESTER_PROFILE_ID,
+                label=TESTER_PROFILE_LABEL,
+                order=1,
+                avatar_key=TESTER_PROFILE_AVATAR_KEY,
+                color_key=TESTER_PROFILE_COLOR_KEY,
+            )
+            remaining_profiles = setup.profiles
+        else:
+            tester_profile = existing_tester
+            remaining_profiles = tuple(
+                profile for profile in setup.profiles if profile.id != TESTER_PROFILE_ID
+            )
+
+        reordered_profiles = (
+            SetupProfile(
+                id=tester_profile.id,
+                label=tester_profile.label,
+                order=1,
+                avatar_key=tester_profile.avatar_key,
+                color_key=tester_profile.color_key,
+            ),
+            *(
+                SetupProfile(
+                    id=profile.id,
+                    label=profile.label,
+                    order=index,
+                    avatar_key=profile.avatar_key,
+                    color_key=profile.color_key,
+                )
+                for index, profile in enumerate(
+                    sorted(remaining_profiles, key=lambda profile: profile.order),
+                    start=2,
+                )
+            ),
+        )
+
+        if reordered_profiles == setup.profiles:
             return setup
 
-        next_order = max(profile.order for profile in setup.profiles) + 1
         return self.save_setup(
             SetupState(
                 household_label=setup.household_label,
-                profiles=(
-                    *setup.profiles,
-                    SetupProfile(
-                        id=TESTER_PROFILE_ID,
-                        label=TESTER_PROFILE_LABEL,
-                        order=next_order,
-                        avatar_key=TESTER_PROFILE_AVATAR_KEY,
-                        color_key=TESTER_PROFILE_COLOR_KEY,
-                    ),
-                ),
+                profiles=reordered_profiles,
                 defaults=setup.defaults,
             )
         )

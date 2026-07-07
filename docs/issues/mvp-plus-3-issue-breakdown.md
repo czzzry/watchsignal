@@ -10,7 +10,7 @@ MVP Plus 3 is **Directed Discovery And Real Tester Profile**.
 Current tracker:
 
 ```text
-MVP+3: [████████████░░░░░░░░] 6/10 issues done
+MVP+3: [██████████████████░░] 9/10 issues done
 ```
 
 The issue count is ten.
@@ -36,12 +36,12 @@ Implementation and acceptance slices:
 - #63 - MVP+3 Slice 1 - Contracts And Acceptance Gate - done
 - #64 - MVP+3 Slice 2 - Persistent Tester Profile Foundation - done
 - #65 - MVP+3 Slice 3 - Taste Lab Profile Selection And Durable Ratings - done
-- #66 - MVP+3 Slice 4 - Main Flow Uses Selected Profiles And Calibration Evidence
+- #66 - MVP+3 Slice 4 - Main Flow Uses Selected Profiles And Calibration Evidence - done
 - #67 - MVP+3 Slice 5 - Directed Nudge Interpreter Contract - done
 - #68 - MVP+3 Slice 6 - Actor And Person Candidate Filtering - done
-- #69 - MVP+3 Slice 7 - Five More Redo Semantics And UI
+- #69 - MVP+3 Slice 7 - Five More Redo Semantics And UI - done
 - #70 - MVP+3 Slice 8 - Bookmark Library Lite - done
-- #71 - MVP+3 Slice 9 - Recommendation Explanation Trust Polish
+- #71 - MVP+3 Slice 9 - Recommendation Explanation Trust Polish - done
 - #72 - MVP+3 Slice 10 - MVP Plus 3 Dogfood And Evaluation Gate
 
 ## Slice 1 - Contracts And Acceptance Gate
@@ -193,11 +193,11 @@ The result screen or evidence surface should show when Taste Lab or durable prof
 
 ### Acceptance criteria
 
-- [ ] The main flow can start with `Cezary - tester` selected.
-- [ ] A second profile can participate in the shared recommendation flow.
-- [ ] Tester profile Taste Lab evidence is available to scoring.
-- [ ] Recommendation explanations mention profile evidence when it materially affects a result.
-- [ ] Tests prove profile evidence is not collapsed across people.
+- [x] The main flow can start with `Cezary - tester` selected.
+- [x] A second profile can participate in the shared recommendation flow.
+- [x] Tester profile Taste Lab evidence is available to scoring.
+- [x] Recommendation explanations mention profile evidence when it materially affects a result.
+- [x] Tests prove profile evidence is not collapsed across people.
 - [ ] Phone-sized smoke covers selected profiles through a recommendation result.
 
 ### Validation commands
@@ -217,6 +217,9 @@ pnpm beta:dogfood
 ### Stop condition
 
 Stop when calibration work can visibly influence the main flow for the selected tester profile.
+
+Completed by promoting the tester profile into the first main-flow slot, keeping the partner profile available, loading Taste Lab profile summaries into the result view, and preserving per-profile Taste Lab evidence in scoring.
+The remaining phone-sized proof belongs to the final MVP Plus 3 dogfood gate.
 
 ### Risk notes
 
@@ -320,12 +323,12 @@ The app should preserve prior reactions, preserve or edit active nudges, exclude
 
 ### Acceptance criteria
 
-- [ ] Five-more generation keeps prior reactions active.
-- [ ] Five-more generation excludes already-shown titles.
-- [ ] The user can continue with the same active direction.
-- [ ] The user can add a new nudge before generating the next batch.
-- [ ] The user can remove or replace an active nudge.
-- [ ] "More like this" and "avoid this" behavior is represented in session context when supported by the UI.
+- [x] Five-more generation keeps prior reactions active.
+- [x] Five-more generation excludes already-shown titles.
+- [x] The user can continue with the same active direction.
+- [x] The user can add a new nudge before generating the next batch.
+- [x] The user can remove or replace an active nudge.
+- [x] "More like this" and "avoid this" behavior is represented in session context when supported by the UI.
 - [ ] Phone-sized smoke covers first batch, nudge, five more, and no repeated titles.
 
 ### Validation commands
@@ -345,6 +348,9 @@ pnpm beta:dogfood
 ### Stop condition
 
 Stop when redo creates a useful next batch without erasing the current session.
+
+Completed by preserving active intents and session reactions through continuation, excluding already-shown titles in shortlist requests, and adding quick redo prompts for different direction, more like the winner, and avoiding the winner.
+The remaining phone-sized proof belongs to the final MVP Plus 3 dogfood gate.
 
 ### Risk notes
 
@@ -410,12 +416,12 @@ This should be user-facing enough for dogfood judgment without exposing raw debu
 
 ### Acceptance criteria
 
-- [ ] A recommendation can mention durable profile evidence when used.
-- [ ] A recommendation can mention an active nudge when used.
-- [ ] Explanations distinguish durable taste from tonight context.
-- [ ] Fallback behavior remains honest when evidence is weak.
-- [ ] The result view remains phone-first and does not become crowded.
-- [ ] Tests cover explanation payloads for profile evidence and active nudges.
+- [x] A recommendation can mention durable profile evidence when used.
+- [x] A recommendation can mention an active nudge when used.
+- [x] Explanations distinguish durable taste from tonight context.
+- [x] Fallback behavior remains honest when evidence is weak.
+- [x] The result view remains phone-first and does not become crowded.
+- [x] Tests cover explanation payloads for profile evidence and active nudges.
 
 ### Validation commands
 
@@ -430,6 +436,8 @@ pnpm build:web
 ### Stop condition
 
 Stop when the founder can tell why the recommendation changed without opening developer tools.
+
+Completed by adding a compact result evidence panel for active nudges, Taste Lab signal counts, and matched person names, plus shortlist payload support for person matches.
 
 ### Risk notes
 

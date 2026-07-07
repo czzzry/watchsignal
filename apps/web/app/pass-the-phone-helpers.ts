@@ -424,6 +424,9 @@ export function toSessionCandidate(
       candidate.topCast?.slice(0, 3) ??
       fixture?.topCast ??
       [],
+    matchedPersonNames:
+      candidate.matchedPersonNames?.slice(0, 3) ??
+      fixture?.matchedPersonNames,
     genres: candidate.genres ?? fixture?.genres ?? [],
     criticScore: fixture?.criticScore,
     safePickStatus: toSafePickStatus(candidate.safePickStatus),
