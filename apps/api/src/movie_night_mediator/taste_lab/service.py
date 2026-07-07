@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Protocol
@@ -91,12 +93,17 @@ class TasteLabService:
             profile_id=normalized_profile_id,
         )
         previously_answered_ids = {rating.movie.source_movie_id for rating in ratings}
-
-        return tuple(
+        unanswered_candidates = tuple(
             candidate
             for candidate in candidates
             if candidate.movie.source_movie_id not in previously_answered_ids
-        )[:limit]
+        )
+
+        return _informative_queue(
+            unanswered_candidates,
+            ratings=ratings,
+            limit=limit,
+        )
 
     def submit_batch(
         self,
@@ -162,3 +169,116 @@ def _require_non_empty(value: str, field_name: str) -> str:
         raise ValueError(f"{field_name} cannot be empty.")
 
     return normalized_value
+
+
+def _informative_queue(
+    candidates: tuple[TasteLabCandidate, ...],
+    *,
+    ratings: tuple[TasteLabRatingExport, ...],
+    limit: int,
+) -> tuple[TasteLabCandidate, ...]:
+    if len(candidates) <= limit:
+        return candidates
+
+    rated_genre_counts = Counter(
+        genre
+        for rating in ratings
+        if rating.is_importable_preference
+        for genre in rating.movie.genres
+    )
+    rated_title_tokens = tuple(_title_tokens(rating.movie.title) for rating in ratings)
+    selected: list[TasteLabCandidate] = []
+    remaining = sorted(
+        candidates,
+        key=lambda candidate: _candidate_calibration_score(
+            candidate,
+            rated_genre_counts=rated_genre_counts,
+        ),
+        reverse=True,
+    )
+
+    while remaining and len(selected) < limit:
+        selected_title_tokens = tuple(
+            _title_tokens(candidate.movie.title)
+            for candidate in selected
+        )
+        non_duplicate_index = next(
+            (
+                index
+                for index, candidate in enumerate(remaining)
+                if not _is_near_duplicate(
+                    _title_tokens(candidate.movie.title),
+                    (*rated_title_tokens, *selected_title_tokens),
+                )
+            ),
+            None,
+        )
+        index_to_take = non_duplicate_index if non_duplicate_index is not None else 0
+        candidate = remaining.pop(index_to_take)
+        selected.append(candidate)
+        for genre in candidate.movie.genres:
+            rated_genre_counts[genre] += 1
+
+    return tuple(selected)
+
+
+def _candidate_calibration_score(
+    candidate: TasteLabCandidate,
+    *,
+    rated_genre_counts: Counter[str],
+) -> tuple[float, float, int, str]:
+    signal_score = candidate.queue_provenance.signal_score or 0.0
+    score_components = candidate.queue_provenance.score_components
+    genre_coverage_score = _genre_coverage_score(
+        candidate.movie.genres,
+        rated_genre_counts=rated_genre_counts,
+    )
+    boundary_score = (
+        float(score_components.get("divisiveness", 0.0)) * 0.12
+        + float(score_components.get("discrimination_proxy", 0.0)) * 0.12
+        + float(score_components.get("coverage", 0.0)) * 0.08
+        + float(score_components.get("non_redundancy", 0.0)) * 0.08
+    )
+    total_score = signal_score + genre_coverage_score + boundary_score
+    rank = candidate.queue_provenance.rank or 999_999
+    return (round(total_score, 6), signal_score, -rank, candidate.movie.title)
+
+
+def _genre_coverage_score(
+    genres: tuple[str, ...],
+    *,
+    rated_genre_counts: Counter[str],
+) -> float:
+    if not genres:
+        return 0.0
+    return sum(
+        0.3 / (1 + rated_genre_counts[genre])
+        for genre in genres
+    ) / len(genres)
+
+
+def _is_near_duplicate(
+    candidate_tokens: frozenset[str],
+    existing_title_tokens: tuple[frozenset[str], ...],
+) -> bool:
+    if not candidate_tokens:
+        return False
+    return any(
+        _token_overlap(candidate_tokens, existing_tokens) >= 0.6
+        for existing_tokens in existing_title_tokens
+        if existing_tokens
+    )
+
+
+def _token_overlap(first: frozenset[str], second: frozenset[str]) -> float:
+    if not first or not second:
+        return 0.0
+    return len(first & second) / len(first | second)
+
+
+def _title_tokens(title: str) -> frozenset[str]:
+    return frozenset(
+        token
+        for token in re.sub(r"[^a-z0-9]+", " ", title.casefold()).split()
+        if token
+    )

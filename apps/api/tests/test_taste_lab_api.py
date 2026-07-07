@@ -110,6 +110,80 @@ class TasteLabApiTest(unittest.TestCase):
             ["movielens:2", "movielens:3"],
         )
 
+    def test_queue_prioritizes_informative_coverage_before_near_duplicates(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            routes = taste_lab_route_endpoints(
+                create_app(
+                    taste_lab_store=SQLiteTasteLabStore(
+                        database_path=Path(directory) / "taste-lab.sqlite3"
+                    )
+                )
+            )
+            routes["seed_candidates"](
+                [
+                    _calibration_candidate(
+                        1,
+                        title="Signal Movie 1",
+                        genres=["Drama"],
+                        signal_score=0.99,
+                    ),
+                    _calibration_candidate(
+                        2,
+                        title="Signal Movie 1 Returns",
+                        genres=["Drama"],
+                        signal_score=0.98,
+                    ),
+                    _calibration_candidate(
+                        3,
+                        title="Comedy Boundary",
+                        genres=["Comedy"],
+                        signal_score=0.78,
+                    ),
+                    _calibration_candidate(
+                        4,
+                        title="Action Boundary",
+                        genres=["Action"],
+                        signal_score=0.77,
+                    ),
+                    _calibration_candidate(
+                        5,
+                        title="Second Drama Boundary",
+                        genres=["Drama"],
+                        signal_score=0.76,
+                    ),
+                ],
+                householdId="household-1",
+            )
+            routes["post_ratings"](
+                profile_id="sandy",
+                payload=TasteLabSubmitRatingsPayload(
+                    householdId="household-1",
+                    ratings=[
+                        TasteLabRatingInputPayload(
+                            movie=_calibration_candidate(1).movie,
+                            label=TasteLabRatingLabel.LOVED,
+                            queueProvenance=_calibration_candidate(1).queueProvenance,
+                            ratedAt="2026-07-01T12:00:00Z",
+                        )
+                    ],
+                ),
+            )
+
+            queue = routes["get_queue"](
+                profile_id="sandy",
+                householdId="household-1",
+                limit=3,
+            )
+
+        self.assertEqual(
+            [candidate.movie.title for candidate in queue[:2]],
+            ["Comedy Boundary", "Action Boundary"],
+        )
+        self.assertNotIn(
+            "Signal Movie 1 Returns",
+            [candidate.movie.title for candidate in queue[:2]],
+        )
+
     def test_default_high_signal_queue_supports_repeated_batches(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             seed_queue_path = Path(directory) / "seed-queue.json"
@@ -369,6 +443,42 @@ def _candidate_payload(index: int) -> TasteLabCandidatePayload:
             scoreComponents={
                 "recognizability": 0.8,
                 "divisiveness": 0.7,
+            },
+        ),
+    )
+
+
+def _calibration_candidate(
+    index: int,
+    *,
+    title: str | None = None,
+    genres: list[str] | None = None,
+    signal_score: float | None = None,
+) -> TasteLabCandidatePayload:
+    return TasteLabCandidatePayload(
+        movie=TasteLabMoviePayload(
+            sourceMovieId=f"movielens:{index}",
+            title=title or f"Signal Movie {index}",
+            releaseYear=2000 + index,
+            tmdbId=str(3000 + index),
+            posterPath=f"/poster-{index}.jpg",
+            genres=genres or ["Drama"],
+        ),
+        queueProvenance=TasteLabQueueProvenancePayload(
+            queueSource="offline_signal_score_v1",
+            generatedAt="2026-07-01T11:00:00Z",
+            rank=index,
+            signalScore=(
+                signal_score
+                if signal_score is not None
+                else 1 - (index / 100)
+            ),
+            scoreComponents={
+                "recognizability": 0.8,
+                "divisiveness": 0.9,
+                "discrimination_proxy": 0.9,
+                "coverage": 0.9,
+                "non_redundancy": 0.9,
             },
         ),
     )
