@@ -1,0 +1,84 @@
+{
+  "phase": "MVP+3: Directed Discovery And Real Tester Profile",
+  "report_date": "2026-07-07",
+  "results": [
+    {
+      "matched_person_names": [
+        "Jack Nicholson"
+      ],
+      "rank_delta_vs_baseline": 0,
+      "ranked_titles": [
+        "Cozy Mystery Night",
+        "The Shining",
+        "Clean Action Escape",
+        "Quiet Sad Drama"
+      ],
+      "strategy_name": "baseline_no_profile_no_nudge",
+      "target_explanation_excerpt": "Fits compromise mode with signal from Horror, Thriller. Cezary - tester: 0.5; Partner: 0.5, Taste Lab signals: 1.",
+      "target_rank": 2,
+      "target_signal_families": [],
+      "top_pick_changed_vs_baseline": false,
+      "top_pick_explanation_excerpt": "Fits compromise mode with signal from Mystery, Comedy. Cezary - tester: 0.5; Partner: 0.62, Taste Lab signals: 1. Evidence: genre.",
+      "top_pick_title": "Cozy Mystery Night"
+    },
+    {
+      "matched_person_names": [
+        "Jack Nicholson"
+      ],
+      "rank_delta_vs_baseline": 1,
+      "ranked_titles": [
+        "The Shining",
+        "Clean Action Escape",
+        "Quiet Sad Drama",
+        "Cozy Mystery Night"
+      ],
+      "strategy_name": "tester_profile_calibration",
+      "target_explanation_excerpt": "Fits compromise mode with signal from Horror, Thriller. Cezary - tester: 0.92, Taste Lab signals: 3; Partner: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity.",
+      "target_rank": 1,
+      "target_signal_families": [
+        "genre",
+        "title_similarity"
+      ],
+      "top_pick_changed_vs_baseline": true,
+      "top_pick_explanation_excerpt": "Fits compromise mode with signal from Horror, Thriller. Cezary - tester: 0.92, Taste Lab signals: 3; Partner: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity.",
+      "top_pick_title": "The Shining"
+    },
+    {
+      "matched_person_names": [
+        "Jack Nicholson"
+      ],
+      "rank_delta_vs_baseline": 1,
+      "ranked_titles": [
+        "The Shining",
+        "Clean Action Escape",
+        "Quiet Sad Drama",
+        "Cozy Mystery Night"
+      ],
+      "strategy_name": "tester_profile_plus_directed_nudge",
+      "target_explanation_excerpt": "Fits compromise mode with signal from Horror, Thriller. Cezary - tester: 0.92, Taste Lab signals: 3; Partner: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, tonight_intent.",
+      "target_rank": 1,
+      "target_signal_families": [
+        "genre",
+        "title_similarity",
+        "tonight_intent"
+      ],
+      "top_pick_changed_vs_baseline": true,
+      "top_pick_explanation_excerpt": "Fits compromise mode with signal from Horror, Thriller. Cezary - tester: 0.92, Taste Lab signals: 3; Partner: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, tonight_intent.",
+      "top_pick_title": "The Shining"
+    }
+  ],
+  "risk_notes": [
+    "The scenario is deterministic and local; it proves scoring movement, not live TMDb coverage.",
+    "Named-person requests are represented in the shortlist payload and provider layer, while this scorer scenario uses the nudge text and matched-person evidence for review.",
+    "Taste Lab evidence is deliberately visible in explanations so dogfood can judge whether calibration is helping.",
+    "A broader recommendation evaluation corpus remains next-phase work."
+  ],
+  "summary": {
+    "baseline_top_pick": "Cozy Mystery Night",
+    "enriched_target_rank_delta": 1,
+    "enriched_top_pick": "The Shining",
+    "mvp_plus_3_recommendation_quality_passed": true,
+    "top_pick_changed": true
+  },
+  "target_title": "The Shining"
+}

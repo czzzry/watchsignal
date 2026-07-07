@@ -88,6 +88,10 @@ async function main() {
       await waitForText(tab, "Tonight", "results screen");
       await waitForText(tab, "Backups we also liked", "results backups");
       await waitForText(tab, "Steer next 5", "results steering panel");
+      if (useBackendMode) {
+        await waitForText(tab, "Current signals", "results evidence panel");
+        await waitForText(tab, "Cezary - tester: 1 signals", "tester Taste Lab evidence");
+      }
       await waitForRankedShortlist(tab);
       await assertNoHorizontalOverflow(tab, "results screen");
       await captureScreenshot(tab, screenshotDir, "03-results");
@@ -289,10 +293,14 @@ async function startApiServer() {
 }
 
 async function seedBackendOnboarding(apiBaseUrl) {
-  const setup = await getJson(new URL("/setup", apiBaseUrl));
+  const setup = await postJson(new URL("/setup/profiles/tester", apiBaseUrl));
   const profiles = Array.isArray(setup?.profiles) ? setup.profiles : [];
   if (profiles.length < 2) {
     throw new Error("Backend-backed UX smoke could not load two setup profiles.");
+  }
+  const testerProfile = profiles.find((profile) => profile?.id === "cezary-tester");
+  if (!testerProfile) {
+    throw new Error("Backend-backed UX smoke could not create the tester profile.");
   }
 
   for (const profile of profiles.slice(0, 2)) {
@@ -315,6 +323,46 @@ async function seedBackendOnboarding(apiBaseUrl) {
       },
       isComplete: true,
     });
+  }
+
+  await postJson(
+    new URL(
+      `/taste-lab/${encodeURIComponent(testerProfile.id)}/ratings`,
+      apiBaseUrl,
+    ),
+    {
+      householdId: "default-household",
+      ratings: [
+        {
+          movie: {
+            sourceMovieId: "tmdb:694",
+            title: "The Shining",
+            genres: ["Horror", "Thriller"],
+          },
+          label: "loved",
+          queueProvenance: {
+            queueSource: "mobile_ux_smoke",
+            generatedAt: "2026-07-07T00:00:00Z",
+            rank: 1,
+            signalScore: 1,
+            scoreComponents: {
+              mvp_plus_3_tester_profile_seed: 1,
+            },
+          },
+          ratedAt: "2026-07-07T00:00:00Z",
+        },
+      ],
+    },
+  );
+
+  const summary = await getJson(
+    new URL(
+      `/taste-profile/${encodeURIComponent(testerProfile.id)}/summary?householdId=default-household`,
+      apiBaseUrl,
+    ),
+  );
+  if (summary?.preferenceEvidenceCount < 1) {
+    throw new Error("Backend-backed UX smoke could not seed tester Taste Lab evidence.");
   }
 }
 
@@ -426,6 +474,10 @@ async function startChrome() {
       "--disable-background-networking",
       "--disable-extensions",
       "--disable-gpu",
+      "--disable-dev-shm-usage",
+      "--disable-setuid-sandbox",
+      "--no-sandbox",
+      "--single-process",
       "about:blank",
     ],
     { stdio: ["ignore", "ignore", "pipe"], detached: true },
@@ -957,6 +1009,23 @@ async function putJson(url, body) {
   });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status} while writing ${url}.`);
+  }
+  return response.json();
+}
+
+async function postJson(url, body = undefined) {
+  const response = await fetch(url, {
+    method: "POST",
+    headers:
+      body === undefined
+        ? undefined
+        : {
+            "Content-Type": "application/json",
+          },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status} while posting ${url}.`);
   }
   return response.json();
 }
