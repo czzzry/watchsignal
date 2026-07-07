@@ -10,7 +10,7 @@ MVP Plus 3 is **Directed Discovery And Real Tester Profile**.
 Current tracker:
 
 ```text
-MVP+3: [██░░░░░░░░░░░░░░░░░░] 1/10 issues done
+MVP+3: [████░░░░░░░░░░░░░░░░] 2/10 issues done
 ```
 
 The issue count is ten.
@@ -34,7 +34,7 @@ Parent PRD issue:
 Implementation and acceptance slices:
 
 - #63 - MVP+3 Slice 1 - Contracts And Acceptance Gate - done
-- #64 - MVP+3 Slice 2 - Persistent Tester Profile Foundation
+- #64 - MVP+3 Slice 2 - Persistent Tester Profile Foundation - done
 - #65 - MVP+3 Slice 3 - Taste Lab Profile Selection And Durable Ratings
 - #66 - MVP+3 Slice 4 - Main Flow Uses Selected Profiles And Calibration Evidence
 - #67 - MVP+3 Slice 5 - Directed Nudge Interpreter Contract
@@ -105,12 +105,12 @@ Persistence should be profile-id based so renames do not orphan taste data.
 
 ### Acceptance criteria
 
-- [ ] The user can create or select a `Cezary - tester` profile.
-- [ ] The profile has a stable id separate from the display label.
-- [ ] The profile can be renamed without losing stored identity.
-- [ ] The profile persists through reload or local app restart boundaries.
-- [ ] A second default or partner profile remains available for the shared flow.
-- [ ] Tests cover create, select, rename, and reload behavior.
+- [x] The user can create or select a `Cezary - tester` profile.
+- [x] The profile has a stable id separate from the display label.
+- [x] The profile can be renamed without losing stored identity.
+- [x] The profile persists through reload or local app restart boundaries.
+- [x] A second default or partner profile remains available for the shared flow.
+- [x] Tests cover create, select, rename, and reload behavior.
 
 ### Validation commands
 
@@ -125,6 +125,9 @@ pnpm build:web
 ### Stop condition
 
 Stop when a real tester profile can be selected repeatedly without relying on reset fixtures.
+
+Completed by setup store operations and API routes for ensuring the tester profile and renaming profiles.
+The Next.js API proxy exposes the same operations to the web app.
 
 ### Risk notes
 
