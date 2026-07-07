@@ -97,6 +97,8 @@ async function main() {
       if (useBackendMode) {
         await waitForText(tab, "Current signals", "results evidence panel");
         await waitForText(tab, "Cezary - tester: 1 signals", "tester Taste Lab evidence");
+        await waitForText(tab, "Why it moved", "recommendation trust movement evidence");
+        await waitForText(tab, "Held back", "recommendation trust penalty evidence");
         if (expectedRecommendationSource === "live_tmdb") {
           await waitForText(tab, "Live TMDb", "recommendation source");
         } else if (expectedRecommendationSource === "demo") {

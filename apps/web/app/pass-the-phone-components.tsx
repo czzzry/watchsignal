@@ -2247,6 +2247,7 @@ export function ResultsStep({
         recommendationSource={recommendationSource}
         participantEntries={participantEntries}
         tasteProfileSummaries={tasteProfileSummaries}
+        debugHistory={debugHistory}
       />
 
       <ResultsActions
