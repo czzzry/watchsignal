@@ -3517,6 +3517,28 @@ summary:focus-visible {
   line-height: 1.1;
 }
 
+.trustSignalChips span {
+  border-color: rgba(120, 240, 255, 0.18);
+  background: rgba(120, 240, 255, 0.09);
+  color: rgba(214, 250, 255, 0.9);
+}
+
+.trustPenaltyList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.trustPenaltyList span {
+  border: 1px solid rgba(255, 111, 145, 0.18);
+  border-radius: 999px;
+  padding: 5px 7px;
+  background: rgba(255, 111, 145, 0.08);
+  color: rgba(255, 218, 226, 0.9);
+  font-size: 0.64rem;
+  line-height: 1.1;
+}
+
 .tonightIntentQuickActions {
   display: flex;
   flex-wrap: wrap;

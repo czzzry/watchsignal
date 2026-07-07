@@ -19,8 +19,10 @@ import type {
 } from "../../pass-the-phone-model";
 import type {
   DebugHistoryCandidateInputPayload,
+  DebugHistoryRecommendationCandidatePayload,
   DebugHistoryReactionPayload,
   DebugHistorySessionPayload,
+  DebugHistorySignalContributionPayload,
   SessionOutcomePayload,
   SessionOutcomeType,
   SharedSessionPayload,
@@ -763,14 +765,22 @@ export function RecommendationEvidencePanel({
   recommendationSource,
   participantEntries,
   tasteProfileSummaries,
+  debugHistory,
 }: {
   bestPick: RankedCandidate;
   activeIntents: TonightIntentInterpretationPayload[];
   recommendationSource: string;
   participantEntries: ResultsParticipantEntry[];
   tasteProfileSummaries: TasteProfileSummaryPayload[];
+  debugHistory: DebugHistorySessionPayload | null;
 }) {
   const matchedPersonNames = bestPick.matchedPersonNames?.slice(0, 3) ?? [];
+  const snapshotCandidate = debugHistory?.recommendationSnapshot?.candidates.find(
+    (candidate) => candidate.sourceMovieId === bestPick.id,
+  ) ?? null;
+  const trustSignals = trustSignalLabels(snapshotCandidate);
+  const penaltySignals = penaltySignalLabels(debugHistory, snapshotCandidate);
+  const scoreRows = trustScoreRows(snapshotCandidate, participantEntries);
   const sourceLabel =
     recommendationSource === "live_tmdb" ? "Live TMDb" : "Demo catalog";
   const sourceDetail =
@@ -815,7 +825,7 @@ export function RecommendationEvidencePanel({
           <p>{sourceDetail}</p>
         </div>
         <div>
-          <strong>Taste Lab</strong>
+          <strong>Profiles</strong>
           <div className="tonightIntentSignals">
             {profileRows.map((profileRow) => (
               <span key={profileRow.label}>
@@ -823,6 +833,9 @@ export function RecommendationEvidencePanel({
               </span>
             ))}
           </div>
+          {scoreRows.length > 0 ? (
+            <p>{scoreRows.join(" · ")}</p>
+          ) : null}
         </div>
         <div>
           <strong>Best pick</strong>
@@ -832,9 +845,97 @@ export function RecommendationEvidencePanel({
               : `${bestPick.title} led the shared score.`}
           </p>
         </div>
+        <div>
+          <strong>Why it moved</strong>
+          {trustSignals.length > 0 ? (
+            <div className="tonightIntentSignals trustSignalChips">
+              {trustSignals.map((signal) => (
+                <span key={signal}>{signal}</span>
+              ))}
+            </div>
+          ) : (
+            <p>Waiting for scoring evidence from the backend.</p>
+          )}
+        </div>
+        <div>
+          <strong>Held back</strong>
+          {penaltySignals.length > 0 ? (
+            <div className="trustPenaltyList">
+              {penaltySignals.map((signal) => (
+                <span key={signal}>{signal}</span>
+              ))}
+            </div>
+          ) : (
+            <p>No remembered veto or repeat penalty on this result.</p>
+          )}
+        </div>
       </div>
     </section>
   );
+}
+
+function trustSignalLabels(
+  candidate: DebugHistoryRecommendationCandidatePayload | null,
+): string[] {
+  if (candidate === null) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      candidate.scoringEvidence.flatMap((evidence) =>
+        evidence.contributions
+          .filter((contribution) => contribution.value > 0)
+          .map(formatTrustContribution),
+      ),
+    ),
+  ).slice(0, 4);
+}
+
+function penaltySignalLabels(
+  history: DebugHistorySessionPayload | null,
+  candidate: DebugHistoryRecommendationCandidatePayload | null,
+): string[] {
+  const watchedTitles =
+    history?.recommendationSnapshot?.candidateInputs
+      .filter((input) => input.alreadyWatched)
+      .map((input) => `Already watched: ${input.title}`) ?? [];
+  const negativeContributions =
+    candidate?.scoringEvidence.flatMap((evidence) =>
+      evidence.contributions
+        .filter((contribution) => contribution.value < 0)
+        .map(formatTrustContribution),
+    ) ?? [];
+
+  return Array.from(new Set([...watchedTitles, ...negativeContributions])).slice(
+    0,
+    3,
+  );
+}
+
+function trustScoreRows(
+  candidate: DebugHistoryRecommendationCandidatePayload | null,
+  participantEntries: ResultsParticipantEntry[],
+): string[] {
+  if (candidate === null) {
+    return [];
+  }
+
+  return candidate.userScores.map((score) => {
+    const participant = participantEntries.find(
+      (entry) => entry.id === score.userId,
+    );
+    return `${participant?.label ?? score.userId}: ${Math.round(score.score * 100)}%`;
+  });
+}
+
+function formatTrustContribution(
+  contribution: DebugHistorySignalContributionPayload,
+): string {
+  const label = contribution.label.includes(":")
+    ? contribution.label.split(":").join(": ")
+    : contribution.label;
+  return `${formatTonightIntentSignal(contribution.family)}: ${label}`;
 }
 
 export function SessionEvidencePanel({
