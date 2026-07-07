@@ -2,8 +2,13 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, cast
 
+from movie_night_mediator.mvp_plus_3 import (
+    DirectedNudge,
+    DirectedNudgeStatus,
+    PersonCandidateIntent,
+)
 from movie_night_mediator.mvp_plus_2 import (
     IntentInterpretation,
     IntentInterpretationStatus,
@@ -15,6 +20,11 @@ class TonightIntentProvider(Protocol):
         """Return structured tonight intent without ranking candidate movies."""
 
 
+class DirectedNudgeProvider(Protocol):
+    def interpret_directed_nudge(self, text: str) -> DirectedNudge:
+        """Return a structured active nudge without ranking candidate movies."""
+
+
 @dataclass(frozen=True)
 class TonightIntentInterpreter:
     live_provider: TonightIntentProvider | None = None
@@ -24,6 +34,16 @@ class TonightIntentInterpreter:
             return self.live_provider.interpret(text)
 
         return DeterministicTonightIntentProvider().interpret(text)
+
+    def interpret_directed_nudge(self, text: str) -> DirectedNudge:
+        if self.live_provider is not None and hasattr(
+            self.live_provider,
+            "interpret_directed_nudge",
+        ):
+            provider = cast(DirectedNudgeProvider, self.live_provider)
+            return provider.interpret_directed_nudge(text)
+
+        return DeterministicTonightIntentProvider().interpret_directed_nudge(text)
 
 
 @dataclass(frozen=True)
@@ -84,6 +104,92 @@ class DeterministicTonightIntentProvider:
             filters=filters,
             soft_signals=tuple(_dedupe(soft_signals)),
             confidence="high" if filters else "medium",
+        )
+
+    def interpret_directed_nudge(self, text: str) -> DirectedNudge:
+        normalized_text = _require_text(text)
+        lowered_text = normalized_text.casefold()
+
+        filters: dict[str, object] = {}
+        soft_signals: list[str] = []
+        excluded_signals: list[str] = []
+
+        year_range = _year_range(lowered_text)
+        if year_range is not None:
+            filters["release_year_min"] = year_range[0]
+            filters["release_year_max"] = year_range[1]
+            soft_signals.append(f"{year_range[0]}s")
+
+        if _asks_to_avoid_seen(lowered_text):
+            filters["exclude_watched"] = True
+            soft_signals.append("not-seen")
+
+        if _asks_to_avoid_subtitles(lowered_text):
+            filters["exclude_subtitled"] = True
+            excluded_signals.append("subtitles")
+
+        genre_signals = _genre_signals(lowered_text)
+        if genre_signals:
+            filters["genres"] = list(genre_signals)
+            soft_signals.extend(signal.casefold() for signal in genre_signals)
+
+        tone_signals = _tone_signals(lowered_text)
+        soft_signals.extend(tone_signals)
+        soft_signals.extend(_directed_mood_signals(lowered_text))
+        excluded_signals.extend(_excluded_signals(lowered_text))
+
+        person_intents = _person_intents(normalized_text)
+        if person_intents:
+            filters["people"] = [intent.raw_name for intent in person_intents]
+            soft_signals.append("person-request")
+
+        excluded_signals = list(_dedupe(excluded_signals))
+        soft_signals = [
+            signal
+            for signal in _dedupe(soft_signals)
+            if signal not in excluded_signals
+        ]
+
+        if _needs_directed_clarification(
+            lowered_text=lowered_text,
+            filters=filters,
+            soft_signals=soft_signals,
+            excluded_signals=excluded_signals,
+            person_intents=person_intents,
+        ):
+            return DirectedNudge(
+                raw_text=normalized_text,
+                status=DirectedNudgeStatus.CLARIFICATION_REQUIRED,
+                clarification_question=(
+                    "Do you want something comforting, or something that matches the mood?"
+                ),
+                soft_signals=tuple(_dedupe(soft_signals + ["emotional"])),
+                excluded_signals=tuple(excluded_signals),
+                person_intents=person_intents,
+                confidence="medium",
+            )
+
+        if not filters and not soft_signals and not excluded_signals:
+            soft_signals.append("open-ended")
+
+        return DirectedNudge(
+            raw_text=normalized_text,
+            status=DirectedNudgeStatus.CONFIRMATION_REQUIRED,
+            user_facing_summary=_directed_summary(
+                filters=filters,
+                soft_signals=tuple(_dedupe(soft_signals)),
+                excluded_signals=tuple(_dedupe(excluded_signals)),
+                person_intents=person_intents,
+            ),
+            filters=filters,
+            soft_signals=tuple(_dedupe(soft_signals)),
+            excluded_signals=tuple(_dedupe(excluded_signals)),
+            person_intents=person_intents,
+            confidence=(
+                "high"
+                if filters or excluded_signals or person_intents
+                else "medium"
+            ),
         )
 
 
@@ -152,6 +258,24 @@ def _person_request(text: str) -> str | None:
     return name or None
 
 
+def _person_intents(text: str) -> tuple[PersonCandidateIntent, ...]:
+    names: list[str] = []
+    for pattern in (
+        r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){1,3})\s+in it\b",
+        r"\bwith\s+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){1,3})\b",
+        r"\bstarring\s+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){1,3})\b",
+    ):
+        names.extend(match.group(1).strip() for match in re.finditer(pattern, text))
+
+    if request_name := _person_request(text):
+        names.append(request_name)
+
+    return tuple(
+        PersonCandidateIntent(raw_name=name, normalized_name=name.casefold())
+        for name in _dedupe(names)
+    )
+
+
 def _franchise_request(text: str) -> str | None:
     franchises = {
         "star wars": "Star Wars",
@@ -182,6 +306,18 @@ def _asks_to_avoid_seen(text: str) -> bool:
     )
 
 
+def _asks_to_avoid_subtitles(text: str) -> bool:
+    return any(
+        phrase in text
+        for phrase in (
+            "nothing with subtitles",
+            "no subtitles",
+            "not subtitled",
+            "without subtitles",
+        )
+    )
+
+
 def _genre_signals(text: str) -> tuple[str, ...]:
     genres: list[str] = []
     if any(word in text for word in ("laugh", "funny", "silly", "comedy", "comedies")):
@@ -194,6 +330,8 @@ def _genre_signals(text: str) -> tuple[str, ...]:
         genres.append("Romance")
     if any(word in text for word in ("mystery", "detective", "whodunit")):
         genres.append("Mystery")
+    if "thriller" in text:
+        genres.append("Thriller")
     if any(word in text for word in ("sci-fi", "science fiction", "space")):
         genres.append("Sci-Fi")
 
@@ -206,12 +344,55 @@ def _tone_signals(text: str) -> tuple[str, ...]:
         signals.append("comforting")
     if any(word in text for word in ("dark", "intense", "serious")):
         signals.append("intense")
+    if "bleak" in text:
+        signals.append("bleak")
+    if "beautiful" in text:
+        signals.append("beautiful")
     if any(word in text for word in ("weird", "strange", "offbeat")):
         signals.append("offbeat")
     if "tonight" in text:
         signals.append("tonight")
 
     return tuple(_dedupe(signals))
+
+
+def _directed_mood_signals(text: str) -> tuple[str, ...]:
+    signals: list[str] = []
+    if "sad" in text:
+        signals.append("sad")
+
+    return tuple(_dedupe(signals))
+
+
+def _excluded_signals(text: str) -> tuple[str, ...]:
+    exclusions: list[str] = []
+    for match in re.finditer(
+        r"\b(?:not|no|nothing with|without)\s+([a-z][a-z-]+)\b",
+        text,
+    ):
+        excluded_signal = match.group(1)
+        if excluded_signal not in {"seen", "subtitles", "subtitled"}:
+            exclusions.append(excluded_signal)
+
+    return tuple(_dedupe(exclusions))
+
+
+def _needs_directed_clarification(
+    *,
+    lowered_text: str,
+    filters: dict[str, object],
+    soft_signals: list[str],
+    excluded_signals: list[str],
+    person_intents: tuple[PersonCandidateIntent, ...],
+) -> bool:
+    if not _needs_emotional_clarification(lowered_text):
+        return False
+
+    if filters or excluded_signals or person_intents:
+        return False
+
+    concrete_mood_signals = {"beautiful", "comforting", "offbeat", "intense"}
+    return not concrete_mood_signals.intersection(soft_signals)
 
 
 def _confirmation_text(filters: dict[str, object], soft_signals: tuple[str, ...]) -> str:
@@ -232,6 +413,37 @@ def _confirmation_text(filters: dict[str, object], soft_signals: tuple[str, ...]
         pieces.append(f"with a {soft_signals[0]} feel")
 
     return f"Got it: I will look for something {' and '.join(pieces)}."
+
+
+def _directed_summary(
+    *,
+    filters: dict[str, object],
+    soft_signals: tuple[str, ...],
+    excluded_signals: tuple[str, ...],
+    person_intents: tuple[PersonCandidateIntent, ...],
+) -> str:
+    pieces: list[str] = []
+    if "release_year_min" in filters and "release_year_max" in filters:
+        start = filters["release_year_min"]
+        end = filters["release_year_max"]
+        pieces.append(f"from {start}" if start == end else f"from {start}-{end}")
+    if genres := filters.get("genres"):
+        pieces.append(f"leaning {', '.join(str(genre) for genre in genres)}")
+    if person_intents:
+        pieces.append(
+            "with "
+            + ", ".join(intent.raw_name for intent in person_intents)
+        )
+    if filters.get("exclude_watched"):
+        pieces.append("skipping movies you have already seen")
+    if filters.get("exclude_subtitled"):
+        pieces.append("without subtitles")
+    if excluded_signals:
+        pieces.append(f"not {', '.join(excluded_signals)}")
+    if not pieces and soft_signals:
+        pieces.append(f"with a {soft_signals[0]} feel")
+
+    return f"Got it: I will keep an active nudge for something {' and '.join(pieces)}."
 
 
 def _dedupe(values: list[str]) -> tuple[str, ...]:
