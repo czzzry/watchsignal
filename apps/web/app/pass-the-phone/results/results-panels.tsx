@@ -783,11 +783,16 @@ export function RecommendationEvidencePanel({
   const trustSignals = trustSignalLabels(snapshotCandidate);
   const penaltySignals = penaltySignalLabels(debugHistory, snapshotCandidate);
   const scoreRows = trustScoreRows(snapshotCandidate, participantEntries);
+  const movementText = trustMovementText(debugHistory, snapshotCandidate);
   const sourceLabel =
     recommendationSource === "live_tmdb" ? "Live TMDb" : "Demo catalog";
+  const fallbackCount =
+    debugHistory?.recommendationSnapshot?.enrichmentCoverage.fallbackCandidateCount ?? 0;
   const sourceDetail =
     recommendationSource === "live_tmdb"
-      ? "Broad live candidate pool."
+      ? fallbackCount > 0
+        ? `Live TMDb pool with ${fallbackCount} metadata fallback${fallbackCount === 1 ? "" : "s"}.`
+        : "Broad live candidate pool."
       : "Small seeded pool for local demo mode. Provider labels are fixed fixtures.";
   const profileRows = participantEntries.map((participant) => {
     const summary = tasteProfileSummaries.find(
@@ -848,9 +853,10 @@ export function RecommendationEvidencePanel({
         <div>
           <strong>Best pick</strong>
           <p>
-            {matchedPersonNames.length > 0
-              ? `Matched ${matchedPersonNames.join(", ")}.`
-              : `${bestPick.title} led the shared score.`}
+            {movementText ??
+              (matchedPersonNames.length > 0
+                ? `Matched ${matchedPersonNames.join(", ")}.`
+                : `${bestPick.title} led the shared score.`)}
           </p>
         </div>
         <div>
@@ -921,6 +927,33 @@ function penaltySignalLabels(
   );
 }
 
+function trustMovementText(
+  history: DebugHistorySessionPayload | null,
+  candidate: DebugHistoryRecommendationCandidatePayload | null,
+): string | null {
+  if (history === null || candidate === null) {
+    return null;
+  }
+
+  const previousIndex = history.previousShortlist.findIndex(
+    (item) => item.sourceMovieId === candidate.sourceMovieId,
+  );
+  if (previousIndex >= 0) {
+    return `Moved from previous batch #${previousIndex + 1} to current #${candidate.candidateRank}.`;
+  }
+
+  const memorySignals = candidate.scoringEvidence.flatMap((evidence) =>
+    evidence.contributions.filter((contribution) =>
+      isMemoryContribution(contribution),
+    ),
+  );
+  if (memorySignals.length > 0) {
+    return `Memory changed the score; ${candidate.title} is now #${candidate.candidateRank}.`;
+  }
+
+  return null;
+}
+
 function trustScoreRows(
   candidate: DebugHistoryRecommendationCandidatePayload | null,
   participantEntries: ResultsParticipantEntry[],
@@ -943,7 +976,21 @@ function formatTrustContribution(
   const label = contribution.label.includes(":")
     ? contribution.label.split(":").join(": ")
     : contribution.label;
-  return `${formatTonightIntentSignal(contribution.family)}: ${label}`;
+  const familyLabel = isMemoryContribution(contribution)
+    ? "Profile memory"
+    : formatTonightIntentSignal(contribution.family);
+  return `${familyLabel}: ${label}`;
+}
+
+function isMemoryContribution(
+  contribution: DebugHistorySignalContributionPayload,
+): boolean {
+  return (
+    contribution.label.startsWith("memory:") ||
+    contribution.label.startsWith("app_memory:") ||
+    contribution.label.startsWith("watchlist_rating:") ||
+    contribution.family === "title_similarity"
+  );
 }
 
 export function SessionEvidencePanel({
@@ -1244,7 +1291,7 @@ function DebugList({ label, items }: { label: string; items: string[] }) {
 
 function formatTonightIntentSignal(signal: string): string {
   return signal
-    .split("-")
+    .split(/[-_]/)
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
