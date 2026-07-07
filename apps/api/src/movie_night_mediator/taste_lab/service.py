@@ -60,9 +60,22 @@ class TasteLabStore(Protocol):
         raise NotImplementedError
 
 
+class TasteLabMemorySink(Protocol):
+    def record_taste_lab_rating(
+        self,
+        rating: TasteLabRatingExport,
+    ) -> object:
+        raise NotImplementedError
+
+
 class TasteLabService:
-    def __init__(self, store: TasteLabStore) -> None:
+    def __init__(
+        self,
+        store: TasteLabStore,
+        memory_sink: TasteLabMemorySink | None = None,
+    ) -> None:
         self.store = store
+        self.memory_sink = memory_sink
 
     def seed_candidates(
         self,
@@ -128,7 +141,11 @@ class TasteLabService:
             )
             for rating in ratings
         )
-        return self.store.save_ratings(ratings=exports)
+        saved = self.store.save_ratings(ratings=exports)
+        if self.memory_sink is not None:
+            for rating in saved:
+                self.memory_sink.record_taste_lab_rating(rating)
+        return saved
 
     def list_profile_ratings(
         self,

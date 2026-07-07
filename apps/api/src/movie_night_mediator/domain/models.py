@@ -90,6 +90,21 @@ class OutcomeSelectionOrigin(StrEnum):
     MANUAL_OTHER_CHOICE = "manual_other_choice"
 
 
+class TasteMemoryEventType(StrEnum):
+    TASTE_LAB_RATING = "taste_lab_rating"
+    WATCHLIST_SAVED = "watchlist_saved"
+    SEEN_BEFORE = "seen_before"
+    APP_OWNED_RATING = "app_owned_rating"
+    POST_WATCH_FEEDBACK = "post_watch_feedback"
+
+
+class TasteMemorySignalStatus(StrEnum):
+    ACTIVE = "active"
+    IGNORED = "ignored"
+    SUPERSEDED = "superseded"
+    TOO_WEAK_YET = "too_weak_yet"
+
+
 @dataclass(frozen=True)
 class HouseholdDefaults:
     default_region: str = "DE"
@@ -193,6 +208,89 @@ class ProfileTasteEvidence:
             "genres",
             tuple(genre.strip() for genre in self.genres if genre.strip()),
         )
+
+
+@dataclass(frozen=True)
+class TasteMemoryEvent:
+    event_id: str
+    household_id: str
+    profile_id: str
+    event_type: TasteMemoryEventType
+    source: str
+    source_movie_id: str
+    title: str
+    occurred_at: str
+    genres: tuple[str, ...] = ()
+    sentiment_label: str | None = None
+    preference_value: float | None = None
+    familiarity: str | None = None
+    effect_label: str | None = None
+    status: TasteMemorySignalStatus = TasteMemorySignalStatus.ACTIVE
+
+    def __post_init__(self) -> None:
+        normalized_event_id = self.event_id.strip()
+        normalized_household_id = self.household_id.strip()
+        normalized_profile_id = self.profile_id.strip()
+        normalized_source = self.source.strip()
+        normalized_source_movie_id = self.source_movie_id.strip()
+        normalized_title = self.title.strip()
+        normalized_occurred_at = self.occurred_at.strip()
+        normalized_sentiment_label = (
+            self.sentiment_label.strip()
+            if self.sentiment_label is not None
+            else None
+        )
+        normalized_familiarity = (
+            self.familiarity.strip() if self.familiarity is not None else None
+        )
+        normalized_effect_label = (
+            self.effect_label.strip() if self.effect_label is not None else None
+        )
+
+        if not normalized_event_id:
+            raise ValueError("Taste memory events require an event id.")
+
+        if not normalized_household_id:
+            raise ValueError("Taste memory events require a household id.")
+
+        if not normalized_profile_id:
+            raise ValueError("Taste memory events require a profile id.")
+
+        if not normalized_source:
+            raise ValueError("Taste memory events require a source.")
+
+        if not normalized_source_movie_id:
+            raise ValueError("Taste memory events require a source movie id.")
+
+        if not normalized_title:
+            raise ValueError("Taste memory events require a title.")
+
+        if not normalized_occurred_at:
+            raise ValueError("Taste memory events require an occurred timestamp.")
+
+        if (
+            self.preference_value is not None
+            and not -1.0 <= self.preference_value <= 1.0
+        ):
+            raise ValueError(
+                "Taste memory event preference value must be between -1 and 1."
+            )
+
+        object.__setattr__(self, "event_id", normalized_event_id)
+        object.__setattr__(self, "household_id", normalized_household_id)
+        object.__setattr__(self, "profile_id", normalized_profile_id)
+        object.__setattr__(self, "source", normalized_source)
+        object.__setattr__(self, "source_movie_id", normalized_source_movie_id)
+        object.__setattr__(self, "title", normalized_title)
+        object.__setattr__(self, "occurred_at", normalized_occurred_at)
+        object.__setattr__(
+            self,
+            "genres",
+            tuple(genre.strip() for genre in self.genres if genre.strip()),
+        )
+        object.__setattr__(self, "sentiment_label", normalized_sentiment_label)
+        object.__setattr__(self, "familiarity", normalized_familiarity)
+        object.__setattr__(self, "effect_label", normalized_effect_label)
 
 
 @dataclass(frozen=True)

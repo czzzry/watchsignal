@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Protocol
 from uuid import uuid4
 
 from movie_night_mediator.app.onboarding import SQLiteOnboardingStore
@@ -19,14 +20,30 @@ class SessionTransitionError(ValueError):
     pass
 
 
+class SessionMemorySink(Protocol):
+    def record_session_reaction(
+        self,
+        *,
+        household_id: str,
+        profile_id: str,
+        session_id: str,
+        source_movie_id: str,
+        title: str,
+        reaction_label: SessionReactionLabel,
+    ) -> object | None:
+        raise NotImplementedError
+
+
 class SharedSessionService:
     def __init__(
         self,
         session_store: SQLiteSessionStore,
         onboarding_store: SQLiteOnboardingStore,
+        memory_sink: SessionMemorySink | None = None,
     ) -> None:
         self.session_store = session_store
         self.onboarding_store = onboarding_store
+        self.memory_sink = memory_sink
 
     def start_session(
         self,
@@ -139,6 +156,7 @@ class SharedSessionService:
             if participant_id != session.founder_participant_id:
                 raise SessionTransitionError("Founder reaction pass is active.")
 
+            self._record_memory_reactions(session, participant_id, reactions)
             return self.session_store.save_session(
                 SharedMovieNightSession(
                     session_id=session.session_id,
@@ -159,6 +177,7 @@ class SharedSessionService:
             if participant_id != session.wife_participant_id:
                 raise SessionTransitionError("Wife reaction pass is active.")
 
+            self._record_memory_reactions(session, participant_id, reactions)
             reranked_ids = self._rerank(session, reactions)
             return self.session_store.save_session(
                 SharedMovieNightSession(
@@ -178,6 +197,29 @@ class SharedSessionService:
             )
 
         raise SessionTransitionError("Session is not accepting reactions right now.")
+
+    def _record_memory_reactions(
+        self,
+        session: SharedMovieNightSession,
+        participant_id: str,
+        reactions: tuple[SessionReaction, ...],
+    ) -> None:
+        if self.memory_sink is None:
+            return
+
+        titles_by_source_movie_id = {
+            item.source_movie_id: item.title
+            for item in session.shortlist
+        }
+        for reaction in reactions:
+            self.memory_sink.record_session_reaction(
+                household_id=session.household_id,
+                profile_id=participant_id,
+                session_id=session.session_id,
+                source_movie_id=reaction.source_movie_id,
+                title=titles_by_source_movie_id[reaction.source_movie_id],
+                reaction_label=reaction.reaction_label,
+            )
 
     def advance_handoff(self, session_id: str) -> SharedMovieNightSession:
         session = self._require_session(session_id)

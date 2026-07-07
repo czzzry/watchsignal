@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Protocol
 
 from movie_night_mediator.storage.watchlist import SQLiteWatchlistStore
 
@@ -25,9 +26,27 @@ class WatchlistEntry:
         return False
 
 
+class WatchlistMemorySink(Protocol):
+    def record_watchlist_save(
+        self,
+        *,
+        household_id: str,
+        profile_id: str,
+        source_movie_id: str,
+        title: str,
+        occurred_at: str,
+    ) -> object:
+        raise NotImplementedError
+
+
 class SharedWatchlistService:
-    def __init__(self, store: SQLiteWatchlistStore) -> None:
+    def __init__(
+        self,
+        store: SQLiteWatchlistStore,
+        memory_sink: WatchlistMemorySink | None = None,
+    ) -> None:
         self.store = store
+        self.memory_sink = memory_sink
 
     def save_movie(
         self,
@@ -40,7 +59,7 @@ class SharedWatchlistService:
         poster_url: str | None = None,
         release_year: int | None = None,
     ) -> WatchlistEntry:
-        return self.store.save_entry(
+        saved = self.store.save_entry(
             household_id=household_id,
             source_movie_id=source_movie_id,
             title=title,
@@ -49,6 +68,15 @@ class SharedWatchlistService:
             poster_url=poster_url,
             release_year=release_year,
         )
+        if self.memory_sink is not None and saved.saved_by_profile_id is not None:
+            self.memory_sink.record_watchlist_save(
+                household_id=saved.household_id,
+                profile_id=saved.saved_by_profile_id,
+                source_movie_id=saved.source_movie_id,
+                title=saved.title,
+                occurred_at=saved.saved_at,
+            )
+        return saved
 
     def list_movies(self, *, household_id: str) -> tuple[WatchlistEntry, ...]:
         return self.store.list_entries(household_id=household_id)

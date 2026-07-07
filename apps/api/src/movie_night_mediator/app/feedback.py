@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Protocol
+
 from movie_night_mediator.app.backfill import ManualBackfillService
 from movie_night_mediator.domain import (
     BackfillTasteLabel,
@@ -15,6 +17,21 @@ from movie_night_mediator.storage import (
 )
 
 
+class PostWatchFeedbackMemorySink(Protocol):
+    def record_post_watch_feedback(
+        self,
+        *,
+        household_id: str,
+        profile_id: str,
+        session_id: str,
+        source_movie_id: str,
+        title: str,
+        feedback_label: str,
+        occurred_at: str | None = None,
+    ) -> object:
+        raise NotImplementedError
+
+
 class PostWatchFeedbackService:
     def __init__(
         self,
@@ -23,11 +40,13 @@ class PostWatchFeedbackService:
         session_store: SQLiteSessionStore | None = None,
         outcome_store: SQLiteOutcomeStore | None = None,
         backfill_service: ManualBackfillService | None = None,
+        memory_sink: PostWatchFeedbackMemorySink | None = None,
     ) -> None:
         self.store = store
         self.session_store = session_store
         self.outcome_store = outcome_store
         self.backfill_service = backfill_service
+        self.memory_sink = memory_sink
 
     def save_feedback(
         self,
@@ -51,6 +70,7 @@ class PostWatchFeedbackService:
             feedback=feedback,
         )
         self._sync_watched_history(household_id=household_id, feedback=saved_feedback)
+        self._sync_taste_memory(household_id=household_id, feedback=saved_feedback)
         return saved_feedback
 
     def list_feedback(
@@ -105,6 +125,39 @@ class PostWatchFeedbackService:
             entry=_entry_for_feedback(feedback.source_movie_id, title),
             participant_ids=(feedback.user_id,),
             taste_label=BackfillTasteLabel(feedback.feedback_label),
+        )
+
+    def _sync_taste_memory(
+        self,
+        *,
+        household_id: str,
+        feedback: PostWatchFeedback,
+    ) -> None:
+        if self.memory_sink is None or self.session_store is None:
+            return
+
+        session = self.session_store.load_session(feedback.session_id)
+        if session is None or session.household_id != household_id:
+            return
+
+        title = next(
+            (
+                item.title
+                for item in session.shortlist
+                if item.source_movie_id == feedback.source_movie_id
+            ),
+            None,
+        )
+        if title is None:
+            return
+
+        self.memory_sink.record_post_watch_feedback(
+            household_id=household_id,
+            profile_id=feedback.user_id,
+            session_id=feedback.session_id,
+            source_movie_id=feedback.source_movie_id,
+            title=title,
+            feedback_label=feedback.feedback_label,
         )
 
 

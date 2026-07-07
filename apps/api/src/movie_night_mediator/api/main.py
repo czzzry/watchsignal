@@ -49,6 +49,7 @@ from movie_night_mediator.app.recommendation_memory import (
     profile_memory_evidence,
     watched_source_movie_ids,
 )
+from movie_night_mediator.app.taste_memory import TasteMemoryService
 from movie_night_mediator.app.session import (
     SessionTransitionError,
     SharedSessionService,
@@ -109,6 +110,7 @@ from movie_night_mediator.storage import (
     SQLiteRecommendationSnapshotStore,
     SQLiteSessionStore,
     SQLiteTasteLabStore,
+    SQLiteTasteMemoryStore,
     SQLiteWatchlistStore,
 )
 from movie_night_mediator.taste_lab import (
@@ -460,6 +462,7 @@ def create_app(
     session_store: SQLiteSessionStore | None = None,
     recommendation_snapshot_store: SQLiteRecommendationSnapshotStore | None = None,
     taste_lab_store: SQLiteTasteLabStore | None = None,
+    taste_memory_store: SQLiteTasteMemoryStore | None = None,
     watchlist_store: SQLiteWatchlistStore | None = None,
     taste_lab_seed_queue_path: Path | str | None = None,
     candidate_source: CandidateSource | None = None,
@@ -485,17 +488,25 @@ def create_app(
     resolved_backfill_store = backfill_store or SQLiteBackfillStore()
     resolved_session_store = session_store or SQLiteSessionStore()
     resolved_outcome_store = outcome_store or SQLiteOutcomeStore()
+    taste_memory_service = TasteMemoryService(
+        taste_memory_store or SQLiteTasteMemoryStore()
+    )
     backfill_service = ManualBackfillService(resolved_backfill_store)
-    app_owned_movie_action_service = AppOwnedMovieActionService(backfill_service)
+    app_owned_movie_action_service = AppOwnedMovieActionService(
+        backfill_service,
+        memory_sink=taste_memory_service,
+    )
     feedback_service = PostWatchFeedbackService(
         store=feedback_store or SQLiteFeedbackStore(),
         session_store=resolved_session_store,
         outcome_store=resolved_outcome_store,
         backfill_service=backfill_service,
+        memory_sink=taste_memory_service,
     )
     session_service = SharedSessionService(
         session_store=resolved_session_store,
         onboarding_store=resolved_onboarding_store,
+        memory_sink=taste_memory_service,
     )
     outcome_service = SessionOutcomeService(
         store=resolved_outcome_store,
@@ -513,9 +524,13 @@ def create_app(
     recommendation_snapshot_service = RecommendationSnapshotService(
         resolved_recommendation_snapshot_store
     )
-    taste_lab_service = TasteLabService(taste_lab_store or SQLiteTasteLabStore())
+    taste_lab_service = TasteLabService(
+        taste_lab_store or SQLiteTasteLabStore(),
+        memory_sink=taste_memory_service,
+    )
     watchlist_service = SharedWatchlistService(
-        watchlist_store or SQLiteWatchlistStore()
+        watchlist_store or SQLiteWatchlistStore(),
+        memory_sink=taste_memory_service,
     )
     profile_memory_service = ProfileMemoryService(
         watchlist_service=watchlist_service,
@@ -537,6 +552,7 @@ def create_app(
     register_profile_memory_routes(
         app,
         profile_memory_service=profile_memory_service,
+        taste_memory_service=taste_memory_service,
     )
 
     @app.get("/health", tags=["system"])
