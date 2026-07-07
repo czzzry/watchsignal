@@ -25,6 +25,7 @@ from movie_night_mediator.api.routes.history import (
 )
 from movie_night_mediator.api.routes.memory import register_profile_memory_routes
 from movie_night_mediator.api.routes.setup import (
+    SetupProfileCreatePayload,
     SetupProfileRenamePayload,
     SetupStatePayload,
     register_setup_routes,

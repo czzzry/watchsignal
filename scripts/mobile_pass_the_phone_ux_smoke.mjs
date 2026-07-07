@@ -51,6 +51,9 @@ async function main() {
 
   try {
     await waitForText(tab, "Start first pass", "setup screen");
+    if (useBackendMode) {
+      await waitForText(tab, "Cezary - tester + Husband", "persisted household profile pairing");
+    }
     if (process.env.MOBILE_UX_SMOKE_CAPTURE_LAUNCH === "1") {
       await captureScreenshot(tab, screenshotDir, "00-launch");
     }
