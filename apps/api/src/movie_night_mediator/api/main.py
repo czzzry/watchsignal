@@ -1067,7 +1067,7 @@ def _live_candidate_shortlist_items(
                 backfill_service=backfill_service,
             ),
             limit=payload.shortlistSize,
-            candidate_limit=20 + len(payload.excludedSourceMovieIds) + len(watched_ids),
+            candidate_limit=80 + len(payload.excludedSourceMovieIds) + len(watched_ids),
             snapshot_service=snapshot_service,
             excluded_source_movie_ids=tuple(payload.excludedSourceMovieIds),
             watched_source_movie_ids=watched_ids,

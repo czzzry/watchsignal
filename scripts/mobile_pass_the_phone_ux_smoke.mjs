@@ -64,6 +64,10 @@ async function main() {
       await clickButton(tab, "Availability");
       await clickButton(tab, "Any streaming");
       await waitForText(tab, "Any streaming", "editable availability setting");
+      if (expectedRecommendationSource === "live_tmdb") {
+        await clickButton(tab, "Prime Video");
+        await waitForText(tab, "Prime Video", "live availability setting");
+      }
       await assertNoHorizontalOverflow(tab, "availability setting");
     }
     if (checkTonightIntent) {
@@ -120,6 +124,9 @@ async function main() {
         await clickButton(tab, "Watched");
         await waitForText(tab, "marked watched", "watchlist watched action");
         await clickButton(tab, "Remove");
+        if (!(await hasTextSoon(tab, "Removed from the shared watchlist", 3000))) {
+          await clickButton(tab, "Remove");
+        }
         await waitForText(tab, "Removed from the shared watchlist", "watchlist remove");
       }
     } catch (error) {
@@ -853,6 +860,22 @@ async function waitForText(tab, text, context) {
       }, expected),
     `text "${text}" on ${context}`,
   );
+}
+
+async function hasTextSoon(tab, text, timeoutMs) {
+  try {
+    await waitForValue(
+      async () =>
+        evaluate(tab, (expected) => {
+          return document.body.innerText.toLowerCase().includes(expected);
+        }, text.toLowerCase()),
+      `text "${text}"`,
+      timeoutMs,
+    );
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function waitForLaunchStingToFinish(tab) {
