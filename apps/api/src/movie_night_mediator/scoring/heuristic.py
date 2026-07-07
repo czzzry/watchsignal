@@ -269,11 +269,12 @@ class HeuristicScorer:
             similarity = _title_similarity(candidate.title, evidence.title)
             if similarity < 0.5:
                 continue
-            value = 0.18 * evidence.preference_value * similarity
+            weight = _title_similarity_weight(evidence.source, evidence.preference_value)
+            value = weight * evidence.preference_value * similarity
             contributions.append(
                 SignalContribution(
                     family="title_similarity",
-                    label=evidence.title,
+                    label=_profile_evidence_label(evidence.source, evidence.title),
                     value=value,
                 )
             )
@@ -516,3 +517,15 @@ def _title_similarity(candidate_title: str, evidence_title: str) -> float:
     if overlap == 0:
         return 0.0
     return overlap / len(candidate_tokens | evidence_tokens)
+
+
+def _profile_evidence_label(source: str, title: str) -> str:
+    if source == "taste_lab":
+        return title
+    return f"{source}:{title}"
+
+
+def _title_similarity_weight(source: str, preference_value: float) -> float:
+    if source in {"app_memory", "seen_before"} and preference_value < 0:
+        return 0.6
+    return 0.18

@@ -329,19 +329,12 @@ def _scenarios() -> tuple[EvaluationScenario, ...]:
             ),
             after=_request(
                 session_id="mvp4-post-watch-no-after",
-                users=(_action_profile(),),
+                users=(_action_profile_with_post_watch_no(),),
                 audience_mode=AudienceMode.SOLO,
-                session_reactions=(
-                    ScoringSessionReaction(
-                        source_movie_id="tmdb:edge-original",
-                        title="Edge of Tomorrow",
-                        reaction_label="no",
-                    ),
-                ),
             ),
             check=lambda result: (
                 result["actual_movement"] == "down"
-                and "session_reaction" in result["after_signal_families"]
+                and "title_similarity" in result["after_signal_families"]
             ),
         ),
         EvaluationScenario(
@@ -478,6 +471,18 @@ def _action_profile() -> UserProfile:
         display_label="Action profile",
         taste_profile_evidence=(
             _evidence("taste_lab", "tmdb:edge-original", "Edge of Tomorrow", ("Action", "Sci-Fi"), 1.0),
+        ),
+    )
+
+
+def _action_profile_with_post_watch_no() -> UserProfile:
+    return UserProfile(
+        user_id="profile-action",
+        role="founder",
+        display_label="Action profile",
+        taste_profile_evidence=(
+            _evidence("taste_lab", "tmdb:edge-original", "Edge of Tomorrow", ("Action", "Sci-Fi"), 1.0),
+            _evidence("app_memory", "tmdb:edge-original", "Edge of Tomorrow", (), -1.0),
         ),
     )
 

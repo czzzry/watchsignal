@@ -11,15 +11,20 @@ from movie_night_mediator.api.main import (
     RecommendationShortlistItemPayload,
     create_app,
 )
+from movie_night_mediator.app.backfill import ManualBackfillService
 from movie_night_mediator.app.shortlist import get_offline_demo_shortlist
 from movie_night_mediator.domain import (
+    BackfillTasteLabel,
     Candidate,
     HouseholdDefaults,
     MediaType,
     ProviderAccessType,
     ProviderAvailability,
     SessionContext,
+    TitleResolutionCandidate,
+    TitleResolutionEntry,
 )
+from movie_night_mediator.storage import SQLiteBackfillStore
 from movie_night_mediator.storage import SQLiteRecommendationSnapshotStore
 from movie_night_mediator.storage import SQLiteTasteLabStore
 from movie_night_mediator.taste_lab import (
@@ -233,6 +238,9 @@ class ShortlistApiTest(unittest.TestCase):
             post_shortlist = recommendation_shortlist_endpoint(
                 create_app(
                     recommendation_snapshot_store=snapshot_store,
+                    backfill_store=SQLiteBackfillStore(
+                        database_path=Path(directory) / "backfill.sqlite3"
+                    ),
                     candidate_source=FakeCandidateSource(),
                 ),
                 method="POST",
@@ -271,59 +279,71 @@ class ShortlistApiTest(unittest.TestCase):
     def test_post_recommendation_shortlist_combines_additive_tonight_intents(
         self,
     ) -> None:
-        candidate_source = RecordingCandidateSource()
-        post_shortlist = recommendation_shortlist_endpoint(
-            create_app(candidate_source=candidate_source),
-            method="POST",
-        )
-
-        payload = post_shortlist(
-            RecommendationShortlistRequestPayload(
-                sessionId="steered-session",
-                source="live_tmdb",
-                tonightIntents=[
-                    {"rawText": "something funny from the 90s"},
-                    {"rawText": "actually more action"},
-                ],
+        with tempfile.TemporaryDirectory() as directory:
+            candidate_source = RecordingCandidateSource()
+            post_shortlist = recommendation_shortlist_endpoint(
+                create_app(
+                    backfill_store=SQLiteBackfillStore(
+                        database_path=Path(directory) / "backfill.sqlite3"
+                    ),
+                    candidate_source=candidate_source,
+                ),
+                method="POST",
             )
-        )
 
-        self.assertEqual(len(payload), 5)
-        self.assertEqual(
-            candidate_source.mood_texts,
-            ("something funny from the 90s + actually more action",),
-        )
+            payload = post_shortlist(
+                RecommendationShortlistRequestPayload(
+                    sessionId="steered-session",
+                    source="live_tmdb",
+                    tonightIntents=[
+                        {"rawText": "something funny from the 90s"},
+                        {"rawText": "actually more action"},
+                    ],
+                )
+            )
+
+            self.assertEqual(len(payload), 5)
+            self.assertEqual(
+                candidate_source.mood_texts,
+                ("something funny from the 90s + actually more action",),
+            )
 
     def test_post_recommendation_shortlist_turns_people_filter_into_constraint(
         self,
     ) -> None:
-        candidate_source = RecordingCandidateSource()
-        post_shortlist = recommendation_shortlist_endpoint(
-            create_app(candidate_source=candidate_source),
-            method="POST",
-        )
-
-        payload = post_shortlist(
-            RecommendationShortlistRequestPayload(
-                sessionId="person-steered-session",
-                source="live_tmdb",
-                tonightIntents=[
-                    {
-                        "rawText": "something with Tom Cruise in it",
-                        "filters": {"people": ["Tom Cruise"]},
-                    },
-                ],
+        with tempfile.TemporaryDirectory() as directory:
+            candidate_source = RecordingCandidateSource()
+            post_shortlist = recommendation_shortlist_endpoint(
+                create_app(
+                    backfill_store=SQLiteBackfillStore(
+                        database_path=Path(directory) / "backfill.sqlite3"
+                    ),
+                    candidate_source=candidate_source,
+                ),
+                method="POST",
             )
-        )
 
-        self.assertEqual(
-            tuple(
-                constraint.raw_name
-                for constraint in candidate_source.person_constraints[0]
-            ),
-            ("Tom Cruise",),
-        )
-        self.assertEqual(payload[0].matchedPersonNames, ["Tom Cruise"])
+            payload = post_shortlist(
+                RecommendationShortlistRequestPayload(
+                    sessionId="person-steered-session",
+                    source="live_tmdb",
+                    tonightIntents=[
+                        {
+                            "rawText": "something with Tom Cruise in it",
+                            "filters": {"people": ["Tom Cruise"]},
+                        },
+                    ],
+                )
+            )
+
+            self.assertEqual(
+                tuple(
+                    constraint.raw_name
+                    for constraint in candidate_source.person_constraints[0]
+                ),
+                ("Tom Cruise",),
+            )
+            self.assertEqual(payload[0].matchedPersonNames, ["Tom Cruise"])
 
     def test_post_recommendation_shortlist_consumes_saved_taste_lab_profile_evidence(
         self,
@@ -376,6 +396,102 @@ class ShortlistApiTest(unittest.TestCase):
                     for candidate in snapshot.candidates
                 )
             )
+
+    def test_post_recommendation_shortlist_suppresses_exact_watched_memory(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "memory-shortlist.sqlite3"
+            backfill_store = SQLiteBackfillStore(database_path=database_path)
+            ManualBackfillService(backfill_store).add_watched_title(
+                household_id="default-household",
+                entry=resolved_title_entry(
+                    source_movie_id="tmdb:1",
+                    title="Live Pick 1",
+                ),
+                include_global=True,
+            )
+            snapshot_store = SQLiteRecommendationSnapshotStore(
+                database_path=database_path
+            )
+            post_shortlist = recommendation_shortlist_endpoint(
+                create_app(
+                    backfill_store=backfill_store,
+                    recommendation_snapshot_store=snapshot_store,
+                    candidate_source=SixCandidateSource(),
+                ),
+                method="POST",
+            )
+
+            payload = post_shortlist(
+                RecommendationShortlistRequestPayload(
+                    sessionId="watched-memory-session",
+                    source="live_tmdb",
+                )
+            )
+
+            snapshot = snapshot_store.load_snapshot("watched-memory-session")
+
+            self.assertNotIn("tmdb:1", [item.sourceMovieId for item in payload])
+            self.assertIsNotNone(snapshot)
+            assert snapshot is not None
+            watched_input = next(
+                candidate
+                for candidate in snapshot.candidate_inputs
+                if candidate.source_movie_id == "tmdb:1"
+            )
+            self.assertTrue(watched_input.already_watched)
+
+    def test_post_recommendation_shortlist_exposes_profile_app_memory_evidence(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "profile-memory-shortlist.sqlite3"
+            backfill_store = SQLiteBackfillStore(database_path=database_path)
+            ManualBackfillService(backfill_store).add_watched_title(
+                household_id="default-household",
+                entry=resolved_title_entry(
+                    source_movie_id="tmdb:edge-original",
+                    title="Edge of Tomorrow",
+                ),
+                participant_ids=("profile-1",),
+                taste_label=BackfillTasteLabel.NO,
+            )
+            snapshot_store = SQLiteRecommendationSnapshotStore(
+                database_path=database_path
+            )
+            post_shortlist = recommendation_shortlist_endpoint(
+                create_app(
+                    backfill_store=backfill_store,
+                    recommendation_snapshot_store=snapshot_store,
+                    candidate_source=MemoryEvidenceCandidateSource(),
+                ),
+                method="POST",
+            )
+
+            post_shortlist(
+                RecommendationShortlistRequestPayload(
+                    sessionId="profile-memory-session",
+                    source="live_tmdb",
+                    participantIds=["profile-1"],
+                )
+            )
+
+            snapshot = snapshot_store.load_snapshot("profile-memory-session")
+
+            self.assertIsNotNone(snapshot)
+            assert snapshot is not None
+            edge_candidate = next(
+                candidate
+                for candidate in snapshot.candidates
+                if candidate.title == "Edge of Tomorrow Again"
+            )
+            labels = {
+                contribution.label
+                for evidence in edge_candidate.scoring_evidence
+                for contribution in evidence.contributions
+            }
+            self.assertIn("app_memory:Edge of Tomorrow", labels)
 
 
 def recommendation_shortlist_endpoint(app, method: str = "GET"):
@@ -451,6 +567,73 @@ class RecordingCandidateSource(FakeCandidateSource):
             household_defaults=household_defaults,
             limit=limit,
         )
+
+
+class SixCandidateSource(FakeCandidateSource):
+    def fetch_candidates(
+        self,
+        *,
+        session: SessionContext,
+        household_defaults: HouseholdDefaults,
+        limit: int = 20,
+    ) -> tuple[Candidate, ...]:
+        return tuple(
+            live_candidate(index=index, title=f"Live Pick {index}")
+            for index in range(1, min(limit, 6) + 1)
+        )
+
+
+class MemoryEvidenceCandidateSource:
+    def fetch_candidates(
+        self,
+        *,
+        session: SessionContext,
+        household_defaults: HouseholdDefaults,
+        limit: int = 20,
+    ) -> tuple[Candidate, ...]:
+        return (
+            live_candidate(index=1, title="Edge of Tomorrow Again"),
+            live_candidate(index=2, title="Dinner Party Mystery"),
+            live_candidate(index=3, title="Arrival"),
+            live_candidate(index=4, title="Paddington 2"),
+            live_candidate(index=5, title="The Shining"),
+        )
+
+
+def live_candidate(*, index: int, title: str) -> Candidate:
+    return Candidate(
+        source_movie_id=f"tmdb:{index}",
+        title=title,
+        media_type=MediaType.MOVIE,
+        release_year=2020 + index,
+        runtime_min=95 + index,
+        poster_url=f"https://example.test/poster-{index}.jpg",
+        genres=("Drama", "Sci-Fi"),
+        overview=f"Live overview {index}.",
+        providers=("Amazon Prime Video",),
+        provider_availability=(
+            ProviderAvailability(
+                provider_name="Amazon Prime Video",
+                access_type=ProviderAccessType.FLATRATE,
+                region="DE",
+            ),
+        ),
+        original_language="en",
+        spoken_languages=("en",),
+    )
+
+
+def resolved_title_entry(*, source_movie_id: str, title: str) -> TitleResolutionEntry:
+    source, _, source_id = source_movie_id.partition(":")
+    return TitleResolutionEntry.resolved(
+        title,
+        TitleResolutionCandidate(
+            source=source,
+            source_id=source_id,
+            title=title,
+            media_type=MediaType.MOVIE,
+        ),
+    )
 
 
 if __name__ == "__main__":

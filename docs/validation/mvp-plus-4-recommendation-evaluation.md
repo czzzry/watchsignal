@@ -11,9 +11,9 @@ Command: `pnpm eval:mvp4`
 - attribution_scenarios: 4
 - attribution_passed: True
 - recommendation_scenarios: 7
-- recommendation_passed: 5
-- recommendation_pass_rate: 0.7143
-- known_gaps: ['named_actor_steer_surfaces_matching_cast', 'post_watch_no_moves_similar_title_down']
+- recommendation_passed: 6
+- recommendation_pass_rate: 0.8571
+- known_gaps: ['named_actor_steer_surfaces_matching_cast']
 - mvp_plus_4_evaluation_harness_passed: True
 
 ## Scenario Results
@@ -147,20 +147,20 @@ Command: `pnpm eval:mvp4`
 ### post_watch_no_moves_similar_title_down
 
 - Category: recommendation
-- Passed: False
+- Passed: True
 - Target: Edge of Tomorrow Again
 - Top five before: Edge of Tomorrow Again, Mission: Impossible - Fallout, Arrival, Dinner Party Mystery, The Shining
-- Top five after: Edge of Tomorrow Again, Mission: Impossible - Fallout, Arrival, Dinner Party Mystery, The Shining
+- Top five after: Mission: Impossible - Fallout, Arrival, Edge of Tomorrow Again, Dinner Party Mystery, The Shining
 - Expected movement: down
-- Actual movement: same
+- Actual movement: down
 - Target rank before: 1
-- Target rank after: 1
+- Target rank after: 3
 - Before signals: genre, title_similarity, feature_tag
-- After signals: genre, title_similarity, feature_tag, session_reaction
+- After signals: genre, title_similarity, feature_tag
 - Target enrichment provider after: fixed-mvp-plus-4-eval
 - Target matched person names after: none
 - Before explanation: Fits compromise mode with signal from Action, Sci-Fi. Action profile: 1.0, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.
-- After explanation: Fits compromise mode with signal from Action, Sci-Fi. Action profile: 1.0, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag, session_reaction.
+- After explanation: Fits compromise mode with signal from Action, Sci-Fi. Action profile: 0.55, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.
 
 ### watchlist_loved_moves_saved_style_up
 
