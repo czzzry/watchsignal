@@ -447,12 +447,21 @@ class HeuristicScorer:
         parts = []
         for user, score in zip(users[:2], user_scores[:2], strict=False):
             taste_lab_signal_count = self._taste_lab_signal_count(user)
+            persistent_memory_signal_count = self._persistent_memory_signal_count(user)
             taste_lab_hint = (
                 f", Taste Lab signals: {taste_lab_signal_count}"
                 if taste_lab_signal_count
                 else ""
             )
-            parts.append(f"{user.display_label}: {round(score, 2)}{taste_lab_hint}")
+            memory_hint = (
+                f", Memory signals: {persistent_memory_signal_count}"
+                if persistent_memory_signal_count
+                else ""
+            )
+            parts.append(
+                f"{user.display_label}: {round(score, 2)}"
+                f"{taste_lab_hint}{memory_hint}"
+            )
         return "; ".join(parts) + "."
 
     def _taste_lab_signal_count(self, user: UserProfile) -> int:
@@ -460,6 +469,14 @@ class HeuristicScorer:
             1
             for evidence in user.taste_profile_evidence
             if evidence.source == "taste_lab" and evidence.preference_value is not None
+        )
+
+    def _persistent_memory_signal_count(self, user: UserProfile) -> int:
+        return sum(
+            1
+            for evidence in user.taste_profile_evidence
+            if evidence.source.startswith("memory:")
+            and evidence.preference_value is not None
         )
 
     def _signal_families(
@@ -526,6 +543,9 @@ def _profile_evidence_label(source: str, title: str) -> str:
 
 
 def _title_similarity_weight(source: str, preference_value: float) -> float:
-    if source in {"app_memory", "seen_before"} and preference_value < 0:
+    if (
+        source in {"app_memory", "seen_before"}
+        or source.endswith("seen_before")
+    ) and preference_value < 0:
         return 0.6
     return 0.18
