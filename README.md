@@ -31,6 +31,7 @@ Start here if you want the project story:
 - [Taste Lab issue breakdown](docs/issues/taste-lab-issue-breakdown.md)
 - [MVP Plus 2 PRD](docs/prd-mvp-plus-2.md)
 - [MVP Plus 2 issue breakdown](docs/issues/mvp-plus-2-issue-breakdown.md)
+- [Beta Readiness runbook](docs/beta-readiness/fresh-checkout-runbook.md)
 - [Live usable MVP gate](docs/validation/live-usable-mvp-gate-2026-06-30.md)
 
 ## What The Demo Shows
@@ -239,6 +240,18 @@ Run the main project gate:
 
 ```sh
 pnpm check
+```
+
+Run the Beta Readiness preflight and API gate:
+
+```sh
+pnpm beta:check
+```
+
+Run the backend-backed phone-sized dogfood smoke:
+
+```sh
+pnpm beta:dogfood
 ```
 
 Run the production web build:
