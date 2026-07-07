@@ -1,0 +1,124 @@
+{
+  "calibration_queue_coverage": {
+    "improves_coverage": true,
+    "informative_genre_coverage": [
+      "Comedy",
+      "Drama",
+      "Horror"
+    ],
+    "informative_partner_prompt_count": 2,
+    "informative_reasons": [
+      "partner_compromise_probe",
+      "partner_disagreement_probe",
+      "taste_boundary_probe"
+    ],
+    "naive_genre_coverage": [
+      "Drama"
+    ],
+    "naive_partner_prompt_count": 0
+  },
+  "command": "pnpm eval:mvp5",
+  "issue_coverage": {
+    "#91": "profile taste memory events",
+    "#92": "memory-aware recommendation scoring",
+    "#93": "Profile Taste Ledger",
+    "#94": "before and after taste snapshot",
+    "#95": "Taste Lab calibration queue",
+    "#96": "recommendation trust UI",
+    "#97": "acceptance gate"
+  },
+  "mvp4_scenario_summary": {
+    "attribution_passed": true,
+    "attribution_scenarios": 4,
+    "known_gaps": [
+      "named_actor_steer_surfaces_matching_cast"
+    ],
+    "mvp_plus_4_evaluation_harness_passed": true,
+    "recommendation_pass_rate": 0.8571,
+    "recommendation_passed": 6,
+    "recommendation_scenarios": 7
+  },
+  "phase": "MVP+5: Household Taste Memory",
+  "report_date": "2026-07-07",
+  "required_scenarios": {
+    "avoid_repeat": {
+      "actual_movement": "removed",
+      "after_signal_families": [],
+      "passed": true,
+      "present": true,
+      "scenario": "avoid_repeat_removes_already_watched_title"
+    },
+    "comfort_movie": {
+      "actual_movement": "up",
+      "after_signal_families": [
+        "genre",
+        "title_similarity",
+        "feature_tag",
+        "tonight_intent"
+      ],
+      "passed": true,
+      "present": true,
+      "scenario": "comfort_movie_steer_moves_warm_comedy_up"
+    },
+    "memory_before_after": {
+      "actual_movement": "up",
+      "after_signal_families": [
+        "genre",
+        "feature_tag"
+      ],
+      "passed": true,
+      "present": true,
+      "scenario": "watchlist_loved_moves_saved_style_up"
+    },
+    "named_actor": {
+      "actual_movement": "same",
+      "after_signal_families": [],
+      "passed": false,
+      "present": true,
+      "scenario": "named_actor_steer_surfaces_matching_cast"
+    },
+    "partner_compromise": {
+      "actual_movement": "same",
+      "after_signal_families": [
+        "genre",
+        "feature_tag"
+      ],
+      "passed": true,
+      "present": true,
+      "scenario": "partner_compromise_prefers_shared_fit_over_one_sided_pick"
+    },
+    "sad": {
+      "actual_movement": "up",
+      "after_signal_families": [
+        "tonight_intent"
+      ],
+      "passed": true,
+      "present": true,
+      "scenario": "sad_steer_moves_melancholy_drama_up"
+    },
+    "scary": {
+      "actual_movement": "up",
+      "after_signal_families": [
+        "tonight_intent"
+      ],
+      "passed": true,
+      "present": true,
+      "scenario": "scary_steer_moves_horror_pick_up"
+    }
+  },
+  "risk_notes": [
+    "The named actor scenario remains a known tuning gap from MVP+4 and is tracked without blocking this gate.",
+    "This evaluation is deterministic and local; live TMDb dogfood is covered by the acceptance gate command.",
+    "Mobile dogfood can be blocked in sandboxes that cannot bind 127.0.0.1."
+  ],
+  "summary": {
+    "calibration_queue_improves_coverage": true,
+    "issue_count": 7,
+    "issues_represented": 7,
+    "memory_before_after_passed": true,
+    "mvp_plus_5_evaluation_harness_passed": true,
+    "named_actor_known_gap_preserved": true,
+    "required_scenarios_present": true,
+    "strict_required_scenarios_passed": true
+  }
+}
