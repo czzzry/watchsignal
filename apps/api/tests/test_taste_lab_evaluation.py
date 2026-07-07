@@ -11,6 +11,7 @@ from movie_night_mediator.taste_lab import (
     TasteLabMovieIdentity,
     TasteLabRatingExport,
     TasteLabRatingLabel,
+    evaluate_calibration_queue_coverage,
     run_fixture_evaluation,
     taste_lab_ratings_to_onboarding_seeds,
 )
@@ -96,6 +97,22 @@ class TasteLabEvaluationTest(unittest.TestCase):
 
         self.assertEqual(payload["target_title"], "Shared Puzzle")
         self.assertIn("rank_deltas_vs_baseline", payload)
+        self.assertTrue(payload["calibration_queue_coverage"]["improves_coverage"])
+
+    def test_calibration_queue_evaluation_improves_coverage(self) -> None:
+        report = evaluate_calibration_queue_coverage()
+        payload = report.as_dict()
+
+        self.assertTrue(payload["improves_coverage"])
+        self.assertEqual(payload["naive_genre_coverage"], ["Drama"])
+        self.assertEqual(
+            payload["informative_genre_coverage"],
+            ["Comedy", "Drama", "Horror"],
+        )
+        self.assertEqual(payload["naive_partner_prompt_count"], 0)
+        self.assertEqual(payload["informative_partner_prompt_count"], 2)
+        self.assertIn("partner_compromise_probe", payload["informative_reasons"])
+        self.assertIn("partner_disagreement_probe", payload["informative_reasons"])
 
 
 def _rating(

@@ -179,9 +179,93 @@ class TasteLabApiTest(unittest.TestCase):
             [candidate.movie.title for candidate in queue[:2]],
             ["Comedy Boundary", "Action Boundary"],
         )
+        self.assertEqual(
+            [candidate.queueProvenance.queueReason for candidate in queue[:2]],
+            ["uncertain_genre_coverage", "uncertain_genre_coverage"],
+        )
         self.assertNotIn(
             "Signal Movie 1 Returns",
             [candidate.movie.title for candidate in queue[:2]],
+        )
+
+    def test_queue_prioritizes_partner_compromise_and_disagreement_prompts(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            routes = taste_lab_route_endpoints(
+                create_app(
+                    taste_lab_store=SQLiteTasteLabStore(
+                        database_path=Path(directory) / "taste-lab.sqlite3"
+                    )
+                )
+            )
+            shared_comedy = _calibration_candidate(
+                8,
+                title="Shared Comedy",
+                genres=["Comedy"],
+                signal_score=0.2,
+            )
+            horror_boundary = _calibration_candidate(
+                9,
+                title="Horror Boundary",
+                genres=["Horror"],
+                signal_score=0.19,
+            )
+            routes["seed_candidates"](
+                [
+                    _calibration_candidate(
+                        1,
+                        title="Familiar Drama",
+                        genres=["Drama"],
+                        signal_score=0.99,
+                    ),
+                    _calibration_candidate(
+                        2,
+                        title="Another Drama",
+                        genres=["Drama"],
+                        signal_score=0.98,
+                    ),
+                    _calibration_candidate(
+                        3,
+                        title="Third Drama",
+                        genres=["Drama"],
+                        signal_score=0.97,
+                    ),
+                    shared_comedy,
+                    horror_boundary,
+                ],
+                householdId="household-1",
+            )
+            routes["post_ratings"](
+                profile_id="robin",
+                payload=TasteLabSubmitRatingsPayload(
+                    householdId="household-1",
+                    ratings=[
+                        TasteLabRatingInputPayload(
+                            movie=shared_comedy.movie,
+                            label=TasteLabRatingLabel.LOVED,
+                            queueProvenance=shared_comedy.queueProvenance,
+                            ratedAt="2026-07-01T12:00:00Z",
+                        ),
+                        TasteLabRatingInputPayload(
+                            movie=horror_boundary.movie,
+                            label=TasteLabRatingLabel.HATED,
+                            queueProvenance=horror_boundary.queueProvenance,
+                            ratedAt="2026-07-01T12:05:00Z",
+                        ),
+                    ],
+                ),
+            )
+
+            queue = routes["get_queue"](
+                profile_id="sandy",
+                householdId="household-1",
+                limit=3,
+            )
+
+        self.assertEqual(queue[0].movie.title, "Shared Comedy")
+        self.assertEqual(queue[0].queueProvenance.queueReason, "partner_compromise_probe")
+        self.assertIn(
+            "partner_disagreement_probe",
+            [candidate.queueProvenance.queueReason for candidate in queue],
         )
 
     def test_default_high_signal_queue_supports_repeated_batches(self) -> None:

@@ -371,6 +371,7 @@ class TasteLabQueueProvenancePayload(BaseModel):
     rank: int | None = None
     signalScore: float | None = None
     scoreComponents: dict[str, float] = Field(default_factory=dict)
+    queueReason: str | None = None
 
 
 class TasteLabCandidatePayload(BaseModel):
@@ -1607,6 +1608,7 @@ def _payload_to_taste_lab_queue_provenance(
         rank=payload.rank,
         signal_score=payload.signalScore,
         score_components=payload.scoreComponents,
+        queue_reason=payload.queueReason,
     )
 
 
@@ -1723,6 +1725,7 @@ def _taste_lab_queue_provenance_to_payload(
         rank=provenance.rank,
         signalScore=provenance.signal_score,
         scoreComponents=dict(provenance.score_components),
+        queueReason=provenance.queue_reason,
     )
 
 

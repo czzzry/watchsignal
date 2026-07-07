@@ -62,10 +62,13 @@ class TasteLabQueueProvenance:
     rank: int | None = None
     signal_score: float | None = None
     score_components: Mapping[str, float] = field(default_factory=dict)
+    queue_reason: str | None = None
 
     def __post_init__(self) -> None:
         if not self.queue_source.strip():
             raise ValueError("Taste Lab queue provenance requires a queue source.")
+        if self.queue_reason is not None and not self.queue_reason.strip():
+            raise ValueError("Taste Lab queue reason cannot be blank.")
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -74,6 +77,7 @@ class TasteLabQueueProvenance:
             "rank": self.rank,
             "signal_score": self.signal_score,
             "score_components": dict(self.score_components),
+            "queue_reason": self.queue_reason,
         }
 
 
@@ -162,6 +166,7 @@ class TasteLabRatingExport:
                     rank=provenance_payload.get("rank"),
                     signal_score=provenance_payload.get("signal_score"),
                     score_components=provenance_payload.get("score_components", {}),
+                    queue_reason=provenance_payload.get("queue_reason"),
                 )
                 if provenance_payload
                 else None

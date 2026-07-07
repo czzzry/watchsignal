@@ -22,6 +22,7 @@ export type TasteLabQueueProvenancePayload = {
   rank?: number | null;
   signalScore?: number | null;
   scoreComponents: Record<string, number>;
+  queueReason?: string | null;
 };
 
 export type TasteLabCandidatePayload = {
