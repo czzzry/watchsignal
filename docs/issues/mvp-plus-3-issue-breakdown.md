@@ -10,7 +10,7 @@ MVP Plus 3 is **Directed Discovery And Real Tester Profile**.
 Current tracker:
 
 ```text
-MVP+3: [████░░░░░░░░░░░░░░░░] 2/10 issues done
+MVP+3: [██████░░░░░░░░░░░░░░] 3/10 issues done
 ```
 
 The issue count is ten.
@@ -37,7 +37,7 @@ Implementation and acceptance slices:
 - #64 - MVP+3 Slice 2 - Persistent Tester Profile Foundation - done
 - #65 - MVP+3 Slice 3 - Taste Lab Profile Selection And Durable Ratings
 - #66 - MVP+3 Slice 4 - Main Flow Uses Selected Profiles And Calibration Evidence
-- #67 - MVP+3 Slice 5 - Directed Nudge Interpreter Contract
+- #67 - MVP+3 Slice 5 - Directed Nudge Interpreter Contract - done
 - #68 - MVP+3 Slice 6 - Actor And Person Candidate Filtering
 - #69 - MVP+3 Slice 7 - Five More Redo Semantics And UI
 - #70 - MVP+3 Slice 8 - Bookmark Library Lite
@@ -237,14 +237,14 @@ LLM-backed interpretation can remain an adapter path, but the required validatio
 
 ### Acceptance criteria
 
-- [ ] "scary but not bleak" produces visible mood and tone signals.
-- [ ] "sad but beautiful" produces visible emotional signals and asks clarification if needed.
-- [ ] "90s thriller" produces decade and genre filters.
-- [ ] "nothing with subtitles tonight" produces a language or subtitle-related constraint.
-- [ ] "Jack Nicholson in it" produces a person/cast intent for the candidate layer.
-- [ ] Active nudges are visible, confirmable, and removable.
-- [ ] Tests cover deterministic parsing and clarification behavior.
-- [ ] LLM output, if used, is constrained to the same contract.
+- [x] "scary but not bleak" produces visible mood and tone signals.
+- [x] "sad but beautiful" produces visible emotional signals and asks clarification if needed.
+- [x] "90s thriller" produces decade and genre filters.
+- [x] "nothing with subtitles tonight" produces a language or subtitle-related constraint.
+- [x] "Jack Nicholson in it" produces a person/cast intent for the candidate layer.
+- [x] Active nudges are visible, confirmable, and removable.
+- [x] Tests cover deterministic parsing and clarification behavior.
+- [x] LLM output, if used, is constrained to the same contract.
 
 ### Validation commands
 
@@ -255,6 +255,9 @@ pnpm check
 ### Stop condition
 
 Stop when user language becomes structured context that later slices can apply to candidate generation and scoring.
+
+Completed by deterministic directed nudge interpretation in `apps/api/src/movie_night_mediator/app/tonight_intent.py`.
+The interpreter emits MVP Plus 3 `DirectedNudge` objects for active nudges while preserving the existing tonight intent path.
 
 ### Risk notes
 
