@@ -254,6 +254,50 @@ class TonightIntentInterpreterTest(unittest.TestCase):
         self.assertEqual(nudge.filters["people"], ["Tom Cruise"])
         self.assertIn("Tom Cruise", nudge.user_facing_summary or "")
 
+    def test_directed_nudge_ignores_auxiliary_words_in_person_phrase(self) -> None:
+        nudge = DeterministicTonightIntentProvider().interpret_directed_nudge(
+            "I want Josh Brolin to be in it. But I also want water to play a key role. Ideally the score is great."
+        )
+
+        self.assertEqual(nudge.resolution, DirectedNudgeResolution.EXACT)
+        self.assertEqual(nudge.filters["people"], ["Josh Brolin"])
+        self.assertEqual(
+            nudge.person_intents,
+            (
+                PersonCandidateIntent(
+                    raw_name="Josh Brolin",
+                    normalized_name="josh brolin",
+                ),
+            ),
+        )
+        self.assertIn("Josh Brolin", nudge.user_facing_summary or "")
+        self.assertIsNotNone(nudge.unsupported_reason)
+
+    def test_directed_nudge_maps_cartoonish_kids_request_to_animation_exclusions(
+        self,
+    ) -> None:
+        nudge = DeterministicTonightIntentProvider().interpret_directed_nudge(
+            "No cartoonish kids stuff"
+        )
+
+        self.assertEqual(nudge.resolution, DirectedNudgeResolution.EXACT)
+        self.assertIn("animation", nudge.excluded_signals)
+        self.assertIn("family", nudge.excluded_signals)
+        self.assertIn("family", nudge.user_facing_summary or "")
+        self.assertIn("animation", nudge.user_facing_summary or "")
+
+    def test_directed_nudge_maps_pixar_like_and_kids_request_to_animation_exclusions(
+        self,
+    ) -> None:
+        nudge = DeterministicTonightIntentProvider().interpret_directed_nudge(
+            "no pixar-like or kids movies in general"
+        )
+
+        self.assertEqual(nudge.resolution, DirectedNudgeResolution.EXACT)
+        self.assertIn("animation", nudge.excluded_signals)
+        self.assertIn("family", nudge.excluded_signals)
+        self.assertIn("pixar-like", nudge.excluded_signals)
+
     def test_directed_nudge_marks_unsupported_aesthetic_request(self) -> None:
         nudge = DeterministicTonightIntentProvider().interpret_directed_nudge(
             "i want a very green movie"

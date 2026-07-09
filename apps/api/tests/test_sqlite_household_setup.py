@@ -1,3 +1,4 @@
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -28,6 +29,20 @@ class SQLiteHouseholdSetupTest(unittest.TestCase):
                 settings = SQLiteSettings.from_env()
 
             self.assertEqual(settings.database_path, database_path)
+
+    def test_default_database_path_is_repo_scoped_not_cwd_scoped(self) -> None:
+        original_cwd = Path.cwd()
+        expected_path = Path(__file__).resolve().parents[3] / "data" / "movie_night_mediator.sqlite3"
+
+        with tempfile.TemporaryDirectory() as directory:
+            try:
+                os.chdir(directory)
+                with patch.dict("os.environ", {}, clear=True):
+                    settings = SQLiteSettings.from_env()
+            finally:
+                os.chdir(original_cwd)
+
+        self.assertEqual(settings.database_path, expected_path)
 
     def test_default_household_setup_survives_sqlite_round_trip(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

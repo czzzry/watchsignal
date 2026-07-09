@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 SQLITE_PATH_ENV_VAR = "MOVIE_NIGHT_MEDIATOR_SQLITE_PATH"
-DEFAULT_SQLITE_PATH = Path("data/movie_night_mediator.sqlite3")
+REPO_ROOT = Path(__file__).resolve().parents[5]
+DEFAULT_SQLITE_PATH = REPO_ROOT / "data" / "movie_night_mediator.sqlite3"
 
 
 @dataclass(frozen=True)

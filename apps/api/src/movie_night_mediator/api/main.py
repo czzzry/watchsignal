@@ -214,6 +214,7 @@ class TonightIntentInterpretationPayload(BaseModel):
     unsupportedReason: str | None = None
     filters: dict[str, object]
     softSignals: list[str]
+    excludedSignals: list[str] = Field(default_factory=list)
     confidence: str
 
 
@@ -540,9 +541,15 @@ def _live_candidate_shortlist_items(
         raise HTTPException(status_code=400, detail=str(error)) from error
 
     if len(shortlist) != 5:
+        detail = "Live candidate source did not produce a five-title shortlist."
+        if payload.tonightIntents or payload.tonightIntent:
+            detail = (
+                "We couldn't find five movies that match your current nudges. "
+                "Try removing the latest nudge or making it broader."
+            )
         raise HTTPException(
             status_code=502,
-            detail="Live candidate source did not produce a five-title shortlist.",
+            detail=detail,
         )
 
     return shortlist
@@ -951,6 +958,7 @@ def _intent_interpretation_to_payload(
         unsupportedReason=None,
         filters=dict(interpretation.filters),
         softSignals=list(interpretation.soft_signals),
+        excludedSignals=[],
         confidence=interpretation.confidence,
     )
 
@@ -967,6 +975,7 @@ def _directed_nudge_to_payload(
         unsupportedReason=nudge.unsupported_reason,
         filters=dict(nudge.filters),
         softSignals=list(nudge.soft_signals),
+        excludedSignals=list(nudge.excluded_signals),
         confidence=nudge.confidence,
     )
 

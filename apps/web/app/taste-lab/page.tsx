@@ -65,6 +65,9 @@ export default function TasteLabPage() {
   const importableCount = history.filter((rating) => rating.isImportablePreference).length;
   const unseenCount = history.length - importableCount;
   const activeProfile = profiles.find((profile) => profile.id === profileId) ?? profiles[0];
+  const queueSource = queue[0]?.queueProvenance.queueSource ?? null;
+  const queueSourceLabel = queueSourceLabelFor(queueSource);
+  const queueSourceDetail = queueSourceDetailFor(queueSource);
 
   useEffect(() => {
     void loadProfiles();
@@ -103,7 +106,7 @@ export default function TasteLabPage() {
         nextQueue.length > 0
           ? "Queue ready."
           : savedRatings.length > 0
-            ? `No unrated demo movies remain for ${profileLabel(nextProfileId, profiles)}.`
+            ? `No unrated queued movies remain for ${profileLabel(nextProfileId, profiles)}.`
           : "No candidates yet. Load the high-signal queue to start.",
       );
     } catch (error) {
@@ -195,7 +198,7 @@ export default function TasteLabPage() {
       setStatus(
         nextQueue.length > 0
           ? `${selectedRatings.length} signal${selectedRatings.length === 1 ? "" : "s"} saved. Next batch is ready.`
-          : `${selectedRatings.length} signal${selectedRatings.length === 1 ? "" : "s"} saved. No unrated demo movies remain for ${profileLabel(profileId, profiles)}.`,
+          : `${selectedRatings.length} signal${selectedRatings.length === 1 ? "" : "s"} saved. No unrated queued movies remain for ${profileLabel(profileId, profiles)}.`,
       );
     } catch (error) {
       const savedAt = new Date().toISOString();
@@ -236,6 +239,13 @@ export default function TasteLabPage() {
           Rate high-signal movies in quick batches.
           WatchSignal saves preference separately from familiarity.
         </p>
+      </section>
+
+      <section className="syncStrip" aria-label="Taste Lab queue source" role="status">
+        <div>
+          <span>{queueSourceLabel}</span>
+          <p>{queueSourceDetail}</p>
+        </div>
       </section>
 
       <section className="tasteLabControlPanel" aria-label="Taste Lab controls">
@@ -367,6 +377,38 @@ export default function TasteLabPage() {
       </section>
     </main>
   );
+}
+
+function queueSourceLabelFor(queueSource: string | null): string {
+  if (queueSource === null) {
+    return "Queue source pending";
+  }
+
+  if (queueSource.startsWith("movielens_signal_score_v1")) {
+    return "Stored signal queue";
+  }
+
+  if (queueSource.includes("demo") || queueSource.includes("offline")) {
+    return "Local demo queue";
+  }
+
+  return "Saved queue";
+}
+
+function queueSourceDetailFor(queueSource: string | null): string {
+  if (queueSource === null) {
+    return "Taste Lab is loading the current queue source.";
+  }
+
+  if (queueSource.startsWith("movielens_signal_score_v1")) {
+    return "Taste Lab is using the stored high-signal MovieLens queue from the backend, not live TMDb discovery.";
+  }
+
+  if (queueSource.includes("demo") || queueSource.includes("offline")) {
+    return "Taste Lab is showing the local demo fallback queue.";
+  }
+
+  return `Taste Lab queue source: ${queueSource}.`;
 }
 
 function profileLabel(

@@ -2165,6 +2165,7 @@ export function ResultsStep({
   pendingSteerIntent,
   steerClarificationText,
   steerMessage,
+  apiError,
   debugHistory,
   tasteProfileSummaries,
   debugHistoryStatus,
@@ -2198,6 +2199,7 @@ export function ResultsStep({
   pendingSteerIntent: TonightIntentInterpretationPayload | null;
   steerClarificationText: string;
   steerMessage: string | null;
+  apiError: string | null;
   debugHistory: DebugHistorySessionPayload | null;
   tasteProfileSummaries: TasteProfileSummaryPayload[];
   debugHistoryStatus: DebugHistoryStatus;
@@ -2596,6 +2598,7 @@ export function ResultsStep({
           referenceTitle={bestPick.title}
           clarificationText={steerClarificationText}
           message={steerMessage}
+          continuationError={apiError}
           busy={isSyncing}
           canContinue={canShowMore}
           onTextChange={onSteerTextChange}

@@ -611,6 +611,7 @@ export function SteerNextPanel({
   referenceTitle,
   clarificationText,
   message,
+  continuationError,
   busy,
   canContinue,
   onTextChange,
@@ -627,6 +628,7 @@ export function SteerNextPanel({
   referenceTitle?: string | null;
   clarificationText: string;
   message: string | null;
+  continuationError: string | null;
   busy: boolean;
   canContinue: boolean;
   onTextChange: (text: string) => void;
@@ -642,6 +644,15 @@ export function SteerNextPanel({
   const hasConfirmation = pendingIntent?.status === "confirmation_required";
   const pendingResolution = pendingIntent?.resolution ?? "exact";
   const canApplyPending = hasConfirmation && pendingResolution !== "unsupported";
+  const activeIntentLabel = (intent: TonightIntentInterpretationPayload): string => {
+    const summary = intent.confirmationText?.trim();
+    if (!summary) {
+      return intent.rawText;
+    }
+    return summary
+      .replace(/^Got it: I will keep an active nudge for something\s+/i, "")
+      .replace(/\.$/, "");
+  };
   const quickSteers = [
     "different direction",
     referenceTitle ? `more like ${referenceTitle}` : "more like the winner",
@@ -671,8 +682,8 @@ export function SteerNextPanel({
           <strong>Nudges queued for the next batch</strong>
           <div className="tonightIntentSignals">
             {activeIntents.map((intent, index) => (
-              <span key={`${intent.rawText}-${index}`}>
-                {intent.rawText}
+              <span key={`${intent.rawText}-${index}`} title={intent.rawText}>
+                {activeIntentLabel(intent)}
               </span>
             ))}
           </div>
@@ -775,6 +786,7 @@ export function SteerNextPanel({
         </div>
       ) : null}
 
+      {continuationError ? <p className="tonightIntentNote">{continuationError}</p> : null}
       {message ? <p className="tonightIntentNote">{message}</p> : null}
     </section>
   );

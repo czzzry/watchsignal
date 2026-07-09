@@ -282,10 +282,6 @@ class DirectedNudge:
                 raise ValueError(
                     "Unsupported directed nudges require an unsupported reason."
                 )
-        elif unsupported_reason:
-            raise ValueError(
-                "Only unsupported directed nudges can include an unsupported reason."
-            )
 
         object.__setattr__(self, "raw_text", raw_text)
         object.__setattr__(self, "confidence", confidence)

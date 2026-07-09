@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from fastapi import HTTPException
 from fastapi.routing import APIRoute
 
 from movie_night_mediator.adapters import (
@@ -429,6 +430,66 @@ class ShortlistApiTest(unittest.TestCase):
                 ("Tom Cruise",),
             )
             self.assertEqual(payload[0].matchedPersonNames, ["Tom Cruise"])
+
+    def test_post_recommendation_shortlist_preserves_excluded_signals_in_mood_text(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            candidate_source = RecordingCandidateSource()
+            post_shortlist = recommendation_shortlist_endpoint(
+                create_app(
+                    backfill_store=SQLiteBackfillStore(
+                        database_path=Path(directory) / "backfill.sqlite3"
+                    ),
+                    candidate_source=candidate_source,
+                ),
+                method="POST",
+            )
+
+            payload = post_shortlist(
+                RecommendationShortlistRequestPayload(
+                    sessionId="excluded-signal-session",
+                    source="live_tmdb",
+                    tonightIntents=[
+                        {
+                            "rawText": "No cartoonish kids stuff",
+                            "excludedSignals": ["animation", "family"],
+                        },
+                    ],
+                )
+            )
+
+            self.assertEqual(len(payload), 5)
+            self.assertEqual(
+                candidate_source.mood_texts,
+                ("No cartoonish kids stuff + avoid animation + avoid family",),
+            )
+
+    def test_post_recommendation_shortlist_returns_explicit_nudge_shortage_error(
+        self,
+    ) -> None:
+        post_shortlist = recommendation_shortlist_endpoint(
+            create_app(candidate_source=SparseCandidateSource()),
+            method="POST",
+        )
+
+        with self.assertRaises(HTTPException) as raised:
+            post_shortlist(
+                RecommendationShortlistRequestPayload(
+                    sessionId="shortage-session",
+                    source="live_tmdb",
+                    tonightIntents=[
+                        {
+                            "rawText": "something with Josh Brolin in it",
+                            "filters": {"people": ["Josh Brolin"]},
+                        },
+                    ],
+                )
+            )
+
+        self.assertEqual(raised.exception.status_code, 502)
+        self.assertIn("couldn't find five movies", raised.exception.detail.casefold())
+        self.assertIn("nudges", raised.exception.detail.casefold())
 
     def test_post_recommendation_shortlist_consumes_saved_taste_lab_profile_evidence(
         self,
@@ -1044,6 +1105,20 @@ class CompromiseCandidateSource:
                 title="Puzzle Mystery",
                 genres=("Mystery",),
             ),
+        )
+
+
+class SparseCandidateSource:
+    def fetch_candidates(
+        self,
+        *,
+        session: SessionContext,
+        household_defaults: HouseholdDefaults,
+        limit: int = 20,
+    ) -> tuple[Candidate, ...]:
+        return (
+            live_candidate(index=1, title="Only Match 1"),
+            live_candidate(index=2, title="Only Match 2"),
         )
 
 

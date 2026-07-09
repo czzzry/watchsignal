@@ -72,6 +72,7 @@ import {
 type PassThePhoneWizardProps = {
   apiHealth: ApiHealth;
   setupLoad: SetupLoadResult;
+  configuredRecommendationSource: "demo" | "live_tmdb";
 };
 
 const stepOrder: WizardStep[] = ["setup", "founder", "handoff", "wife", "results"];
@@ -79,6 +80,7 @@ const stepOrder: WizardStep[] = ["setup", "founder", "handoff", "wife", "results
 export function PassThePhoneWizard({
   apiHealth,
   setupLoad,
+  configuredRecommendationSource,
 }: PassThePhoneWizardProps) {
   const [step, setStep] = useState<WizardStep>("setup");
   const [sessionMode, setSessionMode] = useState<SessionMode>("compromise");
@@ -811,6 +813,20 @@ export function PassThePhoneWizard({
       ) : null}
 
       <div className="shellStatus">
+        <section className="syncStrip" aria-label="Recommendation source" role="status">
+          <div>
+            <span>
+              {configuredRecommendationSource === "live_tmdb"
+                ? "Live recommendations"
+                : "Demo recommendations"}
+            </span>
+            <p>
+              {configuredRecommendationSource === "live_tmdb"
+                ? "This server is configured to ask the backend for live TMDb recommendation pools."
+                : "This server is configured to use the seeded demo catalog for recommendation testing."}
+            </p>
+          </div>
+        </section>
       </div>
 
       {step === "setup" ? (
@@ -992,6 +1008,7 @@ export function PassThePhoneWizard({
           pendingSteerIntent={pendingSteerIntent}
           steerClarificationText={steerClarificationText}
           steerMessage={steerMessage}
+          apiError={apiError}
           debugHistory={debugHistory}
           tasteProfileSummaries={tasteProfileSummaries}
           debugHistoryStatus={debugHistoryStatus}

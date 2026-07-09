@@ -541,6 +541,7 @@ export type TonightIntentInterpretationPayload = {
   clarificationQuestion?: string | null;
   confidence: string;
   confirmationText?: string | null;
+  excludedSignals?: string[];
   filters: {
     [key: string]: unknown;
   };

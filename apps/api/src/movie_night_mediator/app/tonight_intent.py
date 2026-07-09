@@ -143,6 +143,7 @@ class DeterministicTonightIntentProvider:
         soft_signals.extend(tone_signals)
         soft_signals.extend(_directed_mood_signals(lowered_text))
         excluded_signals.extend(_excluded_signals(lowered_text))
+        excluded_signals.extend(_semantic_excluded_signals(lowered_text))
 
         person_intents = _person_intents(normalized_text)
         if person_intents:
@@ -183,6 +184,10 @@ class DeterministicTonightIntentProvider:
             excluded_signals=excluded_signals,
             person_intents=person_intents,
         )
+        partial_unsupported_reason = _partial_directed_unsupported_reason(
+            normalized_text=normalized_text,
+            resolution=resolution,
+        )
         if resolution == DirectedNudgeResolution.UNSUPPORTED:
             return DirectedNudge(
                 raw_text=normalized_text,
@@ -214,6 +219,7 @@ class DeterministicTonightIntentProvider:
                 excluded_signals=tuple(_dedupe(excluded_signals)),
                 person_intents=person_intents,
             ),
+            unsupported_reason=partial_unsupported_reason,
             filters=filters,
             soft_signals=tuple(_dedupe(soft_signals)),
             excluded_signals=tuple(_dedupe(excluded_signals)),
@@ -285,7 +291,7 @@ def _person_request(text: str) -> str | None:
     ):
         match = re.search(pattern, text, flags=re.IGNORECASE)
         if match is not None:
-            candidate_name = _normalize_person_name(match.group(1))
+            candidate_name = _normalize_person_name(_clean_person_phrase(match.group(1)))
             if _looks_like_person_name(candidate_name):
                 return candidate_name
 
@@ -296,12 +302,13 @@ def _person_intents(text: str) -> tuple[PersonCandidateIntent, ...]:
     names: list[str] = []
     for pattern in (
         r"\binclude\s+([A-Za-z]+(?:\s+[A-Za-z]+){1,3})\b",
-        r"\b([A-Za-z]+(?:\s+[A-Za-z]+){1,3}?)\s+(?:should\s+be\s+)?in it\b",
+        r"\b([A-Za-z]+(?:\s+[A-Za-z]+){1,3}?)\s+(?:should\s+be\s+|to\s+be\s+)?in it\b",
+        r"\b([A-Za-z]+(?:\s+[A-Za-z]+){1,3}?)\s+in it\b",
         r"\bwith\s+([A-Za-z]+(?:\s+[A-Za-z]+){1,3})\b",
         r"\bstarring\s+([A-Za-z]+(?:\s+[A-Za-z]+){1,3})\b",
     ):
         names.extend(
-            _normalize_person_name(match.group(1))
+            _normalize_person_name(_clean_person_phrase(match.group(1)))
             for match in re.finditer(pattern, text, flags=re.IGNORECASE)
         )
 
@@ -316,6 +323,12 @@ def _person_intents(text: str) -> tuple[PersonCandidateIntent, ...]:
 
 def _normalize_person_name(value: str) -> str:
     return " ".join(part[:1].upper() + part[1:].lower() for part in value.strip().split())
+
+
+def _clean_person_phrase(value: str) -> str:
+    cleaned = re.sub(r"^(?:i\s+want\s+)", "", value.strip(), flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s+(?:should|to)\s+be$", "", cleaned, flags=re.IGNORECASE)
+    return cleaned.strip()
 
 
 def _looks_like_person_name(value: str) -> bool:
@@ -480,6 +493,35 @@ def _excluded_signals(text: str) -> tuple[str, ...]:
     return tuple(_dedupe(exclusions))
 
 
+def _semantic_excluded_signals(text: str) -> tuple[str, ...]:
+    exclusions: list[str] = []
+    if any(
+        phrase in text
+        for phrase in (
+            "kids",
+            "kid ",
+            "children",
+            "child ",
+            "family movie",
+            "family movies",
+        )
+    ):
+        exclusions.extend(["family", "animation"])
+    if any(
+        phrase in text
+        for phrase in (
+            "cartoon",
+            "cartoonish",
+            "animated",
+            "animation",
+            "pixar",
+        )
+    ):
+        exclusions.extend(["animation", "family"])
+
+    return tuple(_dedupe(exclusions))
+
+
 def _normalize_signal(value: str) -> str:
     lowered = value.strip().casefold()
     aliases = {
@@ -627,6 +669,69 @@ def _contains_unsupported_aesthetic_prompt(
     return any(cue in lowered_text for cue in unsupported_cues) or bool(normalized_text)
 
 
+def _partial_directed_unsupported_reason(
+    *,
+    normalized_text: str,
+    resolution: DirectedNudgeResolution,
+) -> str | None:
+    if resolution == DirectedNudgeResolution.UNSUPPORTED:
+        return None
+
+    unsupported_clauses = _unsupported_directed_clauses(normalized_text)
+    if not unsupported_clauses:
+        return None
+
+    if len(unsupported_clauses) == 1:
+        return (
+            'I can keep the supported part of this nudge active, but not yet "'
+            f'{unsupported_clauses[0]}".'
+        )
+
+    rendered_clauses = "; ".join(f'"{clause}"' for clause in unsupported_clauses[:3])
+    return (
+        "I can keep the supported part of this nudge active, but not yet "
+        f"{rendered_clauses}."
+    )
+
+
+def _unsupported_directed_clauses(text: str) -> tuple[str, ...]:
+    unsupported: list[str] = []
+    for clause in re.split(r"[.;]+|\bbut\b", text, flags=re.IGNORECASE):
+        normalized_clause = " ".join(clause.strip().split())
+        if not normalized_clause:
+            continue
+        lowered_clause = normalized_clause.casefold()
+        if len(re.findall(r"[A-Za-z]+", normalized_clause)) < 2:
+            continue
+        if _is_supported_directed_clause(normalized_clause, lowered_clause):
+            continue
+        unsupported.append(normalized_clause)
+
+    return tuple(_dedupe(unsupported))
+
+
+def _is_supported_directed_clause(normalized_text: str, lowered_text: str) -> bool:
+    if _year_range(lowered_text) is not None:
+        return True
+    if _asks_to_avoid_seen(lowered_text):
+        return True
+    if _asks_to_avoid_subtitles(lowered_text):
+        return True
+    if _genre_signals(lowered_text):
+        return True
+    if _tone_signals(lowered_text):
+        return True
+    if _directed_mood_signals(lowered_text):
+        return True
+    if _excluded_signals(lowered_text):
+        return True
+    if _semantic_excluded_signals(lowered_text):
+        return True
+    if _person_intents(normalized_text):
+        return True
+    return False
+
+
 def _merge_directed_nudges(
     *,
     raw_text: str,
@@ -689,6 +794,7 @@ def _merge_directed_nudges(
     resolution = live_nudge.resolution
     if deterministic.resolution == DirectedNudgeResolution.EXACT:
         resolution = DirectedNudgeResolution.EXACT
+    unsupported_reason = live_nudge.unsupported_reason or deterministic.unsupported_reason
 
     return DirectedNudge(
         raw_text=raw_text,
@@ -700,6 +806,7 @@ def _merge_directed_nudges(
             excluded_signals=merged_excluded_signals,
             person_intents=merged_person_intents,
         ),
+        unsupported_reason=unsupported_reason,
         filters=merged_filters,
         soft_signals=merged_soft_signals,
         excluded_signals=merged_excluded_signals,

@@ -43,6 +43,26 @@ class TonightIntentApiTest(unittest.TestCase):
         self.assertEqual(response["filters"]["genres"], ["Thriller"])
         self.assertNotIn("rankedSourceMovieIds", response)
 
+    def test_direct_nudge_route_returns_excluded_signals_and_partial_limitations(
+        self,
+    ) -> None:
+        interpret = direct_nudge_route_endpoint(create_app())
+
+        payload = interpret(
+            TonightIntentInterpretRequestPayload(
+                text=(
+                    "I want Josh Brolin to be in it. "
+                    "But I also want water to play a key role. "
+                    "Ideally the score is great."
+                )
+            )
+        )
+        response = payload.model_dump(mode="json")
+
+        self.assertEqual(response["filters"]["people"], ["Josh Brolin"])
+        self.assertIn("excludedSignals", response)
+        self.assertIsNotNone(response["unsupportedReason"])
+
     def test_interpret_route_returns_clarification_payload(self) -> None:
         interpret = tonight_intent_route_endpoint(create_app())
 
