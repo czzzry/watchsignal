@@ -29,6 +29,20 @@ class TonightIntentApiTest(unittest.TestCase):
         self.assertIn("confirmationText", response)
         self.assertNotIn("rankedSourceMovieIds", response)
 
+    def test_direct_nudge_route_returns_confirmation_payload(self) -> None:
+        interpret = direct_nudge_route_endpoint(create_app())
+
+        payload = interpret(
+            TonightIntentInterpretRequestPayload(text="90s thriller")
+        )
+        response = payload.model_dump(mode="json")
+
+        self.assertEqual(response["status"], "confirmation_required")
+        self.assertEqual(response["filters"]["release_year_min"], 1990)
+        self.assertEqual(response["filters"]["release_year_max"], 1999)
+        self.assertEqual(response["filters"]["genres"], ["Thriller"])
+        self.assertNotIn("rankedSourceMovieIds", response)
+
     def test_interpret_route_returns_clarification_payload(self) -> None:
         interpret = tonight_intent_route_endpoint(create_app())
 
@@ -50,6 +64,16 @@ def tonight_intent_route_endpoint(app):
             return route.endpoint
 
     raise AssertionError("Tonight intent route not found.")
+
+
+def direct_nudge_route_endpoint(app):
+    for route in app.routes:
+        if not isinstance(route, APIRoute):
+            continue
+        if route.path == "/tonight-intent/direct-nudge" and "POST" in route.methods:
+            return route.endpoint
+
+    raise AssertionError("Directed nudge route not found.")
 
 
 if __name__ == "__main__":

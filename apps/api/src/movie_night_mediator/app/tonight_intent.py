@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
-from typing import Protocol, cast
+from dataclasses import dataclass, field
+from typing import Protocol
 
 from movie_night_mediator.mvp_plus_3 import (
     DirectedNudge,
@@ -28,26 +28,19 @@ class DirectedNudgeProvider(Protocol):
 
 @dataclass(frozen=True)
 class TonightIntentInterpreter:
-    live_provider: TonightIntentProvider | None = None
+    deterministic_provider: DeterministicTonightIntentProvider = field(
+        default_factory=lambda: DeterministicTonightIntentProvider()
+    )
+    directed_nudge_provider: DirectedNudgeProvider | None = None
 
     def interpret(self, text: str) -> IntentInterpretation:
-        if self.live_provider is not None:
-            try:
-                return self.live_provider.interpret(text)
-            except ValueError:
-                pass
-
-        return DeterministicTonightIntentProvider().interpret(text)
+        return self.deterministic_provider.interpret(text)
 
     def interpret_directed_nudge(self, text: str) -> DirectedNudge:
-        deterministic = DeterministicTonightIntentProvider().interpret_directed_nudge(text)
-        if self.live_provider is not None and hasattr(
-            self.live_provider,
-            "interpret_directed_nudge",
-        ):
-            provider = cast(DirectedNudgeProvider, self.live_provider)
+        deterministic = self.deterministic_provider.interpret_directed_nudge(text)
+        if self.directed_nudge_provider is not None:
             try:
-                live_nudge = provider.interpret_directed_nudge(text)
+                live_nudge = self.directed_nudge_provider.interpret_directed_nudge(text)
                 return _merge_directed_nudges(
                     raw_text=text,
                     deterministic=deterministic,

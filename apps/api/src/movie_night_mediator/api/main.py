@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import replace
-from datetime import date
+from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Literal
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -17,18 +16,56 @@ from movie_night_mediator.adapters import (
 from movie_night_mediator.app.backfill import ManualBackfillService
 from movie_night_mediator.app.app_owned_movie_actions import (
     AppOwnedMovieActionService,
-    AppOwnedProfileRating,
+)
+from movie_night_mediator.api.routes.backfill import (
+    AppOwnedMovieWatchedPayload,
+    BackfillWatchedTitlePayload,
+    WatchedTitleBackfillPayload,
+    register_backfill_routes,
+)
+from movie_night_mediator.api.routes.feedback import (
+    PostWatchFeedbackPayload,
+    PostWatchFeedbackResponsePayload,
+    register_feedback_routes,
 )
 from movie_night_mediator.api.routes.history import (
     register_debug_history_routes,
     register_history_routes,
 )
 from movie_night_mediator.api.routes.memory import register_profile_memory_routes
+from movie_night_mediator.api.routes.onboarding import (
+    OnboardingCompletionPayload,
+    ParticipantOnboardingPayload,
+    register_onboarding_routes,
+)
+from movie_night_mediator.api.routes.sessions import (
+    ContinueSharedSessionPayload,
+    CreateSharedSessionPayload,
+    SaveSessionOutcomePayload,
+    SessionOutcomePayload,
+    SessionReactionPayload,
+    SessionShortlistItemPayload,
+    SharedSessionPayload,
+    SubmitSessionReactionsPayload,
+    UpdateSharedSessionPayload,
+    register_session_routes,
+)
 from movie_night_mediator.api.routes.setup import (
     SetupProfileCreatePayload,
     SetupProfileRenamePayload,
     SetupStatePayload,
     register_setup_routes,
+)
+from movie_night_mediator.api.routes.system import register_system_routes
+from movie_night_mediator.api.routes.taste_lab import (
+    TasteLabCandidatePayload,
+    TasteLabMoviePayload,
+    TasteLabQueueProvenancePayload,
+    TasteLabRatingExportPayload,
+    TasteLabRatingInputPayload,
+    TasteLabSubmitRatingsPayload,
+    TasteProfileSummaryPayload,
+    register_taste_lab_routes,
 )
 from movie_night_mediator.api.routes.watchlist import (
     SaveWatchlistEntryPayload,
@@ -51,15 +88,12 @@ from movie_night_mediator.app.recommendation_memory import (
     watched_source_movie_ids,
 )
 from movie_night_mediator.app.taste_memory import TasteMemoryService
-from movie_night_mediator.app.session import (
-    SessionTransitionError,
-    SharedSessionService,
-)
+from movie_night_mediator.app.session import SharedSessionService
 from movie_night_mediator.app.setup import (
     SQLiteSetupStore,
 )
 from movie_night_mediator.app.openai_tonight_intent import (
-    OpenAITonightIntentProvider,
+    OpenAIDirectedNudgeProvider,
 )
 from movie_night_mediator.app.tonight_intent import TonightIntentInterpreter
 from movie_night_mediator.app.watchlist import (
@@ -74,29 +108,12 @@ from movie_night_mediator.domain import (
     AudienceMode,
     CandidateSource,
     DEFAULT_HOUSEHOLD_ID,
-    BackfillTasteLabel,
     HouseholdDefaults,
     MediaType,
-    OnboardingConstraints,
-    OutcomeSelectionOrigin,
-    ParticipantOnboarding,
-    PostWatchFeedback,
     SessionContext,
     SessionMode,
-    SessionOutcome,
-    SessionOutcomeType,
     PersonCandidateConstraint,
     ScoringSessionReaction,
-    SessionReaction,
-    SessionReactionLabel,
-    SessionShortlistItem,
-    SharedMovieNightSession,
-    SharedSessionState,
-    TitleResolutionCandidate,
-    TitleResolutionEntry,
-    TitleResolutionStatus,
-    WatchedStatusScope,
-    WatchedTitleBackfill,
     UserProfile,
 )
 from movie_night_mediator.fixtures.demo_couple import (
@@ -118,140 +135,7 @@ from movie_night_mediator.storage import (
     SQLiteTasteMemoryStore,
     SQLiteWatchlistStore,
 )
-from movie_night_mediator.taste_lab import (
-    TasteLabCandidate,
-    TasteLabMovieIdentity,
-    TasteLabQueueProvenance,
-    TasteLabRatingExport,
-    TasteLabRatingInput,
-    TasteLabRatingLabel,
-    TasteLabService,
-    TasteGenreSignal,
-    TasteProfileEvidence,
-    TasteProfileSummary,
-    default_taste_lab_candidates,
-)
-
-
-class TitleResolutionCandidatePayload(BaseModel):
-    source: str = Field(min_length=1)
-    sourceId: str = Field(min_length=1)
-    title: str = Field(min_length=1)
-    mediaType: MediaType = MediaType.MOVIE
-    releaseYear: int | None = None
-    overview: str = ""
-    originalLanguage: str | None = None
-    popularity: float | None = None
-
-
-class TitleResolutionEntryPayload(BaseModel):
-    rawTitle: str = Field(min_length=1)
-    status: TitleResolutionStatus
-    candidate: TitleResolutionCandidatePayload | None = None
-    unresolvedReason: str | None = None
-
-
-class OnboardingConstraintsPayload(BaseModel):
-    horrorExclusion: bool = False
-    subtitleIntolerance: bool = False
-
-
-class ParticipantOnboardingPayload(BaseModel):
-    profileId: str = Field(min_length=1)
-    lovedTitleEntries: list[TitleResolutionEntryPayload] = Field(default_factory=list)
-    fineTitleEntries: list[TitleResolutionEntryPayload] = Field(default_factory=list)
-    noTitleEntries: list[TitleResolutionEntryPayload] = Field(default_factory=list)
-    constraints: OnboardingConstraintsPayload = Field(
-        default_factory=OnboardingConstraintsPayload
-    )
-    isComplete: bool = False
-
-
-class OnboardingCompletionPayload(BaseModel):
-    requiredProfileIds: list[str]
-    completedProfileIds: list[str]
-    incompleteProfileIds: list[str]
-    sharedRecommendationLocked: bool
-    sharedRecommendationUnlocked: bool
-
-
-class BackfillWatchedTitlePayload(BaseModel):
-    householdId: str = Field(default=DEFAULT_HOUSEHOLD_ID, min_length=1)
-    participantIds: list[str] = Field(default_factory=list)
-    includeGlobal: bool = False
-    watchedOn: date | None = None
-    watched: bool = True
-    tasteLabel: BackfillTasteLabel | None = None
-    entry: TitleResolutionEntryPayload
-
-
-class WatchedTitleBackfillPayload(BaseModel):
-    householdId: str
-    scope: WatchedStatusScope
-    participantId: str | None = None
-    titleKey: str
-    rawTitle: str
-    status: TitleResolutionStatus
-    candidate: TitleResolutionCandidatePayload | None = None
-    unresolvedReason: str | None = None
-    watchedOn: date | None = None
-    watched: bool
-    tasteLabel: BackfillTasteLabel | None = None
-
-
-class AppOwnedMovieRatingPayload(BaseModel):
-    profileId: str = Field(min_length=1)
-    tasteLabel: BackfillTasteLabel
-
-
-class AppOwnedMovieWatchedPayload(BaseModel):
-    householdId: str = Field(default=DEFAULT_HOUSEHOLD_ID, min_length=1)
-    sourceMovieId: str = Field(min_length=1)
-    title: str = Field(min_length=1)
-    watchedOn: date | None = None
-    ratings: list[AppOwnedMovieRatingPayload] = Field(default_factory=list)
-
-
-class PostWatchFeedbackPayload(BaseModel):
-    householdId: str = Field(default=DEFAULT_HOUSEHOLD_ID, min_length=1)
-    sessionId: str = Field(min_length=1)
-    userId: str = Field(min_length=1)
-    sourceMovieId: str = Field(min_length=1)
-    feedbackLabel: str = Field(min_length=1)
-    freeTextNote: str | None = None
-
-
-class PostWatchFeedbackResponsePayload(BaseModel):
-    sessionId: str
-    userId: str
-    sourceMovieId: str
-    feedbackLabel: str
-    freeTextNote: str | None = None
-
-
-class SessionOutcomePayload(BaseModel):
-    sessionId: str
-    outcomeType: SessionOutcomeType
-    selectedSourceMovieId: str | None = None
-    selectedTitle: str | None = None
-    selectionOrigin: OutcomeSelectionOrigin | None = None
-    notes: str | None = None
-
-
-class SaveSessionOutcomePayload(BaseModel):
-    householdId: str = Field(default=DEFAULT_HOUSEHOLD_ID, min_length=1)
-    outcomeType: SessionOutcomeType
-    selectedSourceMovieId: str | None = None
-    selectedTitle: str | None = None
-    selectionOrigin: OutcomeSelectionOrigin | None = None
-    notes: str | None = None
-
-
-class SessionShortlistItemPayload(BaseModel):
-    sourceMovieId: str = Field(min_length=1)
-    title: str = Field(min_length=1)
-    candidateRank: int = Field(ge=1)
-    profileScore: float = Field(default=0.0, ge=0.0, le=1.0)
+from movie_night_mediator.taste_lab import TasteLabService
 
 
 class RecommendationProviderAvailabilityPayload(BaseModel):
@@ -317,139 +201,6 @@ class RecommendationShortlistRequestPayload(BaseModel):
     sessionReactions: list[ScoringSessionReactionPayload] = Field(default_factory=list)
 
 
-class SessionReactionPayload(BaseModel):
-    sourceMovieId: str = Field(min_length=1)
-    reactionLabel: SessionReactionLabel
-
-
-class CreateSharedSessionPayload(BaseModel):
-    householdId: str = Field(default=DEFAULT_HOUSEHOLD_ID, min_length=1)
-    activeMode: SessionMode = SessionMode.COMPROMISE
-    participantIds: list[str] = Field(min_length=2, max_length=2)
-    shortlist: list[SessionShortlistItemPayload] = Field(min_length=5, max_length=5)
-    sessionId: str | None = None
-
-
-class ContinueSharedSessionPayload(BaseModel):
-    shortlist: list[SessionShortlistItemPayload] = Field(min_length=5, max_length=5)
-
-
-class UpdateSharedSessionPayload(BaseModel):
-    activeMode: SessionMode
-
-
-class SubmitSessionReactionsPayload(BaseModel):
-    participantId: str = Field(min_length=1)
-    reactions: list[SessionReactionPayload] = Field(min_length=1)
-
-
-class SharedSessionPayload(BaseModel):
-    sessionId: str
-    householdId: str
-    activeMode: SessionMode
-    participantIds: list[str]
-    state: SharedSessionState
-    shortlist: list[SessionShortlistItemPayload]
-    founderReactions: list[SessionReactionPayload]
-    wifeReactions: list[SessionReactionPayload]
-    previousShortlist: list[SessionShortlistItemPayload]
-    previousFounderReactions: list[SessionReactionPayload]
-    previousWifeReactions: list[SessionReactionPayload]
-    shownSourceMovieIds: list[str]
-    batchCount: int
-    rerankedSourceMovieIds: list[str]
-    rerankedShortlist: list[SessionShortlistItemPayload]
-    bestPickSourceMovieId: str | None = None
-
-
-class TasteLabMoviePayload(BaseModel):
-    sourceMovieId: str = Field(min_length=1)
-    title: str = Field(min_length=1)
-    releaseYear: int | None = None
-    tmdbId: str | None = None
-    posterPath: str | None = None
-    genres: list[str] = Field(default_factory=list)
-
-
-class TasteLabQueueProvenancePayload(BaseModel):
-    queueSource: str = Field(min_length=1)
-    generatedAt: str | None = None
-    rank: int | None = None
-    signalScore: float | None = None
-    scoreComponents: dict[str, float] = Field(default_factory=dict)
-    queueReason: str | None = None
-
-
-class TasteLabCandidatePayload(BaseModel):
-    movie: TasteLabMoviePayload
-    queueProvenance: TasteLabQueueProvenancePayload
-
-
-class TasteLabRatingInputPayload(BaseModel):
-    movie: TasteLabMoviePayload
-    label: TasteLabRatingLabel
-    queueProvenance: TasteLabQueueProvenancePayload | None = None
-    ratedAt: str | None = None
-
-
-class TasteLabSubmitRatingsPayload(BaseModel):
-    householdId: str = Field(default=DEFAULT_HOUSEHOLD_ID, min_length=1)
-    ratings: list[TasteLabRatingInputPayload] = Field(min_length=1)
-
-
-class TasteLabRatingExportPayload(BaseModel):
-    schemaVersion: str
-    householdId: str
-    profileId: str
-    movie: TasteLabMoviePayload
-    label: TasteLabRatingLabel
-    familiarity: str
-    preferenceValue: float | None = None
-    watchsignalTasteSignal: str
-    isImportablePreference: bool
-    ratedAt: str
-    queueProvenance: TasteLabQueueProvenancePayload | None = None
-
-
-class TasteGenreSignalPayload(BaseModel):
-    genre: str
-    positiveCount: int
-    neutralCount: int
-    negativeCount: int
-    score: float
-
-
-class TasteProfileEvidencePayload(BaseModel):
-    source: str
-    householdId: str
-    profileId: str
-    sourceMovieId: str
-    title: str
-    releaseYear: int | None = None
-    tmdbId: str | None = None
-    genres: list[str]
-    label: str
-    familiarity: str
-    watchsignalTasteSignal: str
-    isPreferenceEvidence: bool
-    preferenceValue: float | None = None
-    ratedAt: str
-    queueProvenance: TasteLabQueueProvenancePayload | None = None
-
-
-class TasteProfileSummaryPayload(BaseModel):
-    householdId: str
-    profileId: str
-    ratingCount: int
-    preferenceEvidenceCount: int
-    familiarityOnlyCount: int
-    genreSignals: list[TasteGenreSignalPayload]
-    evidence: list[TasteProfileEvidencePayload]
-
-
-ONBOARDING_TASTE_LAB_UNLOCK_THRESHOLD = 3
-
-
 class TonightIntentInterpretRequestPayload(BaseModel):
     text: str = Field(min_length=1)
 
@@ -464,6 +215,115 @@ class TonightIntentInterpretationPayload(BaseModel):
     filters: dict[str, object]
     softSignals: list[str]
     confidence: str
+
+
+@dataclass(frozen=True)
+class _AppServices:
+    setup_store: SQLiteSetupStore
+    onboarding_store: SQLiteOnboardingStore
+    backfill_service: ManualBackfillService
+    app_owned_movie_action_service: AppOwnedMovieActionService
+    feedback_service: PostWatchFeedbackService
+    session_service: SharedSessionService
+    outcome_service: SessionOutcomeService
+    history_service: SessionHistoryService
+    recommendation_snapshot_service: RecommendationSnapshotService
+    recommendation_snapshot_store: SQLiteRecommendationSnapshotStore
+    taste_lab_service: TasteLabService
+    taste_memory_service: TasteMemoryService
+    watchlist_service: SharedWatchlistService
+    profile_memory_service: ProfileMemoryService
+    tonight_intent_interpreter: TonightIntentInterpreter
+
+
+def _build_app_services(
+    *,
+    setup_store: SQLiteSetupStore | None,
+    onboarding_store: SQLiteOnboardingStore | None,
+    backfill_store: SQLiteBackfillStore | None,
+    feedback_store: SQLiteFeedbackStore | None,
+    outcome_store: SQLiteOutcomeStore | None,
+    session_store: SQLiteSessionStore | None,
+    recommendation_snapshot_store: SQLiteRecommendationSnapshotStore | None,
+    taste_lab_store: SQLiteTasteLabStore | None,
+    taste_memory_store: SQLiteTasteMemoryStore | None,
+    watchlist_store: SQLiteWatchlistStore | None,
+) -> _AppServices:
+    resolved_setup_store = setup_store or SQLiteSetupStore()
+    resolved_onboarding_store = onboarding_store or SQLiteOnboardingStore()
+    resolved_backfill_store = backfill_store or SQLiteBackfillStore()
+    resolved_session_store = session_store or SQLiteSessionStore()
+    resolved_outcome_store = outcome_store or SQLiteOutcomeStore()
+    resolved_recommendation_snapshot_store = (
+        recommendation_snapshot_store or SQLiteRecommendationSnapshotStore()
+    )
+    taste_memory_service = TasteMemoryService(
+        taste_memory_store or SQLiteTasteMemoryStore()
+    )
+    backfill_service = ManualBackfillService(resolved_backfill_store)
+    app_owned_movie_action_service = AppOwnedMovieActionService(
+        backfill_service,
+        memory_sink=taste_memory_service,
+    )
+    feedback_service = PostWatchFeedbackService(
+        store=feedback_store or SQLiteFeedbackStore(),
+        session_store=resolved_session_store,
+        outcome_store=resolved_outcome_store,
+        backfill_service=backfill_service,
+        memory_sink=taste_memory_service,
+    )
+    session_service = SharedSessionService(
+        session_store=resolved_session_store,
+        onboarding_store=resolved_onboarding_store,
+        memory_sink=taste_memory_service,
+    )
+    outcome_service = SessionOutcomeService(
+        store=resolved_outcome_store,
+        session_store=resolved_session_store,
+        backfill_service=backfill_service,
+    )
+    history_service = SessionHistoryService(
+        session_store=resolved_session_store,
+        outcome_service=outcome_service,
+        feedback_service=feedback_service,
+    )
+    recommendation_snapshot_service = RecommendationSnapshotService(
+        resolved_recommendation_snapshot_store
+    )
+    taste_lab_service = TasteLabService(
+        taste_lab_store or SQLiteTasteLabStore(),
+        memory_sink=taste_memory_service,
+    )
+    watchlist_service = SharedWatchlistService(
+        watchlist_store or SQLiteWatchlistStore(),
+        memory_sink=taste_memory_service,
+    )
+    profile_memory_service = ProfileMemoryService(
+        watchlist_service=watchlist_service,
+        backfill_service=backfill_service,
+        session_store=resolved_session_store,
+        taste_lab_service=taste_lab_service,
+    )
+    tonight_intent_interpreter = TonightIntentInterpreter(
+        directed_nudge_provider=OpenAIDirectedNudgeProvider.from_env()
+    )
+    return _AppServices(
+        setup_store=resolved_setup_store,
+        onboarding_store=resolved_onboarding_store,
+        backfill_service=backfill_service,
+        app_owned_movie_action_service=app_owned_movie_action_service,
+        feedback_service=feedback_service,
+        session_service=session_service,
+        outcome_service=outcome_service,
+        history_service=history_service,
+        recommendation_snapshot_service=recommendation_snapshot_service,
+        recommendation_snapshot_store=resolved_recommendation_snapshot_store,
+        taste_lab_service=taste_lab_service,
+        taste_memory_service=taste_memory_service,
+        watchlist_service=watchlist_service,
+        profile_memory_service=profile_memory_service,
+        tonight_intent_interpreter=tonight_intent_interpreter,
+    )
 
 
 def create_app(
@@ -496,83 +356,56 @@ def create_app(
         allow_methods=("*",),
         allow_headers=("*",),
     )
-    resolved_setup_store = setup_store or SQLiteSetupStore()
-    resolved_onboarding_store = onboarding_store or SQLiteOnboardingStore()
-    resolved_backfill_store = backfill_store or SQLiteBackfillStore()
-    resolved_session_store = session_store or SQLiteSessionStore()
-    resolved_outcome_store = outcome_store or SQLiteOutcomeStore()
-    taste_memory_service = TasteMemoryService(
-        taste_memory_store or SQLiteTasteMemoryStore()
-    )
-    backfill_service = ManualBackfillService(resolved_backfill_store)
-    app_owned_movie_action_service = AppOwnedMovieActionService(
-        backfill_service,
-        memory_sink=taste_memory_service,
-    )
-    feedback_service = PostWatchFeedbackService(
-        store=feedback_store or SQLiteFeedbackStore(),
-        session_store=resolved_session_store,
-        outcome_store=resolved_outcome_store,
-        backfill_service=backfill_service,
-        memory_sink=taste_memory_service,
-    )
-    session_service = SharedSessionService(
-        session_store=resolved_session_store,
-        onboarding_store=resolved_onboarding_store,
-        memory_sink=taste_memory_service,
-    )
-    outcome_service = SessionOutcomeService(
-        store=resolved_outcome_store,
-        session_store=resolved_session_store,
-        backfill_service=backfill_service,
-    )
-    history_service = SessionHistoryService(
-        session_store=resolved_session_store,
-        outcome_service=outcome_service,
-        feedback_service=feedback_service,
-    )
-    resolved_recommendation_snapshot_store = (
-        recommendation_snapshot_store or SQLiteRecommendationSnapshotStore()
-    )
-    recommendation_snapshot_service = RecommendationSnapshotService(
-        resolved_recommendation_snapshot_store
-    )
-    taste_lab_service = TasteLabService(
-        taste_lab_store or SQLiteTasteLabStore(),
-        memory_sink=taste_memory_service,
-    )
-    watchlist_service = SharedWatchlistService(
-        watchlist_store or SQLiteWatchlistStore(),
-        memory_sink=taste_memory_service,
-    )
-    profile_memory_service = ProfileMemoryService(
-        watchlist_service=watchlist_service,
-        backfill_service=backfill_service,
-        session_store=resolved_session_store,
-        taste_lab_service=taste_lab_service,
-    )
-    tonight_intent_interpreter = TonightIntentInterpreter(
-        live_provider=OpenAITonightIntentProvider.from_env()
-    )
-    register_history_routes(app, history_service=history_service)
-    register_debug_history_routes(
-        app,
-        session_service=session_service,
-        feedback_service=feedback_service,
-        outcome_service=outcome_service,
-        recommendation_snapshot_store=resolved_recommendation_snapshot_store,
-    )
-    register_watchlist_routes(app, watchlist_service=watchlist_service)
-    register_setup_routes(app, setup_store=resolved_setup_store)
-    register_profile_memory_routes(
-        app,
-        profile_memory_service=profile_memory_service,
-        taste_memory_service=taste_memory_service,
+    services = _build_app_services(
+        setup_store=setup_store,
+        onboarding_store=onboarding_store,
+        backfill_store=backfill_store,
+        feedback_store=feedback_store,
+        outcome_store=outcome_store,
+        session_store=session_store,
+        recommendation_snapshot_store=recommendation_snapshot_store,
+        taste_lab_store=taste_lab_store,
+        taste_memory_store=taste_memory_store,
+        watchlist_store=watchlist_store,
     )
 
-    @app.get("/health", tags=["system"])
-    def health() -> dict[str, str]:
-        return {"status": "ok", "service": "movie-night-mediator-api"}
+    register_system_routes(app)
+    register_history_routes(app, history_service=services.history_service)
+    register_debug_history_routes(
+        app,
+        session_service=services.session_service,
+        feedback_service=services.feedback_service,
+        outcome_service=services.outcome_service,
+        recommendation_snapshot_store=services.recommendation_snapshot_store,
+    )
+    register_watchlist_routes(app, watchlist_service=services.watchlist_service)
+    register_setup_routes(app, setup_store=services.setup_store)
+    register_onboarding_routes(
+        app,
+        onboarding_store=services.onboarding_store,
+        taste_lab_service=services.taste_lab_service,
+    )
+    register_backfill_routes(
+        app,
+        backfill_service=services.backfill_service,
+        app_owned_movie_action_service=services.app_owned_movie_action_service,
+    )
+    register_feedback_routes(app, feedback_service=services.feedback_service)
+    register_taste_lab_routes(
+        app,
+        taste_lab_service=services.taste_lab_service,
+        taste_lab_seed_queue_path=taste_lab_seed_queue_path,
+    )
+    register_session_routes(
+        app,
+        session_service=services.session_service,
+        outcome_service=services.outcome_service,
+    )
+    register_profile_memory_routes(
+        app,
+        profile_memory_service=services.profile_memory_service,
+        taste_memory_service=services.taste_memory_service,
+    )
 
     @app.get(
         "/recommendations/shortlist",
@@ -599,11 +432,11 @@ def create_app(
                 for item in _live_candidate_shortlist_items(
                     payload=payload,
                     candidate_source=candidate_source,
-                    snapshot_service=recommendation_snapshot_service,
-                    taste_lab_service=taste_lab_service,
-                    backfill_service=backfill_service,
-                    taste_memory_service=taste_memory_service,
-                    setup_store=resolved_setup_store,
+                    snapshot_service=services.recommendation_snapshot_service,
+                    taste_lab_service=services.taste_lab_service,
+                    backfill_service=services.backfill_service,
+                    taste_memory_service=services.taste_memory_service,
+                    setup_store=services.setup_store,
                 )
             ]
 
@@ -613,16 +446,16 @@ def create_app(
                 session=_shortlist_session_from_payload(payload),
                 users=_shortlist_users_from_taste_profile(
                     payload=payload,
-                    taste_lab_service=taste_lab_service,
-                    backfill_service=backfill_service,
-                    taste_memory_service=taste_memory_service,
-                    setup_store=resolved_setup_store,
+                    taste_lab_service=services.taste_lab_service,
+                    backfill_service=services.backfill_service,
+                    taste_memory_service=services.taste_memory_service,
+                    setup_store=services.setup_store,
                 ),
-                snapshot_service=recommendation_snapshot_service,
+                snapshot_service=services.recommendation_snapshot_service,
                 excluded_source_movie_ids=tuple(payload.excludedSourceMovieIds),
                 watched_source_movie_ids=_shortlist_watched_source_movie_ids(
                     payload=payload,
-                    backfill_service=backfill_service,
+                    backfill_service=services.backfill_service,
                 ),
                 session_reactions=_shortlist_session_reactions_from_payload(payload),
             )
@@ -638,7 +471,7 @@ def create_app(
         payload: TonightIntentInterpretRequestPayload,
     ) -> TonightIntentInterpretationPayload:
         try:
-            interpretation = tonight_intent_interpreter.interpret(payload.text)
+            interpretation = services.tonight_intent_interpreter.interpret(payload.text)
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
 
@@ -654,466 +487,13 @@ def create_app(
         payload: TonightIntentInterpretRequestPayload,
     ) -> TonightIntentInterpretationPayload:
         try:
-            nudge = tonight_intent_interpreter.interpret_directed_nudge(payload.text)
+            nudge = services.tonight_intent_interpreter.interpret_directed_nudge(
+                payload.text
+            )
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
 
         return _directed_nudge_to_payload(nudge)
-
-    @app.get(
-        "/onboarding/completion",
-        response_model=OnboardingCompletionPayload,
-        tags=["onboarding"],
-    )
-    def get_onboarding_completion(
-        requiredProfileIds: Annotated[list[str], Query(min_length=1)],
-    ) -> OnboardingCompletionPayload:
-        completion = resolved_onboarding_store.load_completion(
-            tuple(requiredProfileIds)
-        )
-        completed_profile_ids = set(completion.completed_profile_ids)
-        for profile_id in requiredProfileIds:
-            if profile_id in completed_profile_ids:
-                continue
-            summary = taste_lab_service.taste_profile_summary(
-                household_id=DEFAULT_HOUSEHOLD_ID,
-                profile_id=profile_id,
-            )
-            if (
-                summary.preference_evidence_count
-                >= ONBOARDING_TASTE_LAB_UNLOCK_THRESHOLD
-            ):
-                completed_profile_ids.add(profile_id)
-
-        ordered_completed_profile_ids = [
-            profile_id
-            for profile_id in completion.required_profile_ids
-            if profile_id in completed_profile_ids
-        ]
-        incomplete_profile_ids = [
-            profile_id
-            for profile_id in completion.required_profile_ids
-            if profile_id not in completed_profile_ids
-        ]
-        return OnboardingCompletionPayload(
-            requiredProfileIds=list(completion.required_profile_ids),
-            completedProfileIds=ordered_completed_profile_ids,
-            incompleteProfileIds=incomplete_profile_ids,
-            sharedRecommendationLocked=bool(incomplete_profile_ids),
-            sharedRecommendationUnlocked=not incomplete_profile_ids,
-        )
-
-    @app.get(
-        "/onboarding/{profile_id}",
-        response_model=ParticipantOnboardingPayload,
-        response_model_exclude_none=True,
-        tags=["onboarding"],
-    )
-    def get_profile_onboarding(profile_id: str) -> ParticipantOnboardingPayload:
-        onboarding = (
-            resolved_onboarding_store.load_profile_onboarding(profile_id)
-            or ParticipantOnboarding(profile_id=profile_id)
-        )
-        return _onboarding_to_payload(onboarding)
-
-    @app.put(
-        "/onboarding/{profile_id}",
-        response_model=ParticipantOnboardingPayload,
-        response_model_exclude_none=True,
-        tags=["onboarding"],
-    )
-    def put_profile_onboarding(
-        profile_id: str,
-        payload: ParticipantOnboardingPayload,
-    ) -> ParticipantOnboardingPayload:
-        if payload.profileId != profile_id:
-            raise HTTPException(
-                status_code=400,
-                detail="Profile id in path and payload must match.",
-            )
-
-        saved_onboarding = resolved_onboarding_store.save_profile_onboarding(
-            _payload_to_onboarding(payload)
-        )
-        return _onboarding_to_payload(saved_onboarding)
-
-    @app.post(
-        "/backfill/watched-titles",
-        response_model=list[WatchedTitleBackfillPayload],
-        tags=["backfill"],
-    )
-    def post_watched_title_backfill(
-        payload: BackfillWatchedTitlePayload,
-    ) -> list[WatchedTitleBackfillPayload]:
-        try:
-            records = backfill_service.add_watched_title(
-                household_id=payload.householdId,
-                entry=_payload_to_title_entry(payload.entry),
-                participant_ids=tuple(payload.participantIds),
-                include_global=payload.includeGlobal,
-                watched_on=payload.watchedOn,
-                watched=payload.watched,
-                taste_label=payload.tasteLabel,
-            )
-        except ValueError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
-
-        return [_watched_backfill_to_payload(record) for record in records]
-
-    @app.get(
-        "/backfill/watched-titles",
-        response_model=list[WatchedTitleBackfillPayload],
-        tags=["backfill"],
-    )
-    def get_watched_title_backfill(
-        householdId: str = DEFAULT_HOUSEHOLD_ID,
-    ) -> list[WatchedTitleBackfillPayload]:
-        return [
-            _watched_backfill_to_payload(record)
-            for record in backfill_service.list_watched_titles(householdId)
-        ]
-
-    @app.post(
-        "/app-owned-movies/watched",
-        response_model=list[WatchedTitleBackfillPayload],
-        tags=["app-owned-movies"],
-    )
-    def post_app_owned_movie_watched(
-        payload: AppOwnedMovieWatchedPayload,
-    ) -> list[WatchedTitleBackfillPayload]:
-        try:
-            records = app_owned_movie_action_service.mark_watched(
-                household_id=payload.householdId,
-                source_movie_id=payload.sourceMovieId,
-                title=payload.title,
-                watched_on=payload.watchedOn,
-                profile_ratings=tuple(
-                    AppOwnedProfileRating(
-                        profile_id=rating.profileId,
-                        taste_label=rating.tasteLabel,
-                    )
-                    for rating in payload.ratings
-                ),
-            )
-        except ValueError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
-
-        return [_watched_backfill_to_payload(record) for record in records]
-
-    @app.post(
-        "/feedback/post-watch",
-        response_model=PostWatchFeedbackResponsePayload,
-        response_model_exclude_none=True,
-        tags=["feedback"],
-    )
-    def post_post_watch_feedback(
-        payload: PostWatchFeedbackPayload,
-    ) -> PostWatchFeedbackResponsePayload:
-        try:
-            feedback = feedback_service.save_feedback(
-                household_id=payload.householdId,
-                session_id=payload.sessionId,
-                user_id=payload.userId,
-                source_movie_id=payload.sourceMovieId,
-                feedback_label=payload.feedbackLabel,
-                free_text_note=payload.freeTextNote,
-            )
-        except ValueError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
-
-        return _post_watch_feedback_to_payload(feedback)
-
-    @app.get(
-        "/feedback/post-watch",
-        response_model=list[PostWatchFeedbackResponsePayload],
-        response_model_exclude_none=True,
-        tags=["feedback"],
-    )
-    def get_post_watch_feedback(
-        householdId: str = DEFAULT_HOUSEHOLD_ID,
-        sessionId: str | None = None,
-    ) -> list[PostWatchFeedbackResponsePayload]:
-        try:
-            feedback_records = feedback_service.list_feedback(
-                household_id=householdId,
-                session_id=sessionId,
-            )
-        except ValueError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
-
-        return [
-            _post_watch_feedback_to_payload(feedback)
-            for feedback in feedback_records
-        ]
-
-    @app.post(
-        "/taste-lab/candidates",
-        status_code=204,
-        tags=["taste-lab"],
-    )
-    def post_taste_lab_candidates(
-        candidates: list[TasteLabCandidatePayload],
-        householdId: str = DEFAULT_HOUSEHOLD_ID,
-    ) -> None:
-        try:
-            taste_lab_service.seed_candidates(
-                household_id=householdId,
-                candidates=tuple(
-                    _payload_to_taste_lab_candidate(candidate)
-                    for candidate in candidates
-                ),
-            )
-        except ValueError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
-
-    @app.post(
-        "/taste-lab/default-candidates",
-        status_code=204,
-        tags=["taste-lab"],
-    )
-    def post_default_taste_lab_candidates(
-        householdId: str = DEFAULT_HOUSEHOLD_ID,
-    ) -> None:
-        try:
-            taste_lab_service.seed_candidates(
-                household_id=householdId,
-                candidates=default_taste_lab_candidates(taste_lab_seed_queue_path),
-            )
-        except ValueError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
-
-    @app.get(
-        "/taste-lab/{profile_id}/queue",
-        response_model=list[TasteLabCandidatePayload],
-        tags=["taste-lab"],
-    )
-    def get_taste_lab_queue(
-        profile_id: str,
-        householdId: str = DEFAULT_HOUSEHOLD_ID,
-        limit: int = Query(default=10, ge=1, le=25),
-    ) -> list[TasteLabCandidatePayload]:
-        try:
-            candidates = taste_lab_service.next_batch(
-                household_id=householdId,
-                profile_id=profile_id,
-                limit=limit,
-            )
-        except ValueError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
-
-        return [_taste_lab_candidate_to_payload(candidate) for candidate in candidates]
-
-    @app.post(
-        "/taste-lab/{profile_id}/ratings",
-        response_model=list[TasteLabRatingExportPayload],
-        tags=["taste-lab"],
-    )
-    def post_taste_lab_ratings(
-        profile_id: str,
-        payload: TasteLabSubmitRatingsPayload,
-    ) -> list[TasteLabRatingExportPayload]:
-        try:
-            ratings = taste_lab_service.submit_batch(
-                household_id=payload.householdId,
-                profile_id=profile_id,
-                ratings=tuple(
-                    _payload_to_taste_lab_rating_input(rating)
-                    for rating in payload.ratings
-                ),
-            )
-        except ValueError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
-
-        return [_taste_lab_rating_export_to_payload(rating) for rating in ratings]
-
-    @app.get(
-        "/taste-lab/{profile_id}/ratings",
-        response_model=list[TasteLabRatingExportPayload],
-        tags=["taste-lab"],
-    )
-    def get_taste_lab_ratings(
-        profile_id: str,
-        householdId: str = DEFAULT_HOUSEHOLD_ID,
-    ) -> list[TasteLabRatingExportPayload]:
-        try:
-            ratings = taste_lab_service.list_profile_ratings(
-                household_id=householdId,
-                profile_id=profile_id,
-            )
-        except ValueError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
-
-        return [_taste_lab_rating_export_to_payload(rating) for rating in ratings]
-
-    @app.get(
-        "/taste-profile/{profile_id}/summary",
-        response_model=TasteProfileSummaryPayload,
-        tags=["taste-profile"],
-    )
-    def get_taste_profile_summary(
-        profile_id: str,
-        householdId: str = DEFAULT_HOUSEHOLD_ID,
-    ) -> TasteProfileSummaryPayload:
-        try:
-            summary = taste_lab_service.taste_profile_summary(
-                household_id=householdId,
-                profile_id=profile_id,
-            )
-        except ValueError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
-
-        return _taste_profile_summary_to_payload(summary)
-
-    @app.post(
-        "/sessions/{session_id}/outcome",
-        response_model=SessionOutcomePayload,
-        response_model_exclude_none=True,
-        tags=["sessions"],
-    )
-    def post_session_outcome(
-        session_id: str,
-        payload: SaveSessionOutcomePayload,
-    ) -> SessionOutcomePayload:
-        try:
-            outcome = outcome_service.save_outcome(
-                household_id=payload.householdId,
-                session_id=session_id,
-                outcome_type=payload.outcomeType,
-                selected_source_movie_id=payload.selectedSourceMovieId,
-                selected_title=payload.selectedTitle,
-                selection_origin=payload.selectionOrigin,
-                notes=payload.notes,
-            )
-        except LookupError as error:
-            raise HTTPException(status_code=404, detail=str(error)) from error
-        except ValueError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
-
-        return _session_outcome_to_payload(outcome)
-
-    @app.post(
-        "/sessions",
-        response_model=SharedSessionPayload,
-        tags=["sessions"],
-    )
-    def post_shared_session(payload: CreateSharedSessionPayload) -> SharedSessionPayload:
-        try:
-            session = session_service.start_session(
-                household_id=payload.householdId,
-                active_mode=payload.activeMode,
-                participant_ids=(payload.participantIds[0], payload.participantIds[1]),
-                shortlist=tuple(
-                    _payload_to_session_shortlist_item(item)
-                    for item in payload.shortlist
-                ),
-                session_id=payload.sessionId,
-            )
-        except ValueError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
-
-        return _shared_session_to_payload(session)
-
-    @app.get(
-        "/sessions/{session_id}",
-        response_model=SharedSessionPayload,
-        tags=["sessions"],
-    )
-    def get_shared_session(session_id: str) -> SharedSessionPayload:
-        session = session_service.load_session(session_id)
-        if session is None:
-            raise HTTPException(status_code=404, detail="Shared session not found.")
-
-        return _shared_session_to_payload(session)
-
-    @app.post(
-        "/sessions/{session_id}/continue",
-        response_model=SharedSessionPayload,
-        tags=["sessions"],
-    )
-    def post_shared_session_continuation(
-        session_id: str,
-        payload: ContinueSharedSessionPayload,
-    ) -> SharedSessionPayload:
-        try:
-            session = session_service.continue_with_shortlist(
-                session_id=session_id,
-                shortlist=tuple(
-                    _payload_to_session_shortlist_item(item)
-                    for item in payload.shortlist
-                ),
-            )
-        except LookupError as error:
-            raise HTTPException(status_code=404, detail=str(error)) from error
-        except SessionTransitionError as error:
-            raise HTTPException(status_code=409, detail=str(error)) from error
-        except ValueError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
-
-        return _shared_session_to_payload(session)
-
-    @app.put(
-        "/sessions/{session_id}",
-        response_model=SharedSessionPayload,
-        tags=["sessions"],
-    )
-    def put_shared_session(
-        session_id: str,
-        payload: UpdateSharedSessionPayload,
-    ) -> SharedSessionPayload:
-        try:
-            session = session_service.update_mode(session_id, payload.activeMode)
-        except LookupError as error:
-            raise HTTPException(status_code=404, detail=str(error)) from error
-        except SessionTransitionError as error:
-            raise HTTPException(status_code=409, detail=str(error)) from error
-
-        return _shared_session_to_payload(session)
-
-    @app.post(
-        "/sessions/{session_id}/reactions",
-        response_model=SharedSessionPayload,
-        tags=["sessions"],
-    )
-    def post_shared_session_reactions(
-        session_id: str,
-        payload: SubmitSessionReactionsPayload,
-    ) -> SharedSessionPayload:
-        try:
-            session = session_service.submit_reactions(
-                session_id=session_id,
-                participant_id=payload.participantId,
-                reactions=tuple(
-                    _payload_to_session_reaction(
-                        session_id,
-                        payload.participantId,
-                        reaction,
-                    )
-                    for reaction in payload.reactions
-                ),
-            )
-        except LookupError as error:
-            raise HTTPException(status_code=404, detail=str(error)) from error
-        except SessionTransitionError as error:
-            raise HTTPException(status_code=409, detail=str(error)) from error
-        except ValueError as error:
-            raise HTTPException(status_code=400, detail=str(error)) from error
-
-        return _shared_session_to_payload(session)
-
-    @app.post(
-        "/sessions/{session_id}/advance-handoff",
-        response_model=SharedSessionPayload,
-        tags=["sessions"],
-    )
-    def post_shared_session_handoff(session_id: str) -> SharedSessionPayload:
-        try:
-            session = session_service.advance_handoff(session_id)
-        except LookupError as error:
-            raise HTTPException(status_code=404, detail=str(error)) from error
-        except SessionTransitionError as error:
-            raise HTTPException(status_code=409, detail=str(error)) from error
-
-        return _shared_session_to_payload(session)
 
     return app
 
@@ -1559,158 +939,6 @@ def _offline_shortlist_item_to_payload(
     )
 
 
-def _payload_to_onboarding(payload: ParticipantOnboardingPayload) -> ParticipantOnboarding:
-    return ParticipantOnboarding(
-        profile_id=payload.profileId,
-        loved_title_entries=tuple(
-            _payload_to_title_entry(entry) for entry in payload.lovedTitleEntries
-        ),
-        fine_title_entries=tuple(
-            _payload_to_title_entry(entry) for entry in payload.fineTitleEntries
-        ),
-        no_title_entries=tuple(
-            _payload_to_title_entry(entry) for entry in payload.noTitleEntries
-        ),
-        constraints=OnboardingConstraints(
-            horror_exclusion=payload.constraints.horrorExclusion,
-            subtitle_intolerance=payload.constraints.subtitleIntolerance,
-        ),
-    )
-
-
-def _payload_to_title_entry(
-    payload: TitleResolutionEntryPayload,
-) -> TitleResolutionEntry:
-    if payload.status == TitleResolutionStatus.UNRESOLVED:
-        return TitleResolutionEntry.unresolved(
-            payload.rawTitle,
-            reason=payload.unresolvedReason,
-        )
-
-    if payload.candidate is None:
-        raise HTTPException(
-            status_code=400,
-            detail="Resolved title entries require a candidate.",
-        )
-
-    return TitleResolutionEntry.resolved(
-        payload.rawTitle,
-        _payload_to_candidate(payload.candidate),
-    )
-
-
-def _payload_to_candidate(
-    payload: TitleResolutionCandidatePayload,
-) -> TitleResolutionCandidate:
-    return TitleResolutionCandidate(
-        source=payload.source,
-        source_id=payload.sourceId,
-        title=payload.title,
-        media_type=payload.mediaType,
-        release_year=payload.releaseYear,
-        overview=payload.overview,
-        original_language=payload.originalLanguage,
-        popularity=payload.popularity,
-    )
-
-
-def _onboarding_to_payload(
-    onboarding: ParticipantOnboarding,
-) -> ParticipantOnboardingPayload:
-    return ParticipantOnboardingPayload(
-        profileId=onboarding.profile_id,
-        lovedTitleEntries=[
-            _title_entry_to_payload(entry)
-            for entry in onboarding.loved_title_entries
-        ],
-        fineTitleEntries=[
-            _title_entry_to_payload(entry) for entry in onboarding.fine_title_entries
-        ],
-        noTitleEntries=[
-            _title_entry_to_payload(entry) for entry in onboarding.no_title_entries
-        ],
-        constraints=OnboardingConstraintsPayload(
-            horrorExclusion=onboarding.constraints.horror_exclusion,
-            subtitleIntolerance=onboarding.constraints.subtitle_intolerance,
-        ),
-        isComplete=onboarding.is_complete,
-    )
-
-
-def _title_entry_to_payload(
-    entry: TitleResolutionEntry,
-) -> TitleResolutionEntryPayload:
-    return TitleResolutionEntryPayload(
-        rawTitle=entry.raw_title,
-        status=entry.status,
-        candidate=(
-            _candidate_to_payload(entry.candidate)
-            if entry.candidate is not None
-            else None
-        ),
-        unresolvedReason=entry.unresolved_reason,
-    )
-
-
-def _candidate_to_payload(
-    candidate: TitleResolutionCandidate,
-) -> TitleResolutionCandidatePayload:
-    return TitleResolutionCandidatePayload(
-        source=candidate.source,
-        sourceId=candidate.source_id,
-        title=candidate.title,
-        mediaType=candidate.media_type,
-        releaseYear=candidate.release_year,
-        overview=candidate.overview,
-        originalLanguage=candidate.original_language,
-        popularity=candidate.popularity,
-    )
-
-
-def _watched_backfill_to_payload(
-    record: WatchedTitleBackfill,
-) -> WatchedTitleBackfillPayload:
-    entry_payload = _title_entry_to_payload(record.entry)
-    return WatchedTitleBackfillPayload(
-        householdId=record.household_id,
-        scope=record.scope,
-        participantId=record.participant_id,
-        titleKey=record.title_key,
-        rawTitle=entry_payload.rawTitle,
-        status=entry_payload.status,
-        candidate=entry_payload.candidate,
-        unresolvedReason=entry_payload.unresolvedReason,
-        watchedOn=record.watched_on,
-        watched=record.watched,
-        tasteLabel=record.taste_label,
-    )
-
-
-def _post_watch_feedback_to_payload(
-    feedback: PostWatchFeedback,
-) -> PostWatchFeedbackResponsePayload:
-    return PostWatchFeedbackResponsePayload(
-        sessionId=feedback.session_id,
-        userId=feedback.user_id,
-        sourceMovieId=feedback.source_movie_id,
-        feedbackLabel=feedback.feedback_label,
-        freeTextNote=feedback.free_text_note,
-    )
-
-
-def _session_outcome_to_payload(
-    outcome: SessionOutcome,
-) -> SessionOutcomePayload:
-    return SessionOutcomePayload(
-        sessionId=outcome.session_id,
-        outcomeType=outcome.outcome_type,
-        selectedSourceMovieId=outcome.selected_source_movie_id,
-        selectedTitle=outcome.selected_title,
-        selectionOrigin=outcome.selection_origin,
-        notes=outcome.notes,
-    )
-
-
 def _intent_interpretation_to_payload(
     interpretation: IntentInterpretation,
 ) -> TonightIntentInterpretationPayload:
@@ -1740,280 +968,6 @@ def _directed_nudge_to_payload(
         filters=dict(nudge.filters),
         softSignals=list(nudge.soft_signals),
         confidence=nudge.confidence,
-    )
-
-
-def _payload_to_taste_lab_candidate(
-    payload: TasteLabCandidatePayload,
-) -> TasteLabCandidate:
-    return TasteLabCandidate(
-        movie=_payload_to_taste_lab_movie(payload.movie),
-        queue_provenance=_payload_to_taste_lab_queue_provenance(
-            payload.queueProvenance
-        ),
-    )
-
-
-def _payload_to_taste_lab_rating_input(
-    payload: TasteLabRatingInputPayload,
-) -> TasteLabRatingInput:
-    return TasteLabRatingInput(
-        movie=_payload_to_taste_lab_movie(payload.movie),
-        label=payload.label,
-        rated_at=payload.ratedAt,
-        queue_provenance=(
-            _payload_to_taste_lab_queue_provenance(payload.queueProvenance)
-            if payload.queueProvenance is not None
-            else None
-        ),
-    )
-
-
-def _payload_to_taste_lab_movie(
-    payload: TasteLabMoviePayload,
-) -> TasteLabMovieIdentity:
-    return TasteLabMovieIdentity(
-        source_movie_id=payload.sourceMovieId,
-        title=payload.title,
-        release_year=payload.releaseYear,
-        tmdb_id=payload.tmdbId,
-        poster_path=payload.posterPath,
-        genres=tuple(payload.genres),
-    )
-
-
-def _payload_to_taste_lab_queue_provenance(
-    payload: TasteLabQueueProvenancePayload,
-) -> TasteLabQueueProvenance:
-    return TasteLabQueueProvenance(
-        queue_source=payload.queueSource,
-        generated_at=payload.generatedAt,
-        rank=payload.rank,
-        signal_score=payload.signalScore,
-        score_components=payload.scoreComponents,
-        queue_reason=payload.queueReason,
-    )
-
-
-def _taste_lab_candidate_to_payload(
-    candidate: TasteLabCandidate,
-) -> TasteLabCandidatePayload:
-    return TasteLabCandidatePayload(
-        movie=_taste_lab_movie_to_payload(candidate.movie),
-        queueProvenance=_taste_lab_queue_provenance_to_payload(
-            candidate.queue_provenance
-        ),
-    )
-
-
-def _taste_lab_rating_export_to_payload(
-    rating: TasteLabRatingExport,
-) -> TasteLabRatingExportPayload:
-    return TasteLabRatingExportPayload(
-        schemaVersion=rating.schema_version,
-        householdId=rating.household_id,
-        profileId=rating.profile_id,
-        movie=_taste_lab_movie_to_payload(rating.movie),
-        label=rating.label,
-        familiarity=rating.familiarity.value,
-        preferenceValue=rating.preference_value,
-        watchsignalTasteSignal=rating.watchsignal_taste_signal.value,
-        isImportablePreference=rating.is_importable_preference,
-        ratedAt=rating.rated_at,
-        queueProvenance=(
-            _taste_lab_queue_provenance_to_payload(rating.queue_provenance)
-            if rating.queue_provenance is not None
-            else None
-        ),
-    )
-
-
-def _taste_profile_summary_to_payload(
-    summary: TasteProfileSummary,
-) -> TasteProfileSummaryPayload:
-    return TasteProfileSummaryPayload(
-        householdId=summary.household_id,
-        profileId=summary.profile_id,
-        ratingCount=summary.rating_count,
-        preferenceEvidenceCount=summary.preference_evidence_count,
-        familiarityOnlyCount=summary.familiarity_only_count,
-        genreSignals=[
-            _taste_genre_signal_to_payload(signal)
-            for signal in summary.genre_signals
-        ],
-        evidence=[
-            _taste_profile_evidence_to_payload(evidence)
-            for evidence in summary.evidence
-        ],
-    )
-
-
-def _taste_profile_evidence_to_payload(
-    evidence: TasteProfileEvidence,
-) -> TasteProfileEvidencePayload:
-    return TasteProfileEvidencePayload(
-        source=evidence.source,
-        householdId=evidence.household_id,
-        profileId=evidence.profile_id,
-        sourceMovieId=evidence.source_movie_id,
-        title=evidence.title,
-        releaseYear=evidence.release_year,
-        tmdbId=evidence.tmdb_id,
-        genres=list(evidence.genres),
-        label=evidence.label,
-        familiarity=evidence.familiarity.value,
-        watchsignalTasteSignal=evidence.watchsignal_taste_signal.value,
-        isPreferenceEvidence=evidence.is_preference_evidence,
-        preferenceValue=evidence.preference_value,
-        ratedAt=evidence.rated_at,
-        queueProvenance=(
-            _taste_lab_queue_provenance_to_payload(evidence.queue_provenance)
-            if evidence.queue_provenance is not None
-            else None
-        ),
-    )
-
-
-def _taste_genre_signal_to_payload(
-    signal: TasteGenreSignal,
-) -> TasteGenreSignalPayload:
-    return TasteGenreSignalPayload(
-        genre=signal.genre,
-        positiveCount=signal.positive_count,
-        neutralCount=signal.neutral_count,
-        negativeCount=signal.negative_count,
-        score=signal.score,
-    )
-
-
-def _taste_lab_movie_to_payload(
-    movie: TasteLabMovieIdentity,
-) -> TasteLabMoviePayload:
-    return TasteLabMoviePayload(
-        sourceMovieId=movie.source_movie_id,
-        title=movie.title,
-        releaseYear=movie.release_year,
-        tmdbId=movie.tmdb_id,
-        posterPath=movie.poster_path,
-        genres=list(movie.genres),
-    )
-
-
-def _taste_lab_queue_provenance_to_payload(
-    provenance: TasteLabQueueProvenance,
-) -> TasteLabQueueProvenancePayload:
-    return TasteLabQueueProvenancePayload(
-        queueSource=provenance.queue_source,
-        generatedAt=provenance.generated_at,
-        rank=provenance.rank,
-        signalScore=provenance.signal_score,
-        scoreComponents=dict(provenance.score_components),
-        queueReason=provenance.queue_reason,
-    )
-
-
-def _payload_to_session_shortlist_item(
-    payload: SessionShortlistItemPayload,
-) -> SessionShortlistItem:
-    return SessionShortlistItem(
-        source_movie_id=payload.sourceMovieId,
-        title=payload.title,
-        candidate_rank=payload.candidateRank,
-        profile_score=payload.profileScore,
-    )
-
-
-def _payload_to_session_reaction(
-    session_id: str,
-    participant_id: str,
-    payload: SessionReactionPayload,
-) -> SessionReaction:
-    return SessionReaction(
-        session_id=session_id,
-        participant_id=participant_id,
-        source_movie_id=payload.sourceMovieId,
-        reaction_label=payload.reactionLabel,
-    )
-
-
-def _shared_session_to_payload(
-    session: SharedMovieNightSession,
-) -> SharedSessionPayload:
-    shortlist_by_source_movie_id = {
-        item.source_movie_id: item
-        for item in session.shortlist
-    }
-    reranked_shortlist = [
-        shortlist_by_source_movie_id[source_movie_id]
-        for source_movie_id in session.reranked_source_movie_ids
-        if source_movie_id in shortlist_by_source_movie_id
-    ]
-
-    return SharedSessionPayload(
-        sessionId=session.session_id,
-        householdId=session.household_id,
-        activeMode=session.active_mode,
-        participantIds=list(session.participant_ids),
-        state=session.state,
-        shortlist=[
-            SessionShortlistItemPayload(
-                sourceMovieId=item.source_movie_id,
-                title=item.title,
-                candidateRank=item.candidate_rank,
-                profileScore=item.profile_score,
-            )
-            for item in session.shortlist
-        ],
-        founderReactions=[
-            SessionReactionPayload(
-                sourceMovieId=reaction.source_movie_id,
-                reactionLabel=reaction.reaction_label,
-            )
-            for reaction in session.founder_reactions
-        ],
-        wifeReactions=[
-            SessionReactionPayload(
-                sourceMovieId=reaction.source_movie_id,
-                reactionLabel=reaction.reaction_label,
-            )
-            for reaction in session.wife_reactions
-        ],
-        previousShortlist=[
-            SessionShortlistItemPayload(
-                sourceMovieId=item.source_movie_id,
-                title=item.title,
-                candidateRank=item.candidate_rank,
-                profileScore=item.profile_score,
-            )
-            for item in session.previous_shortlist
-        ],
-        previousFounderReactions=[
-            SessionReactionPayload(
-                sourceMovieId=reaction.source_movie_id,
-                reactionLabel=reaction.reaction_label,
-            )
-            for reaction in session.previous_founder_reactions
-        ],
-        previousWifeReactions=[
-            SessionReactionPayload(
-                sourceMovieId=reaction.source_movie_id,
-                reactionLabel=reaction.reaction_label,
-            )
-            for reaction in session.previous_wife_reactions
-        ],
-        shownSourceMovieIds=list(session.shown_source_movie_ids),
-        batchCount=session.batch_count,
-        rerankedSourceMovieIds=list(session.reranked_source_movie_ids),
-        rerankedShortlist=[
-            SessionShortlistItemPayload(
-                sourceMovieId=item.source_movie_id,
-                title=item.title,
-                candidateRank=item.candidate_rank,
-                profileScore=item.profile_score,
-            )
-            for item in reranked_shortlist
-        ],
-        bestPickSourceMovieId=session.best_pick_source_movie_id,
     )
 
 

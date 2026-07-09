@@ -6,8 +6,6 @@ from dataclasses import dataclass
 from typing import Any
 from urllib import error, request
 
-from movie_night_mediator.app.tonight_intent import DeterministicTonightIntentProvider
-from movie_night_mediator.mvp_plus_2 import IntentInterpretation
 from movie_night_mediator.mvp_plus_3 import (
     DirectedNudge,
     DirectedNudgeResolution,
@@ -22,20 +20,17 @@ OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions"
 
 
 @dataclass(frozen=True)
-class OpenAITonightIntentProvider:
+class OpenAIDirectedNudgeProvider:
     api_key: str
     model: str = DEFAULT_OPENAI_INTENT_MODEL
 
     @classmethod
-    def from_env(cls) -> OpenAITonightIntentProvider | None:
+    def from_env(cls) -> OpenAIDirectedNudgeProvider | None:
         api_key = os.environ.get(OPENAI_API_KEY_ENV_VAR, "").strip()
         if not api_key:
             return None
         model = os.environ.get(OPENAI_INTENT_MODEL_ENV_VAR, "").strip()
         return cls(api_key=api_key, model=model or DEFAULT_OPENAI_INTENT_MODEL)
-
-    def interpret(self, text: str) -> IntentInterpretation:
-        return DeterministicTonightIntentProvider().interpret(text)
 
     def interpret_directed_nudge(self, text: str) -> DirectedNudge:
         prompt = {

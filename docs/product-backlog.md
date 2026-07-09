@@ -50,6 +50,8 @@ Candidate work:
 - Add a recommendation evaluation harness so scoring changes can be compared against fixed scenarios.
 - Keep explanations honest when the model is uncertain.
 - Decide when LLM-assisted interpretation should enter the learning loop.
+- Add steer-interpretation provenance so the app can show or log whether a nudge was deterministic only, live-LLM merged, or deterministic fallback after live failure.
+- Record whether live interpretation materially changed the structured nudge, so LLM usefulness can be measured instead of assumed.
 
 ### Taste Data And Onboarding
 

@@ -129,13 +129,13 @@ class TonightIntentInterpreterTest(unittest.TestCase):
         self.assertIn("comforting", interpretation.clarification_question or "")
         self.assertIn("matches the mood", interpretation.clarification_question or "")
 
-    def test_interpreter_can_delegate_to_live_shaped_provider(self) -> None:
+    def test_interpreter_keeps_base_tonight_intent_deterministic(self) -> None:
         interpretation = TonightIntentInterpreter(
-            live_provider=FakeLiveIntentProvider()
+            directed_nudge_provider=FakeLiveDirectedNudgeProvider()
         ).interpret("make us laugh")
 
         self.assertEqual(interpretation.filters, {"genres": ["Comedy"]})
-        self.assertEqual(interpretation.soft_signals, ("live-shaped",))
+        self.assertNotIn("live-shaped", interpretation.soft_signals)
 
     def test_interpreter_does_not_return_rankings(self) -> None:
         interpretation = DeterministicTonightIntentProvider().interpret(
@@ -275,7 +275,7 @@ class TonightIntentInterpreterTest(unittest.TestCase):
 
     def test_directed_nudge_live_provider_still_returns_structured_context(self) -> None:
         nudge = TonightIntentInterpreter(
-            live_provider=FakeLiveDirectedNudgeProvider()
+            directed_nudge_provider=FakeLiveDirectedNudgeProvider()
         ).interpret_directed_nudge("90s thriller")
 
         self.assertEqual(nudge.filters["genres"], ["Thriller"])
@@ -299,7 +299,7 @@ class TonightIntentInterpreterTest(unittest.TestCase):
         self,
     ) -> None:
         nudge = TonightIntentInterpreter(
-            live_provider=FailingLiveDirectedNudgeProvider()
+            directed_nudge_provider=FailingLiveDirectedNudgeProvider()
         ).interpret_directed_nudge("include Tom Cruise")
 
         self.assertEqual(nudge.resolution, DirectedNudgeResolution.EXACT)
@@ -323,7 +323,7 @@ class TonightIntentInterpreterTest(unittest.TestCase):
         self,
     ) -> None:
         nudge = TonightIntentInterpreter(
-            live_provider=GenericLiveDirectedNudgeProvider()
+            directed_nudge_provider=GenericLiveDirectedNudgeProvider()
         ).interpret_directed_nudge(
             "west Texas desert manhunt after a drug deal gone wrong, aging sheriff, relentless killer, spare modern western, not superhero action"
         )
@@ -337,7 +337,7 @@ class TonightIntentInterpreterTest(unittest.TestCase):
         self,
     ) -> None:
         nudge = TonightIntentInterpreter(
-            live_provider=ConflictingLiveDirectedNudgeProvider()
+            directed_nudge_provider=ConflictingLiveDirectedNudgeProvider()
         ).interpret_directed_nudge(
             "severe turn-of-the-century American drama about greed, frontier capitalism, oil money, obsession, moral rot, no whimsy, no sci-fi, no romance"
         )
