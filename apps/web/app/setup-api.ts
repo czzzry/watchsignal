@@ -1,28 +1,24 @@
+import type {
+  SetupDefaultsPayload,
+  SetupProfilePayload,
+  SetupStatePayload,
+} from "./api-contract.generated";
+
 export const DEFAULT_API_BASE_URL = "http://127.0.0.1:8000";
 
-export type SetupProfile = {
-  id: string;
-  label: string;
-  order: number;
-  avatarKey: string;
-  colorKey: string;
+type NormalizeNullables<T, TKey extends keyof T> = Omit<T, TKey> & {
+  [Key in TKey]-?: Exclude<T[Key], undefined>;
 };
 
-export type SetupDefaults = {
-  sessionType: string;
-  inputMode: string;
-  availabilityRegion: string;
-  languageAccess: string;
-  shortlistSize: number;
-  avoidAlreadyWatched: boolean;
-};
-
-export type SetupState = {
-  householdLabel: string;
-  profiles: SetupProfile[];
+export type SetupProfile = NormalizeNullables<
+  SetupProfilePayload,
+  "avatarKey" | "colorKey"
+>;
+export type SetupDefaults = SetupDefaultsPayload;
+export type SetupState = Omit<SetupStatePayload, "profiles"> & {
   activeProfileId: string;
   partnerProfileId: string;
-  defaults: SetupDefaults;
+  profiles: SetupProfile[];
 };
 
 export type SetupLoadResult = {

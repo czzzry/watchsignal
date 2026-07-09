@@ -141,6 +141,11 @@ class TmdbCandidateSource:
         self._config = config or TmdbCandidateSourceConfig.from_env()
         self._client = client or UrlopenTmdbHttpClient(self._config)
         self._classifier = classifier or SafePickClassifier()
+        self._movie_details_cache: dict[tuple[int, str, bool], Mapping[str, object]] = {}
+        self._movie_providers_cache: dict[int, Mapping[str, object]] = {}
+        self._person_id_cache: dict[tuple[str, str, str], int | None] = {}
+        self._person_credits_cache: dict[tuple[int, str], tuple[Mapping[str, object], ...]] = {}
+        self._keyword_id_cache: dict[str, int | None] = {}
 
     def fetch_candidates(
         self,
@@ -235,15 +240,13 @@ class TmdbCandidateSource:
                     continue
                 seen_tmdb_ids.add(tmdb_id)
 
-                details_payload = self._client.get_json(
-                    f"/movie/{tmdb_id}",
-                    params={
-                        "language": language,
-                        "append_to_response": "credits",
-                    },
+                details_payload = self._movie_details(
+                    tmdb_id,
+                    language=language,
+                    include_credits=True,
                 )
-                providers_payload = self._client.get_json(
-                    f"/movie/{tmdb_id}/watch/providers",
+                providers_payload = self._movie_providers(
+                    tmdb_id,
                 )
                 candidate = self._candidate_from_payloads(
                     result,
@@ -312,11 +315,10 @@ class TmdbCandidateSource:
             if person_id is None:
                 continue
 
-            credits_payload = self._client.get_json(
-                f"/person/{person_id}/movie_credits",
-                params={"language": language},
-            )
-            for credit in _person_movie_credits(credits_payload):
+            for credit in self._person_movie_credits_for_person(
+                person_id,
+                language=language,
+            ):
                 movie_id = _int_value(credit.get("id"))
                 if movie_id is None:
                     continue
@@ -328,12 +330,13 @@ class TmdbCandidateSource:
                     movie_ids.append(movie_id)
 
         for movie_id in movie_ids:
-            details_payload = self._client.get_json(
-                f"/movie/{movie_id}",
-                params={"language": language},
+            details_payload = self._movie_details(
+                movie_id,
+                language=language,
+                include_credits=False,
             )
-            providers_payload = self._client.get_json(
-                f"/movie/{movie_id}/watch/providers",
+            providers_payload = self._movie_providers(
+                movie_id,
             )
             candidate = self._candidate_from_payloads(
                 details_payload,
@@ -363,6 +366,14 @@ class TmdbCandidateSource:
         if constraint.provider_person_id is not None:
             return _int_value(constraint.provider_person_id)
 
+        cache_key = (
+            constraint.raw_name.casefold(),
+            region.upper(),
+            language,
+        )
+        if cache_key in self._person_id_cache:
+            return self._person_id_cache[cache_key]
+
         search_payload = self._client.get_json(
             "/search/person",
             params={
@@ -373,8 +384,11 @@ class TmdbCandidateSource:
             },
         )
         for result in _objects(search_payload.get("results")):
-            return _int_value(result.get("id"))
+            person_id = _int_value(result.get("id"))
+            self._person_id_cache[cache_key] = person_id
+            return person_id
 
+        self._person_id_cache[cache_key] = None
         return None
 
     def _keyword_id_for_query(
@@ -384,6 +398,10 @@ class TmdbCandidateSource:
         region: str,
         language: str,
     ) -> int | None:
+        cache_key = query.casefold()
+        if cache_key in self._keyword_id_cache:
+            return self._keyword_id_cache[cache_key]
+
         search_payload = self._client.get_json(
             "/search/keyword",
             params={
@@ -398,10 +416,67 @@ class TmdbCandidateSource:
             if keyword_id is None or keyword_name is None:
                 continue
             if keyword_name.casefold() == query.casefold():
+                self._keyword_id_cache[cache_key] = keyword_id
                 return keyword_id
             if exact_match_id is None:
                 exact_match_id = keyword_id
+        self._keyword_id_cache[cache_key] = exact_match_id
         return exact_match_id
+
+    def _movie_details(
+        self,
+        movie_id: int,
+        *,
+        language: str,
+        include_credits: bool,
+    ) -> Mapping[str, object]:
+        cache_key = (movie_id, language, include_credits)
+        cached = self._movie_details_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        params = {"language": language}
+        if include_credits:
+            params["append_to_response"] = "credits"
+        payload = self._client.get_json(
+            f"/movie/{movie_id}",
+            params=params,
+        )
+        self._movie_details_cache[cache_key] = payload
+        return payload
+
+    def _movie_providers(
+        self,
+        movie_id: int,
+    ) -> Mapping[str, object]:
+        cached = self._movie_providers_cache.get(movie_id)
+        if cached is not None:
+            return cached
+
+        payload = self._client.get_json(
+            f"/movie/{movie_id}/watch/providers",
+        )
+        self._movie_providers_cache[movie_id] = payload
+        return payload
+
+    def _person_movie_credits_for_person(
+        self,
+        person_id: int,
+        *,
+        language: str,
+    ) -> tuple[Mapping[str, object], ...]:
+        cache_key = (person_id, language)
+        cached = self._person_credits_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        credits_payload = self._client.get_json(
+            f"/person/{person_id}/movie_credits",
+            params={"language": language},
+        )
+        credits = _person_movie_credits(credits_payload)
+        self._person_credits_cache[cache_key] = credits
+        return credits
 
     def _provider_ids_for_session(
         self,

@@ -216,6 +216,95 @@ class TmdbCandidateSourceTest(unittest.TestCase):
         self.assertEqual(client.keyword_discoveries[:3], ["10590", "5332", "592"])
         self.assertEqual(tuple(candidate.source_movie_id for candidate in candidates[:3]), ("tmdb:7345", "tmdb:88", "tmdb:99"))
 
+    def test_repeated_fetches_reuse_cached_movie_details_and_provider_payloads(self) -> None:
+        client = FakeTmdbClient(movie_ids=(11, 22, 33))
+        source = TmdbCandidateSource(
+            client=client,
+            config=TmdbCandidateSourceConfig(api_key="test"),
+        )
+        session = SessionContext(
+            session_id="cached-live-candidates",
+            audience_mode=AudienceMode.SHARED,
+            region="DE",
+            service_constraint="Prime Video",
+        )
+
+        first = source.fetch_candidates(
+            session=session,
+            household_defaults=HouseholdDefaults(),
+            limit=2,
+        )
+        second = source.fetch_candidates(
+            session=session,
+            household_defaults=HouseholdDefaults(),
+            limit=2,
+        )
+
+        self.assertEqual(
+            tuple(candidate.source_movie_id for candidate in first),
+            tuple(candidate.source_movie_id for candidate in second),
+        )
+        self.assertEqual(client.movie_detail_requests, [11, 22])
+        self.assertEqual(client.provider_requests, [11, 22])
+
+    def test_repeated_person_and_keyword_lookups_reuse_cached_search_results(self) -> None:
+        client = FakeTmdbClient(
+            movie_ids=(11, 22, 33),
+            person_results={"Keanu Reeves": 6384},
+            person_credits={6384: (11, 22)},
+            keyword_results={"oil": 10590},
+            keyword_movie_ids={10590: (11,)},
+        )
+        source = TmdbCandidateSource(
+            client=client,
+            config=TmdbCandidateSourceConfig(api_key="test"),
+        )
+
+        person_session = SessionContext(
+            session_id="cached-person-candidates",
+            audience_mode=AudienceMode.SHARED,
+            region="DE",
+            service_constraint="Prime Video",
+            person_constraints=(
+                PersonCandidateConstraint(
+                    raw_name="Keanu Reeves",
+                    normalized_name="keanu reeves",
+                ),
+            ),
+        )
+        keyword_session = SessionContext(
+            session_id="cached-theme-keywords",
+            audience_mode=AudienceMode.SHARED,
+            region="DE",
+            service_constraint="Prime Video",
+            mood_text="oil rich drama",
+        )
+
+        source.fetch_candidates(
+            session=person_session,
+            household_defaults=HouseholdDefaults(),
+            limit=2,
+        )
+        source.fetch_candidates(
+            session=person_session,
+            household_defaults=HouseholdDefaults(),
+            limit=2,
+        )
+        source.fetch_candidates(
+            session=keyword_session,
+            household_defaults=HouseholdDefaults(),
+            limit=1,
+        )
+        source.fetch_candidates(
+            session=keyword_session,
+            household_defaults=HouseholdDefaults(),
+            limit=1,
+        )
+
+        self.assertEqual(client.person_queries, ["Keanu Reeves"])
+        self.assertEqual(client.person_credit_requests, [6384])
+        self.assertEqual(client.keyword_queries, ["oil", "petrol", "oil industry"])
+
 
 class FakeTmdbClient:
     def __init__(
@@ -238,8 +327,12 @@ class FakeTmdbClient:
         self.discover_genres: list[str] = []
         self.discover_provider_filters: list[str] = []
         self.discover_monetization_filters: list[str] = []
+        self.person_queries: list[str] = []
+        self.person_credit_requests: list[int] = []
         self.keyword_queries: list[str] = []
         self.keyword_discoveries: list[str] = []
+        self.movie_detail_requests: list[int] = []
+        self.provider_requests: list[int] = []
 
     def get_json(
         self,
@@ -249,7 +342,9 @@ class FakeTmdbClient:
     ) -> Mapping[str, object]:
         if path == "/search/person":
             assert params is not None
-            person_id = self._person_results.get(params["query"])
+            query = params["query"]
+            self.person_queries.append(query)
+            person_id = self._person_results.get(query)
             return {
                 "results": ([] if person_id is None else [{"id": person_id}])
             }
@@ -265,6 +360,7 @@ class FakeTmdbClient:
 
         if path.endswith("/movie_credits"):
             person_id = int(path.removeprefix("/person/").removesuffix("/movie_credits"))
+            self.person_credit_requests.append(person_id)
             return {
                 "cast": [
                     {"id": movie_id, "title": f"Live Candidate {movie_id}"}
@@ -321,6 +417,8 @@ class FakeTmdbClient:
             }
 
         if path.endswith("/watch/providers"):
+            movie_id = int(path.removeprefix("/movie/").removesuffix("/watch/providers"))
+            self.provider_requests.append(movie_id)
             return {
                 "results": {
                     "DE": {
@@ -331,6 +429,7 @@ class FakeTmdbClient:
             }
 
         movie_id = int(path.removeprefix("/movie/"))
+        self.movie_detail_requests.append(movie_id)
         payload = {
             "id": movie_id,
             "title": f"Live Candidate {movie_id}",

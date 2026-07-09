@@ -1,390 +1,116 @@
 "use client";
 
-import type { ReactionValue, SessionMode } from "./session-fixtures";
+import type { SessionMode } from "./session-fixtures";
+import type {
+  AppOwnedMovieRatingPayload,
+  AppOwnedMovieWatchedPayload,
+  DebugHistoryCandidateInputPayload,
+  DebugHistoryEnrichmentCoveragePayload,
+  DebugHistoryFeedbackPayload,
+  DebugHistoryOutcomePayload,
+  DebugHistoryReactionPayload,
+  DebugHistoryRecommendationCandidatePayload,
+  DebugHistoryRecommendationSnapshotPayload,
+  DebugHistoryScoringEvidencePayload,
+  DebugHistorySignalContributionPayload,
+  DebugHistoryUserScorePayload,
+  OnboardingCompletionPayload,
+  OnboardingConstraintsPayload as BackendOnboardingConstraintsPayload,
+  OutcomeSelectionOrigin,
+  ParticipantOnboardingPayload as BackendParticipantOnboardingPayload,
+  PostWatchFeedbackPayload,
+  ProfileMemorySignalPayload,
+  ProfileMemorySummaryPayload,
+  RecentSessionFeedbackPayload,
+  RecentSessionSummaryPayload as BackendRecentSessionSummaryPayload,
+  RecommendationProviderAvailabilityPayload,
+  RecommendationShortlistItemPayload,
+  SaveSessionOutcomePayload,
+  SaveWatchlistEntryPayload,
+  ScoringSessionReactionPayload,
+  SessionMode as BackendSessionMode,
+  SessionOutcomePayload as BackendSessionOutcomePayload,
+  SessionOutcomeType,
+  SessionReactionPayload,
+  SessionShortlistItemPayload,
+  SharedSessionPayload as BackendSharedSessionPayload,
+  TasteGenreSignalPayload,
+  TasteMemoryEventPayload,
+  TasteProfileSummaryPayload,
+  TitleResolutionCandidatePayload,
+  TitleResolutionEntryPayload,
+  TonightIntentInterpretationPayload,
+  WatchlistEntryPayload,
+  WatchedTitleBackfillPayload,
+  DebugHistorySessionPayload as BackendDebugHistorySessionPayload,
+} from "./api-contract.generated";
 
-export type ApiSessionMode = "compromise" | "husband_first" | "wife_first";
-
-export type SharedSessionPayload = {
-  sessionId: string;
-  householdId: string;
-  activeMode: ApiSessionMode;
-  participantIds: string[];
-  state: "founder_reacting" | "handoff" | "wife_reacting" | "reranked";
-  shortlist: SessionShortlistItemPayload[];
-  founderReactions: SessionReactionPayload[];
-  wifeReactions: SessionReactionPayload[];
-  previousShortlist: SessionShortlistItemPayload[];
-  previousFounderReactions: SessionReactionPayload[];
-  previousWifeReactions: SessionReactionPayload[];
-  shownSourceMovieIds: string[];
-  batchCount: number;
-  rerankedSourceMovieIds: string[];
-  bestPickSourceMovieId: string | null;
+export type {
+  DebugHistoryCandidateInputPayload,
+  DebugHistoryEnrichmentCoveragePayload,
+  DebugHistoryFeedbackPayload,
+  DebugHistoryOutcomePayload,
+  DebugHistoryReactionPayload,
+  DebugHistoryRecommendationCandidatePayload,
+  DebugHistoryRecommendationSnapshotPayload,
+  DebugHistoryScoringEvidencePayload,
+  DebugHistorySignalContributionPayload,
+  DebugHistoryUserScorePayload,
+  OnboardingCompletionPayload,
+  OutcomeSelectionOrigin,
+  PostWatchFeedbackPayload,
+  ProfileMemorySignalPayload,
+  ProfileMemorySummaryPayload,
+  RecentSessionFeedbackPayload,
+  ScoringSessionReactionPayload,
+  SessionOutcomeType,
+  SessionReactionPayload,
+  SessionShortlistItemPayload,
+  TasteGenreSignalPayload,
+  TasteMemoryEventPayload,
+  TasteProfileSummaryPayload,
+  TitleResolutionCandidatePayload,
+  TitleResolutionEntryPayload,
+  TonightIntentInterpretationPayload,
+  WatchlistEntryPayload,
+  WatchedTitleBackfillPayload,
 };
 
-export type SessionShortlistItemPayload = {
-  sourceMovieId: string;
-  title: string;
-  candidateRank: number;
-  profileScore?: number;
+export type ApiSessionMode = BackendSessionMode;
+export type ShortlistCandidatePayload = RecommendationShortlistItemPayload;
+export type SaveSessionOutcomeRequest = SaveSessionOutcomePayload;
+export type SavePostWatchFeedbackRequest = PostWatchFeedbackPayload;
+export type SaveWatchlistEntryRequest = SaveWatchlistEntryPayload;
+export type AppOwnedMovieRatingRequest = AppOwnedMovieRatingPayload;
+export type AppOwnedMovieWatchedRequest = AppOwnedMovieWatchedPayload;
+type NormalizeNullables<T, TKey extends keyof T> = Omit<T, TKey> & {
+  [Key in TKey]-?: Exclude<T[Key], undefined>;
 };
 
-export type ShortlistCandidatePayload = SessionShortlistItemPayload & {
-  year?: number | null;
-  releaseYear?: number | null;
-  runtime?: string | null;
-  runtimeMin?: number | null;
-  genres?: string[];
-  posterUrl?: string | null;
-  overview?: string | null;
-  safePickStatus?: string | null;
-  availability?: string | null;
-  providerNames?: string[];
-  topCast?: string[];
-  matchedPersonNames?: string[];
-  languageAccess?: string | null;
-  tone?: string | null;
-  reason?: string | null;
-  whyShort?: string | null;
-  fitBucket?: string | null;
-  groupScore?: number | null;
-  founderScore?: number | null;
-  wifeScore?: number | null;
-  isInterestingPick?: boolean | null;
-};
-
-export type SessionReactionPayload = {
-  sourceMovieId: string;
-  reactionLabel: ReactionValue;
-};
-
-export type ScoringSessionReactionPayload = SessionReactionPayload & {
-  title?: string | null;
-};
-
-export type TitleResolutionCandidatePayload = {
-  source: string;
-  sourceId: string;
-  title: string;
-  mediaType: "movie" | "tv";
-  releaseYear?: number | null;
-  overview?: string;
-  originalLanguage?: string | null;
-  popularity?: number | null;
-};
-
-export type TitleResolutionEntryPayload = {
-  rawTitle: string;
-  status: "resolved" | "unresolved";
-  candidate?: TitleResolutionCandidatePayload | null;
-  unresolvedReason?: string | null;
-};
-
-export type WatchedTitleBackfillPayload = {
-  householdId: string;
-  scope: "participant" | "global";
-  participantId?: string | null;
-  titleKey: string;
-  rawTitle: string;
-  status: "resolved" | "unresolved";
-  candidate?: TitleResolutionCandidatePayload | null;
-  unresolvedReason?: string | null;
-  watchedOn?: string | null;
-  watched: boolean;
-  tasteLabel?: "loved" | "fine" | "no" | null;
-};
-
-export type OnboardingConstraintsPayload = {
-  horrorExclusion: boolean;
-  subtitleIntolerance: boolean;
-};
-
-export type ParticipantOnboardingPayload = {
-  profileId: string;
-  lovedTitleEntries: TitleResolutionEntryPayload[];
-  fineTitleEntries: TitleResolutionEntryPayload[];
-  noTitleEntries: TitleResolutionEntryPayload[];
-  constraints: OnboardingConstraintsPayload;
-  isComplete: boolean;
-};
-
-export type OnboardingCompletionPayload = {
-  requiredProfileIds: string[];
-  completedProfileIds: string[];
-  incompleteProfileIds: string[];
-  sharedRecommendationLocked: boolean;
-  sharedRecommendationUnlocked: boolean;
-};
-
-export type SessionOutcomeType =
-  | "watched_recommended"
-  | "watched_other"
-  | "watched_nothing";
-
-export type OutcomeSelectionOrigin =
-  | "pick_for_us"
-  | "reranked_shortlist"
-  | "manual_other_choice";
-
-export type SessionOutcomePayload = {
-  sessionId: string;
-  outcomeType: SessionOutcomeType;
-  selectedSourceMovieId?: string | null;
-  selectedTitle?: string | null;
-  selectionOrigin?: OutcomeSelectionOrigin | null;
-  notes?: string | null;
-};
-
-export type SaveSessionOutcomeRequest = {
-  householdId: string;
-  outcomeType: SessionOutcomeType;
-  selectedSourceMovieId?: string | null;
-  selectedTitle?: string | null;
-  selectionOrigin?: OutcomeSelectionOrigin | null;
-  notes?: string | null;
-};
-
-export type SavePostWatchFeedbackRequest = {
-  householdId: string;
-  sessionId: string;
-  userId: string;
-  sourceMovieId: string;
-  feedbackLabel: "loved" | "fine" | "no";
-  freeTextNote?: string | null;
-};
-
-export type PostWatchFeedbackPayload = {
-  sessionId: string;
-  userId: string;
-  sourceMovieId: string;
-  feedbackLabel: "loved" | "fine" | "no";
-  freeTextNote?: string | null;
-};
-
-export type WatchlistEntryPayload = {
-  householdId: string;
-  sourceMovieId: string;
-  title: string;
-  savedAt: string;
-  savedByProfileId?: string | null;
-  savedByDisplayLabel?: string | null;
-  posterUrl?: string | null;
-  releaseYear?: number | null;
-  isTasteSignal: boolean;
-  canBeRecommendationSeed: boolean;
-};
-
-export type SaveWatchlistEntryRequest = {
-  householdId: string;
-  sourceMovieId: string;
-  title: string;
-  savedByProfileId?: string | null;
-  savedByDisplayLabel?: string | null;
-  posterUrl?: string | null;
-  releaseYear?: number | null;
-};
-
-export type AppOwnedMovieRatingRequest = {
-  profileId: string;
-  tasteLabel: "loved" | "fine" | "no";
-};
-
-export type AppOwnedMovieWatchedRequest = {
-  householdId: string;
-  sourceMovieId: string;
-  title: string;
-  watchedOn?: string | null;
-  ratings: AppOwnedMovieRatingRequest[];
-};
-
-export type RecentSessionFeedbackPayload = {
-  userId: string;
-  feedbackLabel: string;
-};
-
-export type RecentSessionSummaryPayload = {
-  sessionId: string;
-  activeMode: string;
-  state: string;
-  participantIds: string[];
-  bestPickSourceMovieId: string | null;
-  bestPickTitle: string | null;
-  outcomeType: string | null;
-  outcomeTitle: string | null;
-  feedback: RecentSessionFeedbackPayload[];
-};
-
-export type DebugHistorySessionPayload = {
-  sessionId: string;
-  householdId: string;
-  activeMode: ApiSessionMode;
-  state: string;
-  participantIds: string[];
-  shortlist: SessionShortlistItemPayload[];
-  previousShortlist: SessionShortlistItemPayload[];
-  founderReactions: DebugHistoryReactionPayload[];
-  wifeReactions: DebugHistoryReactionPayload[];
-  previousFounderReactions: DebugHistoryReactionPayload[];
-  previousWifeReactions: DebugHistoryReactionPayload[];
-  shownSourceMovieIds: string[];
-  batchCount: number;
-  rerankedSourceMovieIds: string[];
-  bestPickSourceMovieId: string | null;
-  sessionOutcome: DebugHistoryOutcomePayload | null;
-  postWatchFeedback: DebugHistoryFeedbackPayload[];
-  recommendationSnapshot: DebugHistoryRecommendationSnapshotPayload | null;
-  unavailableEvidence: string[];
-};
-
-export type DebugHistoryReactionPayload = {
-  participantId: string;
-  sourceMovieId: string;
-  reactionLabel: string;
-};
-
-export type DebugHistoryFeedbackPayload = {
-  userId: string;
-  sourceMovieId: string;
-  feedbackLabel: string;
-  hasFreeTextNote: boolean;
-};
-
-export type DebugHistoryOutcomePayload = {
-  outcomeType: string;
-  selectedSourceMovieId: string | null;
-  selectedTitle: string | null;
-  selectionOrigin: string | null;
-  hasNotes: boolean;
-};
-
-export type DebugHistoryUserScorePayload = {
-  userId: string;
-  score: number;
-};
-
-export type DebugHistoryCandidateInputPayload = {
-  sourceMovieId: string;
-  title: string;
-  genres: string[];
-  providers: string[];
-  providerAccess: string[];
-  safetyStatus: string;
-  alreadyWatched: boolean;
-  isInterestingSafePick: boolean;
-  enrichmentStatus: string;
-  enrichmentProvider: string;
-  enrichmentFeatureScores: Record<string, number>;
-  matchedEnrichmentSourceMovieId: string | null;
-};
-
-export type DebugHistoryEnrichmentCoveragePayload = {
-  candidateCount: number;
-  enrichedCandidateCount: number;
-  fallbackCandidateCount: number;
-  enrichmentRate: number;
-};
-
-export type DebugHistorySignalContributionPayload = {
-  family: string;
-  label: string;
-  value: number;
-};
-
-export type DebugHistoryScoringEvidencePayload = {
-  sourceMovieId: string;
-  enrichmentStatus: string;
-  signalFamilies: string[];
-  contributions: DebugHistorySignalContributionPayload[];
-};
-
-export type DebugHistoryRecommendationCandidatePayload = {
-  sourceMovieId: string;
-  title: string;
-  candidateRank: number;
-  fitBucket: string;
-  groupScore: number;
-  userScores: DebugHistoryUserScorePayload[];
-  whyShort: string;
-  hardFilterPass: boolean;
-  isInterestingPick: boolean;
-  scoringEvidence: DebugHistoryScoringEvidencePayload[];
-};
-
-export type DebugHistoryRecommendationSnapshotPayload = {
-  sessionId: string;
-  candidateInputs: DebugHistoryCandidateInputPayload[];
-  enrichmentCoverage: DebugHistoryEnrichmentCoveragePayload;
-  candidates: DebugHistoryRecommendationCandidatePayload[];
-  isUncertain: boolean;
-  uncertaintyReason: string | null;
-  recommendedFollowUp: string | null;
-  interestingSafePickId: string | null;
-};
-
-export type TasteGenreSignalPayload = {
-  genre: string;
-  positiveCount: number;
-  neutralCount: number;
-  negativeCount: number;
-  score: number;
-};
-
-export type TasteProfileSummaryPayload = {
-  householdId: string;
-  profileId: string;
-  ratingCount: number;
-  preferenceEvidenceCount: number;
-  familiarityOnlyCount: number;
-  genreSignals: TasteGenreSignalPayload[];
-};
-
-export type ProfileMemorySignalPayload = {
-  label: string;
-  count: number;
-  source: "visible_app_memory" | "private_calibration" | string;
-};
-
-export type ProfileMemorySummaryPayload = {
-  householdId: string;
-  profileId: string;
-  sharedSavedCount: number;
-  savedByProfileCount: number;
-  recentReactionCount: number;
-  watchedCount: number;
-  ratedCount: number;
-  visibleAppMemoryCount: number;
-  privateCalibrationCount: number;
-  signals: ProfileMemorySignalPayload[];
-};
-
-export type TasteMemoryEventPayload = {
-  eventId: string;
-  householdId: string;
-  profileId: string;
-  eventType: string;
-  source: string;
-  sourceMovieId: string;
-  title: string;
-  genres: string[];
-  sentimentLabel?: string | null;
-  preferenceValue?: number | null;
-  familiarity?: string | null;
-  effectLabel?: string | null;
-  status: string;
-  occurredAt: string;
-};
-
-export type TonightIntentInterpretationPayload = {
-  rawText: string;
-  status: "confirmation_required" | "clarification_required";
-  resolution?: "exact" | "guess" | "unsupported";
-  confirmationText?: string | null;
-  clarificationQuestion?: string | null;
-  unsupportedReason?: string | null;
-  filters: Record<string, unknown>;
-  softSignals: string[];
-  confidence: string;
-};
+export type SharedSessionPayload = NormalizeNullables<
+  BackendSharedSessionPayload,
+  "bestPickSourceMovieId"
+>;
+export type DebugHistorySessionPayload = NormalizeNullables<
+  BackendDebugHistorySessionPayload,
+  "bestPickSourceMovieId" | "recommendationSnapshot" | "sessionOutcome"
+>;
+export type OnboardingConstraintsPayload = NormalizeNullables<
+  BackendOnboardingConstraintsPayload,
+  "horrorExclusion" | "subtitleIntolerance"
+>;
+export type ParticipantOnboardingPayload = NormalizeNullables<
+  BackendParticipantOnboardingPayload,
+  "constraints" | "fineTitleEntries" | "isComplete" | "lovedTitleEntries" | "noTitleEntries"
+>;
+export type RecentSessionSummaryPayload = NormalizeNullables<
+  BackendRecentSessionSummaryPayload,
+  "bestPickSourceMovieId" | "bestPickTitle" | "outcomeTitle" | "outcomeType"
+>;
+export type SessionOutcomePayload = NormalizeNullables<
+  BackendSessionOutcomePayload,
+  "notes" | "selectedSourceMovieId" | "selectedTitle" | "selectionOrigin"
+>;
 
 export type CreateSessionRequest = {
   sessionId?: string;
@@ -748,6 +474,10 @@ function parseShortlistCandidate(
       numberValue(candidate.candidateRank) ??
       numberValue(candidate.candidate_rank) ??
       1,
+    mediaType:
+      mediaTypeValue(candidate.mediaType) ??
+      mediaTypeValue(candidate.media_type) ??
+      undefined,
     year: numberValue(candidate.year),
     releaseYear:
       numberValue(candidate.releaseYear) ??
@@ -756,38 +486,57 @@ function parseShortlistCandidate(
     runtimeMin:
       numberValue(candidate.runtimeMin) ??
       numberValue(candidate.runtime_min),
-    genres: stringArrayValue(candidate.genres),
+    genres: stringArrayValue(candidate.genres) ?? [],
     posterUrl:
       stringValue(candidate.posterUrl) ??
       stringValue(candidate.poster_url),
-    overview:
-      stringValue(candidate.overview),
+    overview: stringValue(candidate.overview) ?? "",
     safePickStatus:
       stringValue(candidate.safePickStatus) ??
-      stringValue(candidate.safe_pick_status),
-    availability: stringValue(candidate.availability),
-    providerNames: stringArrayValue(candidate.providerNames),
+      stringValue(candidate.safe_pick_status) ??
+      "",
+    availability: stringValue(candidate.availability) ?? "",
+    providerNames:
+      stringArrayValue(candidate.providerNames) ??
+      stringArrayValue(candidate.provider_names) ??
+      [],
+    providerAvailability: providerAvailabilityValue(
+      candidate.providerAvailability,
+    ) ?? providerAvailabilityValue(candidate.provider_availability) ?? [],
     topCast:
-      stringArrayValue(candidate.topCast) ||
-      stringArrayValue(candidate.top_cast),
+      stringArrayValue(candidate.topCast) ??
+      stringArrayValue(candidate.top_cast) ??
+      undefined,
     matchedPersonNames:
-      stringArrayValue(candidate.matchedPersonNames) ||
-      stringArrayValue(candidate.matched_person_names),
+      stringArrayValue(candidate.matchedPersonNames) ??
+      stringArrayValue(candidate.matched_person_names) ??
+      undefined,
     languageAccess:
       stringValue(candidate.languageAccess) ??
-      stringValue(candidate.language_access),
-    tone: stringValue(candidate.tone) ?? stringValue(candidate.fitBucket),
+      stringValue(candidate.language_access) ??
+      "",
+    tone:
+      stringValue(candidate.tone) ??
+      stringValue(candidate.fitBucket) ??
+      stringValue(candidate.fit_bucket) ??
+      "",
     reason:
       stringValue(candidate.reason) ??
       stringValue(candidate.whyShort) ??
-      stringValue(candidate.why_short),
-    whyShort: stringValue(candidate.whyShort),
+      stringValue(candidate.why_short) ??
+      "",
+    whyShort:
+      stringValue(candidate.whyShort) ??
+      stringValue(candidate.why_short) ??
+      "",
     fitBucket:
       stringValue(candidate.fitBucket) ??
-      stringValue(candidate.fit_bucket),
+      stringValue(candidate.fit_bucket) ??
+      "",
     groupScore:
       numberValue(candidate.groupScore) ??
-      numberValue(candidate.group_score),
+      numberValue(candidate.group_score) ??
+      0,
     founderScore:
       numberValue(candidate.founderScore) ??
       numberValue(candidate.founder_score),
@@ -799,7 +548,19 @@ function parseShortlistCandidate(
         ? candidate.isInterestingPick
         : typeof candidate.is_interesting_pick === "boolean"
           ? candidate.is_interesting_pick
-          : null,
+          : false,
+    originalLanguage:
+      stringValue(candidate.originalLanguage) ??
+      stringValue(candidate.original_language) ??
+      "",
+    spokenLanguages:
+      stringArrayValue(candidate.spokenLanguages) ??
+      stringArrayValue(candidate.spoken_languages) ??
+      [],
+    englishSubtitlesVerified:
+      booleanValue(candidate.englishSubtitlesVerified) ??
+      booleanValue(candidate.english_subtitles_verified) ??
+      false,
   };
 }
 
@@ -811,14 +572,54 @@ function numberValue(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-function stringArrayValue(value: unknown): string[] {
+function stringArrayValue(value: unknown): string[] | null {
   if (!Array.isArray(value)) {
-    return [];
+    return null;
   }
 
   return value.filter(
     (item): item is string => typeof item === "string" && item.trim().length > 0,
   );
+}
+
+function providerAvailabilityValue(
+  value: unknown,
+): RecommendationProviderAvailabilityPayload[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  return value
+    .map((entry) => {
+      if (!isRecord(entry)) {
+        return null;
+      }
+
+      const providerName = stringValue(entry.providerName) ?? stringValue(entry.provider_name);
+      const accessType = stringValue(entry.accessType) ?? stringValue(entry.access_type);
+      const region = stringValue(entry.region);
+
+      if (!providerName || !accessType || !region) {
+        return null;
+      }
+
+      return {
+        providerName,
+        accessType,
+        region,
+      };
+    })
+    .filter(
+      (entry): entry is RecommendationProviderAvailabilityPayload => entry !== null,
+    );
+}
+
+function mediaTypeValue(value: unknown): "movie" | "tv" | null {
+  return value === "movie" || value === "tv" ? value : null;
+}
+
+function booleanValue(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
