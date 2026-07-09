@@ -546,6 +546,72 @@ class PersonCandidateConstraint:
 
 
 @dataclass(frozen=True)
+class TonightIntentSignal:
+    concept: str
+    polarity: str
+    intensity: float = 1.0
+    confidence: str = "medium"
+    source: str = "soft_signal"
+    label: str | None = None
+
+    def __post_init__(self) -> None:
+        concept = self.concept.strip()
+        polarity = self.polarity.strip()
+        confidence = self.confidence.strip()
+        source = self.source.strip()
+        label = self.label.strip() if self.label is not None else None
+
+        if not concept:
+            raise ValueError("Tonight intent signals require a concept.")
+
+        if polarity not in {"positive", "negative"}:
+            raise ValueError("Tonight intent signal polarity must be positive or negative.")
+
+        if not 0.0 <= self.intensity <= 1.0:
+            raise ValueError("Tonight intent signal intensity must be between 0 and 1.")
+
+        if not confidence:
+            raise ValueError("Tonight intent signals require confidence.")
+
+        if not source:
+            raise ValueError("Tonight intent signals require a source.")
+
+        object.__setattr__(self, "concept", concept)
+        object.__setattr__(self, "polarity", polarity)
+        object.__setattr__(self, "confidence", confidence)
+        object.__setattr__(self, "source", source)
+        object.__setattr__(self, "label", label)
+
+
+@dataclass(frozen=True)
+class TonightIntentContract:
+    raw_text: str
+    signals: tuple[TonightIntentSignal, ...] = ()
+    unsupported_notes: tuple[str, ...] = ()
+    person_names: tuple[str, ...] = ()
+    confidence: str = "medium"
+
+    def __post_init__(self) -> None:
+        raw_text = self.raw_text.strip()
+        confidence = self.confidence.strip()
+        unsupported_notes = tuple(
+            note.strip() for note in self.unsupported_notes if note.strip()
+        )
+        person_names = tuple(name.strip() for name in self.person_names if name.strip())
+
+        if not raw_text:
+            raise ValueError("Tonight intent contracts require raw text.")
+
+        if not confidence:
+            raise ValueError("Tonight intent contracts require confidence.")
+
+        object.__setattr__(self, "raw_text", raw_text)
+        object.__setattr__(self, "unsupported_notes", unsupported_notes)
+        object.__setattr__(self, "person_names", person_names)
+        object.__setattr__(self, "confidence", confidence)
+
+
+@dataclass(frozen=True)
 class SessionContext:
     session_id: str
     requested_media_type: MediaType = MediaType.MOVIE
@@ -560,6 +626,7 @@ class SessionContext:
     language_constraint: str | None = None
     allow_rewatch: bool = False
     person_constraints: tuple[PersonCandidateConstraint, ...] = ()
+    tonight_intents: tuple[TonightIntentContract, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -812,6 +879,8 @@ class RankedCandidate:
     hard_filter_pass: bool
     is_interesting_pick: bool = False
     scoring_evidence: tuple[ScoringEvidence, ...] = ()
+    dominant_positive_evidence: tuple[str, ...] = ()
+    dominant_penalties: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -915,6 +984,8 @@ class RecommendationSnapshotCandidate:
     hard_filter_pass: bool
     is_interesting_pick: bool = False
     scoring_evidence: tuple[ScoringEvidence, ...] = ()
+    dominant_positive_evidence: tuple[str, ...] = ()
+    dominant_penalties: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         normalized_source_movie_id = self.source_movie_id.strip()
@@ -952,6 +1023,11 @@ class RecommendationSnapshot:
     uncertainty_reason: str | None = None
     recommended_follow_up: str | None = None
     interesting_safe_pick_id: str | None = None
+    scorer_version: str = "v1_heuristic"
+    confidence_score: float | None = None
+    confidence_label: str | None = None
+    partial_support_notes: tuple[str, ...] = ()
+    fallback_reason: str | None = None
 
     @property
     def enrichment_coverage(self) -> tuple[int, int, int, float]:
@@ -990,6 +1066,11 @@ class RecommendationResult:
     uncertainty_reason: str | None = None
     recommended_follow_up: str | None = None
     interesting_safe_pick: RankedCandidate | None = None
+    scorer_version: str = "v1_heuristic"
+    confidence_score: float | None = None
+    confidence_label: str | None = None
+    partial_support_notes: tuple[str, ...] = ()
+    fallback_reason: str | None = None
 
 
 @dataclass(frozen=True)

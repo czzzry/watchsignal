@@ -624,6 +624,16 @@ export function formatDebugSnapshotCandidate(
     .map((score) => `${score.userId} ${score.score}`)
     .join(", ");
   const interestingPick = candidate.isInterestingPick ? ", interesting" : "";
+  const dominantPositiveEvidence = candidate.dominantPositiveEvidence ?? [];
+  const dominantPenalties = candidate.dominantPenalties ?? [];
+  const positiveEvidence =
+    dominantPositiveEvidence.length > 0
+      ? ` Positive: ${dominantPositiveEvidence.slice(0, 3).join(", ")}.`
+      : "";
+  const penaltyEvidence =
+    dominantPenalties.length > 0
+      ? ` Penalties: ${dominantPenalties.slice(0, 3).join(", ")}.`
+      : "";
 
-  return `${candidate.candidateRank}. ${candidate.title}: ${candidate.groupScore} group, ${candidate.fitBucket}, ${userScores}${interestingPick}. ${candidate.whyShort}`;
+  return `${candidate.candidateRank}. ${candidate.title}: ${candidate.groupScore} group, ${candidate.fitBucket}, ${userScores}${interestingPick}. ${candidate.whyShort}${positiveEvidence}${penaltyEvidence}`;
 }

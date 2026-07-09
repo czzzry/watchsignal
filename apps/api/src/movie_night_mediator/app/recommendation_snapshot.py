@@ -103,6 +103,10 @@ def build_recommendation_snapshot(
                 hard_filter_pass=ranked_candidate.hard_filter_pass,
                 is_interesting_pick=ranked_candidate.is_interesting_pick,
                 scoring_evidence=ranked_candidate.scoring_evidence,
+                dominant_positive_evidence=(
+                    ranked_candidate.dominant_positive_evidence
+                ),
+                dominant_penalties=ranked_candidate.dominant_penalties,
             )
         )
 
@@ -136,6 +140,11 @@ def build_recommendation_snapshot(
             if result.interesting_safe_pick is not None
             else None
         ),
+        scorer_version=result.scorer_version,
+        confidence_score=result.confidence_score,
+        confidence_label=result.confidence_label,
+        partial_support_notes=result.partial_support_notes,
+        fallback_reason=result.fallback_reason,
     )
 
 

@@ -44,7 +44,20 @@ function withConfiguredShortlistSource(
   return {
     ...payload,
     source: "live_tmdb",
+    ...(configuredScoringEngine() ? { scoringEngine: configuredScoringEngine() } : {}),
   };
+}
+
+function configuredScoringEngine(): "v1_heuristic" | "v2_contract" | null {
+  if (process.env.MOVIE_NIGHT_SCORING_ENGINE === "v1_heuristic") {
+    return "v1_heuristic";
+  }
+
+  if (process.env.MOVIE_NIGHT_SCORING_ENGINE === "v2_contract") {
+    return "v2_contract";
+  }
+
+  return null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

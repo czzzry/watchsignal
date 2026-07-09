@@ -72,6 +72,8 @@ class OfflineShortlistItem:
     original_language: str
     spoken_languages: tuple[str, ...]
     english_subtitles_verified: bool
+    dominant_positive_evidence: tuple[str, ...] = ()
+    dominant_penalties: tuple[str, ...] = ()
 
 
 def get_offline_demo_shortlist(
@@ -84,6 +86,7 @@ def get_offline_demo_shortlist(
     watched_source_movie_ids: tuple[str, ...] = (),
     enrichment_service: CandidateEnrichmentService | None = None,
     session_reactions: tuple[ScoringSessionReaction, ...] = (),
+    scorer: HeuristicScorer | None = None,
 ) -> tuple[OfflineShortlistItem, ...]:
     excluded_ids = set(excluded_source_movie_ids)
     candidate_fixtures = tuple(
@@ -126,7 +129,7 @@ def get_offline_demo_shortlist(
             session=resolved_session,
             household_defaults=DEMO_HOUSEHOLD_DEFAULTS,
             users=resolved_users,
-            scorer=None,
+            scorer=scorer,
             snapshot_service=snapshot_service,
             session_reactions=session_reactions,
         )[:5]
@@ -182,6 +185,8 @@ def get_offline_demo_shortlist(
                 original_language=fixture.original_language,
                 spoken_languages=fixture.spoken_languages,
                 english_subtitles_verified=fixture.english_subtitles_verified,
+                dominant_positive_evidence=candidate.dominant_positive_evidence,
+                dominant_penalties=candidate.dominant_penalties,
             )
         )
 
@@ -374,6 +379,8 @@ def _candidate_source_shortlist_item(
         original_language=candidate.original_language,
         spoken_languages=candidate.spoken_languages,
         english_subtitles_verified=candidate.english_subtitles_verified,
+        dominant_positive_evidence=ranked.dominant_positive_evidence,
+        dominant_penalties=ranked.dominant_penalties,
     )
 
 

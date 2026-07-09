@@ -38,7 +38,9 @@ async function main() {
   }
   const webUrl = targetUrl || (await startWebServer(startedApi?.apiUrl));
   const reviewUrl =
-    process.env.MOBILE_UX_SMOKE_REVIEW === "1" || useBackendMode
+    process.env.MOBILE_UX_SMOKE_REVIEW === "1" ||
+    process.env.MOBILE_UX_SMOKE_EXPECT_V2_EXPLANATION === "1" ||
+    useBackendMode
       ? withReviewMode(webUrl)
       : webUrl;
   const chrome = process.env.MOBILE_UX_SMOKE_DEBUGGING_URL
@@ -117,6 +119,11 @@ async function main() {
         }
       }
       await waitForRankedShortlist(tab);
+      if (process.env.MOBILE_UX_SMOKE_EXPECT_V2_EXPLANATION === "1") {
+        await waitForText(tab, "profile memory: concept fit", "V2 profile explanation chip");
+        await waitForText(tab, "candidate metadata: theme depth", "V2 candidate explanation chip");
+        await waitForText(tab, "negative preference: slow burn risk", "V2 penalty explanation chip");
+      }
       await assertNoHorizontalOverflow(tab, "results screen");
       await captureScreenshot(tab, screenshotDir, "03-results");
       if (useBackendMode && !skipWatchlistChecks) {

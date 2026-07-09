@@ -2171,6 +2171,7 @@ export function ResultsStep({
   debugHistoryStatus,
   debugHistoryMessage,
   onLoadDebugHistory,
+  onRefreshProfileMemory,
   onReset,
   onShowMore,
   onSteerTextChange,
@@ -2205,6 +2206,7 @@ export function ResultsStep({
   debugHistoryStatus: DebugHistoryStatus;
   debugHistoryMessage: string | null;
   onLoadDebugHistory: () => void | Promise<void>;
+  onRefreshProfileMemory: () => void | Promise<void>;
   onReset: () => void;
   onShowMore: () => void | Promise<void>;
   onSteerTextChange: (text: string) => void;
@@ -2531,6 +2533,7 @@ export function ResultsStep({
       );
       setSavedFeedback(feedback);
       await onLoadDebugHistory();
+      await onRefreshProfileMemory();
     } catch (error) {
       setFeedbackError(toErrorMessage(error));
       console.error(error);

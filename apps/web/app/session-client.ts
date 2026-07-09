@@ -561,6 +561,14 @@ function parseShortlistCandidate(
       booleanValue(candidate.englishSubtitlesVerified) ??
       booleanValue(candidate.english_subtitles_verified) ??
       false,
+    dominantPositiveEvidence:
+      stringArrayValue(candidate.dominantPositiveEvidence) ??
+      stringArrayValue(candidate.dominant_positive_evidence) ??
+      undefined,
+    dominantPenalties:
+      stringArrayValue(candidate.dominantPenalties) ??
+      stringArrayValue(candidate.dominant_penalties) ??
+      undefined,
   };
 }
 

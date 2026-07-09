@@ -1,0 +1,406 @@
+{
+  "command": "pnpm eval:scoring-v2:compare",
+  "phase": "Scoring V2: V1 And V2 Corpus Comparison",
+  "report_date": "2026-07-09",
+  "results": [
+    {
+      "avoided_title": "Spider-Man: Into the Spider-Verse",
+      "category": "negative_preference",
+      "expected_behavior": "Adult mystery should rank above family animation.",
+      "name": "negative_kid_animation_request",
+      "preferred_title": "Knives Out",
+      "user_story": "As a user, I can say no kids movies and no cartoonish stuff.",
+      "v1": {
+        "avoided_rank": 3,
+        "confidence_label": null,
+        "confidence_score": null,
+        "dominant_penalties": [],
+        "dominant_positive_evidence": [],
+        "fallback_reason": null,
+        "partial_support_notes": [],
+        "pass": true,
+        "preferred_rank": 1,
+        "scorer_version": "v1_heuristic",
+        "top_five_titles": [
+          "Knives Out",
+          "Paddington",
+          "Spider-Man: Into the Spider-Verse"
+        ]
+      },
+      "v2": {
+        "avoided_rank": 3,
+        "confidence_label": "high",
+        "confidence_score": 1.0,
+        "dominant_penalties": [],
+        "dominant_positive_evidence": [
+          "concept:mystery",
+          "concept:procedural",
+          "concept:witty",
+          "profile_concept:likes:mystery",
+          "memory_source:taste_lab:mystery",
+          "profile_concept:likes:procedural",
+          "memory_source:taste_lab:procedural",
+          "metadata:concepts",
+          "metadata:feature_tags",
+          "metadata:overview_themes",
+          "metadata:runtime",
+          "metadata:language",
+          "title_similarity:Knives Out",
+          "genre:Mystery",
+          "genre:Comedy"
+        ],
+        "fallback_reason": null,
+        "partial_support_notes": [],
+        "pass": true,
+        "preferred_rank": 1,
+        "scorer_version": "v2_contract",
+        "top_five_titles": [
+          "Knives Out",
+          "Paddington",
+          "Spider-Man: Into the Spider-Verse"
+        ]
+      },
+      "v2_status": "unchanged"
+    },
+    {
+      "avoided_title": "Generic Siege",
+      "category": "actor_driven",
+      "expected_behavior": "A Josh Brolin match should outrank a generic action title.",
+      "name": "actor_driven_josh_brolin_request",
+      "preferred_title": "Sicario",
+      "user_story": "As a user, I can ask for a named actor and have that matter.",
+      "v1": {
+        "avoided_rank": 2,
+        "confidence_label": null,
+        "confidence_score": null,
+        "dominant_penalties": [],
+        "dominant_positive_evidence": [],
+        "fallback_reason": null,
+        "partial_support_notes": [],
+        "pass": true,
+        "preferred_rank": 1,
+        "scorer_version": "v1_heuristic",
+        "top_five_titles": [
+          "Sicario",
+          "Generic Siege"
+        ]
+      },
+      "v2": {
+        "avoided_rank": 2,
+        "confidence_label": "low",
+        "confidence_score": 0.44,
+        "dominant_penalties": [
+          "metadata:fallback"
+        ],
+        "dominant_positive_evidence": [
+          "concept:tense",
+          "concept:procedural",
+          "profile_concept:likes:tense",
+          "memory_source:taste_lab:tense",
+          "metadata:concepts",
+          "metadata:overview_themes",
+          "metadata:cast",
+          "metadata:runtime",
+          "metadata:language",
+          "genre:Thriller",
+          "tonight_intent:tense"
+        ],
+        "fallback_reason": "top_candidate_uses_metadata_fallback",
+        "partial_support_notes": [],
+        "pass": true,
+        "preferred_rank": 1,
+        "scorer_version": "v2_contract",
+        "top_five_titles": [
+          "Sicario",
+          "Generic Siege"
+        ]
+      },
+      "v2_status": "unchanged"
+    },
+    {
+      "avoided_title": "Paddington",
+      "category": "subtle_tone",
+      "expected_behavior": "A warm grown-up comedy should beat a sweeter family pick.",
+      "name": "subtle_tone_cozy_not_saccharine",
+      "preferred_title": "The Grand Budapest Hotel",
+      "user_story": "As a user, I can ask for cozy but not saccharine.",
+      "v1": {
+        "avoided_rank": 2,
+        "confidence_label": null,
+        "confidence_score": null,
+        "dominant_penalties": [],
+        "dominant_positive_evidence": [],
+        "fallback_reason": null,
+        "partial_support_notes": [],
+        "pass": true,
+        "preferred_rank": 1,
+        "scorer_version": "v1_heuristic",
+        "top_five_titles": [
+          "The Grand Budapest Hotel",
+          "Paddington"
+        ]
+      },
+      "v2": {
+        "avoided_rank": 2,
+        "confidence_label": "high",
+        "confidence_score": 0.937365,
+        "dominant_penalties": [],
+        "dominant_positive_evidence": [
+          "concept:cozy",
+          "concept:witty",
+          "profile_concept:likes:witty",
+          "memory_source:taste_lab:witty",
+          "metadata:concepts",
+          "metadata:feature_tags",
+          "metadata:overview_themes",
+          "metadata:runtime",
+          "metadata:language",
+          "title_similarity:The Grand Budapest Hotel",
+          "genre:Comedy",
+          "tonight_intent:cozy"
+        ],
+        "fallback_reason": null,
+        "partial_support_notes": [],
+        "pass": true,
+        "preferred_rank": 1,
+        "scorer_version": "v2_contract",
+        "top_five_titles": [
+          "The Grand Budapest Hotel",
+          "Paddington"
+        ]
+      },
+      "v2_status": "unchanged"
+    },
+    {
+      "avoided_title": "Loud Space Battle",
+      "category": "solo_favorite",
+      "expected_behavior": "Arrival should rank first for a cerebral first-contact profile.",
+      "name": "high_confidence_solo_favorite",
+      "preferred_title": "Arrival",
+      "user_story": "As a solo user, strong repeated evidence should produce a confident favorite.",
+      "v1": {
+        "avoided_rank": 4,
+        "confidence_label": null,
+        "confidence_score": null,
+        "dominant_penalties": [],
+        "dominant_positive_evidence": [],
+        "fallback_reason": null,
+        "partial_support_notes": [],
+        "pass": true,
+        "preferred_rank": 1,
+        "scorer_version": "v1_heuristic",
+        "top_five_titles": [
+          "Arrival",
+          "Quiet Legal Drama",
+          "Reflective Romance",
+          "Loud Space Battle",
+          "Witty Mystery"
+        ]
+      },
+      "v2": {
+        "avoided_rank": 2,
+        "confidence_label": "high",
+        "confidence_score": 1.0,
+        "dominant_penalties": [],
+        "dominant_positive_evidence": [
+          "concept:first-contact",
+          "concept:cerebral",
+          "profile_concept:likes:cerebral",
+          "memory_source:post_watch_feedback:cerebral",
+          "profile_concept:likes:first-contact",
+          "memory_source:post_watch_feedback:first-contact",
+          "metadata:concepts",
+          "metadata:feature_tags",
+          "metadata:overview_themes",
+          "metadata:runtime",
+          "metadata:language",
+          "genre:Sci-Fi",
+          "genre:Drama",
+          "title_similarity:Arrival"
+        ],
+        "fallback_reason": null,
+        "partial_support_notes": [],
+        "pass": true,
+        "preferred_rank": 1,
+        "scorer_version": "v2_contract",
+        "top_five_titles": [
+          "Arrival",
+          "Loud Space Battle",
+          "Reflective Romance",
+          "Quiet Legal Drama",
+          "Witty Mystery"
+        ]
+      },
+      "v2_status": "unchanged"
+    },
+    {
+      "avoided_title": "One-Sided Action",
+      "category": "mismatch_suppression",
+      "expected_behavior": "Shared comedy should beat one-sided action after repeated no signals.",
+      "name": "repeated_mismatch_suppression",
+      "preferred_title": "Shared Laugh",
+      "user_story": "As a couple, repeated bad fits should stop resurfacing.",
+      "v1": {
+        "avoided_rank": 2,
+        "confidence_label": null,
+        "confidence_score": null,
+        "dominant_penalties": [],
+        "dominant_positive_evidence": [],
+        "fallback_reason": null,
+        "partial_support_notes": [],
+        "pass": true,
+        "preferred_rank": 1,
+        "scorer_version": "v1_heuristic",
+        "top_five_titles": [
+          "Shared Laugh",
+          "One-Sided Action"
+        ]
+      },
+      "v2": {
+        "avoided_rank": 2,
+        "confidence_label": "low",
+        "confidence_score": 0.44,
+        "dominant_penalties": [],
+        "dominant_positive_evidence": [
+          "concept:witty",
+          "profile_concept:likes:witty",
+          "memory_source:taste_lab:witty",
+          "shared_fit:user_a:0.53",
+          "shared_fit:user_b:0.55",
+          "shared:overlap_strength",
+          "shared:bridge_value",
+          "genre:Comedy"
+        ],
+        "fallback_reason": "top_candidate_uses_metadata_fallback",
+        "partial_support_notes": [],
+        "pass": true,
+        "preferred_rank": 1,
+        "scorer_version": "v2_contract",
+        "top_five_titles": [
+          "Shared Laugh",
+          "One-Sided Action"
+        ]
+      },
+      "v2_status": "unchanged"
+    },
+    {
+      "avoided_title": "Pure Action Night",
+      "category": "household_bridge",
+      "expected_behavior": "A cerebral mystery bridge should beat one-sided favorites.",
+      "name": "household_bridge_pick",
+      "preferred_title": "Arrival",
+      "user_story": "As a couple, we can get a bridge pick instead of a bland middle.",
+      "v1": {
+        "avoided_rank": 3,
+        "confidence_label": null,
+        "confidence_score": null,
+        "dominant_penalties": [],
+        "dominant_positive_evidence": [],
+        "fallback_reason": null,
+        "partial_support_notes": [],
+        "pass": true,
+        "preferred_rank": 1,
+        "scorer_version": "v1_heuristic",
+        "top_five_titles": [
+          "Arrival",
+          "Pure Romance Night",
+          "Pure Action Night"
+        ]
+      },
+      "v2": {
+        "avoided_rank": 3,
+        "confidence_label": "high",
+        "confidence_score": 1.0,
+        "dominant_penalties": [],
+        "dominant_positive_evidence": [
+          "concept:first-contact",
+          "concept:cerebral",
+          "profile_concept:likes:cerebral",
+          "memory_source:taste_lab:cerebral",
+          "profile_concept:likes:first-contact",
+          "memory_source:taste_lab:first-contact",
+          "shared_fit:user_a:0.66",
+          "shared_fit:user_b:0.55",
+          "shared:overlap_strength",
+          "shared:bridge_value",
+          "genre:Sci-Fi",
+          "genre:Drama",
+          "genre:Mystery"
+        ],
+        "fallback_reason": null,
+        "partial_support_notes": [],
+        "pass": true,
+        "preferred_rank": 1,
+        "scorer_version": "v2_contract",
+        "top_five_titles": [
+          "Arrival",
+          "Pure Romance Night",
+          "Pure Action Night"
+        ]
+      },
+      "v2_status": "unchanged"
+    },
+    {
+      "avoided_title": null,
+      "category": "no_strong_match",
+      "expected_behavior": "The scorer should be uncertain or explicitly say no strong match.",
+      "name": "legitimate_no_strong_match",
+      "preferred_title": null,
+      "user_story": "As a user, I get an honest no-strong-match state when the request is over-constrained.",
+      "v1": {
+        "avoided_rank": null,
+        "confidence_label": null,
+        "confidence_score": null,
+        "dominant_penalties": [],
+        "dominant_positive_evidence": [],
+        "fallback_reason": null,
+        "partial_support_notes": [],
+        "pass": true,
+        "preferred_rank": null,
+        "scorer_version": "v1_heuristic",
+        "top_five_titles": [
+          "Foreign Musical",
+          "Long Legal Drama"
+        ]
+      },
+      "v2": {
+        "avoided_rank": null,
+        "confidence_label": "low",
+        "confidence_score": 0.25,
+        "dominant_penalties": [
+          "metadata:fallback"
+        ],
+        "dominant_positive_evidence": [
+          "concept:reflective",
+          "metadata:concepts",
+          "metadata:runtime",
+          "metadata:language",
+          "tonight_intent:musical"
+        ],
+        "fallback_reason": "top_candidate_uses_metadata_fallback",
+        "partial_support_notes": [],
+        "pass": true,
+        "preferred_rank": null,
+        "scorer_version": "v2_contract",
+        "top_five_titles": [
+          "Foreign Musical",
+          "Long Legal Drama"
+        ]
+      },
+      "v2_status": "improved"
+    }
+  ],
+  "risk_notes": [
+    "This is a deterministic fixture comparison, not a replacement for founder dogfood.",
+    "V2 is now the default scorer after the founder promotion decision.",
+    "V1 remains available as the rollback scorer.",
+    "Live TMDb quality depends on provider candidate supply as well as scorer behavior."
+  ],
+  "scenario_count": 7,
+  "summary": {
+    "improvements": 1,
+    "regressions": 0,
+    "unchanged": 6,
+    "v2_scorer_version": "v2_contract"
+  }
+}

@@ -20,6 +20,7 @@ from movie_night_mediator.domain import (
     UserProfile,
 )
 from movie_night_mediator.scoring import HeuristicScorer
+from movie_night_mediator.scoring import ScoringEngineId, build_recommendation_scorer
 from movie_night_mediator.storage import SQLiteRecommendationSnapshotStore
 
 
@@ -93,6 +94,33 @@ class RecommendationSnapshotTest(unittest.TestCase):
             self.assertEqual(loaded_snapshot.candidates[0].why_short, result.ranked_candidates[0].why_short)
             self.assertEqual(loaded_snapshot.candidates[0].user_scores[0].user_id, "husband")
             self.assertEqual(loaded_snapshot.candidates[0].user_scores[1].user_id, "wife")
+
+    def test_v2_evidence_survives_sqlite_snapshot_round_trip(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "recommendations.sqlite3"
+            service = RecommendationSnapshotService(
+                store=SQLiteRecommendationSnapshotStore(database_path=database_path)
+            )
+            request = scoring_request("snapshot-v2-session")
+            result = build_recommendation_scorer(ScoringEngineId.V2_CONTRACT).score(
+                request
+            )
+
+            saved_snapshot = service.save_result_snapshot(
+                request=request,
+                result=result,
+            )
+            loaded_snapshot = RecommendationSnapshotService(
+                store=SQLiteRecommendationSnapshotStore(database_path=database_path)
+            ).load_snapshot("snapshot-v2-session")
+
+            self.assertEqual(loaded_snapshot, saved_snapshot)
+            assert loaded_snapshot is not None
+            self.assertEqual(loaded_snapshot.scorer_version, "v2_contract")
+            self.assertIsNotNone(loaded_snapshot.confidence_score)
+            self.assertTrue(
+                loaded_snapshot.candidates[0].dominant_positive_evidence
+            )
 
     def test_duplicate_save_replaces_candidate_rows(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

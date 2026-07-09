@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from movie_night_mediator.app.debug_history import (
     DebugPersistedSessionEvidence,
@@ -93,6 +93,8 @@ class DebugHistoryRecommendationCandidatePayload(BaseModel):
     hardFilterPass: bool
     isInterestingPick: bool
     scoringEvidence: list[DebugHistoryScoringEvidencePayload]
+    dominantPositiveEvidence: list[str] = Field(default_factory=list)
+    dominantPenalties: list[str] = Field(default_factory=list)
 
 
 class DebugHistoryRecommendationSnapshotPayload(BaseModel):
@@ -104,6 +106,11 @@ class DebugHistoryRecommendationSnapshotPayload(BaseModel):
     uncertaintyReason: str | None = None
     recommendedFollowUp: str | None = None
     interestingSafePickId: str | None = None
+    scorerVersion: str = "v1_heuristic"
+    confidenceScore: float | None = None
+    confidenceLabel: str | None = None
+    partialSupportNotes: list[str] = Field(default_factory=list)
+    fallbackReason: str | None = None
 
 
 class DebugHistorySessionPayload(BaseModel):
@@ -385,6 +392,8 @@ def _recommendation_snapshot_to_payload(
                     )
                     for evidence in candidate.scoring_evidence
                 ],
+                dominantPositiveEvidence=list(candidate.dominant_positive_evidence),
+                dominantPenalties=list(candidate.dominant_penalties),
             )
             for candidate in snapshot.candidates
         ],
@@ -392,4 +401,9 @@ def _recommendation_snapshot_to_payload(
         uncertaintyReason=snapshot.uncertainty_reason,
         recommendedFollowUp=snapshot.recommended_follow_up,
         interestingSafePickId=snapshot.interesting_safe_pick_id,
+        scorerVersion=snapshot.scorer_version,
+        confidenceScore=snapshot.confidence_score,
+        confidenceLabel=snapshot.confidence_label,
+        partialSupportNotes=list(snapshot.partial_support_notes),
+        fallbackReason=snapshot.fallback_reason,
     )

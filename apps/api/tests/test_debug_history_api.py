@@ -273,12 +273,22 @@ class DebugHistoryApiTest(unittest.TestCase):
                             why_short="Fits compromise mode.",
                             hard_filter_pass=True,
                             is_interesting_pick=True,
+                            dominant_positive_evidence=(
+                                "shared:bridge_value",
+                                "profile_concept:likes:mystery",
+                            ),
+                            dominant_penalties=("shared:veto_risk",),
                         ),
                     ),
                     is_uncertain=True,
                     uncertainty_reason="More seeds needed.",
                     recommended_follow_up="Capture more seed titles.",
                     interesting_safe_pick_id="tmdb:1",
+                    scorer_version="v2_contract",
+                    confidence_score=0.42,
+                    confidence_label="low",
+                    partial_support_notes=("Could not verify avoided signal.",),
+                    fallback_reason="top_candidate_uses_metadata_fallback",
                 )
             )
 
@@ -302,6 +312,34 @@ class DebugHistoryApiTest(unittest.TestCase):
             self.assertEqual(
                 response["recommendationSnapshot"]["uncertaintyReason"],
                 "More seeds needed.",
+            )
+            self.assertEqual(
+                response["recommendationSnapshot"]["scorerVersion"],
+                "v2_contract",
+            )
+            self.assertEqual(
+                response["recommendationSnapshot"]["confidenceLabel"],
+                "low",
+            )
+            self.assertEqual(
+                response["recommendationSnapshot"]["partialSupportNotes"],
+                ["Could not verify avoided signal."],
+            )
+            self.assertEqual(
+                response["recommendationSnapshot"]["fallbackReason"],
+                "top_candidate_uses_metadata_fallback",
+            )
+            self.assertEqual(
+                response["recommendationSnapshot"]["candidates"][0][
+                    "dominantPositiveEvidence"
+                ],
+                ["shared:bridge_value", "profile_concept:likes:mystery"],
+            )
+            self.assertEqual(
+                response["recommendationSnapshot"]["candidates"][0][
+                    "dominantPenalties"
+                ],
+                ["shared:veto_risk"],
             )
             self.assertIn("candidate_inputs", response["unavailableEvidence"])
             self.assertNotIn("group_scores", response["unavailableEvidence"])

@@ -29,6 +29,8 @@ export type DemoCandidate = {
   hook?: string;
   whyNow?: string;
   groupScore?: number;
+  dominantPositiveEvidence?: string[];
+  dominantPenalties?: string[];
   baseRank: number;
   taste: {
     founder: number;

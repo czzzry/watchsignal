@@ -84,6 +84,8 @@ export type DebugHistoryReactionPayload = {
 
 export type DebugHistoryRecommendationCandidatePayload = {
   candidateRank: number;
+  dominantPenalties?: string[];
+  dominantPositiveEvidence?: string[];
   fitBucket: string;
   groupScore: number;
   hardFilterPass: boolean;
@@ -98,10 +100,15 @@ export type DebugHistoryRecommendationCandidatePayload = {
 export type DebugHistoryRecommendationSnapshotPayload = {
   candidateInputs: DebugHistoryCandidateInputPayload[];
   candidates: DebugHistoryRecommendationCandidatePayload[];
+  confidenceLabel?: string | null;
+  confidenceScore?: number | null;
   enrichmentCoverage: DebugHistoryEnrichmentCoveragePayload;
+  fallbackReason?: string | null;
   interestingSafePickId?: string | null;
   isUncertain: boolean;
+  partialSupportNotes?: string[];
   recommendedFollowUp?: string | null;
+  scorerVersion?: string;
   sessionId: string;
   uncertaintyReason?: string | null;
 };
@@ -246,6 +253,8 @@ export type RecommendationProviderAvailabilityPayload = {
 export type RecommendationShortlistItemPayload = {
   availability: string;
   candidateRank: number;
+  dominantPenalties?: string[];
+  dominantPositiveEvidence?: string[];
   englishSubtitlesVerified: boolean;
   fitBucket: string;
   founderScore?: number | null;
@@ -281,6 +290,7 @@ export type RecommendationShortlistRequestPayload = {
   excludedSourceMovieIds?: string[];
   householdId?: string;
   participantIds?: string[];
+  scoringEngine?: ScoringEngineId;
   serviceConstraint?: string | null;
   sessionId: string;
   sessionReactions?: ScoringSessionReactionPayload[];
@@ -312,6 +322,8 @@ export type SaveWatchlistEntryPayload = {
   sourceMovieId: string;
   title: string;
 };
+
+export type ScoringEngineId = "v1_heuristic" | "v2_contract";
 
 export type ScoringSessionReactionPayload = {
   reactionLabel: string;

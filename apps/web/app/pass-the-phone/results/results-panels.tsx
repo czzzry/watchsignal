@@ -933,13 +933,16 @@ function trustSignalLabels(
     return [];
   }
 
+  const dominantPositiveEvidence = candidate.dominantPositiveEvidence ?? [];
   return Array.from(
     new Set(
-      candidate.scoringEvidence.flatMap((evidence) =>
-        evidence.contributions
-          .filter((contribution) => contribution.value > 0)
-          .map(formatTrustContribution),
-      ),
+      dominantPositiveEvidence.length > 0
+        ? dominantPositiveEvidence.map(formatDominantEvidenceLabel)
+        : candidate.scoringEvidence.flatMap((evidence) =>
+            evidence.contributions
+              .filter((contribution) => contribution.value > 0)
+              .map(formatTrustContribution),
+          ),
     ),
   ).slice(0, 4);
 }
@@ -953,11 +956,15 @@ function penaltySignalLabels(
       .filter((input) => input.alreadyWatched)
       .map((input) => `Already watched: ${input.title}`) ?? [];
   const negativeContributions =
-    candidate?.scoringEvidence.flatMap((evidence) =>
-      evidence.contributions
-        .filter((contribution) => contribution.value < 0)
-        .map(formatTrustContribution),
-    ) ?? [];
+    candidate === null
+      ? []
+      : (candidate.dominantPenalties ?? []).length > 0
+        ? (candidate.dominantPenalties ?? []).map(formatDominantEvidenceLabel)
+        : candidate.scoringEvidence.flatMap((evidence) =>
+            evidence.contributions
+              .filter((contribution) => contribution.value < 0)
+              .map(formatTrustContribution),
+          );
 
   return Array.from(new Set([...watchedTitles, ...negativeContributions])).slice(
     0,
@@ -1018,6 +1025,13 @@ function formatTrustContribution(
     ? "Profile memory"
     : formatTonightIntentSignal(contribution.family);
   return `${familyLabel}: ${label}`;
+}
+
+function formatDominantEvidenceLabel(label: string): string {
+  return label
+    .split(":")
+    .map((part) => part.replaceAll("_", " "))
+    .join(": ");
 }
 
 function isMemoryContribution(
@@ -1246,9 +1260,15 @@ function DebugRecommendationSnapshot({
     );
   }
 
+  const partialSupportNotes = snapshot.partialSupportNotes ?? [];
   return (
     <div className="debugListBlock">
       <h4>Scoring snapshot</h4>
+      <p>
+        {snapshot.scorerVersion}
+        {snapshot.confidenceLabel ? ` · ${snapshot.confidenceLabel} confidence` : ""}
+        {snapshot.fallbackReason ? ` · ${snapshot.fallbackReason}` : ""}
+      </p>
       <DebugCandidateInputs candidateInputs={snapshot.candidateInputs} />
       <ol>
         {snapshot.candidates.map((candidate) => (
@@ -1264,6 +1284,9 @@ function DebugRecommendationSnapshot({
       ) : null}
       {snapshot.recommendedFollowUp ? (
         <p>Follow-up: {snapshot.recommendedFollowUp}</p>
+      ) : null}
+      {partialSupportNotes.length > 0 ? (
+        <p>Partial support: {partialSupportNotes.join(" ")}</p>
       ) : null}
     </div>
   );

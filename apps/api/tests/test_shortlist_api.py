@@ -207,6 +207,7 @@ class ShortlistApiTest(unittest.TestCase):
             self.assertIsNotNone(snapshot)
             assert snapshot is not None
             self.assertEqual(snapshot.session_id, "tonight-session")
+            self.assertEqual(snapshot.scorer_version, "v2_contract")
             self.assertEqual(
                 snapshot.candidates[0].source_movie_id,
                 payload[0].sourceMovieId,
@@ -227,6 +228,31 @@ class ShortlistApiTest(unittest.TestCase):
             self.assertIsNone(
                 snapshot_store.load_snapshot("demo-shared-session"),
             )
+
+    def test_post_recommendation_shortlist_can_opt_into_v1_rollback_scorer(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            snapshot_store = SQLiteRecommendationSnapshotStore(
+                database_path=Path(directory) / "v1-shortlist-snapshot.sqlite3"
+            )
+            post_shortlist = recommendation_shortlist_endpoint(
+                create_app(recommendation_snapshot_store=snapshot_store),
+                method="POST",
+            )
+
+            payload = post_shortlist(
+                RecommendationShortlistRequestPayload(
+                    sessionId="tonight-session-v2",
+                    scoringEngine="v1_heuristic",
+                )
+            )
+
+            snapshot = snapshot_store.load_snapshot("tonight-session-v2")
+
+            self.assertEqual(len(payload), 5)
+            self.assertIsNotNone(snapshot)
+            assert snapshot is not None
+            self.assertEqual(snapshot.scorer_version, "v1_heuristic")
+            self.assertIsNone(snapshot.confidence_score)
             self.assertIsNone(
                 snapshot_store.load_snapshot("demo-shared-session"),
             )
@@ -393,6 +419,10 @@ class ShortlistApiTest(unittest.TestCase):
                 candidate_source.mood_texts,
                 ("something funny from the 90s + actually more action",),
             )
+            self.assertEqual(
+                tuple(intent.raw_text for intent in candidate_source.sessions[0].tonight_intents),
+                ("something funny from the 90s", "actually more action"),
+            )
 
     def test_post_recommendation_shortlist_turns_people_filter_into_constraint(
         self,
@@ -430,6 +460,10 @@ class ShortlistApiTest(unittest.TestCase):
                 ("Tom Cruise",),
             )
             self.assertEqual(payload[0].matchedPersonNames, ["Tom Cruise"])
+            self.assertEqual(
+                candidate_source.sessions[0].tonight_intents[0].person_names,
+                ("Tom Cruise",),
+            )
 
     def test_post_recommendation_shortlist_preserves_excluded_signals_in_mood_text(
         self,
@@ -453,7 +487,9 @@ class ShortlistApiTest(unittest.TestCase):
                     tonightIntents=[
                         {
                             "rawText": "No cartoonish kids stuff",
+                            "softSignals": ["cozy"],
                             "excludedSignals": ["animation", "family"],
+                            "confidence": "high",
                         },
                     ],
                 )
@@ -462,7 +498,23 @@ class ShortlistApiTest(unittest.TestCase):
             self.assertEqual(len(payload), 5)
             self.assertEqual(
                 candidate_source.mood_texts,
-                ("No cartoonish kids stuff + avoid animation + avoid family",),
+                ("No cartoonish kids stuff + cozy + avoid animation + avoid family",),
+            )
+            structured_intent = candidate_source.sessions[0].tonight_intents[0]
+            self.assertEqual(structured_intent.confidence, "high")
+            self.assertIn(
+                ("cozy", "positive"),
+                {
+                    (signal.concept, signal.polarity)
+                    for signal in structured_intent.signals
+                },
+            )
+            self.assertIn(
+                ("animation", "negative"),
+                {
+                    (signal.concept, signal.polarity)
+                    for signal in structured_intent.signals
+                },
             )
 
     def test_post_recommendation_shortlist_returns_explicit_nudge_shortage_error(
@@ -727,8 +779,19 @@ class ShortlistApiTest(unittest.TestCase):
 
             after_snapshot = snapshot_store.load_snapshot("persistent-memory-after")
 
+            before_rank = next(
+                index
+                for index, item in enumerate(before_payload, start=1)
+                if item.title == "Midnight Cipher Returns"
+            )
+            after_rank = next(
+                index
+                for index, item in enumerate(after_payload, start=1)
+                if item.title == "Midnight Cipher Returns"
+            )
+
             self.assertNotEqual(before_payload[0].title, "Midnight Cipher Returns")
-            self.assertEqual(after_payload[0].title, "Midnight Cipher Returns")
+            self.assertLess(after_rank, before_rank)
             self.assertNotEqual(
                 other_profile_payload[0].title,
                 "Midnight Cipher Returns",

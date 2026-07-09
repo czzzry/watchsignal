@@ -1,0 +1,354 @@
+{
+  "command": "pnpm eval:scoring-v2:v1",
+  "phase": "Scoring V2: Evaluation Corpus And V1 Baseline",
+  "report_date": "2026-07-09",
+  "required_categories_present": true,
+  "results": [
+    {
+      "avoided_rank": 3,
+      "avoided_title": "Spider-Man: Into the Spider-Verse",
+      "category": "negative_preference",
+      "concept_hits": [
+        "whodunit",
+        "witty"
+      ],
+      "evidence_labels": [
+        "genre:Mystery",
+        "genre:Comedy",
+        "title_similarity:Knives Out",
+        "feature_tag:whodunit",
+        "feature_tag:witty"
+      ],
+      "expected_behavior": "Adult mystery should rank above family animation.",
+      "expected_confidence_behavior": "not_required",
+      "expected_penalties": [
+        "animation",
+        "family",
+        "kids"
+      ],
+      "expected_positive_concepts": [
+        "whodunit",
+        "witty"
+      ],
+      "is_uncertain": false,
+      "name": "negative_kid_animation_request",
+      "penalty_hits": [],
+      "preferred_explanation": "Strong fit for Cezary - tester with signal from Mystery, Comedy. Built from profile score 0.73, 1 Taste Lab signals. Evidence: genre, title_similarity, feature_tag.",
+      "preferred_rank": 1,
+      "preferred_title": "Knives Out",
+      "recommended_follow_up": null,
+      "signal_families": [
+        "genre",
+        "title_similarity",
+        "feature_tag"
+      ],
+      "top_five_titles": [
+        "Knives Out",
+        "Paddington",
+        "Spider-Man: Into the Spider-Verse"
+      ],
+      "top_pick_explanation": "Strong fit for Cezary - tester with signal from Mystery, Comedy. Built from profile score 0.73, 1 Taste Lab signals. Evidence: genre, title_similarity, feature_tag.",
+      "top_pick_title": "Knives Out",
+      "uncertainty_reason": null,
+      "user_story": "As a user, I can say no kids movies and no cartoonish stuff.",
+      "v1_status": "partial",
+      "v2_gap": "V2 should improve penalties: animation, family, kids."
+    },
+    {
+      "avoided_rank": 2,
+      "avoided_title": "Generic Siege",
+      "category": "actor_driven",
+      "concept_hits": [],
+      "evidence_labels": [
+        "genre:Thriller",
+        "tonight_intent:tense",
+        "fallback:tmdb-metadata-fallback"
+      ],
+      "expected_behavior": "A Josh Brolin match should outrank a generic action title.",
+      "expected_confidence_behavior": "not_required",
+      "expected_penalties": [],
+      "expected_positive_concepts": [
+        "Josh Brolin",
+        "person"
+      ],
+      "is_uncertain": false,
+      "name": "actor_driven_josh_brolin_request",
+      "penalty_hits": [],
+      "preferred_explanation": "Strong fit for Cezary - tester with signal from Thriller, Crime. Built from profile score 0.55, 1 Taste Lab signals. Evidence: genre, tonight_intent, fallback.",
+      "preferred_rank": 1,
+      "preferred_title": "Sicario",
+      "recommended_follow_up": null,
+      "signal_families": [
+        "genre",
+        "tonight_intent",
+        "fallback"
+      ],
+      "top_five_titles": [
+        "Sicario",
+        "Generic Siege"
+      ],
+      "top_pick_explanation": "Strong fit for Cezary - tester with signal from Thriller, Crime. Built from profile score 0.55, 1 Taste Lab signals. Evidence: genre, tonight_intent, fallback.",
+      "top_pick_title": "Sicario",
+      "uncertainty_reason": null,
+      "user_story": "As a user, I can ask for a named actor and have that matter.",
+      "v1_status": "partial",
+      "v2_gap": "V2 should improve positive concepts: Josh Brolin, person."
+    },
+    {
+      "avoided_rank": 2,
+      "avoided_title": "Paddington",
+      "category": "subtle_tone",
+      "concept_hits": [
+        "cozy",
+        "witty"
+      ],
+      "evidence_labels": [
+        "genre:Comedy",
+        "title_similarity:The Grand Budapest Hotel",
+        "feature_tag:witty",
+        "tonight_intent:cozy"
+      ],
+      "expected_behavior": "A warm grown-up comedy should beat a sweeter family pick.",
+      "expected_confidence_behavior": "not_required",
+      "expected_penalties": [
+        "saccharine",
+        "family"
+      ],
+      "expected_positive_concepts": [
+        "cozy",
+        "witty"
+      ],
+      "is_uncertain": false,
+      "name": "subtle_tone_cozy_not_saccharine",
+      "penalty_hits": [],
+      "preferred_explanation": "Strong fit for Cezary - tester with signal from Comedy, Adventure. Built from profile score 0.65, 1 Taste Lab signals. Evidence: genre, title_similarity, feature_tag, tonight_intent.",
+      "preferred_rank": 1,
+      "preferred_title": "The Grand Budapest Hotel",
+      "recommended_follow_up": null,
+      "signal_families": [
+        "genre",
+        "title_similarity",
+        "feature_tag",
+        "tonight_intent"
+      ],
+      "top_five_titles": [
+        "The Grand Budapest Hotel",
+        "Paddington"
+      ],
+      "top_pick_explanation": "Strong fit for Cezary - tester with signal from Comedy, Adventure. Built from profile score 0.65, 1 Taste Lab signals. Evidence: genre, title_similarity, feature_tag, tonight_intent.",
+      "top_pick_title": "The Grand Budapest Hotel",
+      "uncertainty_reason": null,
+      "user_story": "As a user, I can ask for cozy but not saccharine.",
+      "v1_status": "partial",
+      "v2_gap": "V2 should improve penalties: saccharine, family."
+    },
+    {
+      "avoided_rank": 4,
+      "avoided_title": "Loud Space Battle",
+      "category": "solo_favorite",
+      "concept_hits": [
+        "cerebral",
+        "first-contact"
+      ],
+      "evidence_labels": [
+        "genre:Sci-Fi",
+        "genre:Drama",
+        "title_similarity:Arrival",
+        "feature_tag:cerebral",
+        "feature_tag:first-contact"
+      ],
+      "expected_behavior": "Arrival should rank first for a cerebral first-contact profile.",
+      "expected_confidence_behavior": "high_confidence",
+      "expected_penalties": [],
+      "expected_positive_concepts": [
+        "cerebral",
+        "first-contact",
+        "Taste Lab"
+      ],
+      "is_uncertain": false,
+      "name": "high_confidence_solo_favorite",
+      "penalty_hits": [],
+      "preferred_explanation": "Strong fit for Cezary - tester with signal from Sci-Fi, Drama. Built from profile score 0.84, 1 Taste Lab signals, Memory signals: 2. Evidence: genre, title_similarity, feature_tag.",
+      "preferred_rank": 1,
+      "preferred_title": "Arrival",
+      "recommended_follow_up": null,
+      "signal_families": [
+        "genre",
+        "title_similarity",
+        "feature_tag"
+      ],
+      "top_five_titles": [
+        "Arrival",
+        "Quiet Legal Drama",
+        "Reflective Romance",
+        "Loud Space Battle",
+        "Witty Mystery"
+      ],
+      "top_pick_explanation": "Strong fit for Cezary - tester with signal from Sci-Fi, Drama. Built from profile score 0.84, 1 Taste Lab signals, Memory signals: 2. Evidence: genre, title_similarity, feature_tag.",
+      "top_pick_title": "Arrival",
+      "uncertainty_reason": null,
+      "user_story": "As a solo user, strong repeated evidence should produce a confident favorite.",
+      "v1_status": "partial",
+      "v2_gap": "V2 should improve positive concepts: Taste Lab."
+    },
+    {
+      "avoided_rank": 2,
+      "avoided_title": "One-Sided Action",
+      "category": "mismatch_suppression",
+      "concept_hits": [
+        "comedy"
+      ],
+      "evidence_labels": [
+        "genre:Comedy",
+        "genre:Comedy",
+        "fallback:tmdb-metadata-fallback"
+      ],
+      "expected_behavior": "Shared comedy should beat one-sided action after repeated no signals.",
+      "expected_confidence_behavior": "not_required",
+      "expected_penalties": [
+        "repeated mismatch",
+        "action"
+      ],
+      "expected_positive_concepts": [
+        "shared",
+        "comedy"
+      ],
+      "is_uncertain": false,
+      "name": "repeated_mismatch_suppression",
+      "penalty_hits": [],
+      "preferred_explanation": "Fits compromise mode with signal from Comedy. Husband: 0.53, Taste Lab signals: 2; Wife: 0.55, Taste Lab signals: 1, Memory signals: 2. Evidence: genre, fallback.",
+      "preferred_rank": 1,
+      "preferred_title": "Shared Laugh",
+      "recommended_follow_up": null,
+      "signal_families": [
+        "genre",
+        "fallback"
+      ],
+      "top_five_titles": [
+        "Shared Laugh",
+        "One-Sided Action"
+      ],
+      "top_pick_explanation": "Fits compromise mode with signal from Comedy. Husband: 0.53, Taste Lab signals: 2; Wife: 0.55, Taste Lab signals: 1, Memory signals: 2. Evidence: genre, fallback.",
+      "top_pick_title": "Shared Laugh",
+      "uncertainty_reason": null,
+      "user_story": "As a couple, repeated bad fits should stop resurfacing.",
+      "v1_status": "partial",
+      "v2_gap": "V2 should improve positive concepts: shared; penalties: repeated mismatch, action."
+    },
+    {
+      "avoided_rank": 3,
+      "avoided_title": "Pure Action Night",
+      "category": "household_bridge",
+      "concept_hits": [
+        "cerebral",
+        "mystery"
+      ],
+      "evidence_labels": [
+        "genre:Sci-Fi",
+        "genre:Drama",
+        "feature_tag:cerebral",
+        "feature_tag:first-contact",
+        "genre:Mystery"
+      ],
+      "expected_behavior": "A cerebral mystery bridge should beat one-sided favorites.",
+      "expected_confidence_behavior": "not_required",
+      "expected_penalties": [
+        "veto risk"
+      ],
+      "expected_positive_concepts": [
+        "bridge",
+        "overlap",
+        "cerebral",
+        "mystery"
+      ],
+      "is_uncertain": false,
+      "name": "household_bridge_pick",
+      "penalty_hits": [],
+      "preferred_explanation": "Fits compromise mode with signal from Sci-Fi, Drama. Husband: 0.66, Taste Lab signals: 2; Wife: 0.55, Taste Lab signals: 2. Evidence: genre, feature_tag.",
+      "preferred_rank": 1,
+      "preferred_title": "Arrival",
+      "recommended_follow_up": null,
+      "signal_families": [
+        "genre",
+        "feature_tag"
+      ],
+      "top_five_titles": [
+        "Arrival",
+        "Pure Romance Night",
+        "Pure Action Night"
+      ],
+      "top_pick_explanation": "Fits compromise mode with signal from Sci-Fi, Drama. Husband: 0.66, Taste Lab signals: 2; Wife: 0.55, Taste Lab signals: 2. Evidence: genre, feature_tag.",
+      "top_pick_title": "Arrival",
+      "uncertainty_reason": null,
+      "user_story": "As a couple, we can get a bridge pick instead of a bland middle.",
+      "v1_status": "partial",
+      "v2_gap": "V2 should improve positive concepts: bridge, overlap; penalties: veto risk."
+    },
+    {
+      "avoided_rank": null,
+      "avoided_title": null,
+      "category": "no_strong_match",
+      "concept_hits": [],
+      "evidence_labels": [
+        "tonight_intent:musical",
+        "fallback:tmdb-metadata-fallback"
+      ],
+      "expected_behavior": "The scorer should be uncertain or explicitly say no strong match.",
+      "expected_confidence_behavior": "over_constraint_honesty",
+      "expected_penalties": [
+        "over constrained"
+      ],
+      "expected_positive_concepts": [
+        "courtroom",
+        "cozy",
+        "short runtime"
+      ],
+      "is_uncertain": true,
+      "name": "legitimate_no_strong_match",
+      "penalty_hits": [],
+      "preferred_explanation": null,
+      "preferred_rank": null,
+      "preferred_title": null,
+      "recommended_follow_up": "Capture at least a few Loved, Fine, and No seed titles.",
+      "signal_families": [
+        "tonight_intent",
+        "fallback"
+      ],
+      "top_five_titles": [
+        "Foreign Musical",
+        "Long Legal Drama"
+      ],
+      "top_pick_explanation": "Strong fit for Solo with signal from Music, Drama. Built from profile score 0.5. Evidence: tonight_intent, fallback.",
+      "top_pick_title": "Foreign Musical",
+      "uncertainty_reason": "One or more active users need onboarding seeds.",
+      "user_story": "As a user, I get an honest no-strong-match state when the request is over-constrained.",
+      "v1_status": "partial",
+      "v2_gap": "V2 should improve positive concepts: courtroom, cozy, short runtime; penalties: over constrained; confidence behavior."
+    }
+  ],
+  "risk_notes": [
+    "This is a deterministic V1 baseline, not a claim that V1 should pass every V2 scenario.",
+    "The report captures title ordering, signal families, expected concepts, expected penalties, and confidence expectations before V2 scorer semantics change.",
+    "Known misses are useful because they define what V2 should improve without tuning against hidden behavior.",
+    "Live TMDb latency and phone-sized dogfood remain later acceptance gates."
+  ],
+  "scenario_count": 7,
+  "summary": {
+    "harness_passed": true,
+    "known_v1_misses": [],
+    "known_v1_partials": [
+      "negative_kid_animation_request",
+      "actor_driven_josh_brolin_request",
+      "subtle_tone_cozy_not_saccharine",
+      "high_confidence_solo_favorite",
+      "repeated_mismatch_suppression",
+      "household_bridge_pick",
+      "legitimate_no_strong_match"
+    ],
+    "status_counts": {
+      "miss": 0,
+      "partial": 7,
+      "success": 0
+    }
+  }
+}

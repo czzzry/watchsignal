@@ -48,14 +48,24 @@ class SQLiteRecommendationSnapshotStore:
                         is_uncertain,
                         uncertainty_reason,
                         recommended_follow_up,
-                        interesting_safe_pick_id
+                        interesting_safe_pick_id,
+                        scorer_version,
+                        confidence_score,
+                        confidence_label,
+                        partial_support_notes,
+                        fallback_reason
                     )
-                    VALUES (?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(session_id) DO UPDATE SET
                         is_uncertain = excluded.is_uncertain,
                         uncertainty_reason = excluded.uncertainty_reason,
                         recommended_follow_up = excluded.recommended_follow_up,
                         interesting_safe_pick_id = excluded.interesting_safe_pick_id,
+                        scorer_version = excluded.scorer_version,
+                        confidence_score = excluded.confidence_score,
+                        confidence_label = excluded.confidence_label,
+                        partial_support_notes = excluded.partial_support_notes,
+                        fallback_reason = excluded.fallback_reason,
                         updated_at = CURRENT_TIMESTAMP
                     """,
                     (
@@ -64,6 +74,11 @@ class SQLiteRecommendationSnapshotStore:
                         snapshot.uncertainty_reason,
                         snapshot.recommended_follow_up,
                         snapshot.interesting_safe_pick_id,
+                        snapshot.scorer_version,
+                        snapshot.confidence_score,
+                        snapshot.confidence_label,
+                        _dump_string_list(snapshot.partial_support_notes),
+                        snapshot.fallback_reason,
                     ),
                 )
                 connection.execute(
@@ -142,9 +157,11 @@ class SQLiteRecommendationSnapshotStore:
                         why_short,
                         hard_filter_pass,
                         is_interesting_pick,
-                        scoring_evidence
+                        scoring_evidence,
+                        dominant_positive_evidence,
+                        dominant_penalties
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     [
                         (
@@ -158,6 +175,8 @@ class SQLiteRecommendationSnapshotStore:
                             int(candidate.hard_filter_pass),
                             int(candidate.is_interesting_pick),
                             _dump_scoring_evidence(candidate.scoring_evidence),
+                            _dump_string_list(candidate.dominant_positive_evidence),
+                            _dump_string_list(candidate.dominant_penalties),
                         )
                         for candidate in snapshot.candidates
                     ],
@@ -205,7 +224,12 @@ class SQLiteRecommendationSnapshotStore:
                     is_uncertain,
                     uncertainty_reason,
                     recommended_follow_up,
-                    interesting_safe_pick_id
+                    interesting_safe_pick_id,
+                    scorer_version,
+                    confidence_score,
+                    confidence_label,
+                    partial_support_notes,
+                    fallback_reason
                 FROM recommendation_snapshots
                 WHERE session_id = ?
                 """,
@@ -226,7 +250,9 @@ class SQLiteRecommendationSnapshotStore:
                     why_short,
                     hard_filter_pass,
                     is_interesting_pick,
-                    scoring_evidence
+                    scoring_evidence,
+                    dominant_positive_evidence,
+                    dominant_penalties
                 FROM recommendation_snapshot_candidates
                 WHERE session_id = ?
                 ORDER BY candidate_rank ASC, source_movie_id ASC
@@ -310,6 +336,10 @@ class SQLiteRecommendationSnapshotStore:
                     hard_filter_pass=bool(row["hard_filter_pass"]),
                     is_interesting_pick=bool(row["is_interesting_pick"]),
                     scoring_evidence=_load_scoring_evidence(row["scoring_evidence"]),
+                    dominant_positive_evidence=_load_string_list(
+                        row["dominant_positive_evidence"]
+                    ),
+                    dominant_penalties=_load_string_list(row["dominant_penalties"]),
                 )
                 for row in candidate_rows
             ),
@@ -317,6 +347,13 @@ class SQLiteRecommendationSnapshotStore:
             uncertainty_reason=snapshot_row["uncertainty_reason"],
             recommended_follow_up=snapshot_row["recommended_follow_up"],
             interesting_safe_pick_id=snapshot_row["interesting_safe_pick_id"],
+            scorer_version=snapshot_row["scorer_version"],
+            confidence_score=snapshot_row["confidence_score"],
+            confidence_label=snapshot_row["confidence_label"],
+            partial_support_notes=_load_string_list(
+                snapshot_row["partial_support_notes"]
+            ),
+            fallback_reason=snapshot_row["fallback_reason"],
         )
 
     def list_snapshots(self) -> tuple[RecommendationSnapshot, ...]:
@@ -350,6 +387,11 @@ class SQLiteRecommendationSnapshotStore:
                         uncertainty_reason TEXT,
                         recommended_follow_up TEXT,
                         interesting_safe_pick_id TEXT,
+                        scorer_version TEXT NOT NULL DEFAULT 'v1_heuristic',
+                        confidence_score REAL,
+                        confidence_label TEXT,
+                        partial_support_notes TEXT NOT NULL DEFAULT '[]',
+                        fallback_reason TEXT,
                         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                         updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
                     );
@@ -395,6 +437,8 @@ class SQLiteRecommendationSnapshotStore:
                             is_interesting_pick IN (0, 1)
                         ),
                         scoring_evidence TEXT NOT NULL DEFAULT '[]',
+                        dominant_positive_evidence TEXT NOT NULL DEFAULT '[]',
+                        dominant_penalties TEXT NOT NULL DEFAULT '[]',
                         PRIMARY KEY (session_id, source_movie_id)
                     );
 
@@ -414,6 +458,7 @@ class SQLiteRecommendationSnapshotStore:
                     );
                     """
                 )
+                _ensure_snapshot_v2_columns(connection)
                 _ensure_candidate_input_enrichment_columns(connection)
                 _ensure_recommendation_candidate_evidence_columns(connection)
 
@@ -454,6 +499,52 @@ def _load_feature_scores(value: str) -> dict[str, float]:
     if not isinstance(raw_scores, dict):
         return {}
     return {str(key): float(score) for key, score in raw_scores.items()}
+
+
+def _dump_string_list(values: tuple[str, ...]) -> str:
+    return json.dumps(list(values), sort_keys=True)
+
+
+def _load_string_list(value: str | None) -> tuple[str, ...]:
+    if not value:
+        return ()
+    raw_values = json.loads(value)
+    if not isinstance(raw_values, list):
+        return ()
+    return tuple(str(item) for item in raw_values if str(item))
+
+
+def _ensure_snapshot_v2_columns(
+    connection: sqlite3.Connection,
+) -> None:
+    existing_columns = {
+        row["name"]
+        for row in connection.execute(
+            "PRAGMA table_info(recommendation_snapshots)"
+        ).fetchall()
+    }
+    migrations = {
+        "scorer_version": (
+            "ALTER TABLE recommendation_snapshots "
+            "ADD COLUMN scorer_version TEXT NOT NULL DEFAULT 'v1_heuristic'"
+        ),
+        "confidence_score": (
+            "ALTER TABLE recommendation_snapshots ADD COLUMN confidence_score REAL"
+        ),
+        "confidence_label": (
+            "ALTER TABLE recommendation_snapshots ADD COLUMN confidence_label TEXT"
+        ),
+        "partial_support_notes": (
+            "ALTER TABLE recommendation_snapshots "
+            "ADD COLUMN partial_support_notes TEXT NOT NULL DEFAULT '[]'"
+        ),
+        "fallback_reason": (
+            "ALTER TABLE recommendation_snapshots ADD COLUMN fallback_reason TEXT"
+        ),
+    }
+    for column_name, statement in migrations.items():
+        if column_name not in existing_columns:
+            connection.execute(statement)
 
 
 def _ensure_candidate_input_enrichment_columns(
@@ -552,8 +643,20 @@ def _ensure_recommendation_candidate_evidence_columns(
             "PRAGMA table_info(recommendation_snapshot_candidates)"
         ).fetchall()
     }
-    if "scoring_evidence" not in existing_columns:
-        connection.execute(
+    migrations = {
+        "scoring_evidence": (
             "ALTER TABLE recommendation_snapshot_candidates "
             "ADD COLUMN scoring_evidence TEXT NOT NULL DEFAULT '[]'"
-        )
+        ),
+        "dominant_positive_evidence": (
+            "ALTER TABLE recommendation_snapshot_candidates "
+            "ADD COLUMN dominant_positive_evidence TEXT NOT NULL DEFAULT '[]'"
+        ),
+        "dominant_penalties": (
+            "ALTER TABLE recommendation_snapshot_candidates "
+            "ADD COLUMN dominant_penalties TEXT NOT NULL DEFAULT '[]'"
+        ),
+    }
+    for column_name, statement in migrations.items():
+        if column_name not in existing_columns:
+            connection.execute(statement)

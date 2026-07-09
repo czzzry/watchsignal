@@ -114,11 +114,17 @@ from movie_night_mediator.domain import (
     SessionMode,
     PersonCandidateConstraint,
     ScoringSessionReaction,
+    TonightIntentContract,
+    TonightIntentSignal,
     UserProfile,
 )
 from movie_night_mediator.fixtures.demo_couple import (
     DEMO_HUSBAND_PROFILE,
     DEMO_WIFE_PROFILE,
+)
+from movie_night_mediator.scoring import (
+    ScoringEngineId,
+    build_recommendation_scorer,
 )
 from movie_night_mediator.mvp_plus_2 import (
     IntentInterpretation,
@@ -174,6 +180,8 @@ class RecommendationShortlistItemPayload(BaseModel):
     originalLanguage: str = Field(min_length=1)
     spokenLanguages: list[str]
     englishSubtitlesVerified: bool
+    dominantPositiveEvidence: list[str] = Field(default_factory=list)
+    dominantPenalties: list[str] = Field(default_factory=list)
 
 
 class ScoringSessionReactionPayload(BaseModel):
@@ -199,6 +207,7 @@ class RecommendationShortlistRequestPayload(BaseModel):
     tonightIntents: list[dict[str, object]] = Field(default_factory=list)
     excludedSourceMovieIds: list[str] = Field(default_factory=list)
     sessionReactions: list[ScoringSessionReactionPayload] = Field(default_factory=list)
+    scoringEngine: ScoringEngineId = ScoringEngineId.V2_CONTRACT
 
 
 class TonightIntentInterpretRequestPayload(BaseModel):
@@ -458,6 +467,7 @@ def create_app(
                     payload=payload,
                     backfill_service=services.backfill_service,
                 ),
+                scorer=build_recommendation_scorer(payload.scoringEngine),
                 session_reactions=_shortlist_session_reactions_from_payload(payload),
             )
         ]
@@ -532,6 +542,7 @@ def _live_candidate_shortlist_items(
                 excluded_count=len(payload.excludedSourceMovieIds),
                 watched_count=len(watched_ids),
             ),
+            scorer=build_recommendation_scorer(payload.scoringEngine),
             snapshot_service=snapshot_service,
             excluded_source_movie_ids=tuple(payload.excludedSourceMovieIds),
             watched_source_movie_ids=watched_ids,
@@ -612,6 +623,10 @@ def _shortlist_session_from_payload(
             payload.tonightIntents,
         ),
         person_constraints=_tonight_intent_person_constraints(
+            payload.tonightIntent,
+            payload.tonightIntents,
+        ),
+        tonight_intents=_structured_tonight_intents(
             payload.tonightIntent,
             payload.tonightIntents,
         ),
@@ -696,6 +711,138 @@ def _tonight_intent_mood_text(
         return None
 
     return " + ".join(deduped_snippets)
+
+
+def _structured_tonight_intents(
+    tonight_intent: dict[str, object] | None,
+    tonight_intents: list[dict[str, object]] | None = None,
+) -> tuple[TonightIntentContract, ...]:
+    intent_payloads = list(tonight_intents or [])
+    if tonight_intent and tonight_intent not in intent_payloads:
+        intent_payloads.append(tonight_intent)
+
+    contracts = []
+    for intent in intent_payloads:
+        raw_text = intent.get("rawText")
+        if not isinstance(raw_text, str) or not raw_text.strip():
+            continue
+        confidence = _intent_confidence(intent)
+        signals = [
+            *(
+                TonightIntentSignal(
+                    concept=signal,
+                    polarity="positive",
+                    intensity=_intent_intensity(intent),
+                    confidence=confidence,
+                    source="soft_signal",
+                    label=signal,
+                )
+                for signal in _intent_string_list(intent, "softSignals")
+            ),
+            *(
+                TonightIntentSignal(
+                    concept=genre,
+                    polarity="positive",
+                    intensity=_intent_intensity(intent),
+                    confidence=confidence,
+                    source="filter:genres",
+                    label=genre,
+                )
+                for genre in _intent_filter_strings(intent, "genres")
+            ),
+            *(
+                TonightIntentSignal(
+                    concept=signal,
+                    polarity="negative",
+                    intensity=_intent_intensity(intent),
+                    confidence=confidence,
+                    source="excluded_signal",
+                    label=signal,
+                )
+                for signal in _intent_string_list(intent, "excludedSignals")
+            ),
+        ]
+        unsupported_reason = intent.get("unsupportedReason")
+        contracts.append(
+            TonightIntentContract(
+                raw_text=raw_text,
+                signals=tuple(_dedupe_tonight_signals(signals)),
+                unsupported_notes=(
+                    (unsupported_reason.strip(),)
+                    if isinstance(unsupported_reason, str)
+                    and unsupported_reason.strip()
+                    else ()
+                ),
+                person_names=_intent_filter_strings(intent, "people"),
+                confidence=confidence,
+            )
+        )
+    return tuple(contracts)
+
+
+def _intent_confidence(intent: dict[str, object]) -> str:
+    confidence = intent.get("confidence")
+    if isinstance(confidence, str) and confidence.strip():
+        return confidence.strip()
+    return "medium"
+
+
+def _intent_intensity(intent: dict[str, object]) -> float:
+    confidence_weight = {"high": 1.0, "medium": 0.7, "low": 0.45}.get(
+        _intent_confidence(intent).casefold(),
+        0.7,
+    )
+    resolution = intent.get("resolution")
+    if resolution == "guess":
+        return min(confidence_weight, 0.75)
+    if resolution == "unsupported":
+        return 0.0
+    return confidence_weight
+
+
+def _intent_string_list(
+    intent: dict[str, object],
+    key: str,
+) -> tuple[str, ...]:
+    values = intent.get(key)
+    if not isinstance(values, list):
+        return ()
+    return tuple(
+        item.strip()
+        for item in values
+        if isinstance(item, str) and item.strip()
+    )
+
+
+def _intent_filter_strings(
+    intent: dict[str, object],
+    key: str,
+) -> tuple[str, ...]:
+    filters = intent.get("filters")
+    if not isinstance(filters, dict):
+        return ()
+    value = filters.get(key)
+    if isinstance(value, str) and value.strip():
+        return (value.strip(),)
+    if isinstance(value, list):
+        return tuple(
+            item.strip()
+            for item in value
+            if isinstance(item, str) and item.strip()
+        )
+    return ()
+
+
+def _dedupe_tonight_signals(
+    signals: list[TonightIntentSignal],
+) -> tuple[TonightIntentSignal, ...]:
+    by_key: dict[tuple[str, str], TonightIntentSignal] = {}
+    for signal in signals:
+        key = (signal.polarity, signal.concept.casefold())
+        existing = by_key.get(key)
+        if existing is None or signal.intensity > existing.intensity:
+            by_key[key] = signal
+    return tuple(by_key.values())
 
 
 def _tonight_intent_filter_summary(filters: dict[str, object]) -> list[str]:
@@ -943,6 +1090,8 @@ def _offline_shortlist_item_to_payload(
         originalLanguage=item.original_language,
         spokenLanguages=list(item.spoken_languages),
         englishSubtitlesVerified=item.english_subtitles_verified,
+        dominantPositiveEvidence=list(item.dominant_positive_evidence),
+        dominantPenalties=list(item.dominant_penalties),
     )
 
 
