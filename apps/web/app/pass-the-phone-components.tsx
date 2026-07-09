@@ -102,7 +102,7 @@ const availabilityOptions = [
   {
     value: "Prime Video Germany",
     label: "Prime Video",
-    detail: "Live TMDb filters to Prime Video in Germany.",
+    detail: "Live TMDb filters to Amazon availability in Germany, including Prime plus Amazon rent or buy.",
   },
   {
     value: "Any streaming Germany",
@@ -1234,12 +1234,16 @@ export function ReactionStep({
   onBack: () => void;
 }) {
   const [detailsExpanded, setDetailsExpanded] = useState(false);
+  useEffect(() => {
+    setDetailsExpanded(false);
+  }, [candidate.id]);
   const confidenceScore = candidate.taste.founder && candidate.taste.wife
     ? Math.round((candidate.taste.founder + candidate.taste.wife) / 2)
     : 87;
   const accentCopy = actor === "wife" ? "Your turn" : `${actorLabel} first`;
   const reactionSummary = candidate.hook ?? candidate.reason;
   const reactionDetail = candidate.whyNow ?? candidate.languageAccess;
+  const synopsis = candidate.overview ?? candidate.reason;
   return (
     <section className="wizardPanel reactionPanel cinematicReactionPanel" aria-labelledby="reaction-heading">
       <div className="reactionChrome">
@@ -1303,6 +1307,21 @@ export function ReactionStep({
           <div className={detailsExpanded ? "movieReasonBlock movieReasonBlockExpanded" : "movieReasonBlock"}>
             <p className="movieReason movieReasonLead">{reactionSummary}</p>
             <p className="movieReason movieReasonSubtle">{reactionDetail}</p>
+            {detailsExpanded ? (
+              <>
+                <p className="movieReason movieReasonSubtle">{synopsis}</p>
+                {candidate.topCast.length > 0 ? (
+                  <div className="castChips" aria-label="Expanded top cast">
+                    {candidate.topCast.slice(0, 3).map((name) => (
+                      <span key={`expanded-${name}`} className="castChip">
+                        {name}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                <p className="movieReason movieReasonSubtle">{candidate.languageAccess}</p>
+              </>
+            ) : null}
             <div className="movieReasonActions">
               <button
                 type="button"
@@ -2212,7 +2231,10 @@ export function ResultsStep({
   const [watchlistRatingState, setWatchlistRatingState] = useState<
     Record<string, Record<string, "loved" | "fine" | "no">>
   >({});
+  const householdId = sharedSession?.householdId ?? "default-household";
   const canPersist = sessionSource === "api" && sharedSession !== null;
+  const canShowMore = sessionSource === "api";
+  const canSaveWatchlist = sessionSource === "api";
   const participantEntries: ResultsParticipantEntry[] =
     peopleMode === "couple"
       ? [
@@ -2224,14 +2246,14 @@ export function ResultsStep({
         : [{ id: participantIds[0], label: wifeLabel, actor: "wife" as const }];
 
   useEffect(() => {
-    if (!canPersist || sharedSession === null) {
+    if (!canSaveWatchlist) {
       setWatchlistEntries([]);
       setWatchlistMessage(null);
       return;
     }
 
     void refreshWatchlist();
-  }, [canPersist, sharedSession?.householdId]);
+  }, [canSaveWatchlist, householdId]);
 
   useEffect(() => {
     if (
@@ -2352,14 +2374,15 @@ export function ResultsStep({
   }
 
   async function refreshWatchlist(): Promise<void> {
-    if (!canPersist || sharedSession === null) {
+    if (!canSaveWatchlist) {
       return;
     }
 
     setWatchlistStatus("loading");
     try {
-      const entries = await getWatchlist(sharedSession.householdId);
+      const entries = await getWatchlist(householdId);
       setWatchlistEntries(entries);
+      setWatchlistMessage(null);
     } catch (error) {
       setWatchlistMessage(toErrorMessage(error));
     } finally {
@@ -2368,15 +2391,15 @@ export function ResultsStep({
   }
 
   async function handleSaveBestPick(): Promise<void> {
-    if (!canPersist || sharedSession === null) {
-      setWatchlistMessage("Watchlist saving only works when the backend session stays connected.");
+    if (!canSaveWatchlist) {
+      setWatchlistMessage("Watchlist saving needs the live backend connection.");
       return;
     }
 
     setWatchlistStatus("saving");
     try {
       const savedEntry = await saveWatchlistEntry({
-        householdId: sharedSession.householdId,
+        householdId,
         sourceMovieId: bestPick.id,
         title: bestPick.title,
         savedByProfileId: participantEntries[0]?.id ?? null,
@@ -2390,7 +2413,7 @@ export function ResultsStep({
           (entry) => entry.sourceMovieId !== savedEntry.sourceMovieId,
         ),
       ]);
-      setWatchlistMessage(`${bestPick.title} is in the shared watchlist.`);
+      setWatchlistMessage(`${bestPick.title} is saved to your watchlist.`);
     } catch (error) {
       setWatchlistMessage(toErrorMessage(error));
     } finally {
@@ -2399,17 +2422,17 @@ export function ResultsStep({
   }
 
   async function handleRemoveWatchlistEntry(sourceMovieId: string): Promise<void> {
-    if (!canPersist || sharedSession === null) {
+    if (!canSaveWatchlist) {
       return;
     }
 
     setWatchlistStatus("removing");
     try {
-      await removeWatchlistEntry(sharedSession.householdId, sourceMovieId);
+      await removeWatchlistEntry(householdId, sourceMovieId);
       setWatchlistEntries((currentEntries) =>
         currentEntries.filter((entry) => entry.sourceMovieId !== sourceMovieId),
       );
-      setWatchlistMessage("Removed from the shared watchlist.");
+      setWatchlistMessage("Removed from your watchlist.");
     } catch (error) {
       setWatchlistMessage(toErrorMessage(error));
     } finally {
@@ -2538,6 +2561,7 @@ export function ResultsStep({
 
       <BackupTitles
         rankedCandidates={rankedCandidates}
+        peopleMode={peopleMode}
         onPosterFallback={handlePosterFallback}
       />
 
@@ -2546,13 +2570,15 @@ export function ResultsStep({
         activeIntents={activeTonightIntents}
         recommendationSource={recommendationSource}
         availabilityRegion={availabilityRegion}
+        peopleMode={peopleMode}
         participantEntries={participantEntries}
         tasteProfileSummaries={tasteProfileSummaries}
         debugHistory={debugHistory}
       />
 
       <ResultsActions
-        canPersist={canPersist}
+        canShowMore={canShowMore}
+        canSaveWatchlist={canSaveWatchlist}
         isSyncing={isSyncing}
         isBestPickSaved={bestPickWatchlistEntry !== undefined}
         watchlistStatus={watchlistStatus}
@@ -2571,7 +2597,7 @@ export function ResultsStep({
           clarificationText={steerClarificationText}
           message={steerMessage}
           busy={isSyncing}
-          canPersist={canPersist}
+          canContinue={canShowMore}
           onTextChange={onSteerTextChange}
           onInterpret={onInterpretSteer}
           onClarificationTextChange={onSteerClarificationTextChange}
@@ -2582,7 +2608,7 @@ export function ResultsStep({
         />
       ) : null}
 
-      {!canPersist ? <p className="debugMessage quietCallout">Outcome saving only works when the backend session stays connected.</p> : null}
+      {!canPersist ? <p className="debugMessage quietCallout">Outcome saving still needs a synced shared session. Watchlist saving and more picks can stay live in solo mode.</p> : null}
       {watchlistMessage ? <p className="debugMessage quietCallout">{watchlistMessage}</p> : null}
 
       <WatchlistPanel

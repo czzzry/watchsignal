@@ -28,6 +28,7 @@ async function main() {
     process.env.MOBILE_UX_SMOKE_EXPECT_RECOMMENDATION_SOURCE;
   const useBackendMode =
     process.env.MOBILE_UX_SMOKE_EXPECT_API === "1" || checkTonightIntent;
+  const skipWatchlistChecks = process.env.MOBILE_UX_SMOKE_SKIP_WATCHLIST === "1";
   const outcomeMode = process.env.MOBILE_UX_SMOKE_OUTCOME === "other" ? "other" : "recommended";
   const targetUrl = process.env.MOBILE_UX_SMOKE_URL;
   const screenshotDir = process.env.MOBILE_UX_SMOKE_SCREENSHOT_DIR || null;
@@ -118,16 +119,16 @@ async function main() {
       await waitForRankedShortlist(tab);
       await assertNoHorizontalOverflow(tab, "results screen");
       await captureScreenshot(tab, screenshotDir, "03-results");
-      if (useBackendMode) {
+      if (useBackendMode && !skipWatchlistChecks) {
         await clickButton(tab, "Add to watchlist");
-        await waitForText(tab, "shared watchlist", "watchlist add");
-        await clickButton(tab, "Watched");
+        await waitForText(tab, "saved to your watchlist", "watchlist add");
+        await clickButtonInContainer(tab, ".watchlistPanel", "Watched");
         await waitForText(tab, "marked watched", "watchlist watched action");
-        await clickButton(tab, "Remove");
-        if (!(await hasTextSoon(tab, "Removed from the shared watchlist", 3000))) {
-          await clickButton(tab, "Remove");
+        await clickButtonInContainer(tab, ".watchlistPanel", "Remove");
+        if (!(await hasTextSoon(tab, "Removed from your watchlist", 3000))) {
+          await clickButtonInContainer(tab, ".watchlistPanel", "Remove");
         }
-        await waitForText(tab, "Removed from the shared watchlist", "watchlist remove");
+        await waitForText(tab, "Removed from your watchlist", "watchlist remove");
       }
     } catch (error) {
       await reportVisiblePageState(tab, "results timeout");
@@ -772,6 +773,62 @@ async function clickFirstButtonInContainer(tab, selector) {
         };
       }, selector),
     `enabled button in container "${selector}"`,
+  );
+
+  await tab.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    x: rect.x,
+    y: rect.y,
+    button: "none",
+  });
+  await tab.send("Input.dispatchMouseEvent", {
+    type: "mousePressed",
+    x: rect.x,
+    y: rect.y,
+    button: "left",
+    clickCount: 1,
+  });
+  await tab.send("Input.dispatchMouseEvent", {
+    type: "mouseReleased",
+    x: rect.x,
+    y: rect.y,
+    button: "left",
+    clickCount: 1,
+  });
+}
+
+async function clickButtonInContainer(tab, selector, label) {
+  const rect = await waitForValue(
+    async () =>
+      evaluate(tab, (wantedSelector, wantedLabel) => {
+        const normalize = (value) => value.replace(/\s+/g, " ").trim();
+        const container = document.querySelector(wantedSelector);
+        if (!container) {
+          return null;
+        }
+
+        const button = [...container.querySelectorAll("button")].find((candidate) => {
+          const text = normalize(candidate.textContent || "");
+          return (
+            (text === wantedLabel ||
+              text.endsWith(wantedLabel) ||
+              text.includes(` ${wantedLabel}`) ||
+              text.includes(wantedLabel)) &&
+            !candidate.disabled
+          );
+        });
+        if (!button) {
+          return null;
+        }
+
+        button.scrollIntoView({ block: "center", inline: "center" });
+        const bounds = button.getBoundingClientRect();
+        return {
+          x: bounds.left + bounds.width / 2,
+          y: bounds.top + bounds.height / 2,
+        };
+      }, selector, label),
+    `enabled button "${label}" in container "${selector}"`,
   );
 
   await tab.send("Input.dispatchMouseEvent", {

@@ -5,11 +5,10 @@ It is intentionally conservative because TMDb provider data cannot prove every p
 
 | Candidate evidence | Classification | Reason |
 |---|---|---|
-| Prime Video Germany appears in the flatrate bucket and English audio is verified by original or spoken-language metadata | Safe Pick | Subscription availability and language compatibility are both verified enough for MVP use. |
-| Prime Video Germany appears in the flatrate bucket and English subtitles are verified | Safe Pick | Foreign-language viewing is acceptable when English subtitles are verified. |
-| Prime Video Germany appears only as rent or buy, or Amazon Video appears only as rent or buy | Needs Quick Check | Paid rental or purchase does not count as Prime subscription availability. |
-| Prime Video Germany appears in the flatrate bucket, but the title has no verified English audio or English subtitles | Needs Quick Check | TMDb does not prove provider-specific English audio or subtitle availability. |
-| Bucketed provider data is missing, but a legacy provider name is present | Needs Quick Check | The app should not treat unbucketed provider names as subscription availability. |
+| Prime Video Germany or Amazon Video appears in the flatrate, rent, or buy bucket and English audio is verified by original or spoken-language metadata | Safe Pick | Amazon DE access and language compatibility are both verified enough for MVP use. |
+| Prime Video Germany or Amazon Video appears in the flatrate, rent, or buy bucket and English subtitles are verified | Safe Pick | Foreign-language viewing is acceptable when English subtitles are verified. |
+| Prime Video Germany or Amazon Video appears in a valid bucket, but the title has no verified English audio or English subtitles | Needs Quick Check | TMDb does not prove provider-specific audio or subtitle availability strongly enough for the main recommendation. |
+| Bucketed Amazon DE provider data is missing, but a legacy provider name is present | Needs Quick Check | The app should not treat unbucketed provider names as verified Amazon DE access. |
 | The title is already watched and rewatches are not explicitly allowed | Rejected | Rewatch avoidance remains a hard default. |
 | A manual correction says the title is verified watchable and no hard rejection applies | Safe Pick | Manual verification can upgrade uncertain provider or subtitle data. |
 | A manual correction says the title is not watchable | Rejected | Manual correction can also clarify that a candidate should not be recommended. |

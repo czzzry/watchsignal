@@ -134,6 +134,88 @@ class TmdbCandidateSourceTest(unittest.TestCase):
         )
         self.assertEqual(candidates[0].matched_person_names, ("Keanu Reeves",))
 
+    def test_fetch_candidates_paginates_discover_results_when_limit_exceeds_page_size(
+        self,
+    ) -> None:
+        client = FakeTmdbClient(movie_ids=tuple(range(1, 26)))
+        source = TmdbCandidateSource(
+            client=client,
+            config=TmdbCandidateSourceConfig(api_key="test"),
+        )
+
+        candidates = source.fetch_candidates(
+            session=SessionContext(
+                session_id="discover-pagination",
+                audience_mode=AudienceMode.SHARED,
+                region="DE",
+                service_constraint="Prime Video",
+            ),
+            household_defaults=HouseholdDefaults(),
+            limit=25,
+        )
+
+        self.assertEqual(len(candidates), 25)
+        self.assertEqual(client.discover_pages, [1, 2])
+
+    def test_fetch_candidates_passes_genre_hint_into_discover_query(self) -> None:
+        client = FakeTmdbClient(movie_ids=(11, 22, 33))
+        source = TmdbCandidateSource(
+            client=client,
+            config=TmdbCandidateSourceConfig(api_key="test"),
+        )
+
+        source.fetch_candidates(
+            session=SessionContext(
+                session_id="genre-hint",
+                audience_mode=AudienceMode.SHARED,
+                region="DE",
+                service_constraint="Prime Video",
+                genre_hint="Western",
+            ),
+            household_defaults=HouseholdDefaults(),
+            limit=3,
+        )
+
+        self.assertEqual(client.discover_genres, ["37"])
+        self.assertEqual(client.discover_provider_filters, ["9|10"])
+        self.assertEqual(
+            client.discover_monetization_filters,
+            ["flatrate|rent|buy"],
+        )
+
+    def test_fetch_candidates_uses_thematic_keyword_discovery_from_mood_text(self) -> None:
+        client = FakeTmdbClient(
+            movie_ids=(11, 22, 33),
+            keyword_results={"oil": 10590, "greed": 5332, "capitalism": 592},
+            keyword_movie_ids={10590: (7345,), 5332: (88,), 592: (99,)},
+        )
+        source = TmdbCandidateSource(
+            client=client,
+            config=TmdbCandidateSourceConfig(api_key="test"),
+        )
+
+        candidates = source.fetch_candidates(
+            session=SessionContext(
+                session_id="theme-keywords",
+                audience_mode=AudienceMode.SHARED,
+                region="DE",
+                service_constraint="Prime Video",
+                genre_hint="Western",
+                mood_text=(
+                    "bleak anti-capitalist period drama about greed, oil money, and obsession"
+                ),
+            ),
+            household_defaults=HouseholdDefaults(),
+            limit=4,
+        )
+
+        self.assertEqual(
+            client.keyword_queries,
+            ["oil", "petrol", "oil industry", "greed", "capitalism", "money", "american dream"],
+        )
+        self.assertEqual(client.keyword_discoveries[:3], ["10590", "5332", "592"])
+        self.assertEqual(tuple(candidate.source_movie_id for candidate in candidates[:3]), ("tmdb:7345", "tmdb:88", "tmdb:99"))
+
 
 class FakeTmdbClient:
     def __init__(
@@ -143,11 +225,21 @@ class FakeTmdbClient:
         movie_overrides: Mapping[int, Mapping[str, object]] | None = None,
         person_results: Mapping[str, int] | None = None,
         person_credits: Mapping[int, tuple[int, ...]] | None = None,
+        keyword_results: Mapping[str, int] | None = None,
+        keyword_movie_ids: Mapping[int, tuple[int, ...]] | None = None,
     ) -> None:
         self._movie_ids = movie_ids
         self._movie_overrides = movie_overrides or {}
         self._person_results = person_results or {}
         self._person_credits = person_credits or {}
+        self._keyword_results = keyword_results or {}
+        self._keyword_movie_ids = keyword_movie_ids or {}
+        self.discover_pages: list[int] = []
+        self.discover_genres: list[str] = []
+        self.discover_provider_filters: list[str] = []
+        self.discover_monetization_filters: list[str] = []
+        self.keyword_queries: list[str] = []
+        self.keyword_discoveries: list[str] = []
 
     def get_json(
         self,
@@ -160,6 +252,15 @@ class FakeTmdbClient:
             person_id = self._person_results.get(params["query"])
             return {
                 "results": ([] if person_id is None else [{"id": person_id}])
+            }
+
+        if path == "/search/keyword":
+            assert params is not None
+            query = params["query"]
+            self.keyword_queries.append(query)
+            keyword_id = self._keyword_results.get(query)
+            return {
+                "results": ([] if keyword_id is None else [{"id": keyword_id, "name": query}])
             }
 
         if path.endswith("/movie_credits"):
@@ -175,7 +276,35 @@ class FakeTmdbClient:
         if path == "/discover/movie":
             assert params is not None
             assert params["watch_region"] == "DE"
-            assert params["with_watch_providers"] == "9"
+            self.discover_provider_filters.append(params["with_watch_providers"])
+            self.discover_monetization_filters.append(
+                params["with_watch_monetization_types"]
+            )
+            page = int(params.get("page", "1"))
+            self.discover_pages.append(page)
+            genre = params.get("with_genres")
+            if genre is not None:
+                self.discover_genres.append(genre)
+            keyword = params.get("with_keywords")
+            if keyword is not None:
+                self.keyword_discoveries.append(keyword)
+                keyword_ids = self._keyword_movie_ids.get(int(keyword), ())
+                return {
+                    "results": [
+                        {
+                            "id": movie_id,
+                            "title": f"Live Candidate {movie_id}",
+                            "release_date": "2024-01-01",
+                            "overview": f"Overview for {movie_id}.",
+                            "original_language": "en",
+                            "poster_path": f"/poster-{movie_id}.jpg",
+                        }
+                        for movie_id in keyword_ids
+                    ],
+                    "total_pages": 1,
+                }
+            start = (page - 1) * 20
+            end = start + 20
             return {
                 "results": [
                     {
@@ -186,8 +315,9 @@ class FakeTmdbClient:
             "original_language": "en",
             "poster_path": f"/poster-{movie_id}.jpg",
         }
-                    for movie_id in self._movie_ids
-                ]
+                    for movie_id in self._movie_ids[start:end]
+                ],
+                "total_pages": max(1, (len(self._movie_ids) + 19) // 20),
             }
 
         if path.endswith("/watch/providers"):

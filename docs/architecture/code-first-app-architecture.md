@@ -24,15 +24,15 @@ Instead, it should make the product core testable in normal application code and
 - Separate-phone shared sessions are MVP plus N unless they are cheap to add safely.
 - Movie is the default media type, with TV supported at the intake and recommendation level.
 - TMDb is the first metadata source.
-- Live TMDb is required before the MVP is usable, but fixture candidates are allowed for development and tests.
-- The current MVP completion pass may close a local demo-complete baseline before live candidate sourcing is implemented.
-- The app should not be described as live-usable outside fixture/demo mode until live candidate sourcing is separately approved, implemented, and validated.
+- Live TMDb is required before the app is described as live-usable outside fixture/demo mode, but fixture candidates are allowed for development and tests.
+- Live candidate sourcing is now implemented and validated at the backend and contract level.
+- The remaining live-usable MVP question is whether one final normal-browser or real-phone confirmation outside the current sandbox is still required before the label is declared closed.
 - Live candidate sourcing is a next MVP readiness phase, not MVP plus 1 LLM work.
 - Live poster provider integration, live critic-score provider integration, and richer availability verification are separate concerns from live candidate sourcing.
 - Main recommendations should use Safe Picks by default.
 - Safe Picks are Prime Video Germany, language-compatible, constraint-compatible, and not already watched unless rewatches are allowed.
 - Uncertain availability, audio, or subtitle compatibility may appear only in a secondary Needs Quick Check section.
-- Amazon Video rent or buy does not count as Prime Video subscription availability.
+- Amazon DE access may be flatrate, rent, or buy as long as the title still passes the active language and watched-state rules.
 - TMDb can help with provider and language data, but MVP code must not pretend it can fully verify provider-specific audio or subtitle tracks.
 - Store manual verified-watchable corrections so the app can learn practical Prime Germany availability over time.
 - Amazon.de availability and language constraints matter for normal use.

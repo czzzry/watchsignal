@@ -25,8 +25,10 @@ export type DemoCandidate = {
   languageAccess: string;
   tone: string;
   reason: string;
+  overview?: string;
   hook?: string;
   whyNow?: string;
+  groupScore?: number;
   baseRank: number;
   taste: {
     founder: number;
@@ -55,6 +57,7 @@ export const demoCandidates: DemoCandidate[] = [
     languageAccess: "English audio available",
     tone: "Smart, tense, emotional",
     reason: "A first-contact mystery that stays tense and emotional without turning into homework.",
+    overview: "A linguist joins a military effort to communicate with mysterious visitors after alien crafts arrive around the world.",
     hook: "Linguist vs. aliens, but the real twist is emotional.",
     whyNow: "Excellent when you want something thoughtful with real forward pull.",
     baseRank: 1,
@@ -77,6 +80,7 @@ export const demoCandidates: DemoCandidate[] = [
     languageAccess: "English audio available",
     tone: "Funny, clever, low homework",
     reason: "A rich-family murder mystery with constant reversals and zero drag.",
+    overview: "A detective investigates the death of a crime novelist and finds every member of the family hiding something.",
     hook: "Whodunit energy, sharp humor, and a cast that is fun to watch minute to minute.",
     whyNow: "Great when you want something lively and easy to commit to on the couch.",
     baseRank: 2,
@@ -99,6 +103,7 @@ export const demoCandidates: DemoCandidate[] = [
     languageAccess: "English audio available",
     tone: "Stylized, charming, brisk",
     reason: "A fast, beautifully made caper with deadpan jokes and constant visual delight.",
+    overview: "A legendary concierge and his lobby boy race through a confection-like Europe wrapped around a stolen painting and a murder plot.",
     hook: "Luxury-hotel chaos with Wes Anderson precision.",
     whyNow: "A strong pick when you want something shorter, lighter, and still memorable.",
     baseRank: 3,
@@ -121,6 +126,7 @@ export const demoCandidates: DemoCandidate[] = [
     languageAccess: "English audio available",
     tone: "Fast, funny, action-heavy",
     reason: "A time-loop war movie that moves fast, lands its jokes, and never gets muddy.",
+    overview: "A reluctant soldier relives the same alien invasion over and over, learning how to survive one brutal reset at a time.",
     hook: "Tom Cruise dies a lot so the movie gets better every ten minutes.",
     whyNow: "Useful when you want obvious momentum and minimal debate.",
     baseRank: 4,
@@ -143,6 +149,7 @@ export const demoCandidates: DemoCandidate[] = [
     languageAccess: "Mixed Korean and English dialogue - confirm subtitle preference before play",
     tone: "Quiet, romantic, reflective",
     reason: "A restrained romance about timing, longing, and the version of life that never happened.",
+    overview: "Childhood friends reconnect decades later and confront the lives they chose, the ones they missed, and the pull still between them.",
     hook: "Quiet on the surface, emotionally devastating underneath.",
     whyNow: "Best when you both want something intimate and are okay with a gentler pace.",
     baseRank: 5,

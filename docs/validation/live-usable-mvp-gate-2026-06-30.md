@@ -12,11 +12,11 @@ It does not add a paid provider, hosted deployment, separate-phone sessions, liv
 
 ## Current Status
 
-The code-first app is live-candidate ready, but the live-usable MVP gate still needs a normal local browser or real-phone click-through outside this Codex browser-launch environment.
+The code-first app is live-candidate ready and the backend-backed couch flow has already been proven through accepted MVP+3 and MVP+4 dogfood gates.
 The backend can fetch live TMDb candidates and score a five-title shortlist.
 The backend-backed couch flow can run end to end against isolated SQLite with recommendation snapshot evidence.
 The web flow can request live TMDb candidates by starting the Next.js server with `MOVIE_NIGHT_RECOMMENDATION_SOURCE=live_tmdb`.
-The remaining gate is founder-facing interaction proof in a normal browser or phone-sized browser environment.
+The only remaining live-usable MVP question is whether one more normal local browser or real-phone click-through is required before the label is declared closed outside the current sandbox.
 
 ## Validation Passed In Codex
 
@@ -62,6 +62,18 @@ The Codex in-app browser control surface was not available in this session, so t
 
 These failures are recorded as environment and harness blockers, not observed product-flow failures.
 
+## Browser Smoke Result In Codex On 2026-07-09
+
+`node scripts/mobile_pass_the_phone_ux_smoke.mjs` rebuilt the production web app and started the local app successfully.
+
+The browser interaction still did not complete inside this sandbox:
+
+- Brave Browser launched, exposed a DevTools endpoint, and then exited with `SIGTRAP` after a V8 virtual-memory failure.
+- Direct Chrome launch by binary path failed before interaction because Crashpad setup attempted to touch protected user-library paths and exited with permission errors.
+
+These are environment-level browser startup failures.
+They do not show an observed failure in Launch, Setup, Reaction, Handoff, Results, outcome capture, post-watch feedback, or debug-history behavior.
+
 ## Required Normal-Browser Gate
 
 Run the final click-through from a normal local browser or a phone on the same network.
@@ -89,6 +101,5 @@ Future onboarding work should show the required count, completed count, and rema
 
 ## Decision
 
-The repo should not yet declare the code-first app fully live-usable MVP until the normal-browser or real-phone click-through is recorded.
-It is backend-live-ready and demo-complete.
-It is one manual phone/browser validation pass away from closing the live-usable MVP gate.
+The repo should treat the code-first app as backend-live-ready, demo-complete, and one environment-independent browser confirmation away from a fully closed live-usable MVP label.
+Within the current sandbox, the remaining uncertainty is browser startup reliability, not a demonstrated product-flow failure.

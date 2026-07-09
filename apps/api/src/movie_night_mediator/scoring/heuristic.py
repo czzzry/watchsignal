@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
+import math
+import re
 
 from movie_night_mediator.domain.models import (
     AudienceMode,
@@ -24,6 +26,7 @@ PRIME_VIDEO_PROVIDER_ALIASES = frozenset(
         "prime video",
         "amazon prime video",
         "amazon prime",
+        "amazon video",
     }
 )
 
@@ -35,6 +38,31 @@ GENRE_FEATURE_AFFINITIES = {
     "Drama": ("emotional", "reflective", "quiet"),
     "Action": ("action", "high-energy"),
 }
+INTENT_GENERIC_TOKENS = frozenset(
+    {
+        "a",
+        "an",
+        "and",
+        "anti",
+        "about",
+        "bleak",
+        "drama",
+        "film",
+        "for",
+        "from",
+        "intense",
+        "look",
+        "movie",
+        "no",
+        "not",
+        "of",
+        "something",
+        "the",
+        "this",
+        "tonight",
+        "with",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -219,14 +247,15 @@ class HeuristicScorer:
             elif taste_profile_signal < 0:
                 genre_score += 0.16 * taste_profile_signal
             if genre_score:
+                bounded_genre_score = min(max(genre_score, -1.0), 1.0)
                 contributions.append(
                     SignalContribution(
                         family="genre",
                         label=genre,
-                        value=genre_score,
+                        value=bounded_genre_score,
                     )
                 )
-                score += genre_score
+                score += bounded_genre_score
 
         for contribution in self._title_similarity_contributions(user, candidate):
             contributions.append(contribution)
@@ -237,7 +266,7 @@ class HeuristicScorer:
             score += contribution.value
 
         return UserScoreBreakdown(
-            score=min(max(score, 0.0), 1.0),
+            score=_squash_score(score),
             contributions=tuple(contributions),
         )
 
@@ -332,13 +361,14 @@ class HeuristicScorer:
         candidate: Candidate,
     ) -> tuple[SignalContribution, ...]:
         intent_text = request.session.mood_text or ""
-        intent_tokens = _tokens(intent_text)
-        if not intent_tokens:
+        intent_tokens, excluded_tokens = _intent_token_sets(intent_text)
+        if not intent_tokens and not excluded_tokens:
             return ()
 
         contributions = []
         for genre in candidate.genres:
-            if _normalize(genre) in intent_tokens:
+            normalized_genre = _normalize(genre)
+            if normalized_genre in intent_tokens:
                 contributions.append(
                     SignalContribution(
                         family="tonight_intent",
@@ -346,6 +376,38 @@ class HeuristicScorer:
                         value=0.06,
                     )
                 )
+            if normalized_genre in excluded_tokens:
+                contributions.append(
+                    SignalContribution(
+                        family="tonight_intent",
+                        label=f"avoid {genre}",
+                        value=-0.16,
+                    )
+                )
+
+        candidate_tokens = (
+            _tokens(candidate.title)
+            | _tokens(candidate.overview)
+            | {_normalize(genre) for genre in candidate.genres}
+        )
+        thematic_overlap = sorted((candidate_tokens & intent_tokens) - INTENT_GENERIC_TOKENS)
+        if thematic_overlap:
+            contributions.append(
+                SignalContribution(
+                    family="tonight_intent",
+                    label="/".join(thematic_overlap[:3]),
+                    value=min(0.18, 0.04 * len(thematic_overlap)),
+                )
+            )
+        thematic_conflicts = sorted((candidate_tokens & excluded_tokens) - {"subtitles"})
+        if thematic_conflicts:
+            contributions.append(
+                SignalContribution(
+                    family="tonight_intent",
+                    label=f"avoid {'/'.join(thematic_conflicts[:3])}",
+                    value=max(-0.16, -0.05 * len(thematic_conflicts)),
+                )
+            )
 
         for feature_name, feature_score in candidate.enrichment_feature_scores.items():
             feature_tokens = _tokens(feature_name)
@@ -437,6 +499,11 @@ class HeuristicScorer:
             else ""
         )
         interesting_hint = "Interesting Safe Pick. " if is_interesting_pick else ""
+        if len(users) == 1:
+            return (
+                f"{interesting_hint}Strong fit for {users[0].display_label} with signal from "
+                f"{genre_hint}. {score_hint}{evidence_hint}"
+            )
         if session_mode == SessionMode.COMPROMISE and user_scores and min(user_scores) <= 0.35:
             return f"{interesting_hint}Compromise protects against a weak fit; signal from {genre_hint}. {score_hint}{evidence_hint}"
         return f"{interesting_hint}Fits {session_mode.value.replace('_', '-')} mode with signal from {genre_hint}. {score_hint}{evidence_hint}"
@@ -444,6 +511,16 @@ class HeuristicScorer:
     def _score_hint(self, users: tuple[UserProfile, ...], user_scores: list[float]) -> str:
         if not users or not user_scores:
             return "No personal taste signal yet."
+        if len(users) == 1:
+            user = users[0]
+            taste_lab_signal_count = self._taste_lab_signal_count(user)
+            persistent_memory_signal_count = self._persistent_memory_signal_count(user)
+            parts = [f"profile score {round(user_scores[0], 2)}"]
+            if taste_lab_signal_count:
+                parts.append(f"{taste_lab_signal_count} Taste Lab signals")
+            if persistent_memory_signal_count:
+                parts.append(f"Memory signals: {persistent_memory_signal_count}")
+            return "Built from " + ", ".join(parts) + "."
         parts = []
         for user, score in zip(users[:2], user_scores[:2], strict=False):
             taste_lab_signal_count = self._taste_lab_signal_count(user)
@@ -525,6 +602,23 @@ def _tokens(value: str) -> set[str]:
     return set(_normalize(value).split())
 
 
+def _intent_token_sets(value: str) -> tuple[set[str], set[str]]:
+    normalized = _normalize(value)
+    all_tokens = _tokens(normalized)
+    excluded_tokens: set[str] = set()
+    for match in re.finditer(
+        r"\b(?:avoid|no|not|without)\s+([a-z0-9\s-]+?)(?=,|\s+\+\s+|$)",
+        normalized,
+    ):
+        excluded_tokens.update(_tokens(match.group(1)))
+    positive_tokens = {
+        token
+        for token in all_tokens
+        if token not in excluded_tokens and token not in INTENT_GENERIC_TOKENS
+    }
+    return positive_tokens, excluded_tokens
+
+
 def _title_similarity(candidate_title: str, evidence_title: str) -> float:
     candidate_tokens = _tokens(candidate_title)
     evidence_tokens = _tokens(evidence_title)
@@ -549,3 +643,8 @@ def _title_similarity_weight(source: str, preference_value: float) -> float:
     ) and preference_value < 0:
         return 0.6
     return 0.18
+
+
+def _squash_score(raw_score: float) -> float:
+    centered_score = raw_score - 0.5
+    return 1.0 / (1.0 + math.exp(-1.8 * centered_score))

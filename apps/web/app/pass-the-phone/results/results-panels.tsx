@@ -68,6 +68,7 @@ export function WinnerReveal({
   onPosterFallback: PosterFallbackHandler;
 }) {
   const matchTier = toMatchTier(bestPick.score);
+  const scoreLabel = peopleMode === "couple" ? "Shared signal" : "Profile signal";
 
   return (
     <section className="winnerReveal">
@@ -80,9 +81,9 @@ export function WinnerReveal({
         />
       </article>
 
-      <div className={`matchPulse matchPulse${matchTier} resultsPulse`} aria-label={`Shared score ${bestPick.score}%`}>
+      <div className={`matchPulse matchPulse${matchTier} resultsPulse`} aria-label={`${scoreLabel} ${bestPick.score}%`}>
         <span className="scoreSparkle" aria-hidden="true">✦</span>
-        <span className="matchPulseLabel">Shared score</span>
+        <span className="matchPulseLabel">{scoreLabel}</span>
         <strong>{bestPick.score}%</strong>
         <span className="scoreSparkle" aria-hidden="true">✦</span>
       </div>
@@ -174,9 +175,11 @@ function ResultsPerson({
 
 export function BackupTitles({
   rankedCandidates,
+  peopleMode,
   onPosterFallback,
 }: {
   rankedCandidates: RankedCandidate[];
+  peopleMode: PeopleMode;
   onPosterFallback: PosterFallbackHandler;
 }) {
   return (
@@ -195,7 +198,11 @@ export function BackupTitles({
             />
             <div className="backupMeta backupMetaCompact">
               <strong>{candidate.title}</strong>
-              <span>{candidate.score}%</span>
+              <span>
+                {peopleMode === "couple"
+                  ? `${candidate.score}%`
+                  : `${candidate.profileScore}% profile`}
+              </span>
             </div>
           </article>
         ))}
@@ -205,7 +212,8 @@ export function BackupTitles({
 }
 
 export function ResultsActions({
-  canPersist,
+  canShowMore,
+  canSaveWatchlist,
   isSyncing,
   isBestPickSaved,
   watchlistStatus,
@@ -214,7 +222,8 @@ export function ResultsActions({
   onSaveBestPick,
   onReset,
 }: {
-  canPersist: boolean;
+  canShowMore: boolean;
+  canSaveWatchlist: boolean;
   isSyncing: boolean;
   isBestPickSaved: boolean;
   watchlistStatus: WatchlistStatus;
@@ -230,15 +239,15 @@ export function ResultsActions({
           type="button"
           className="resultsPrimaryAction"
           onClick={onShowMore}
-          disabled={!canPersist || isSyncing}
+          disabled={!canShowMore || isSyncing}
           aria-expanded={continuationOpen}
         >
           <span>
             {isSyncing
-              ? "Finding five more..."
+              ? "Finding the next 5..."
               : continuationOpen
-                ? "Hide options"
-                : "Show 5 more"}
+                ? "Close next-5 options"
+                : "Refine next 5"}
           </span>
           <RedoIcon />
         </button>
@@ -246,7 +255,7 @@ export function ResultsActions({
           type="button"
           className="secondaryButton resultsSecondaryAction"
           onClick={onSaveBestPick}
-          disabled={!canPersist || watchlistStatus === "saving"}
+          disabled={!canSaveWatchlist || watchlistStatus === "saving"}
         >
           <span>
             {watchlistStatus === "saving"
@@ -603,7 +612,7 @@ export function SteerNextPanel({
   clarificationText,
   message,
   busy,
-  canPersist,
+  canContinue,
   onTextChange,
   onInterpret,
   onClarificationTextChange,
@@ -619,7 +628,7 @@ export function SteerNextPanel({
   clarificationText: string;
   message: string | null;
   busy: boolean;
-  canPersist: boolean;
+  canContinue: boolean;
   onTextChange: (text: string) => void;
   onInterpret: () => void | Promise<void>;
   onClarificationTextChange: (text: string) => void;
@@ -631,6 +640,8 @@ export function SteerNextPanel({
   const pendingSignals = pendingIntent?.softSignals.slice(0, 4) ?? [];
   const hasClarification = pendingIntent?.status === "clarification_required";
   const hasConfirmation = pendingIntent?.status === "confirmation_required";
+  const pendingResolution = pendingIntent?.resolution ?? "exact";
+  const canApplyPending = hasConfirmation && pendingResolution !== "unsupported";
   const quickSteers = [
     "different direction",
     referenceTitle ? `more like ${referenceTitle}` : "more like the winner",
@@ -642,7 +653,7 @@ export function SteerNextPanel({
       <div className="tonightIntentHeader">
         <div>
           <p className="eyebrow">Next five</p>
-          <h3 id="steer-next-heading">Keep going or steer first?</h3>
+          <h3 id="steer-next-heading">Keep going or add a signal nudge</h3>
         </div>
       </div>
 
@@ -650,14 +661,14 @@ export function SteerNextPanel({
         type="button"
         className="primaryAction continuationSameDirectionAction"
         onClick={onContinue}
-        disabled={busy || !canPersist}
+        disabled={busy || !canContinue}
       >
-        {activeIntents.length > 0 ? "Find 5 with current steers" : "Find 5 in the same direction"}
+        {activeIntents.length > 0 ? "Find next 5 with current nudges" : "Find next 5"}
       </button>
 
       {activeIntents.length > 0 ? (
         <div className="tonightIntentActive">
-          <strong>Steers queued for the next batch</strong>
+          <strong>Nudges queued for the next batch</strong>
           <div className="tonightIntentSignals">
             {activeIntents.map((intent, index) => (
               <span key={`${intent.rawText}-${index}`}>
@@ -669,7 +680,7 @@ export function SteerNextPanel({
       ) : null}
 
       <div className="tonightIntentComposer">
-        <label htmlFor="steer-next-input">Optional steer</label>
+        <label htmlFor="steer-next-input">Optional signal nudge</label>
         <div className="tonightIntentQuickActions">
           {quickSteers.map((quickSteer) => (
             <button
@@ -677,7 +688,7 @@ export function SteerNextPanel({
               type="button"
               className="secondaryButton compactButton"
               onClick={() => onTextChange(quickSteer)}
-              disabled={busy || !canPersist}
+              disabled={busy || !canContinue}
             >
               {quickSteer}
             </button>
@@ -689,13 +700,13 @@ export function SteerNextPanel({
             value={text}
             onChange={(event) => onTextChange(event.target.value)}
             placeholder="scarier, sadder, Jack Nicholson..."
-            disabled={busy || !canPersist}
+            disabled={busy || !canContinue}
           />
           <button
             type="button"
             className="secondaryAction compactAction"
             onClick={onInterpret}
-            disabled={busy || !canPersist || text.trim().length === 0}
+            disabled={busy || !canContinue || text.trim().length === 0}
           >
             Review
           </button>
@@ -705,6 +716,13 @@ export function SteerNextPanel({
       {hasConfirmation ? (
         <div className="tonightIntentReview">
           <p>{pendingIntent.confirmationText}</p>
+          {pendingResolution !== "exact" ? (
+            <div className="tonightIntentSignals">
+              <span key={`resolution-${pendingResolution}`}>
+                {pendingResolution === "guess" ? "Guess only" : "Unsupported"}
+              </span>
+            </div>
+          ) : null}
           {pendingSignals.length > 0 ? (
             <div className="tonightIntentSignals">
               {pendingSignals.map((signal) => (
@@ -712,21 +730,24 @@ export function SteerNextPanel({
               ))}
             </div>
           ) : null}
+          {pendingIntent.unsupportedReason ? (
+            <p>{pendingIntent.unsupportedReason}</p>
+          ) : null}
           <button
             type="button"
             className="secondaryAction compactAction"
             onClick={onAdd}
-            disabled={busy || !canPersist}
+            disabled={busy || !canContinue || !canApplyPending}
           >
-            Add steer
+            {pendingResolution === "guess" ? "Accept guess" : "Save nudge"}
           </button>
           <button
             type="button"
             className="primaryAction compactAction"
             onClick={onApply}
-            disabled={busy || !canPersist}
+            disabled={busy || !canContinue || !canApplyPending}
           >
-            Add and find 5
+            {pendingResolution === "guess" ? "Accept guess and find 5" : "Use nudge and find 5"}
           </button>
         </div>
       ) : null}
@@ -739,14 +760,14 @@ export function SteerNextPanel({
               value={clarificationText}
               onChange={(event) => onClarificationTextChange(event.target.value)}
               placeholder="comforting, not matching the mood"
-              disabled={busy || !canPersist}
+              disabled={busy || !canContinue}
               aria-label="Clarify steer next 5"
             />
             <button
               type="button"
               className="secondaryAction compactAction"
               onClick={onAnswerClarification}
-              disabled={busy || !canPersist || clarificationText.trim().length === 0}
+              disabled={busy || !canContinue || clarificationText.trim().length === 0}
             >
               Answer
             </button>
@@ -764,6 +785,7 @@ export function RecommendationEvidencePanel({
   activeIntents,
   recommendationSource,
   availabilityRegion,
+  peopleMode,
   participantEntries,
   tasteProfileSummaries,
   debugHistory,
@@ -772,6 +794,7 @@ export function RecommendationEvidencePanel({
   activeIntents: TonightIntentInterpretationPayload[];
   recommendationSource: string;
   availabilityRegion: string;
+  peopleMode: PeopleMode;
   participantEntries: ResultsParticipantEntry[];
   tasteProfileSummaries: TasteProfileSummaryPayload[];
   debugHistory: DebugHistorySessionPayload | null;
@@ -792,18 +815,30 @@ export function RecommendationEvidencePanel({
     recommendationSource === "live_tmdb"
       ? fallbackCount > 0
         ? `Live TMDb pool with ${fallbackCount} metadata fallback${fallbackCount === 1 ? "" : "s"}.`
-        : "Broad live candidate pool."
-      : "Small seeded pool for local demo mode. Provider labels are fixed fixtures.";
+        : "Live TMDb pool."
+      : "Seeded local demo pool.";
   const profileRows = participantEntries.map((participant) => {
     const summary = tasteProfileSummaries.find(
       (profileSummary) => profileSummary.profileId === participant.id,
     );
     return {
       label: participant.label,
-      evidenceCount: summary?.preferenceEvidenceCount ?? 0,
-      ratingCount: summary?.ratingCount ?? 0,
+      evidenceCount: summary?.preferenceEvidenceCount ?? null,
+      ratingCount: summary?.ratingCount ?? null,
     };
   });
+  const bestPickSummary =
+    matchedPersonNames.length > 0
+      ? `Matched ${matchedPersonNames.join(", ")}.`
+      : peopleMode === "couple"
+        ? `${bestPick.title} led the shared result.`
+        : `${bestPick.title} finished strongest for this profile tonight.`;
+  const movementSummary =
+    trustSignals.length > 0
+      ? null
+      : peopleMode === "couple"
+        ? "This balanced both profiles best once tonight's reactions were folded in."
+        : "This stayed strongest once your profile fit and tonight's reaction were combined.";
 
   return (
     <section className="recommendationEvidencePanel" aria-labelledby="recommendation-evidence-heading">
@@ -832,17 +867,13 @@ export function RecommendationEvidencePanel({
           <p>{sourceDetail}</p>
         </div>
         <div>
-          <strong>Availability</strong>
-          <p>
-            {availabilityRegion}. Best pick shows {bestPick.availability.toLowerCase()}.
-          </p>
-        </div>
-        <div>
           <strong>Profiles</strong>
           <div className="tonightIntentSignals">
             {profileRows.map((profileRow) => (
               <span key={profileRow.label}>
-                {profileRow.label}: {profileRow.evidenceCount} signals
+                {profileRow.evidenceCount === null
+                  ? `${profileRow.label}`
+                  : `${profileRow.label}: ${profileRow.evidenceCount} signals`}
               </span>
             ))}
           </div>
@@ -852,12 +883,7 @@ export function RecommendationEvidencePanel({
         </div>
         <div>
           <strong>Best pick</strong>
-          <p>
-            {movementText ??
-              (matchedPersonNames.length > 0
-                ? `Matched ${matchedPersonNames.join(", ")}.`
-                : `${bestPick.title} led the shared score.`)}
-          </p>
+          <p>{movementText ?? bestPickSummary}</p>
         </div>
         <div>
           <strong>Why it moved</strong>
@@ -868,7 +894,7 @@ export function RecommendationEvidencePanel({
               ))}
             </div>
           ) : (
-            <p>Waiting for scoring evidence from the backend.</p>
+            <p>{movementSummary}</p>
           )}
         </div>
         <div>

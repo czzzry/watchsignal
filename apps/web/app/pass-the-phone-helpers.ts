@@ -25,6 +25,31 @@ export const demoCandidateViewModels: CandidateViewModel[] = demoCandidates.map(
   toDemoCandidateViewModel,
 );
 
+function sanitizeNarrativeCopy(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const stripped = trimmed
+    .replace(/\bEvidence:.*$/i, "")
+    .replace(/\bTaste Lab signals:\s*\d+\.?/gi, "")
+    .replace(/\b(?:[A-Z][\w-]*(?:\s+[A-Z][\w-]*){0,3}):\s*\d+(?:\.\d+)?[;,]?\s*/g, "")
+    .replace(/\bEnglish audio\.?$/i, "")
+    .replace(/\bfallback\.?$/i, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+,/g, ",")
+    .trim()
+    .replace(/[;,:\-]\s*$/g, "")
+    .trim();
+
+  return stripped || null;
+}
+
 export function toDemoCandidateViewModel(
   candidate: DemoCandidate,
 ): CandidateViewModel {
@@ -88,66 +113,44 @@ export function rankCandidates({
   wifeReactions: ReactionState;
   rerankedSourceMovieIds: string[];
 }): RankedCandidate[] {
-  const localRanked = candidates
+  const ranked = candidates
     .map((candidate) => {
-      const founderReaction = founderReactions[candidate.id];
-      const wifeReaction = wifeReactions[candidate.id];
-      const founderScore = candidate.taste.founder + reactionScore(founderReaction);
-      const wifeScore = candidate.taste.wife + reactionScore(wifeReaction);
-      const noPenalty =
-        founderReaction === "no" || wifeReaction === "no"
-          ? sessionMode === "compromise"
-            ? 38
-            : 24
-          : 0;
-      const statusPenalty = candidate.safePickStatus === "Needs Quick Check" ? 14 : 0;
-      const modeScore =
-        peopleMode === "founder"
-          ? founderScore
-          : peopleMode === "wife"
-            ? wifeScore
-            : sessionMode === "founder-first"
-              ? founderScore * 0.58 + wifeScore * 0.42
-              : sessionMode === "wife-first"
-                ? founderScore * 0.42 + wifeScore * 0.58
-                : Math.min(founderScore, wifeScore) * 0.65 +
-                  ((founderScore + wifeScore) / 2) * 0.35;
+      const rawScore = rawProfileAndReactionScore({
+        candidate,
+        peopleMode,
+        sessionMode,
+        founderReaction: founderReactions[candidate.id],
+        wifeReaction: wifeReactions[candidate.id],
+      });
+      const rawProfileScore = clampUnitScore(candidate.groupScore ?? 0.72);
 
       return {
         ...candidate,
-        score: Math.max(
-          0,
-          Math.round(
-            modeScore -
-              statusPenalty -
-              (peopleMode === "couple" ? noPenalty : 0),
-          ),
-        ),
+        profileScore: displayScoreFromUnitScore(rawProfileScore),
+        score: displayScoreFromUnitScore(rawScore),
+        sortScore: rawScore,
       };
     })
     .sort((first, second) => {
-      if (second.score !== first.score) {
-        return second.score - first.score;
+      if (rerankedSourceMovieIds.length > 0) {
+        const apiRankById = new Map(
+          rerankedSourceMovieIds.map((sourceMovieId, index) => [sourceMovieId, index]),
+        );
+        return (
+          (apiRankById.get(first.id) ?? Number.MAX_SAFE_INTEGER) -
+          (apiRankById.get(second.id) ?? Number.MAX_SAFE_INTEGER)
+        );
+      }
+
+      if (second.sortScore !== first.sortScore) {
+        return second.sortScore - first.sortScore;
       }
 
       return first.baseRank - second.baseRank;
-    });
+    })
+    .map(({ sortScore: _sortScore, ...candidate }) => candidate);
 
-  if (rerankedSourceMovieIds.length === 0) {
-    return localRanked;
-  }
-
-  const apiRankById = new Map(
-    rerankedSourceMovieIds.map((sourceMovieId, index) => [sourceMovieId, index]),
-  );
-
-  return localRanked
-    .slice()
-    .sort(
-      (first, second) =>
-        (apiRankById.get(first.id) ?? Number.MAX_SAFE_INTEGER) -
-        (apiRankById.get(second.id) ?? Number.MAX_SAFE_INTEGER),
-    );
+  return ranked;
 }
 
 export function toMatchTier(score: number): "Epic" | "Strong" | "Warm" {
@@ -160,6 +163,65 @@ export function toMatchTier(score: number): "Epic" | "Strong" | "Warm" {
   }
 
   return "Warm";
+}
+
+function rawProfileAndReactionScore({
+  candidate,
+  peopleMode,
+  sessionMode,
+  founderReaction,
+  wifeReaction,
+}: {
+  candidate: CandidateViewModel;
+  peopleMode: PeopleMode;
+  sessionMode: SessionMode;
+  founderReaction: ReactionValue | undefined;
+  wifeReaction: ReactionValue | undefined;
+}): number {
+  const baseProfileScore = candidate.groupScore ?? 0.72;
+
+  if (peopleMode === "founder") {
+    return clampUnitScore(baseProfileScore + reactionConfidenceDelta(founderReaction));
+  }
+
+  if (peopleMode === "wife") {
+    return clampUnitScore(baseProfileScore + reactionConfidenceDelta(wifeReaction));
+  }
+
+  const reactionDelta =
+    sessionMode === "founder-first"
+      ? reactionConfidenceDelta(founderReaction) * 0.7 +
+        reactionConfidenceDelta(wifeReaction) * 0.3
+      : sessionMode === "wife-first"
+        ? reactionConfidenceDelta(founderReaction) * 0.3 +
+          reactionConfidenceDelta(wifeReaction) * 0.7
+        : reactionConfidenceDelta(founderReaction) + reactionConfidenceDelta(wifeReaction);
+
+  return clampUnitScore(baseProfileScore + reactionDelta);
+}
+
+function displayScoreFromUnitScore(score: number): number {
+  return Math.min(99, Math.max(0, Math.round(score * 100)));
+}
+
+function clampUnitScore(score: number): number {
+  return Math.min(1, Math.max(0, score));
+}
+
+function reactionConfidenceDelta(reaction: ReactionValue | undefined): number {
+  if (reaction === "interested") {
+    return 0.12;
+  }
+
+  if (reaction === "maybe") {
+    return 0.04;
+  }
+
+  if (reaction === "no") {
+    return -0.18;
+  }
+
+  return 0;
 }
 
 export function describeSharedWhy({
@@ -182,7 +244,7 @@ export function describeSharedWhy({
       return candidate.whyNow;
     }
 
-    return `${candidate.title} rises because it matches the pace and tone this session leaned toward tonight.`;
+    return candidate.reason || `${candidate.title} looks like a strong fit for this profile tonight.`;
   }
 
   if (founderReaction === "interested" && wifeReaction === "interested") {
@@ -379,7 +441,9 @@ export function toSessionCandidate(
   candidate: ShortlistCandidatePayload,
   index: number,
 ): CandidateViewModel {
-  const fixture = demoCandidates.find(
+  const fixture = candidate.sourceMovieId.startsWith("tmdb:")
+    ? undefined
+    : demoCandidates.find(
     (demoCandidate) =>
       demoCandidate.id === candidate.sourceMovieId ||
       demoCandidate.title.toLowerCase() === candidate.title.toLowerCase(),
@@ -437,11 +501,18 @@ export function toSessionCandidate(
       "Audio and subtitle details need a quick check",
     tone: candidate.tone ?? candidate.fitBucket ?? fixture?.tone ?? "Balanced pick",
     reason:
-      candidate.reason ??
+      sanitizeNarrativeCopy(candidate.reason) ??
       fixture?.reason ??
       "Picked for tonight's shortlist based on the current household setup.",
+    overview:
+      sanitizeNarrativeCopy(candidate.overview) ??
+      candidate.overview ??
+      fixture?.overview ??
+      sanitizeNarrativeCopy(candidate.reason) ??
+      fixture?.reason,
     hook: fixture?.hook,
     whyNow: fixture?.whyNow,
+    groupScore: candidate.groupScore ?? undefined,
     baseRank: rank,
     taste: {
       founder: candidate.founderScore ?? fixture?.taste.founder ?? groupScore,

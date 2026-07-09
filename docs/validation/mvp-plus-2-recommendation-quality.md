@@ -20,7 +20,7 @@ Generated: 2026-07-02
 - Top pick changed vs baseline: False
 - Enrichment coverage: 0/4 enriched, 4 fallback, rate 0.0
 - Top pick signal families: fallback
-- Top pick explanation: Fits compromise mode with signal from Mystery, Comedy. Founder: 0.5. Evidence: fallback.
+- Top pick explanation: Strong fit for Founder with signal from Mystery, Comedy. Built from profile score 0.5. Evidence: fallback.
 
 ### fallback_rich_profile
 
@@ -30,7 +30,7 @@ Generated: 2026-07-02
 - Top pick changed vs baseline: True
 - Enrichment coverage: 0/4 enriched, 4 fallback, rate 0.0
 - Top pick signal families: genre, title_similarity, fallback
-- Top pick explanation: Fits compromise mode with signal from Action, Sci-Fi. Founder: 0.88, Taste Lab signals: 1. Evidence: genre, title_similarity, fallback.
+- Top pick explanation: Strong fit for Founder with signal from Action, Sci-Fi. Built from profile score 0.66, 1 Taste Lab signals. Evidence: genre, title_similarity, fallback.
 
 ### enriched_rich_profile_intent_reactions
 
@@ -40,7 +40,7 @@ Generated: 2026-07-02
 - Top pick changed vs baseline: True
 - Enrichment coverage: 2/4 enriched, 2 fallback, rate 0.5
 - Top pick signal families: genre, title_similarity, feature_tag, tonight_intent, session_reaction
-- Top pick explanation: Fits compromise mode with signal from Action, Sci-Fi. Founder: 1.0, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag, tonight_intent, session_reaction.
+- Top pick explanation: Strong fit for Founder with signal from Action, Sci-Fi. Built from profile score 0.71, 1 Taste Lab signals. Evidence: genre, title_similarity, feature_tag, tonight_intent, session_reaction.
 
 ## Risk Notes
 

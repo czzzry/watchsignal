@@ -61,7 +61,7 @@ class SafePickClassifier:
                 manual_correction,
             )
 
-        provider_passes = self._has_flatrate_prime_video(
+        provider_passes = self._has_supported_amazon_access(
             candidate.provider_availability,
             region=resolved_session.region or resolved_defaults.default_region,
         )
@@ -70,10 +70,8 @@ class SafePickClassifier:
             reasons.append("manual_verified_watchable")
 
         if not provider_passes:
-            reasons.append("prime_germany_subscription_not_verified")
-            if self._has_non_subscription_amazon_access(candidate.provider_availability):
-                reasons.append("amazon_rent_or_buy_only")
-            elif candidate.providers:
+            reasons.append("amazon_de_access_not_verified")
+            if candidate.providers:
                 reasons.append("provider_bucket_missing")
             return self._classification(
                 candidate,
@@ -113,7 +111,7 @@ class SafePickClassifier:
             manual_correction_applied=manual_correction is not None,
         )
 
-    def _has_flatrate_prime_video(
+    def _has_supported_amazon_access(
         self,
         provider_availability: tuple[ProviderAvailability, ...],
         *,
@@ -122,17 +120,12 @@ class SafePickClassifier:
         expected_region = region.upper()
         return any(
             availability.region.upper() == expected_region
-            and availability.access_type == ProviderAccessType.FLATRATE
-            and self._is_prime_video(availability.provider_name)
-            for availability in provider_availability
-        )
-
-    def _has_non_subscription_amazon_access(
-        self,
-        provider_availability: tuple[ProviderAvailability, ...],
-    ) -> bool:
-        return any(
-            availability.access_type in {ProviderAccessType.RENT, ProviderAccessType.BUY}
+            and availability.access_type
+            in {
+                ProviderAccessType.FLATRATE,
+                ProviderAccessType.RENT,
+                ProviderAccessType.BUY,
+            }
             and self._is_amazon_or_prime_video(availability.provider_name)
             for availability in provider_availability
         )

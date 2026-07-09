@@ -56,7 +56,7 @@ export const fallbackSetup: SetupState = {
     sessionType: "Movie night",
     inputMode: "Pass the phone",
     availabilityRegion: "Prime Video Germany",
-    languageAccess: "English audio or verified English subtitles",
+    languageAccess: "English audio or foreign audio with verified English subtitles",
     shortlistSize: 5,
     avoidAlreadyWatched: true,
   },

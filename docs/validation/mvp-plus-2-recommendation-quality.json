@@ -17,10 +17,10 @@
         "Distant Planet"
       ],
       "strategy_name": "baseline_genre_only",
-      "target_explanation_excerpt": "Fits compromise mode with signal from Action, Sci-Fi. Founder: 0.5. Evidence: fallback.",
+      "target_explanation_excerpt": "Strong fit for Founder with signal from Action, Sci-Fi. Built from profile score 0.5. Evidence: fallback.",
       "target_rank": 2,
       "top_pick_changed_vs_baseline": false,
-      "top_pick_explanation_excerpt": "Fits compromise mode with signal from Mystery, Comedy. Founder: 0.5. Evidence: fallback.",
+      "top_pick_explanation_excerpt": "Strong fit for Founder with signal from Mystery, Comedy. Built from profile score 0.5. Evidence: fallback.",
       "top_pick_signal_families": [
         "fallback"
       ],
@@ -41,10 +41,10 @@
         "Quiet Rainy Drama"
       ],
       "strategy_name": "fallback_rich_profile",
-      "target_explanation_excerpt": "Fits compromise mode with signal from Action, Sci-Fi. Founder: 0.88, Taste Lab signals: 1. Evidence: genre, title_similarity, fallback.",
+      "target_explanation_excerpt": "Strong fit for Founder with signal from Action, Sci-Fi. Built from profile score 0.66, 1 Taste Lab signals. Evidence: genre, title_similarity, fallback.",
       "target_rank": 1,
       "top_pick_changed_vs_baseline": true,
-      "top_pick_explanation_excerpt": "Fits compromise mode with signal from Action, Sci-Fi. Founder: 0.88, Taste Lab signals: 1. Evidence: genre, title_similarity, fallback.",
+      "top_pick_explanation_excerpt": "Strong fit for Founder with signal from Action, Sci-Fi. Built from profile score 0.66, 1 Taste Lab signals. Evidence: genre, title_similarity, fallback.",
       "top_pick_signal_families": [
         "genre",
         "title_similarity",
@@ -67,10 +67,10 @@
         "Quiet Rainy Drama"
       ],
       "strategy_name": "enriched_rich_profile_intent_reactions",
-      "target_explanation_excerpt": "Fits compromise mode with signal from Action, Sci-Fi. Founder: 1.0, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag, tonight_intent, session_reaction.",
+      "target_explanation_excerpt": "Strong fit for Founder with signal from Action, Sci-Fi. Built from profile score 0.71, 1 Taste Lab signals. Evidence: genre, title_similarity, feature_tag, tonight_intent, session_reaction.",
       "target_rank": 1,
       "top_pick_changed_vs_baseline": true,
-      "top_pick_explanation_excerpt": "Fits compromise mode with signal from Action, Sci-Fi. Founder: 1.0, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag, tonight_intent, session_reaction.",
+      "top_pick_explanation_excerpt": "Strong fit for Founder with signal from Action, Sci-Fi. Built from profile score 0.71, 1 Taste Lab signals. Evidence: genre, title_similarity, feature_tag, tonight_intent, session_reaction.",
       "top_pick_signal_families": [
         "genre",
         "title_similarity",

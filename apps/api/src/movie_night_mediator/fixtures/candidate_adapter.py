@@ -73,6 +73,7 @@ def fixture_candidate_to_domain(
         runtime_min=fixture.runtime_min,
         genres=fixture.genres,
         overview=fixture.overview,
+        top_cast=fixture.top_cast,
         providers=tuple(
             dict.fromkeys(
                 availability.provider_name for availability in provider_availability

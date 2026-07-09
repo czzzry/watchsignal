@@ -12,6 +12,7 @@ from movie_night_mediator.mvp_plus_2 import (
 )
 from movie_night_mediator.mvp_plus_3 import (
     DirectedNudge,
+    DirectedNudgeResolution,
     DirectedNudgeStatus,
     PersonCandidateIntent,
 )
@@ -35,9 +36,42 @@ class FakeLiveDirectedNudgeProvider(FakeLiveIntentProvider):
             raw_text=text,
             status=DirectedNudgeStatus.CONFIRMATION_REQUIRED,
             user_facing_summary="Got it: keeping the live-shaped nudge active.",
+            resolution=DirectedNudgeResolution.EXACT,
             filters={"genres": ["Thriller"]},
             soft_signals=("live-directed",),
             confidence="high",
+        )
+
+
+class FailingLiveDirectedNudgeProvider(FakeLiveIntentProvider):
+    def interpret_directed_nudge(self, text: str) -> DirectedNudge:
+        raise ValueError("live steer unavailable")
+
+
+class GenericLiveDirectedNudgeProvider(FakeLiveIntentProvider):
+    def interpret_directed_nudge(self, text: str) -> DirectedNudge:
+        return DirectedNudge(
+            raw_text=text,
+            status=DirectedNudgeStatus.CONFIRMATION_REQUIRED,
+            user_facing_summary="Got it: keeping this around something action-forward.",
+            resolution=DirectedNudgeResolution.GUESS,
+            filters={"genres": ["Action"]},
+            soft_signals=("intense",),
+            confidence="medium",
+        )
+
+
+class ConflictingLiveDirectedNudgeProvider(FakeLiveIntentProvider):
+    def interpret_directed_nudge(self, text: str) -> DirectedNudge:
+        return DirectedNudge(
+            raw_text=text,
+            status=DirectedNudgeStatus.CONFIRMATION_REQUIRED,
+            user_facing_summary="Got it: keeping this around romance-forward sci-fi.",
+            resolution=DirectedNudgeResolution.GUESS,
+            filters={"genres": ["Romance", "Sci-Fi", "Western"]},
+            soft_signals=("romance", "sci-fi", "intense"),
+            excluded_signals=(),
+            confidence="medium",
         )
 
 
@@ -59,6 +93,15 @@ class TonightIntentInterpreterTest(unittest.TestCase):
     def test_maps_person_request_and_seen_constraint(self) -> None:
         interpretation = DeterministicTonightIntentProvider().interpret(
             "a Mel Gibson movie I haven't seen"
+        )
+
+        self.assertEqual(interpretation.filters["people"], ["Mel Gibson"])
+        self.assertTrue(interpretation.filters["exclude_watched"])
+        self.assertIn("Mel Gibson", interpretation.confirmation_text or "")
+
+    def test_maps_lowercase_person_request_and_seen_constraint(self) -> None:
+        interpretation = DeterministicTonightIntentProvider().interpret(
+            "a mel gibson movie i haven't seen"
         )
 
         self.assertEqual(interpretation.filters["people"], ["Mel Gibson"])
@@ -151,6 +194,21 @@ class TonightIntentInterpreterTest(unittest.TestCase):
         self.assertIn("tonight", nudge.soft_signals)
         self.assertIn("without subtitles", nudge.user_facing_summary or "")
 
+    def test_directed_nudge_does_not_promote_negated_genres(self) -> None:
+        nudge = DeterministicTonightIntentProvider().interpret_directed_nudge(
+            "severe turn-of-the-century American drama about greed, frontier capitalism, oil money, obsession, moral rot, no whimsy, no sci-fi, no romance"
+        )
+
+        self.assertEqual(nudge.resolution, DirectedNudgeResolution.EXACT)
+        self.assertIn("Western", nudge.filters["genres"])
+        self.assertIn("Drama", nudge.filters["genres"])
+        self.assertNotIn("Sci-Fi", nudge.filters["genres"])
+        self.assertNotIn("Romance", nudge.filters["genres"])
+        self.assertIn("sci-fi", nudge.excluded_signals)
+        self.assertIn("romance", nudge.excluded_signals)
+        self.assertNotIn("sci-fi", nudge.soft_signals)
+        self.assertNotIn("romance", nudge.soft_signals)
+
     def test_directed_nudge_maps_person_intent_for_candidate_generation(self) -> None:
         nudge = DeterministicTonightIntentProvider().interpret_directed_nudge(
             "Jack Nicholson in it"
@@ -168,6 +226,45 @@ class TonightIntentInterpreterTest(unittest.TestCase):
         self.assertEqual(nudge.filters["people"], ["Jack Nicholson"])
         self.assertTrue(nudge.has_person_intent)
 
+    def test_directed_nudge_maps_lowercase_person_intent_for_candidate_generation(self) -> None:
+        nudge = DeterministicTonightIntentProvider().interpret_directed_nudge(
+            "jack nicholson should be in it"
+        )
+
+        self.assertEqual(
+            nudge.person_intents,
+            (
+                PersonCandidateIntent(
+                    raw_name="Jack Nicholson",
+                    normalized_name="jack nicholson",
+                ),
+            ),
+        )
+        self.assertEqual(nudge.filters["people"], ["Jack Nicholson"])
+        self.assertTrue(nudge.has_person_intent)
+        self.assertIn("Jack Nicholson", nudge.user_facing_summary or "")
+        self.assertEqual(nudge.resolution, DirectedNudgeResolution.EXACT)
+
+    def test_directed_nudge_maps_include_person_phrase(self) -> None:
+        nudge = DeterministicTonightIntentProvider().interpret_directed_nudge(
+            "include Tom Cruise"
+        )
+
+        self.assertEqual(nudge.resolution, DirectedNudgeResolution.EXACT)
+        self.assertEqual(nudge.filters["people"], ["Tom Cruise"])
+        self.assertIn("Tom Cruise", nudge.user_facing_summary or "")
+
+    def test_directed_nudge_marks_unsupported_aesthetic_request(self) -> None:
+        nudge = DeterministicTonightIntentProvider().interpret_directed_nudge(
+            "i want a very green movie"
+        )
+
+        self.assertEqual(nudge.status, DirectedNudgeStatus.CONFIRMATION_REQUIRED)
+        self.assertEqual(nudge.resolution, DirectedNudgeResolution.UNSUPPORTED)
+        self.assertEqual(nudge.filters, {})
+        self.assertIn("cannot filter directly", nudge.user_facing_summary or "")
+        self.assertIsNotNone(nudge.unsupported_reason)
+
     def test_directed_nudge_asks_clarification_for_ambiguous_emotion(self) -> None:
         nudge = DeterministicTonightIntentProvider().interpret_directed_nudge("sad")
 
@@ -181,8 +278,12 @@ class TonightIntentInterpreterTest(unittest.TestCase):
             live_provider=FakeLiveDirectedNudgeProvider()
         ).interpret_directed_nudge("90s thriller")
 
-        self.assertEqual(nudge.filters, {"genres": ["Thriller"]})
-        self.assertEqual(nudge.soft_signals, ("live-directed",))
+        self.assertEqual(nudge.filters["genres"], ["Thriller"])
+        self.assertEqual(nudge.filters["release_year_min"], 1990)
+        self.assertEqual(nudge.filters["release_year_max"], 1999)
+        self.assertIn("live-directed", nudge.soft_signals)
+        self.assertIn("1990s", nudge.soft_signals)
+        self.assertIn("thriller", nudge.soft_signals)
         self.assertFalse(
             {
                 "ranking",
@@ -193,6 +294,62 @@ class TonightIntentInterpreterTest(unittest.TestCase):
                 "sourceMovieIds",
             }.intersection(nudge.filters)
         )
+
+    def test_directed_nudge_falls_back_to_deterministic_when_live_provider_fails(
+        self,
+    ) -> None:
+        nudge = TonightIntentInterpreter(
+            live_provider=FailingLiveDirectedNudgeProvider()
+        ).interpret_directed_nudge("include Tom Cruise")
+
+        self.assertEqual(nudge.resolution, DirectedNudgeResolution.EXACT)
+        self.assertEqual(nudge.filters["people"], ["Tom Cruise"])
+
+    def test_directed_nudge_preserves_specific_ncfom_style_cues(self) -> None:
+        nudge = DeterministicTonightIntentProvider().interpret_directed_nudge(
+            "west Texas desert manhunt after a drug deal gone wrong, aging sheriff, relentless killer, spare modern western, not superhero action"
+        )
+
+        self.assertEqual(nudge.resolution, DirectedNudgeResolution.EXACT)
+        self.assertIn("Western", nudge.filters["genres"])
+        self.assertIn("Crime", nudge.filters["genres"])
+        self.assertIn("desert", nudge.soft_signals)
+        self.assertIn("manhunt", nudge.soft_signals)
+        self.assertIn("lawman", nudge.soft_signals)
+        self.assertIn("killer", nudge.soft_signals)
+        self.assertIn("superhero", nudge.excluded_signals)
+
+    def test_interpreter_merges_live_directed_nudge_with_deterministic_specificity(
+        self,
+    ) -> None:
+        nudge = TonightIntentInterpreter(
+            live_provider=GenericLiveDirectedNudgeProvider()
+        ).interpret_directed_nudge(
+            "west Texas desert manhunt after a drug deal gone wrong, aging sheriff, relentless killer, spare modern western, not superhero action"
+        )
+
+        self.assertIn("Western", nudge.filters["genres"])
+        self.assertIn("Action", nudge.filters["genres"])
+        self.assertIn("desert", nudge.soft_signals)
+        self.assertIn("superhero", nudge.excluded_signals)
+
+    def test_interpreter_removes_live_genres_that_conflict_with_negated_request(
+        self,
+    ) -> None:
+        nudge = TonightIntentInterpreter(
+            live_provider=ConflictingLiveDirectedNudgeProvider()
+        ).interpret_directed_nudge(
+            "severe turn-of-the-century American drama about greed, frontier capitalism, oil money, obsession, moral rot, no whimsy, no sci-fi, no romance"
+        )
+
+        self.assertEqual(nudge.resolution, DirectedNudgeResolution.EXACT)
+        self.assertIn("Western", nudge.filters["genres"])
+        self.assertNotIn("Sci-Fi", nudge.filters["genres"])
+        self.assertNotIn("Romance", nudge.filters["genres"])
+        self.assertNotIn("sci-fi", nudge.soft_signals)
+        self.assertNotIn("romance", nudge.soft_signals)
+        self.assertIn("sci-fi", nudge.excluded_signals)
+        self.assertIn("romance", nudge.excluded_signals)
 
 
 if __name__ == "__main__":

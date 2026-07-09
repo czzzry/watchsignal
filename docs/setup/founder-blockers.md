@@ -42,8 +42,7 @@ Main recommendations should be Safe Picks only, but the implementation must defi
 Current recommended Safe Pick policy:
 
 - Require Germany provider data.
-- Treat flatrate Prime Video Germany as stronger than Amazon Video rent or buy.
-- Treat Amazon Video rent or buy as not equivalent to Prime subscription availability.
+- Treat Amazon DE flatrate, rent, and buy as eligible when the title still passes the active language and watched-state rules.
 - Treat originally English titles as language-compatible when provider availability passes.
 - Treat foreign-language titles as Needs Quick Check unless English subtitles are verified by another source or manual correction.
 - Store manual verified-watchable corrections so the app can learn practical availability over time.

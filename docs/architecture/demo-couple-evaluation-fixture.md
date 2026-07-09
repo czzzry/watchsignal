@@ -11,10 +11,10 @@ That path mirrors the intended future boundary: a provider or title adapter emit
 The backend API exposes this path through `GET /recommendations/shortlist` as an offline provider-shaped contract before live TMDb or provider integration exists.
 
 Five candidates are Safe Picks on Prime Video Germany.
-Those accepted demo candidates are `arrival`, `knives-out`, `the-grand-budapest-hotel`, `edge-of-tomorrow`, and `past-lives`, in current shortlist rank order.
+The current top five accepted demo candidates are `arrival`, `knives-out`, `the-grand-budapest-hotel`, `fixture:rent-only-thriller`, and `edge-of-tomorrow`, in shortlist rank order.
 All five accepted demo candidates pass through English audio metadata.
 One candidate is already watched and should be rejected when rewatches are off.
-One candidate is only available as Amazon rent or buy and should stay out of the main shared ranking.
+One candidate is only available as Amazon rent or buy and should now remain eligible for the main shared ranking.
 One candidate has Prime Video Germany flatrate availability but no verified English audio or subtitle metadata, so it should remain Needs Quick Check.
 
 The focused smoke test lives in `apps/api/tests/test_demo_couple_fixture.py`.

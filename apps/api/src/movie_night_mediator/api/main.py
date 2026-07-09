@@ -58,6 +58,9 @@ from movie_night_mediator.app.session import (
 from movie_night_mediator.app.setup import (
     SQLiteSetupStore,
 )
+from movie_night_mediator.app.openai_tonight_intent import (
+    OpenAITonightIntentProvider,
+)
 from movie_night_mediator.app.tonight_intent import TonightIntentInterpreter
 from movie_night_mediator.app.watchlist import (
     SharedWatchlistService,
@@ -104,6 +107,7 @@ from movie_night_mediator.mvp_plus_2 import (
     IntentInterpretation,
     IntentInterpretationStatus,
 )
+from movie_night_mediator.mvp_plus_3 import DirectedNudge
 from movie_night_mediator.storage import (
     SQLiteBackfillStore,
     SQLiteFeedbackStore,
@@ -247,6 +251,7 @@ class SessionShortlistItemPayload(BaseModel):
     sourceMovieId: str = Field(min_length=1)
     title: str = Field(min_length=1)
     candidateRank: int = Field(ge=1)
+    profileScore: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
 class RecommendationProviderAvailabilityPayload(BaseModel):
@@ -268,6 +273,7 @@ class RecommendationShortlistItemPayload(BaseModel):
     providerNames: list[str]
     providerAvailability: list[RecommendationProviderAvailabilityPayload]
     posterUrl: str | None = None
+    overview: str = ""
     topCast: list[str] = Field(default_factory=list)
     matchedPersonNames: list[str] = Field(default_factory=list)
     safePickStatus: str = Field(min_length=1)
@@ -441,6 +447,9 @@ class TasteProfileSummaryPayload(BaseModel):
     evidence: list[TasteProfileEvidencePayload]
 
 
+ONBOARDING_TASTE_LAB_UNLOCK_THRESHOLD = 3
+
+
 class TonightIntentInterpretRequestPayload(BaseModel):
     text: str = Field(min_length=1)
 
@@ -448,8 +457,10 @@ class TonightIntentInterpretRequestPayload(BaseModel):
 class TonightIntentInterpretationPayload(BaseModel):
     rawText: str
     status: IntentInterpretationStatus
+    resolution: Literal["exact", "guess", "unsupported"] = "exact"
     confirmationText: str | None = None
     clarificationQuestion: str | None = None
+    unsupportedReason: str | None = None
     filters: dict[str, object]
     softSignals: list[str]
     confidence: str
@@ -540,7 +551,9 @@ def create_app(
         session_store=resolved_session_store,
         taste_lab_service=taste_lab_service,
     )
-    tonight_intent_interpreter = TonightIntentInterpreter()
+    tonight_intent_interpreter = TonightIntentInterpreter(
+        live_provider=OpenAITonightIntentProvider.from_env()
+    )
     register_history_routes(app, history_service=history_service)
     register_debug_history_routes(
         app,
@@ -590,6 +603,7 @@ def create_app(
                     taste_lab_service=taste_lab_service,
                     backfill_service=backfill_service,
                     taste_memory_service=taste_memory_service,
+                    setup_store=resolved_setup_store,
                 )
             ]
 
@@ -602,6 +616,7 @@ def create_app(
                     taste_lab_service=taste_lab_service,
                     backfill_service=backfill_service,
                     taste_memory_service=taste_memory_service,
+                    setup_store=resolved_setup_store,
                 ),
                 snapshot_service=recommendation_snapshot_service,
                 excluded_source_movie_ids=tuple(payload.excludedSourceMovieIds),
@@ -629,6 +644,22 @@ def create_app(
 
         return _intent_interpretation_to_payload(interpretation)
 
+    @app.post(
+        "/tonight-intent/direct-nudge",
+        response_model=TonightIntentInterpretationPayload,
+        response_model_exclude_none=True,
+        tags=["tonight-intent"],
+    )
+    def post_directed_nudge_interpretation(
+        payload: TonightIntentInterpretRequestPayload,
+    ) -> TonightIntentInterpretationPayload:
+        try:
+            nudge = tonight_intent_interpreter.interpret_directed_nudge(payload.text)
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+
+        return _directed_nudge_to_payload(nudge)
+
     @app.get(
         "/onboarding/completion",
         response_model=OnboardingCompletionPayload,
@@ -640,12 +671,36 @@ def create_app(
         completion = resolved_onboarding_store.load_completion(
             tuple(requiredProfileIds)
         )
+        completed_profile_ids = set(completion.completed_profile_ids)
+        for profile_id in requiredProfileIds:
+            if profile_id in completed_profile_ids:
+                continue
+            summary = taste_lab_service.taste_profile_summary(
+                household_id=DEFAULT_HOUSEHOLD_ID,
+                profile_id=profile_id,
+            )
+            if (
+                summary.preference_evidence_count
+                >= ONBOARDING_TASTE_LAB_UNLOCK_THRESHOLD
+            ):
+                completed_profile_ids.add(profile_id)
+
+        ordered_completed_profile_ids = [
+            profile_id
+            for profile_id in completion.required_profile_ids
+            if profile_id in completed_profile_ids
+        ]
+        incomplete_profile_ids = [
+            profile_id
+            for profile_id in completion.required_profile_ids
+            if profile_id not in completed_profile_ids
+        ]
         return OnboardingCompletionPayload(
             requiredProfileIds=list(completion.required_profile_ids),
-            completedProfileIds=list(completion.completed_profile_ids),
-            incompleteProfileIds=list(completion.incomplete_profile_ids),
-            sharedRecommendationLocked=completion.shared_recommendation_locked,
-            sharedRecommendationUnlocked=completion.shared_recommendation_unlocked,
+            completedProfileIds=ordered_completed_profile_ids,
+            incompleteProfileIds=incomplete_profile_ids,
+            sharedRecommendationLocked=bool(incomplete_profile_ids),
+            sharedRecommendationUnlocked=not incomplete_profile_ids,
         )
 
     @app.get(
@@ -1071,6 +1126,7 @@ def _live_candidate_shortlist_items(
     taste_lab_service: TasteLabService,
     backfill_service: ManualBackfillService,
     taste_memory_service: TasteMemoryService,
+    setup_store: SQLiteSetupStore,
 ) -> tuple[OfflineShortlistItem, ...]:
     try:
         resolved_candidate_source = candidate_source or TmdbCandidateSource()
@@ -1087,9 +1143,14 @@ def _live_candidate_shortlist_items(
                 taste_lab_service=taste_lab_service,
                 backfill_service=backfill_service,
                 taste_memory_service=taste_memory_service,
+                setup_store=setup_store,
             ),
             limit=payload.shortlistSize,
-            candidate_limit=80 + len(payload.excludedSourceMovieIds) + len(watched_ids),
+            candidate_limit=_live_candidate_fetch_limit(
+                shortlist_size=payload.shortlistSize,
+                excluded_count=len(payload.excludedSourceMovieIds),
+                watched_count=len(watched_ids),
+            ),
             snapshot_service=snapshot_service,
             excluded_source_movie_ids=tuple(payload.excludedSourceMovieIds),
             watched_source_movie_ids=watched_ids,
@@ -1105,6 +1166,18 @@ def _live_candidate_shortlist_items(
         )
 
     return shortlist
+
+
+def _live_candidate_fetch_limit(
+    *,
+    shortlist_size: int,
+    excluded_count: int,
+    watched_count: int,
+) -> int:
+    return max(
+        shortlist_size * 2,
+        shortlist_size + excluded_count + watched_count + 5,
+    )
 
 
 def _shortlist_household_defaults_from_payload(
@@ -1212,15 +1285,65 @@ def _tonight_intent_mood_text(
     if not intent_payloads:
         return None
 
-    raw_texts = [
-        raw_text.strip()
-        for intent in intent_payloads
-        if isinstance((raw_text := intent.get("rawText")), str) and raw_text.strip()
-    ]
-    if not raw_texts:
+    snippets: list[str] = []
+    for intent in intent_payloads:
+        if isinstance((raw_text := intent.get("rawText")), str) and raw_text.strip():
+            snippets.append(raw_text.strip())
+        if isinstance((soft_signals := intent.get("softSignals")), list):
+            snippets.extend(
+                signal.strip().replace("-", " ")
+                for signal in soft_signals
+                if isinstance(signal, str) and signal.strip()
+            )
+        if isinstance((filters := intent.get("filters")), dict):
+            snippets.extend(_tonight_intent_filter_summary(filters))
+        if isinstance((excluded_signals := intent.get("excludedSignals")), list):
+            snippets.extend(
+                f"avoid {signal.strip().replace('-', ' ')}"
+                for signal in excluded_signals
+                if isinstance(signal, str) and signal.strip()
+            )
+
+    deduped_snippets = list(dict.fromkeys(snippets))
+    if not deduped_snippets:
         return None
 
-    return " + ".join(dict.fromkeys(raw_texts))
+    return " + ".join(deduped_snippets)
+
+
+def _tonight_intent_filter_summary(filters: dict[str, object]) -> list[str]:
+    snippets: list[str] = []
+    genres = filters.get("genres")
+    if isinstance(genres, list):
+        snippets.extend(
+            genre.strip()
+            for genre in genres
+            if isinstance(genre, str) and genre.strip()
+        )
+
+    people = filters.get("people")
+    if isinstance(people, list):
+        snippets.extend(
+            person.strip()
+            for person in people
+            if isinstance(person, str) and person.strip()
+        )
+
+    release_year_min = filters.get("release_year_min")
+    release_year_max = filters.get("release_year_max")
+    if isinstance(release_year_min, int) and isinstance(release_year_max, int):
+        if release_year_min == release_year_max:
+            snippets.append(str(release_year_min))
+        else:
+            snippets.append(f"{release_year_min} to {release_year_max}")
+
+    if filters.get("exclude_watched") is True:
+        snippets.append("unwatched")
+
+    if filters.get("exclude_subtitled") is True:
+        snippets.append("english audio")
+
+    return snippets
 
 
 def _tonight_intent_first_string_filter(
@@ -1229,13 +1352,45 @@ def _tonight_intent_first_string_filter(
     *,
     key: str,
 ) -> str | None:
-    for value in _tonight_intent_filter_values(
-        tonight_intent,
-        tonight_intents,
-        key=key,
-    ):
+    values = list(
+        _tonight_intent_filter_values(
+            tonight_intent,
+            tonight_intents,
+            key=key,
+        )
+    )
+    if key == "genres":
+        return _preferred_genre_hint(values)
+    for value in values:
         return value
     return None
+
+
+def _preferred_genre_hint(values: list[str]) -> str | None:
+    if not values:
+        return None
+
+    priority = {
+        "western": 100,
+        "mystery": 90,
+        "thriller": 80,
+        "crime": 75,
+        "horror": 70,
+        "sci-fi": 65,
+        "science fiction": 65,
+        "drama": 60,
+        "romance": 50,
+        "comedy": 40,
+        "action": 30,
+    }
+    return max(
+        values,
+        key=lambda value: (
+            priority.get(value.casefold(), 0),
+            -values.index(value),
+        ),
+    )
+
 
 
 def _tonight_intent_language_constraint(
@@ -1307,12 +1462,16 @@ def _shortlist_users_from_taste_profile(
     taste_lab_service: TasteLabService,
     backfill_service: ManualBackfillService,
     taste_memory_service: TasteMemoryService,
+    setup_store: SQLiteSetupStore,
 ) -> tuple[UserProfile, ...]:
     base_profiles = (DEMO_HUSBAND_PROFILE, DEMO_WIFE_PROFILE)
+    setup = setup_store.load_setup()
+    setup_profiles = {profile.id: profile for profile in setup.profiles}
     users: list[UserProfile] = []
 
     for index, profile_id in enumerate(payload.participantIds):
         base_profile = base_profiles[min(index, len(base_profiles) - 1)]
+        setup_profile = setup_profiles.get(profile_id)
         summary = taste_lab_service.taste_profile_summary(
             household_id=payload.householdId,
             profile_id=profile_id,
@@ -1321,6 +1480,11 @@ def _shortlist_users_from_taste_profile(
             replace(
                 base_profile,
                 user_id=profile_id,
+                display_label=(
+                    setup_profile.label
+                    if setup_profile is not None
+                    else base_profile.display_label
+                ),
                 taste_profile_evidence=(
                     summary.watchsignal_taste_evidence
                     + profile_memory_evidence(
@@ -1375,6 +1539,7 @@ def _offline_shortlist_item_to_payload(
             for availability in item.provider_availability
         ],
         posterUrl=item.poster_url,
+        overview=item.overview,
         topCast=list(item.top_cast),
         matchedPersonNames=list(item.matched_person_names),
         safePickStatus=item.safe_pick_status,
@@ -1552,11 +1717,29 @@ def _intent_interpretation_to_payload(
     return TonightIntentInterpretationPayload(
         rawText=interpretation.raw_text,
         status=interpretation.status,
+        resolution="exact",
         confirmationText=interpretation.confirmation_text,
         clarificationQuestion=interpretation.clarification_question,
+        unsupportedReason=None,
         filters=dict(interpretation.filters),
         softSignals=list(interpretation.soft_signals),
         confidence=interpretation.confidence,
+    )
+
+
+def _directed_nudge_to_payload(
+    nudge: DirectedNudge,
+) -> TonightIntentInterpretationPayload:
+    return TonightIntentInterpretationPayload(
+        rawText=nudge.raw_text,
+        status=nudge.status,
+        resolution=nudge.resolution,
+        confirmationText=nudge.user_facing_summary,
+        clarificationQuestion=nudge.clarification_question,
+        unsupportedReason=nudge.unsupported_reason,
+        filters=dict(nudge.filters),
+        softSignals=list(nudge.soft_signals),
+        confidence=nudge.confidence,
     )
 
 
@@ -1736,6 +1919,7 @@ def _payload_to_session_shortlist_item(
         source_movie_id=payload.sourceMovieId,
         title=payload.title,
         candidate_rank=payload.candidateRank,
+        profile_score=payload.profileScore,
     )
 
 
@@ -1776,6 +1960,7 @@ def _shared_session_to_payload(
                 sourceMovieId=item.source_movie_id,
                 title=item.title,
                 candidateRank=item.candidate_rank,
+                profileScore=item.profile_score,
             )
             for item in session.shortlist
         ],
@@ -1798,6 +1983,7 @@ def _shared_session_to_payload(
                 sourceMovieId=item.source_movie_id,
                 title=item.title,
                 candidateRank=item.candidate_rank,
+                profileScore=item.profile_score,
             )
             for item in session.previous_shortlist
         ],
@@ -1823,6 +2009,7 @@ def _shared_session_to_payload(
                 sourceMovieId=item.source_movie_id,
                 title=item.title,
                 candidateRank=item.candidate_rank,
+                profileScore=item.profile_score,
             )
             for item in reranked_shortlist
         ],

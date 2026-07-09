@@ -83,7 +83,7 @@ class SetupApiTest(unittest.TestCase):
                         "inputMode": "Pass the phone",
                         "availabilityRegion": "Prime Video Germany",
                         "languageAccess": (
-                            "English audio or verified English subtitles"
+                            "English audio or foreign audio with verified English subtitles"
                         ),
                         "shortlistSize": 5,
                         "avoidAlreadyWatched": True,

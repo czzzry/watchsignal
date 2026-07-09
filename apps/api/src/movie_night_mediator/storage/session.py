@@ -75,9 +75,10 @@ class SQLiteSessionStore:
                         session_id,
                         source_movie_id,
                         title,
-                        candidate_rank
+                        candidate_rank,
+                        profile_score
                     )
-                    VALUES (?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?)
                     """,
                     [
                         (
@@ -85,6 +86,7 @@ class SQLiteSessionStore:
                             item.source_movie_id,
                             item.title,
                             item.candidate_rank,
+                            item.profile_score,
                         )
                         for item in session.shortlist
                     ],
@@ -100,9 +102,10 @@ class SQLiteSessionStore:
                         source_movie_id,
                         title,
                         candidate_rank,
+                        profile_score,
                         history_position
                     )
-                    VALUES (?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     """,
                     [
                         (
@@ -110,6 +113,7 @@ class SQLiteSessionStore:
                             item.source_movie_id,
                             item.title,
                             item.candidate_rank,
+                            item.profile_score,
                             index,
                         )
                         for index, item in enumerate(
@@ -249,7 +253,7 @@ class SQLiteSessionStore:
 
             shortlist_rows = connection.execute(
                 """
-                SELECT source_movie_id, title, candidate_rank
+                SELECT source_movie_id, title, candidate_rank, profile_score
                 FROM shared_session_shortlist
                 WHERE session_id = ?
                 ORDER BY candidate_rank ASC, source_movie_id ASC
@@ -267,7 +271,7 @@ class SQLiteSessionStore:
             ).fetchall()
             previous_shortlist_rows = connection.execute(
                 """
-                SELECT source_movie_id, title, candidate_rank
+                SELECT source_movie_id, title, candidate_rank, profile_score
                 FROM shared_session_previous_shortlist
                 WHERE session_id = ?
                 ORDER BY history_position ASC
@@ -335,6 +339,7 @@ class SQLiteSessionStore:
                     source_movie_id=row["source_movie_id"],
                     title=row["title"],
                     candidate_rank=row["candidate_rank"],
+                    profile_score=row["profile_score"],
                 )
                 for row in shortlist_rows
             ),
@@ -348,6 +353,7 @@ class SQLiteSessionStore:
                     source_movie_id=row["source_movie_id"],
                     title=row["title"],
                     candidate_rank=row["candidate_rank"],
+                    profile_score=row["profile_score"],
                 )
                 for row in previous_shortlist_rows
             ),
@@ -418,6 +424,7 @@ class SQLiteSessionStore:
                         source_movie_id TEXT NOT NULL,
                         title TEXT NOT NULL,
                         candidate_rank INTEGER NOT NULL,
+                        profile_score REAL NOT NULL DEFAULT 0,
                         PRIMARY KEY (session_id, source_movie_id)
                     );
 
@@ -441,6 +448,7 @@ class SQLiteSessionStore:
                         source_movie_id TEXT NOT NULL,
                         title TEXT NOT NULL,
                         candidate_rank INTEGER NOT NULL,
+                        profile_score REAL NOT NULL DEFAULT 0,
                         history_position INTEGER NOT NULL,
                         PRIMARY KEY (session_id, source_movie_id)
                     );
@@ -473,6 +481,26 @@ class SQLiteSessionStore:
                     );
                     """
                 )
+                shortlist_columns = {
+                    row["name"]
+                    for row in connection.execute(
+                        "PRAGMA table_info(shared_session_shortlist)"
+                    ).fetchall()
+                }
+                if "profile_score" not in shortlist_columns:
+                    connection.execute(
+                        "ALTER TABLE shared_session_shortlist ADD COLUMN profile_score REAL NOT NULL DEFAULT 0"
+                    )
+                previous_shortlist_columns = {
+                    row["name"]
+                    for row in connection.execute(
+                        "PRAGMA table_info(shared_session_previous_shortlist)"
+                    ).fetchall()
+                }
+                if "profile_score" not in previous_shortlist_columns:
+                    connection.execute(
+                        "ALTER TABLE shared_session_previous_shortlist ADD COLUMN profile_score REAL NOT NULL DEFAULT 0"
+                    )
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.database_path)

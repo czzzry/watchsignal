@@ -33,8 +33,8 @@ Command: `pnpm eval:mvp4`
 - After signals: genre, title_similarity, feature_tag
 - Target enrichment provider after: fixed-mvp-plus-4-eval
 - Target matched person names after: none
-- Before explanation: Fits compromise mode with signal from Sci-Fi, Drama. Cezary - tester: 0.87, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.
-- After explanation: Fits compromise mode with signal from Sci-Fi, Drama. Cezary - tester: 0.87, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.
+- Before explanation: Fits compromise mode with signal from Sci-Fi, Drama. Cezary - tester: 0.66, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.
+- After explanation: Fits compromise mode with signal from Sci-Fi, Drama. Cezary - tester: 0.66, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.
 
 ### active_profile_taste_lab_isolation
 
@@ -51,8 +51,8 @@ Command: `pnpm eval:mvp4`
 - After signals: genre, title_similarity
 - Target enrichment provider after: fixed-mvp-plus-4-eval
 - Target matched person names after: Jack Nicholson
-- Before explanation: Fits compromise mode with signal from Horror, Thriller. Wife: 0.5, Taste Lab signals: 1.
-- After explanation: Fits compromise mode with signal from Horror, Thriller. Cezary - tester: 0.92, Taste Lab signals: 1. Evidence: genre, title_similarity.
+- Before explanation: Strong fit for Wife with signal from Horror, Thriller. Built from profile score 0.5, 1 Taste Lab signals.
+- After explanation: Strong fit for Cezary - tester with signal from Horror, Thriller. Built from profile score 0.68, 1 Taste Lab signals. Evidence: genre, title_similarity.
 
 ### avoid_repeat_removes_already_watched_title
 
@@ -69,7 +69,7 @@ Command: `pnpm eval:mvp4`
 - After signals: none
 - Target enrichment provider after: fixed-mvp-plus-4-eval
 - Target matched person names after: none
-- Before explanation: Fits compromise mode with signal from Sci-Fi, Drama. Cezary - tester: 0.87, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.
+- Before explanation: Fits compromise mode with signal from Sci-Fi, Drama. Cezary - tester: 0.66, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.
 - After explanation: None
 
 ### scary_steer_moves_horror_pick_up
@@ -96,7 +96,7 @@ Command: `pnpm eval:mvp4`
 - Passed: True
 - Target: Manchester by the Sea
 - Top five before: Arrival, Paddington 2, Edge of Tomorrow Again, Dinner Party Mystery, The Shining
-- Top five after: Manchester by the Sea, Arrival, Past Lives, Paddington 2, Edge of Tomorrow Again
+- Top five after: Manchester by the Sea, Arrival, Paddington 2, Edge of Tomorrow Again, Dinner Party Mystery
 - Expected movement: up
 - Actual movement: up
 - Target rank before: 6
@@ -141,8 +141,8 @@ Command: `pnpm eval:mvp4`
 - After signals: genre, title_similarity, feature_tag, tonight_intent
 - Target enrichment provider after: fixed-mvp-plus-4-eval
 - Target matched person names after: none
-- Before explanation: Fits compromise mode with signal from Comedy, Adventure. Cezary - tester: 0.5, Taste Lab signals: 1; Wife: 0.78, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.
-- After explanation: Fits compromise mode with signal from Comedy, Adventure. Cezary - tester: 0.5, Taste Lab signals: 1; Wife: 0.78, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag, tonight_intent.
+- Before explanation: Fits compromise mode with signal from Comedy, Adventure. Cezary - tester: 0.5, Taste Lab signals: 1; Wife: 0.62, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.
+- After explanation: Fits compromise mode with signal from Comedy, Adventure. Cezary - tester: 0.5, Taste Lab signals: 1; Wife: 0.62, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag, tonight_intent.
 
 ### post_watch_no_moves_similar_title_down
 
@@ -159,8 +159,8 @@ Command: `pnpm eval:mvp4`
 - After signals: genre, title_similarity, feature_tag
 - Target enrichment provider after: fixed-mvp-plus-4-eval
 - Target matched person names after: none
-- Before explanation: Fits compromise mode with signal from Action, Sci-Fi. Action profile: 1.0, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.
-- After explanation: Fits compromise mode with signal from Action, Sci-Fi. Action profile: 0.55, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.
+- Before explanation: Strong fit for Action profile with signal from Action, Sci-Fi. Built from profile score 0.71, 1 Taste Lab signals. Evidence: genre, title_similarity, feature_tag.
+- After explanation: Strong fit for Action profile with signal from Action, Sci-Fi. Built from profile score 0.52, 1 Taste Lab signals. Evidence: genre, title_similarity, feature_tag.
 
 ### watchlist_loved_moves_saved_style_up
 
@@ -177,8 +177,8 @@ Command: `pnpm eval:mvp4`
 - After signals: genre, feature_tag
 - Target enrichment provider after: fixed-mvp-plus-4-eval
 - Target matched person names after: none
-- Before explanation: Fits compromise mode with signal from Mystery, Comedy. Cezary - tester: 0.5, Taste Lab signals: 1.
-- After explanation: Fits compromise mode with signal from Mystery, Comedy. Watchlist rater: 0.86. Evidence: genre, feature_tag.
+- Before explanation: Strong fit for Cezary - tester with signal from Mystery, Comedy. Built from profile score 0.5, 1 Taste Lab signals.
+- After explanation: Strong fit for Watchlist rater with signal from Mystery, Comedy. Built from profile score 0.66. Evidence: genre, feature_tag.
 
 ### partner_compromise_prefers_shared_fit_over_one_sided_pick
 
@@ -195,8 +195,8 @@ Command: `pnpm eval:mvp4`
 - After signals: genre, feature_tag
 - Target enrichment provider after: fixed-mvp-plus-4-eval
 - Target matched person names after: none
-- Before explanation: Fits husband-first mode with signal from Mystery, Comedy. Action and mystery: 0.86, Taste Lab signals: 2; Mystery fan: 0.86, Taste Lab signals: 2. Evidence: genre, feature_tag.
-- After explanation: Fits compromise mode with signal from Mystery, Comedy. Action and mystery: 0.86, Taste Lab signals: 2; Mystery fan: 0.86, Taste Lab signals: 2. Evidence: genre, feature_tag.
+- Before explanation: Fits husband-first mode with signal from Mystery, Comedy. Action and mystery: 0.66, Taste Lab signals: 2; Mystery fan: 0.66, Taste Lab signals: 2. Evidence: genre, feature_tag.
+- After explanation: Fits compromise mode with signal from Mystery, Comedy. Action and mystery: 0.66, Taste Lab signals: 2; Mystery fan: 0.66, Taste Lab signals: 2. Evidence: genre, feature_tag.
 
 ### live_tmdb_candidate_shape_keeps_provider_evidence_visible
 
@@ -213,8 +213,8 @@ Command: `pnpm eval:mvp4`
 - After signals: genre, title_similarity, feature_tag, tonight_intent
 - Target enrichment provider after: fixed-live-tmdb-eval
 - Target matched person names after: none
-- Before explanation: Fits compromise mode with signal from Sci-Fi, Drama. Cezary - tester: 0.87, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.
-- After explanation: Fits compromise mode with signal from Sci-Fi, Drama. Cezary - tester: 0.87, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag, tonight_intent.
+- Before explanation: Fits compromise mode with signal from Sci-Fi, Drama. Cezary - tester: 0.66, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.
+- After explanation: Fits compromise mode with signal from Sci-Fi, Drama. Cezary - tester: 0.66, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag, tonight_intent.
 
 ## Caveats
 

@@ -70,7 +70,7 @@ def default_setup_state() -> SetupState:
             session_type="Movie night",
             input_mode="Pass the phone",
             availability_region="Prime Video Germany",
-            language_access="English audio or verified English subtitles",
+            language_access="English audio or foreign audio with verified English subtitles",
             shortlist_size=5,
             avoid_already_watched=True,
         ),

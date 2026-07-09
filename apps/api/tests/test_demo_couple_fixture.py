@@ -47,7 +47,7 @@ class DemoCoupleFixtureTest(unittest.TestCase):
         )
         self.assertEqual(
             classifications["fixture:rent-only-thriller"],
-            WatchabilityStatus.NEEDS_QUICK_CHECK,
+            WatchabilityStatus.SAFE_PICK,
         )
 
         result = HeuristicScorer().score(demo_scoring_request())
@@ -61,13 +61,13 @@ class DemoCoupleFixtureTest(unittest.TestCase):
                 "arrival",
                 "knives-out",
                 "the-grand-budapest-hotel",
+                "fixture:rent-only-thriller",
                 "edge-of-tomorrow",
                 "past-lives",
             ),
         )
         self.assertNotIn("fixture:unverified-language-drama", ranked_ids)
         self.assertNotIn("fixture:already-watched-classic", ranked_ids)
-        self.assertNotIn("fixture:rent-only-thriller", ranked_ids)
         self.assertEqual(
             result.interesting_safe_pick.source_movie_id,
             "arrival",

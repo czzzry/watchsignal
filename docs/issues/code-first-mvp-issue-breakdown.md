@@ -153,7 +153,7 @@ It may be plain and utilitarian, but it must unblock real recommendation input.
 ### What to build
 
 Classify candidate titles as Safe Pick, Needs Quick Check, or rejected.
-The classifier should be honest about TMDb limitations and should not treat Amazon rent or buy as Prime subscription availability.
+The classifier should be honest about TMDb limitations while treating Amazon DE flatrate, rent, and buy access as eligible when the title still passes the other active filters.
 Manual verified-watchable corrections should be part of the model even if the UI for editing them stays minimal.
 
 ### Acceptance criteria

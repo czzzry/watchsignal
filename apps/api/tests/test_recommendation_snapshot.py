@@ -50,10 +50,10 @@ class RecommendationSnapshotTest(unittest.TestCase):
         self.assertEqual(snapshot.candidates[0].source_movie_id, "tmdb:1")
         self.assertEqual(snapshot.candidates[0].title, "Shared Sci-Fi")
         self.assertEqual(snapshot.candidates[0].fit_bucket, "compromise")
-        self.assertEqual(snapshot.candidates[0].group_score, 0.62)
+        self.assertEqual(snapshot.candidates[0].group_score, 0.5538)
         self.assertEqual(
             [(score.user_id, score.score) for score in snapshot.candidates[0].user_scores],
-            [("husband", 0.62), ("wife", 0.62)],
+            [("husband", 0.5537910229492018), ("wife", 0.5537910229492018)],
         )
         self.assertTrue(snapshot.candidates[0].hard_filter_pass)
         self.assertFalse(snapshot.candidates[0].is_interesting_pick)
