@@ -1,6 +1,9 @@
+import gc
 import sqlite3
 import tempfile
 import unittest
+import warnings
+from contextlib import closing
 from pathlib import Path
 
 from movie_night_mediator.app.watchlist import SharedWatchlistService
@@ -74,38 +77,50 @@ class SharedWatchlistTest(unittest.TestCase):
             store = SQLiteWatchlistStore(database_path=database_path)
             store.initialize_schema()
 
-            with sqlite3.connect(database_path) as connection:
-                connection.execute(
-                    "ALTER TABLE watchlist_entries "
-                    "RENAME TO watchlist_entries_new_schema"
-                )
-                connection.execute(
-                    """
-                    CREATE TABLE watchlist_entries (
-                        household_id TEXT NOT NULL,
-                        source_movie_id TEXT NOT NULL,
-                        title TEXT NOT NULL,
-                        saved_by_profile_id TEXT,
-                        poster_url TEXT,
-                        release_year INTEGER,
-                        saved_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                        PRIMARY KEY (household_id, source_movie_id)
-                    )
-                    """
-                )
-                connection.execute(
-                    """
-                    INSERT INTO watchlist_entries (
-                        household_id,
-                        source_movie_id,
-                        title,
-                        saved_by_profile_id
-                    )
-                    VALUES (?, ?, ?, ?)
-                    """,
-                    ("household-1", "tmdb:13", "Forrest Gump", "cezary-tester"),
-                )
-                connection.execute("DROP TABLE watchlist_entries_new_schema")
+            with warnings.catch_warnings(record=True) as caught_warnings:
+                warnings.simplefilter("always", ResourceWarning)
+                with closing(sqlite3.connect(database_path)) as connection:
+                    with connection:
+                        connection.execute(
+                            "ALTER TABLE watchlist_entries "
+                            "RENAME TO watchlist_entries_new_schema"
+                        )
+                        connection.execute(
+                            """
+                            CREATE TABLE watchlist_entries (
+                                household_id TEXT NOT NULL,
+                                source_movie_id TEXT NOT NULL,
+                                title TEXT NOT NULL,
+                                saved_by_profile_id TEXT,
+                                poster_url TEXT,
+                                release_year INTEGER,
+                                saved_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                PRIMARY KEY (household_id, source_movie_id)
+                            )
+                            """
+                        )
+                        connection.execute(
+                            """
+                            INSERT INTO watchlist_entries (
+                                household_id,
+                                source_movie_id,
+                                title,
+                                saved_by_profile_id
+                            )
+                            VALUES (?, ?, ?, ?)
+                            """,
+                            ("household-1", "tmdb:13", "Forrest Gump", "cezary-tester"),
+                        )
+                        connection.execute("DROP TABLE watchlist_entries_new_schema")
+                gc.collect()
+
+            sqlite_resource_warnings = [
+                warning
+                for warning in caught_warnings
+                if issubclass(warning.category, ResourceWarning)
+                and "unclosed database" in str(warning.message)
+            ]
+            self.assertEqual(sqlite_resource_warnings, [])
 
             migrated_service = SharedWatchlistService(
                 SQLiteWatchlistStore(database_path=database_path)

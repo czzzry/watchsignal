@@ -187,13 +187,17 @@ class TmdbCandidateSource:
 
         candidates: list[Candidate] = []
         seen_tmdb_ids: set[int] = set()
-        keyword_params_list = self._keyword_discover_params(
+        self._append_keyword_discover_candidates(
+            candidates,
+            seen_tmdb_ids,
             session=session,
-            base_discover_params=discover_params,
+            household_defaults=household_defaults,
             region=region,
             language=language,
+            base_discover_params=discover_params,
+            limit=limit,
         )
-        for params in (*keyword_params_list, discover_params):
+        if len(candidates) < limit:
             self._append_discover_candidates(
                 candidates,
                 seen_tmdb_ids,
@@ -201,11 +205,9 @@ class TmdbCandidateSource:
                 household_defaults=household_defaults,
                 region=region,
                 language=language,
-                discover_params=params,
+                discover_params=discover_params,
                 limit=limit,
             )
-            if len(candidates) >= limit:
-                break
 
         return tuple(candidates)
 
@@ -266,32 +268,50 @@ class TmdbCandidateSource:
                 break
             page += 1
 
-    def _keyword_discover_params(
+    def _append_keyword_discover_candidates(
         self,
+        candidates: list[Candidate],
+        seen_tmdb_ids: set[int],
         *,
         session: SessionContext,
+        household_defaults: HouseholdDefaults,
         base_discover_params: Mapping[str, str],
         region: str,
         language: str,
-    ) -> tuple[dict[str, str], ...]:
-        keyword_ids = [
-            keyword_id
-            for query in _theme_keyword_queries(session.mood_text)
-            if (keyword_id := self._keyword_id_for_query(query, region=region, language=language))
-            is not None
-        ]
-        return tuple(
-            {
-                key: value
-                for key, value in {
-                    **base_discover_params,
-                    "with_keywords": str(keyword_id),
-                    "with_genres": None,
-                }.items()
-                if value is not None
-            }
-            for keyword_id in dict.fromkeys(keyword_ids)
-        )
+        limit: int,
+    ) -> None:
+        seen_keyword_ids: set[int] = set()
+        for query in _theme_keyword_queries(session.mood_text):
+            if len(candidates) >= limit:
+                return
+
+            keyword_id = self._keyword_id_for_query(
+                query,
+                region=region,
+                language=language,
+            )
+            if keyword_id is None or keyword_id in seen_keyword_ids:
+                continue
+
+            seen_keyword_ids.add(keyword_id)
+            self._append_discover_candidates(
+                candidates,
+                seen_tmdb_ids,
+                session=session,
+                household_defaults=household_defaults,
+                region=region,
+                language=language,
+                discover_params={
+                    key: value
+                    for key, value in {
+                        **base_discover_params,
+                        "with_keywords": str(keyword_id),
+                        "with_genres": None,
+                    }.items()
+                    if value is not None
+                },
+                limit=limit,
+            )
 
     def _fetch_person_constrained_candidates(
         self,
