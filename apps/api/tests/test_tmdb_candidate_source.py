@@ -216,6 +216,37 @@ class TmdbCandidateSourceTest(unittest.TestCase):
         self.assertEqual(client.keyword_discoveries[:3], ["10590", "5332", "592"])
         self.assertEqual(tuple(candidate.source_movie_id for candidate in candidates[:3]), ("tmdb:7345", "tmdb:88", "tmdb:99"))
 
+    def test_fetch_candidates_stops_keyword_lookups_after_reaching_limit(self) -> None:
+        client = FakeTmdbClient(
+            movie_ids=(11, 22, 33),
+            keyword_results={"oil": 10590, "greed": 5332, "capitalism": 592},
+            keyword_movie_ids={10590: (7345, 88)},
+        )
+        source = TmdbCandidateSource(
+            client=client,
+            config=TmdbCandidateSourceConfig(api_key="test"),
+        )
+
+        candidates = source.fetch_candidates(
+            session=SessionContext(
+                session_id="theme-keywords-early-stop",
+                audience_mode=AudienceMode.SHARED,
+                region="DE",
+                service_constraint="Prime Video",
+                mood_text="oil money greed capitalism drama",
+            ),
+            household_defaults=HouseholdDefaults(),
+            limit=2,
+        )
+
+        self.assertEqual(
+            tuple(candidate.source_movie_id for candidate in candidates),
+            ("tmdb:7345", "tmdb:88"),
+        )
+        self.assertEqual(client.keyword_queries, ["oil"])
+        self.assertEqual(client.keyword_discoveries, ["10590"])
+        self.assertEqual(client.discover_pages, [1])
+
     def test_repeated_fetches_reuse_cached_movie_details_and_provider_payloads(self) -> None:
         client = FakeTmdbClient(movie_ids=(11, 22, 33))
         source = TmdbCandidateSource(
@@ -303,7 +334,7 @@ class TmdbCandidateSourceTest(unittest.TestCase):
 
         self.assertEqual(client.person_queries, ["Keanu Reeves"])
         self.assertEqual(client.person_credit_requests, [6384])
-        self.assertEqual(client.keyword_queries, ["oil", "petrol", "oil industry"])
+        self.assertEqual(client.keyword_queries, ["oil"])
 
 
 class FakeTmdbClient:
