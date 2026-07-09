@@ -274,13 +274,14 @@ class SharedSessionService:
         session: SharedMovieNightSession,
         wife_reactions: tuple[SessionReaction, ...],
     ) -> tuple[str, ...]:
-        founder_scores = _score_by_source_movie_id(session.founder_reactions)
-        wife_scores = _score_by_source_movie_id(wife_reactions)
+        founder_scores = _reaction_bonus_by_source_movie_id(session.founder_reactions)
+        wife_scores = _reaction_bonus_by_source_movie_id(wife_reactions)
 
-        def ranking_key(item: SessionShortlistItem) -> tuple[int, int]:
+        def ranking_key(item: SessionShortlistItem) -> tuple[float, int]:
             combined_score = (
-                founder_scores.get(item.source_movie_id, 0)
-                + wife_scores.get(item.source_movie_id, 0)
+                item.profile_score
+                + founder_scores.get(item.source_movie_id, 0.0)
+                + wife_scores.get(item.source_movie_id, 0.0)
             )
             return (combined_score, -item.candidate_rank)
 
@@ -288,23 +289,23 @@ class SharedSessionService:
         return tuple(item.source_movie_id for item in ranked_items)
 
 
-def _score_by_source_movie_id(
+def _reaction_bonus_by_source_movie_id(
     reactions: tuple[SessionReaction, ...],
-) -> dict[str, int]:
+) -> dict[str, float]:
     return {
-        reaction.source_movie_id: _reaction_score(reaction.reaction_label)
+        reaction.source_movie_id: _reaction_bonus(reaction.reaction_label)
         for reaction in reactions
     }
 
 
-def _reaction_score(reaction_label: SessionReactionLabel) -> int:
+def _reaction_bonus(reaction_label: SessionReactionLabel) -> float:
     if reaction_label == SessionReactionLabel.INTERESTED:
-        return 3
+        return 0.12
 
     if reaction_label == SessionReactionLabel.MAYBE:
-        return 2
+        return 0.04
 
     if reaction_label == SessionReactionLabel.NO:
-        return 0
+        return -0.18
 
-    return -100
+    return -1.0

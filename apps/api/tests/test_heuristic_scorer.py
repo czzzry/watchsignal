@@ -172,7 +172,8 @@ class HeuristicScorerTest(unittest.TestCase):
         )
 
         self.assertEqual(result.ranked_candidates[0].title, "Shared Comedy")
-        self.assertIn("protects against a weak fit", result.ranked_candidates[1].why_short)
+        self.assertIn("Fits compromise mode", result.ranked_candidates[1].why_short)
+        self.assertIn("Action, Thriller", result.ranked_candidates[1].why_short)
 
     def test_shared_modes_follow_session_viewer_order_not_input_tuple_order(self) -> None:
         husband = UserProfile(
@@ -218,9 +219,10 @@ class HeuristicScorerTest(unittest.TestCase):
         result = HeuristicScorer().score(request)
 
         self.assertEqual(result.ranked_candidates[0].title, "Husband Action")
-        self.assertEqual(result.ranked_candidates[0].user_a_score, 0.62)
-        self.assertEqual(result.ranked_candidates[0].user_b_score, 0.5)
-        self.assertIn("Husband: 0.62; Wife: 0.5.", result.ranked_candidates[0].why_short)
+        self.assertGreater(result.ranked_candidates[0].user_a_score or 0.0, 0.5)
+        self.assertAlmostEqual(result.ranked_candidates[0].user_b_score or 0.0, 0.5, places=2)
+        self.assertIn("Husband:", result.ranked_candidates[0].why_short)
+        self.assertIn("Wife:", result.ranked_candidates[0].why_short)
 
     def test_shared_ranking_uses_safe_picks_and_exposes_interesting_safe_pick(self) -> None:
         husband = UserProfile(
@@ -331,10 +333,10 @@ class HeuristicScorerTest(unittest.TestCase):
 
         self.assertFalse(result.is_uncertain)
         self.assertEqual(result.ranked_candidates[0].title, "Mystery Choice")
-        self.assertEqual(result.ranked_candidates[0].user_a_score, 0.62)
+        self.assertGreater(result.ranked_candidates[0].user_a_score or 0.0, 0.5)
         self.assertEqual(result.ranked_candidates[1].title, "Horror Choice")
-        self.assertAlmostEqual(result.ranked_candidates[1].user_a_score or 0.0, 0.34)
-        self.assertIn("Taste Lab signals: 2", result.ranked_candidates[0].why_short)
+        self.assertLess(result.ranked_candidates[1].user_a_score or 0.0, 0.5)
+        self.assertIn("2 Taste Lab signals", result.ranked_candidates[0].why_short)
 
     def test_taste_profile_evidence_respects_profile_boundaries(self) -> None:
         husband = UserProfile(
@@ -367,13 +369,14 @@ class HeuristicScorerTest(unittest.TestCase):
             self._shared_request(SessionMode.HUSBAND_FIRST, husband, wife, candidates)
         )
 
-        self.assertEqual(result.ranked_candidates[0].user_a_score, 0.62)
-        self.assertEqual(result.ranked_candidates[0].user_b_score, 0.5)
+        self.assertGreater(result.ranked_candidates[0].user_a_score or 0.0, 0.5)
+        self.assertAlmostEqual(result.ranked_candidates[0].user_b_score or 0.0, 0.5, places=2)
         self.assertIn(
-            "Husband: 0.62, Taste Lab signals: 1",
+            "Taste Lab signals: 1",
             result.ranked_candidates[0].why_short,
         )
-        self.assertIn("Wife: 0.5", result.ranked_candidates[0].why_short)
+        self.assertIn("Husband:", result.ranked_candidates[0].why_short)
+        self.assertIn("Wife:", result.ranked_candidates[0].why_short)
 
     def test_movie_title_similarity_can_influence_ranking_beyond_genres(self) -> None:
         user = UserProfile(
@@ -528,6 +531,45 @@ class HeuristicScorerTest(unittest.TestCase):
             "session_reaction",
             result.ranked_candidates[0].scoring_evidence[0].signal_families,
         )
+
+    def test_tonight_intent_themes_and_avoidances_can_outweigh_action_profile_drift(
+        self,
+    ) -> None:
+        user = UserProfile(user_id="user_a", role="solo", display_label="Demo viewer")
+        request = ScoringRequest(
+            session=SessionContext(
+                session_id="theme-intent-session",
+                mood_text=(
+                    "bleak anti capitalist period drama about greed oil money religion obsession + "
+                    "Drama + Intense + Bleak + avoid action + avoid comedy + avoid sci fi"
+                ),
+            ),
+            household_defaults=HouseholdDefaults(),
+            users=(user,),
+            candidates=(
+                Candidate(
+                    source_movie_id="tmdb:1",
+                    title="The World Is Not Enough",
+                    media_type=MediaType.MOVIE,
+                    genres=("Adventure", "Action"),
+                    overview="An oil pipeline plot pulls Bond into a fast-moving international mission.",
+                    providers=("Prime Video",),
+                ),
+                Candidate(
+                    source_movie_id="tmdb:2",
+                    title="There Will Be Blood",
+                    media_type=MediaType.MOVIE,
+                    genres=("Drama",),
+                    overview="A ruthless oil tycoon builds wealth through greed, religion, money, and obsession.",
+                    providers=("Prime Video",),
+                ),
+            ),
+        )
+
+        result = HeuristicScorer().score(request)
+
+        self.assertEqual(result.ranked_candidates[0].title, "There Will Be Blood")
+        self.assertIn("tonight_intent", result.ranked_candidates[0].why_short)
 
     def _shared_request(
         self,

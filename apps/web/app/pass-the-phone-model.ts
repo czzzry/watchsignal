@@ -66,6 +66,7 @@ export type CandidateViewModel = DemoCandidate & {
 
 export type RankedCandidate = CandidateViewModel & {
   score: number;
+  profileScore: number;
 };
 
 export type TitleResolutionEntry =

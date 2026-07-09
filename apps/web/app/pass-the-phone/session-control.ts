@@ -33,11 +33,32 @@ export function scoringReactionSignals(
   }));
 }
 
+export function scoringReactionSignalsFromLocal({
+  sessionId,
+  participantId,
+  candidates,
+  reactions,
+}: {
+  sessionId: string;
+  participantId: string;
+  candidates: CandidateViewModel[];
+  reactions: ReactionState;
+}): ScoringSessionReactionPayload[] {
+  return candidates
+    .filter((candidate) => reactions[candidate.id] !== undefined)
+    .map((candidate) => ({
+      sourceMovieId: candidate.id,
+      reactionLabel: reactions[candidate.id]!,
+      title: candidate.title,
+    }));
+}
+
 export function sessionShortlistFromCandidates(candidates: CandidateViewModel[]) {
   return candidates.map((candidate, index) => ({
     sourceMovieId: candidate.id,
     title: candidate.title,
     candidateRank: index + 1,
+    profileScore: Math.max(0, Math.min(1, candidate.groupScore ?? 0)),
   }));
 }
 

@@ -36,7 +36,7 @@ class SafePickClassifierTest(unittest.TestCase):
         self.assertEqual(result.status, WatchabilityStatus.SAFE_PICK)
         self.assertIn("english_audio_or_verified_subtitles", result.reasons)
 
-    def test_amazon_rent_or_buy_without_prime_flatrate_needs_quick_check(self) -> None:
+    def test_amazon_rent_or_buy_without_prime_flatrate_is_safe_pick(self) -> None:
         result = self.classifier.classify(
             Candidate(
                 source_movie_id="tmdb:11",
@@ -58,8 +58,29 @@ class SafePickClassifierTest(unittest.TestCase):
             )
         )
 
-        self.assertEqual(result.status, WatchabilityStatus.NEEDS_QUICK_CHECK)
-        self.assertIn("amazon_rent_or_buy_only", result.reasons)
+        self.assertEqual(result.status, WatchabilityStatus.SAFE_PICK)
+        self.assertIn("english_audio_or_verified_subtitles", result.reasons)
+        self.assertNotIn("amazon_rent_or_buy_only", result.reasons)
+
+    def test_prime_video_buy_only_is_safe_pick(self) -> None:
+        result = self.classifier.classify(
+            Candidate(
+                source_movie_id="tmdb:12",
+                title="Prime Purchase Choice",
+                media_type=MediaType.MOVIE,
+                original_language="en",
+                provider_availability=(
+                    ProviderAvailability(
+                        provider_name="Prime Video",
+                        access_type=ProviderAccessType.BUY,
+                        region="DE",
+                    ),
+                ),
+            )
+        )
+
+        self.assertEqual(result.status, WatchabilityStatus.SAFE_PICK)
+        self.assertIn("english_audio_or_verified_subtitles", result.reasons)
 
     def test_foreign_language_without_verified_english_subtitles_needs_quick_check(self) -> None:
         result = self.classifier.classify(
@@ -192,7 +213,7 @@ class SafePickClassifierTest(unittest.TestCase):
         self.assertTrue(result.manual_correction_applied)
         self.assertIn("english_audio_or_verified_subtitles", result.reasons)
 
-    def test_manual_subtitle_correction_does_not_override_missing_prime_flatrate(self) -> None:
+    def test_manual_subtitle_correction_does_not_override_missing_amazon_de_access(self) -> None:
         result = self.classifier.classify(
             Candidate(
                 source_movie_id="tmdb:496243",
@@ -208,7 +229,7 @@ class SafePickClassifierTest(unittest.TestCase):
 
         self.assertEqual(result.status, WatchabilityStatus.NEEDS_QUICK_CHECK)
         self.assertTrue(result.manual_correction_applied)
-        self.assertIn("prime_germany_subscription_not_verified", result.reasons)
+        self.assertIn("amazon_de_access_not_verified", result.reasons)
 
     def test_manual_verified_unwatchable_correction_rejects_candidate(self) -> None:
         result = self.classifier.classify(

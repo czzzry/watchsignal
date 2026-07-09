@@ -80,26 +80,31 @@ class SharedSessionApiTest(unittest.TestCase):
                         "sourceMovieId": "tmdb:1",
                         "title": "First Pick",
                         "candidateRank": 1,
+                        "profileScore": 0.0,
                     },
                     {
                         "sourceMovieId": "tmdb:2",
                         "title": "Second Pick",
                         "candidateRank": 2,
+                        "profileScore": 0.0,
                     },
                     {
                         "sourceMovieId": "tmdb:5",
                         "title": "Fifth Pick",
                         "candidateRank": 5,
+                        "profileScore": 0.0,
                     },
                     {
                         "sourceMovieId": "tmdb:3",
                         "title": "Third Pick",
                         "candidateRank": 3,
+                        "profileScore": 0.0,
                     },
                     {
                         "sourceMovieId": "tmdb:4",
                         "title": "Fourth Pick",
                         "candidateRank": 4,
+                        "profileScore": 0.0,
                     },
                 ],
             )

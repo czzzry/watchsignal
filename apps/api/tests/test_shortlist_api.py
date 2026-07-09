@@ -6,9 +6,14 @@ from pathlib import Path
 
 from fastapi.routing import APIRoute
 
+from movie_night_mediator.adapters import (
+    TmdbCandidateSource,
+    TmdbCandidateSourceConfig,
+)
 from movie_night_mediator.api.main import (
     RecommendationShortlistRequestPayload,
     RecommendationShortlistItemPayload,
+    _live_candidate_fetch_limit,
     create_app,
 )
 from movie_night_mediator.app.backfill import ManualBackfillService
@@ -37,6 +42,26 @@ from movie_night_mediator.taste_lab import (
 
 
 class ShortlistApiTest(unittest.TestCase):
+    def test_live_candidate_fetch_limit_scales_with_exclusions_without_exploding(
+        self,
+    ) -> None:
+        self.assertEqual(
+            _live_candidate_fetch_limit(
+                shortlist_size=5,
+                excluded_count=0,
+                watched_count=0,
+            ),
+            10,
+        )
+        self.assertEqual(
+            _live_candidate_fetch_limit(
+                shortlist_size=5,
+                excluded_count=20,
+                watched_count=0,
+            ),
+            30,
+        )
+
     def test_offline_demo_shortlist_is_stable_and_web_shaped(self) -> None:
         shortlist = get_offline_demo_shortlist()
 
@@ -47,17 +72,15 @@ class ShortlistApiTest(unittest.TestCase):
                 "arrival",
                 "knives-out",
                 "the-grand-budapest-hotel",
+                "fixture:rent-only-thriller",
                 "edge-of-tomorrow",
-                "past-lives",
             ),
         )
         self.assertEqual(
             tuple(item.candidate_rank for item in shortlist),
             (1, 2, 3, 4, 5),
         )
-        self.assertTrue(
-            all(item.provider_names == ("Prime Video",) for item in shortlist)
-        )
+        self.assertEqual(shortlist[3].provider_names, ("Amazon Video",))
         self.assertEqual(shortlist[0].media_type, "movie")
         self.assertEqual(shortlist[0].year, 2016)
         self.assertEqual(shortlist[0].release_year, 2016)
@@ -90,8 +113,8 @@ class ShortlistApiTest(unittest.TestCase):
                 "arrival",
                 "knives-out",
                 "the-grand-budapest-hotel",
+                "fixture:rent-only-thriller",
                 "edge-of-tomorrow",
-                "past-lives",
             ],
         )
         self.assertEqual([item.candidateRank for item in payload], [1, 2, 3, 4, 5])
@@ -133,7 +156,7 @@ class ShortlistApiTest(unittest.TestCase):
         final_candidate = next(
             item
             for item in payload
-            if item.sourceMovieId == "past-lives"
+            if item.sourceMovieId == "fixture:rent-only-thriller"
         )
 
         self.assertEqual(final_candidate.safePickStatus, "Safe Pick")
@@ -144,6 +167,8 @@ class ShortlistApiTest(unittest.TestCase):
         self.assertEqual(final_candidate.originalLanguage, "en")
         self.assertEqual(final_candidate.spokenLanguages, ["en"])
         self.assertFalse(final_candidate.englishSubtitlesVerified)
+        self.assertEqual(final_candidate.providerNames, ["Amazon Video"])
+        self.assertEqual(final_candidate.availability, "Amazon Video DE rent")
         self.assertGreater(final_candidate.founderScore or 0, 0)
         self.assertGreater(final_candidate.wifeScore or 0, 0)
 
@@ -277,6 +302,33 @@ class ShortlistApiTest(unittest.TestCase):
                 snapshot.candidate_inputs[0].enrichment_provider,
                 "tmdb-metadata-fallback",
             )
+
+    def test_post_recommendation_shortlist_can_continue_past_first_tmdb_page(
+        self,
+    ) -> None:
+        post_shortlist = recommendation_shortlist_endpoint(
+            create_app(
+                candidate_source=TmdbCandidateSource(
+                    client=FakePagedTmdbClient(movie_ids=tuple(range(1, 26))),
+                    config=TmdbCandidateSourceConfig(api_key="test"),
+                ),
+            ),
+            method="POST",
+        )
+
+        payload = post_shortlist(
+            RecommendationShortlistRequestPayload(
+                sessionId="live-continuation-session",
+                source="live_tmdb",
+                excludedSourceMovieIds=[f"tmdb:{index}" for index in range(1, 21)],
+            )
+        )
+
+        self.assertEqual(len(payload), 5)
+        self.assertEqual(
+            [item.sourceMovieId for item in payload],
+            [f"tmdb:{index}" for index in range(21, 26)],
+        )
 
     def test_post_recommendation_shortlist_uses_availability_settings(self) -> None:
         candidate_source = RecordingSixCandidateSource()
@@ -428,6 +480,44 @@ class ShortlistApiTest(unittest.TestCase):
                     "Taste Lab signals: 1" in candidate.why_short
                     for candidate in snapshot.candidates
                 )
+            )
+
+    def test_post_recommendation_shortlist_caps_dense_taste_lab_genre_strength(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "dense-taste-lab-shortlist.sqlite3"
+            taste_lab_store = SQLiteTasteLabStore(database_path=database_path)
+            taste_lab_store.save_ratings(
+                ratings=tuple(
+                    taste_lab_rating(
+                        profile_id="profile-1",
+                        title=f"Drama Seed {index}",
+                        genres=("Drama",),
+                        label=TasteLabRatingLabel.LOVED,
+                    )
+                    for index in range(12)
+                )
+            )
+            post_shortlist = recommendation_shortlist_endpoint(
+                create_app(
+                    taste_lab_store=taste_lab_store,
+                    candidate_source=FakeCandidateSource(),
+                ),
+                method="POST",
+            )
+
+            payload = post_shortlist(
+                RecommendationShortlistRequestPayload(
+                    sessionId="dense-taste-lab-session",
+                    source="live_tmdb",
+                    participantIds=["profile-1"],
+                )
+            )
+
+            self.assertEqual(len(payload), 5)
+            self.assertTrue(
+                any("Taste Lab signals" in (item.whyShort or "") for item in payload)
             )
 
     def test_post_recommendation_shortlist_suppresses_exact_watched_memory(
@@ -717,6 +807,54 @@ class FakeCandidateSource:
             )
             for index in range(1, min(limit, 5) + 1)
         )
+
+
+class FakePagedTmdbClient:
+    def __init__(self, movie_ids: tuple[int, ...]) -> None:
+        self._movie_ids = movie_ids
+
+    def get_json(self, path: str, *, params=None):
+        if path == "/discover/movie":
+            assert params is not None
+            page = int(params.get("page", "1"))
+            start = (page - 1) * 20
+            end = start + 20
+            return {
+                "results": [
+                    {
+                        "id": movie_id,
+                        "title": f"Live Candidate {movie_id}",
+                        "release_date": "2024-01-01",
+                        "overview": f"Overview for {movie_id}.",
+                        "original_language": "en",
+                        "poster_path": f"/poster-{movie_id}.jpg",
+                    }
+                    for movie_id in self._movie_ids[start:end]
+                ],
+                "total_pages": max(1, (len(self._movie_ids) + 19) // 20),
+            }
+
+        if path.endswith("/watch/providers"):
+            return {
+                "results": {
+                    "DE": {
+                        "flatrate": [{"provider_name": "Amazon Prime Video"}],
+                    }
+                }
+            }
+
+        movie_id = int(path.removeprefix("/movie/").split("/", maxsplit=1)[0])
+        return {
+            "id": movie_id,
+            "title": f"Live Candidate {movie_id}",
+            "release_date": "2024-01-01",
+            "runtime": 100 + movie_id,
+            "genres": [{"name": "Drama"}, {"name": "Thriller"}],
+            "overview": f"Overview for {movie_id}.",
+            "original_language": "en",
+            "spoken_languages": [{"iso_639_1": "en"}],
+            "credits": {"cast": []},
+        }
 
 
 class RecordingCandidateSource(FakeCandidateSource):

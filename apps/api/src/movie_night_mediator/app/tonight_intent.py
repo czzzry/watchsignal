@@ -6,6 +6,7 @@ from typing import Protocol, cast
 
 from movie_night_mediator.mvp_plus_3 import (
     DirectedNudge,
+    DirectedNudgeResolution,
     DirectedNudgeStatus,
     PersonCandidateIntent,
 )
@@ -31,19 +32,31 @@ class TonightIntentInterpreter:
 
     def interpret(self, text: str) -> IntentInterpretation:
         if self.live_provider is not None:
-            return self.live_provider.interpret(text)
+            try:
+                return self.live_provider.interpret(text)
+            except ValueError:
+                pass
 
         return DeterministicTonightIntentProvider().interpret(text)
 
     def interpret_directed_nudge(self, text: str) -> DirectedNudge:
+        deterministic = DeterministicTonightIntentProvider().interpret_directed_nudge(text)
         if self.live_provider is not None and hasattr(
             self.live_provider,
             "interpret_directed_nudge",
         ):
             provider = cast(DirectedNudgeProvider, self.live_provider)
-            return provider.interpret_directed_nudge(text)
+            try:
+                live_nudge = provider.interpret_directed_nudge(text)
+                return _merge_directed_nudges(
+                    raw_text=text,
+                    deterministic=deterministic,
+                    live_nudge=live_nudge,
+                )
+            except ValueError:
+                pass
 
-        return DeterministicTonightIntentProvider().interpret_directed_nudge(text)
+        return deterministic
 
 
 @dataclass(frozen=True)
@@ -169,12 +182,39 @@ class DeterministicTonightIntentProvider:
                 confidence="medium",
             )
 
+        resolution = _directed_resolution(
+            normalized_text=normalized_text,
+            lowered_text=lowered_text,
+            filters=filters,
+            soft_signals=soft_signals,
+            excluded_signals=excluded_signals,
+            person_intents=person_intents,
+        )
+        if resolution == DirectedNudgeResolution.UNSUPPORTED:
+            return DirectedNudge(
+                raw_text=normalized_text,
+                status=DirectedNudgeStatus.CONFIRMATION_REQUIRED,
+                resolution=resolution,
+                user_facing_summary=(
+                    f'I cannot filter directly on "{normalized_text}" yet.'
+                ),
+                unsupported_reason=(
+                    "I can currently steer by person, genre, decade, subtitle rules, and a few concrete mood cues."
+                ),
+                filters={},
+                soft_signals=(),
+                excluded_signals=(),
+                person_intents=(),
+                confidence="low",
+            )
+
         if not filters and not soft_signals and not excluded_signals:
             soft_signals.append("open-ended")
 
         return DirectedNudge(
             raw_text=normalized_text,
             status=DirectedNudgeStatus.CONFIRMATION_REQUIRED,
+            resolution=resolution,
             user_facing_summary=_directed_summary(
                 filters=filters,
                 soft_signals=tuple(_dedupe(soft_signals)),
@@ -242,30 +282,35 @@ def _year_range(text: str) -> tuple[int, int] | None:
 
 
 def _person_request(text: str) -> str | None:
-    match = re.search(
-        r"\b(?:with|starring|by|from|a)\s+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){1,3})\b",
-        text,
-    )
-    if match is None:
-        return None
+    for pattern in (
+        r"\binclude\s+([A-Za-z]+(?:\s+[A-Za-z]+){1,3})\b",
+        r"\ba\s+([A-Za-z]+(?:\s+[A-Za-z]+){1,3})\s+(?:movie|film|show)\b",
+        r"\bwith\s+([A-Za-z]+(?:\s+[A-Za-z]+){1,3})\b",
+        r"\bstarring\s+([A-Za-z]+(?:\s+[A-Za-z]+){1,3})\b",
+        r"\bby\s+([A-Za-z]+(?:\s+[A-Za-z]+){1,3})\b",
+        r"\bfrom\s+([A-Za-z]+(?:\s+[A-Za-z]+){1,3})\b",
+    ):
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if match is not None:
+            candidate_name = _normalize_person_name(match.group(1))
+            if _looks_like_person_name(candidate_name):
+                return candidate_name
 
-    name = match.group(1).strip()
-    blocked_trailing_words = ("movie", "film", "show")
-    for word in blocked_trailing_words:
-        if name.casefold().endswith(f" {word}"):
-            name = name[: -len(word)].strip()
-
-    return name or None
+    return None
 
 
 def _person_intents(text: str) -> tuple[PersonCandidateIntent, ...]:
     names: list[str] = []
     for pattern in (
-        r"\b([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){1,3})\s+in it\b",
-        r"\bwith\s+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){1,3})\b",
-        r"\bstarring\s+([A-Z][A-Za-z]+(?:\s+[A-Z][A-Za-z]+){1,3})\b",
+        r"\binclude\s+([A-Za-z]+(?:\s+[A-Za-z]+){1,3})\b",
+        r"\b([A-Za-z]+(?:\s+[A-Za-z]+){1,3}?)\s+(?:should\s+be\s+)?in it\b",
+        r"\bwith\s+([A-Za-z]+(?:\s+[A-Za-z]+){1,3})\b",
+        r"\bstarring\s+([A-Za-z]+(?:\s+[A-Za-z]+){1,3})\b",
     ):
-        names.extend(match.group(1).strip() for match in re.finditer(pattern, text))
+        names.extend(
+            _normalize_person_name(match.group(1))
+            for match in re.finditer(pattern, text, flags=re.IGNORECASE)
+        )
 
     if request_name := _person_request(text):
         names.append(request_name)
@@ -274,6 +319,42 @@ def _person_intents(text: str) -> tuple[PersonCandidateIntent, ...]:
         PersonCandidateIntent(raw_name=name, normalized_name=name.casefold())
         for name in _dedupe(names)
     )
+
+
+def _normalize_person_name(value: str) -> str:
+    return " ".join(part[:1].upper() + part[1:].lower() for part in value.strip().split())
+
+
+def _looks_like_person_name(value: str) -> bool:
+    blocked_tokens = {
+        "very",
+        "green",
+        "blue",
+        "red",
+        "purple",
+        "pink",
+        "yellow",
+        "movie",
+        "film",
+        "show",
+        "scary",
+        "funny",
+        "sad",
+        "intense",
+        "weird",
+        "cozy",
+        "romantic",
+        "action",
+        "horror",
+        "comedy",
+        "beautiful",
+        "dark",
+        "light",
+        "open",
+        "ended",
+    }
+    parts = [part.casefold() for part in value.split()]
+    return bool(parts) and all(part not in blocked_tokens for part in parts)
 
 
 def _franchise_request(text: str) -> str | None:
@@ -326,6 +407,18 @@ def _genre_signals(text: str) -> tuple[str, ...]:
         genres.append("Horror")
     if any(word in text for word in ("action", "explosive", "fight")):
         genres.append("Action")
+    if any(
+        word in text
+        for word in (
+            "crime",
+            "criminal",
+            "mob",
+            "gangster",
+            "hitman",
+            "drug deal",
+        )
+    ):
+        genres.append("Crime")
     if any(word in text for word in ("romantic", "romance", "date night")):
         genres.append("Romance")
     if any(word in text for word in ("mystery", "detective", "whodunit")):
@@ -334,15 +427,22 @@ def _genre_signals(text: str) -> tuple[str, ...]:
         genres.append("Thriller")
     if any(word in text for word in ("sci-fi", "science fiction", "space")):
         genres.append("Sci-Fi")
+    if any(word in text for word in ("western", "neo-western", "cowboy", "frontier", "sheriff")):
+        genres.append("Western")
+    if any(word in text for word in ("drama", "dramatic")):
+        genres.append("Drama")
 
-    return tuple(_dedupe(genres))
+    excluded = _normalized_excluded_signals(_excluded_signals(text))
+    return tuple(
+        genre for genre in _dedupe(genres) if _normalize_signal(genre) not in excluded
+    )
 
 
 def _tone_signals(text: str) -> tuple[str, ...]:
     signals: list[str] = []
     if any(word in text for word in ("light", "easy", "cozy", "comfort")):
         signals.append("comforting")
-    if any(word in text for word in ("dark", "intense", "serious")):
+    if any(word in text for word in ("dark", "intense", "serious", "tense", "ruthless")):
         signals.append("intense")
     if "bleak" in text:
         signals.append("bleak")
@@ -350,6 +450,16 @@ def _tone_signals(text: str) -> tuple[str, ...]:
         signals.append("beautiful")
     if any(word in text for word in ("weird", "strange", "offbeat")):
         signals.append("offbeat")
+    if any(word in text for word in ("slow-burn", "slow burn", "patient")):
+        signals.append("slow-burn")
+    if any(word in text for word in ("desert", "borderland", "west texas")):
+        signals.append("desert")
+    if any(word in text for word in ("manhunt", "cat-and-mouse", "cat and mouse", "hunter", "chase")):
+        signals.append("manhunt")
+    if "sheriff" in text:
+        signals.append("lawman")
+    if any(word in text for word in ("killer", "hitman")):
+        signals.append("killer")
     if "tonight" in text:
         signals.append("tonight")
 
@@ -375,6 +485,23 @@ def _excluded_signals(text: str) -> tuple[str, ...]:
             exclusions.append(excluded_signal)
 
     return tuple(_dedupe(exclusions))
+
+
+def _normalize_signal(value: str) -> str:
+    lowered = value.strip().casefold()
+    aliases = {
+        "science fiction": "sci-fi",
+        "sci fi": "sci-fi",
+        "scifi": "sci-fi",
+        "romantic": "romance",
+        "comedies": "comedy",
+        "subtitled": "subtitles",
+    }
+    return aliases.get(lowered, lowered)
+
+
+def _normalized_excluded_signals(excluded_signals: tuple[str, ...]) -> set[str]:
+    return {_normalize_signal(signal) for signal in excluded_signals}
 
 
 def _needs_directed_clarification(
@@ -438,12 +565,154 @@ def _directed_summary(
         pieces.append("skipping movies you have already seen")
     if filters.get("exclude_subtitled"):
         pieces.append("without subtitles")
+    if soft_signals:
+        tone_signals = [
+            signal.replace("-", " ")
+            for signal in soft_signals
+            if signal
+            not in {
+                "person-request",
+                "tonight",
+            }
+            and signal.casefold()
+            not in {
+                str(genre).casefold()
+                for genre in filters.get("genres", [])
+            }
+        ]
+        if tone_signals:
+            pieces.append(f"with a {' / '.join(tone_signals[:4])} feel")
     if excluded_signals:
         pieces.append(f"not {', '.join(excluded_signals)}")
     if not pieces and soft_signals:
         pieces.append(f"with a {soft_signals[0]} feel")
 
     return f"Got it: I will keep an active nudge for something {' and '.join(pieces)}."
+
+
+def _directed_resolution(
+    *,
+    normalized_text: str,
+    lowered_text: str,
+    filters: dict[str, object],
+    soft_signals: list[str],
+    excluded_signals: list[str],
+    person_intents: tuple[PersonCandidateIntent, ...],
+) -> DirectedNudgeResolution:
+    if filters or excluded_signals or person_intents:
+        return DirectedNudgeResolution.EXACT
+
+    if soft_signals and any(
+        signal in {"comforting", "intense", "bleak", "beautiful", "offbeat"}
+        for signal in soft_signals
+    ):
+        return DirectedNudgeResolution.GUESS
+
+    if _contains_unsupported_aesthetic_prompt(normalized_text, lowered_text):
+        return DirectedNudgeResolution.UNSUPPORTED
+
+    return DirectedNudgeResolution.UNSUPPORTED
+
+
+def _contains_unsupported_aesthetic_prompt(
+    normalized_text: str,
+    lowered_text: str,
+) -> bool:
+    unsupported_cues = (
+        "green",
+        "blue",
+        "red",
+        "purple",
+        "pink",
+        "yellow",
+        "vibe",
+        "aesthetic",
+        "energy",
+        "feel like a painting",
+        "look like a painting",
+    )
+    return any(cue in lowered_text for cue in unsupported_cues) or bool(normalized_text)
+
+
+def _merge_directed_nudges(
+    *,
+    raw_text: str,
+    deterministic: DirectedNudge,
+    live_nudge: DirectedNudge,
+) -> DirectedNudge:
+    if live_nudge.status == DirectedNudgeStatus.CLARIFICATION_REQUIRED:
+        return live_nudge
+    if live_nudge.resolution == DirectedNudgeResolution.UNSUPPORTED:
+        return deterministic
+
+    merged_filters: dict[str, object] = dict(live_nudge.filters)
+    for key, value in deterministic.filters.items():
+        if key not in merged_filters:
+            merged_filters[key] = value
+            continue
+        existing = merged_filters[key]
+        if isinstance(existing, list) and isinstance(value, list):
+            merged_filters[key] = list(
+                dict.fromkeys(
+                    [
+                        *(item for item in existing if isinstance(item, str)),
+                        *(item for item in value if isinstance(item, str)),
+                    ]
+                )
+            )
+
+    merged_soft_signals = _dedupe(
+        [*live_nudge.soft_signals, *deterministic.soft_signals]
+    )
+    merged_excluded_signals = _dedupe(
+        [*live_nudge.excluded_signals, *deterministic.excluded_signals]
+    )
+    normalized_exclusions = _normalized_excluded_signals(merged_excluded_signals)
+    if genres := merged_filters.get("genres"):
+        merged_filters["genres"] = [
+            genre
+            for genre in genres
+            if isinstance(genre, str)
+            and _normalize_signal(genre) not in normalized_exclusions
+        ]
+        if not merged_filters["genres"]:
+            merged_filters.pop("genres")
+    merged_soft_signals = _dedupe(
+        [
+            signal
+            for signal in merged_soft_signals
+            if _normalize_signal(signal) not in normalized_exclusions
+        ]
+    )
+    merged_person_intents = tuple(
+        {
+            intent.normalized_name: intent
+            for intent in (
+                *live_nudge.person_intents,
+                *deterministic.person_intents,
+            )
+        }.values()
+    )
+    resolution = live_nudge.resolution
+    if deterministic.resolution == DirectedNudgeResolution.EXACT:
+        resolution = DirectedNudgeResolution.EXACT
+
+    return DirectedNudge(
+        raw_text=raw_text,
+        status=DirectedNudgeStatus.CONFIRMATION_REQUIRED,
+        resolution=resolution,
+        user_facing_summary=_directed_summary(
+            filters=merged_filters,
+            soft_signals=merged_soft_signals,
+            excluded_signals=merged_excluded_signals,
+            person_intents=merged_person_intents,
+        ),
+        filters=merged_filters,
+        soft_signals=merged_soft_signals,
+        excluded_signals=merged_excluded_signals,
+        person_intents=merged_person_intents,
+        confidence=live_nudge.confidence or deterministic.confidence,
+    )
 
 
 def _dedupe(values: list[str]) -> tuple[str, ...]:

@@ -26,6 +26,7 @@ export type SessionShortlistItemPayload = {
   sourceMovieId: string;
   title: string;
   candidateRank: number;
+  profileScore?: number;
 };
 
 export type ShortlistCandidatePayload = SessionShortlistItemPayload & {
@@ -35,6 +36,7 @@ export type ShortlistCandidatePayload = SessionShortlistItemPayload & {
   runtimeMin?: number | null;
   genres?: string[];
   posterUrl?: string | null;
+  overview?: string | null;
   safePickStatus?: string | null;
   availability?: string | null;
   providerNames?: string[];
@@ -375,8 +377,10 @@ export type TasteMemoryEventPayload = {
 export type TonightIntentInterpretationPayload = {
   rawText: string;
   status: "confirmation_required" | "clarification_required";
+  resolution?: "exact" | "guess" | "unsupported";
   confirmationText?: string | null;
   clarificationQuestion?: string | null;
+  unsupportedReason?: string | null;
   filters: Record<string, unknown>;
   softSignals: string[];
   confidence: string;
@@ -395,6 +399,7 @@ export type LoadShortlistRequest = {
   householdId: string;
   activeMode: ApiSessionMode;
   participantIds: string[];
+  source?: "demo" | "live_tmdb";
   shortlistSize: number;
   availabilityRegion?: string;
   serviceConstraint?: string | null;
@@ -514,6 +519,27 @@ export async function interpretTonightIntent(
   return postJson("/api/tonight-intent/interpret", { text });
 }
 
+export async function interpretDirectedNudge(
+  text: string,
+): Promise<TonightIntentInterpretationPayload> {
+  const response = await fetch("/api/tonight-intent/interpret", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ text }),
+    signal: AbortSignal.timeout(clientRequestTimeoutMs()),
+  });
+
+  const payload = (await response.json().catch(() => null)) as unknown;
+
+  if (!response.ok) {
+    throw new Error(parseApiError(payload, response.status));
+  }
+
+  return payload as TonightIntentInterpretationPayload;
+}
+
 export async function submitSessionOutcome(
   sessionId: string,
   request: SaveSessionOutcomeRequest,
@@ -600,6 +626,7 @@ async function postJson<TResponse>(
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(clientRequestTimeoutMs()),
   });
 
   const payload = (await response.json().catch(() => null)) as unknown;
@@ -621,6 +648,7 @@ async function putJson<TResponse>(
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(clientRequestTimeoutMs()),
   });
 
   const payload = (await response.json().catch(() => null)) as unknown;
@@ -635,6 +663,7 @@ async function putJson<TResponse>(
 async function getJson<TResponse>(url: string): Promise<TResponse> {
   const response = await fetch(url, {
     method: "GET",
+    signal: AbortSignal.timeout(clientRequestTimeoutMs()),
   });
 
   const payload = (await response.json().catch(() => null)) as unknown;
@@ -649,6 +678,7 @@ async function getJson<TResponse>(url: string): Promise<TResponse> {
 async function deleteJson(url: string): Promise<void> {
   const response = await fetch(url, {
     method: "DELETE",
+    signal: AbortSignal.timeout(clientRequestTimeoutMs()),
   });
 
   if (response.ok) {
@@ -670,6 +700,10 @@ function parseApiError(payload: unknown, status: number): string {
   }
 
   return `Session API returned HTTP ${status}.`;
+}
+
+function clientRequestTimeoutMs(): number {
+  return 45_000;
 }
 
 function parseShortlistPayload(payload: unknown): ShortlistCandidatePayload[] {
@@ -726,6 +760,8 @@ function parseShortlistCandidate(
     posterUrl:
       stringValue(candidate.posterUrl) ??
       stringValue(candidate.poster_url),
+    overview:
+      stringValue(candidate.overview),
     safePickStatus:
       stringValue(candidate.safePickStatus) ??
       stringValue(candidate.safe_pick_status),

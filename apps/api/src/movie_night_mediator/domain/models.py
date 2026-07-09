@@ -567,6 +567,7 @@ class SessionShortlistItem:
     source_movie_id: str
     title: str
     candidate_rank: int
+    profile_score: float = 0.0
 
     def __post_init__(self) -> None:
         normalized_source_movie_id = self.source_movie_id.strip()
@@ -580,6 +581,9 @@ class SessionShortlistItem:
 
         if self.candidate_rank < 1:
             raise ValueError("Shortlist item ranks must be positive.")
+
+        if not 0.0 <= self.profile_score <= 1.0:
+            raise ValueError("Shortlist profile scores must be between 0 and 1.")
 
         object.__setattr__(self, "source_movie_id", normalized_source_movie_id)
         object.__setattr__(self, "title", normalized_title)
@@ -709,6 +713,7 @@ class Candidate:
     poster_url: str | None = None
     genres: tuple[str, ...] = ()
     overview: str = ""
+    top_cast: tuple[str, ...] = ()
     providers: tuple[str, ...] = ()
     provider_availability: tuple[ProviderAvailability, ...] = ()
     original_language: str = "en"
@@ -728,6 +733,11 @@ class Candidate:
             self,
             "enrichment_feature_scores",
             MappingProxyType(dict(self.enrichment_feature_scores)),
+        )
+        object.__setattr__(
+            self,
+            "top_cast",
+            tuple(name.strip() for name in self.top_cast if name.strip()),
         )
         object.__setattr__(
             self,

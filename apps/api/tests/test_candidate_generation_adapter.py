@@ -143,8 +143,8 @@ class CandidateGenerationAdapterTest(unittest.TestCase):
                 "arrival",
                 "knives-out",
                 "the-grand-budapest-hotel",
+                "fixture:rent-only-thriller",
                 "edge-of-tomorrow",
-                "past-lives",
             ),
         )
         self.assertEqual(
@@ -217,7 +217,7 @@ class CandidateGenerationAdapterTest(unittest.TestCase):
 
         self.assertEqual(
             tuple(candidate.source_movie_id for candidate in shortlist),
-            ("fixture:good-fit",),
+            ("fixture:good-fit", "fixture:rent-only"),
         )
 
     def test_fixture_shortlist_can_save_snapshot_for_debug_history(self) -> None:

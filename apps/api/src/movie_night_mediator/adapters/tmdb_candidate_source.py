@@ -23,7 +23,40 @@ TMDB_API_KEY_ENV_VAR = "TMDB_API_KEY"
 TMDB_READ_ACCESS_TOKEN_ENV_VAR = "TMDB_READ_ACCESS_TOKEN"
 TMDB_BASE_URL = "https://api.themoviedb.org/3"
 TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w342"
-TMDB_PRIME_VIDEO_PROVIDER_ID = "9"
+TMDB_PRIME_VIDEO_PROVIDER_IDS = ("9", "10")
+TMDB_DISCOVER_PAGE_SIZE = 20
+TMDB_GENRE_IDS = {
+    "action": "28",
+    "adventure": "12",
+    "animation": "16",
+    "comedy": "35",
+    "crime": "80",
+    "documentary": "99",
+    "drama": "18",
+    "family": "10751",
+    "fantasy": "14",
+    "history": "36",
+    "horror": "27",
+    "music": "10402",
+    "mystery": "9648",
+    "romance": "10749",
+    "sci-fi": "878",
+    "science fiction": "878",
+    "thriller": "53",
+    "war": "10752",
+    "western": "37",
+}
+TMDB_THEME_QUERY_RULES: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
+    (("oil", "petrol", "oil money", "oil field", "oilfield"), ("oil", "petrol", "oil industry")),
+    (("greed", "greedy"), ("greed",)),
+    (("capitalism", "anti-capitalist", "anti capitalist"), ("capitalism",)),
+    (("money", "wealth", "tycoon"), ("money", "american dream")),
+    (("religion", "church", "pastor", "preacher", "baptism"), ("religion", "church", "pastor", "baptism")),
+    (("desert", "west texas", "borderland"), ("desert",)),
+    (("manhunt", "hunter", "chase"), ("manhunt",)),
+    (("killer", "hitman"), ("killer",)),
+    (("sheriff", "lawman"), ("sheriff",)),
+)
 
 
 class TmdbCandidateSourceError(RuntimeError):
@@ -50,7 +83,7 @@ class TmdbCandidateSourceConfig:
     read_access_token: str | None = None
     base_url: str = TMDB_BASE_URL
     image_base_url: str = TMDB_IMAGE_BASE_URL
-    default_provider_id: str = TMDB_PRIME_VIDEO_PROVIDER_ID
+    default_provider_ids: tuple[str, ...] = TMDB_PRIME_VIDEO_PROVIDER_IDS
     default_provider_name: str = "Prime Video"
     default_region: str = "DE"
     default_language: str = "en-US"
@@ -130,50 +163,132 @@ class TmdbCandidateSource:
                 language=language,
             )
 
-        provider_id = self._provider_id_for_session(session, household_defaults)
+        provider_ids = self._provider_ids_for_session(session, household_defaults)
         discover_params = {
             "include_adult": "false",
             "include_video": "false",
             "language": language,
-            "page": "1",
             "sort_by": "popularity.desc",
             "watch_region": region,
-            "with_watch_monetization_types": ProviderAccessType.FLATRATE.value,
+            "with_watch_monetization_types": self._watch_monetization_types_for_session(
+                session,
+                household_defaults,
+            ),
         }
-        if provider_id:
-            discover_params["with_watch_providers"] = provider_id
+        if provider_ids:
+            discover_params["with_watch_providers"] = "|".join(provider_ids)
+        if genre_id := _genre_id_for_hint(session.genre_hint):
+            discover_params["with_genres"] = genre_id
 
-        discover_payload = self._client.get_json(
-            "/discover/movie",
-            params=discover_params,
-        )
         candidates: list[Candidate] = []
-        for result in _objects(discover_payload.get("results")):
-            tmdb_id = _int_value(result.get("id"))
-            if tmdb_id is None:
-                continue
-
-            details_payload = self._client.get_json(
-                f"/movie/{tmdb_id}",
-                params={"language": language},
-            )
-            providers_payload = self._client.get_json(
-                f"/movie/{tmdb_id}/watch/providers",
-            )
-            candidate = self._candidate_from_payloads(
-                result,
-                details_payload,
-                providers_payload,
-                region=region,
+        seen_tmdb_ids: set[int] = set()
+        keyword_params_list = self._keyword_discover_params(
+            session=session,
+            base_discover_params=discover_params,
+            region=region,
+            language=language,
+        )
+        for params in (*keyword_params_list, discover_params):
+            self._append_discover_candidates(
+                candidates,
+                seen_tmdb_ids,
                 session=session,
                 household_defaults=household_defaults,
+                region=region,
+                language=language,
+                discover_params=params,
+                limit=limit,
             )
-            if candidate is not None:
-                candidates.append(candidate)
             if len(candidates) >= limit:
                 break
 
         return tuple(candidates)
+
+    def _append_discover_candidates(
+        self,
+        candidates: list[Candidate],
+        seen_tmdb_ids: set[int],
+        *,
+        session: SessionContext,
+        household_defaults: HouseholdDefaults,
+        region: str,
+        language: str,
+        discover_params: Mapping[str, str],
+        limit: int,
+    ) -> None:
+        page = 1
+        while len(candidates) < limit:
+            discover_payload = self._client.get_json(
+                "/discover/movie",
+                params={
+                    **discover_params,
+                    "page": str(page),
+                },
+            )
+            results = _objects(discover_payload.get("results"))
+            if not results:
+                break
+
+            for result in results:
+                tmdb_id = _int_value(result.get("id"))
+                if tmdb_id is None or tmdb_id in seen_tmdb_ids:
+                    continue
+                seen_tmdb_ids.add(tmdb_id)
+
+                details_payload = self._client.get_json(
+                    f"/movie/{tmdb_id}",
+                    params={
+                        "language": language,
+                        "append_to_response": "credits",
+                    },
+                )
+                providers_payload = self._client.get_json(
+                    f"/movie/{tmdb_id}/watch/providers",
+                )
+                candidate = self._candidate_from_payloads(
+                    result,
+                    details_payload,
+                    providers_payload,
+                    region=region,
+                    session=session,
+                    household_defaults=household_defaults,
+                )
+                if candidate is not None:
+                    candidates.append(candidate)
+                if len(candidates) >= limit:
+                    break
+
+            total_pages = _int_value(discover_payload.get("total_pages")) or 1
+            if page >= total_pages or len(results) < TMDB_DISCOVER_PAGE_SIZE:
+                break
+            page += 1
+
+    def _keyword_discover_params(
+        self,
+        *,
+        session: SessionContext,
+        base_discover_params: Mapping[str, str],
+        region: str,
+        language: str,
+    ) -> tuple[dict[str, str], ...]:
+        keyword_ids = [
+            keyword_id
+            for query in _theme_keyword_queries(session.mood_text)
+            if (keyword_id := self._keyword_id_for_query(query, region=region, language=language))
+            is not None
+        ]
+        return tuple(
+            {
+                key: value
+                for key, value in {
+                    **base_discover_params,
+                    "with_keywords": str(keyword_id),
+                    "with_genres": None,
+                }.items()
+                if value is not None
+            }
+            for keyword_id in dict.fromkeys(keyword_ids)
+        )
 
     def _fetch_person_constrained_candidates(
         self,
@@ -262,17 +377,59 @@ class TmdbCandidateSource:
 
         return None
 
-    def _provider_id_for_session(
+    def _keyword_id_for_query(
+        self,
+        query: str,
+        *,
+        region: str,
+        language: str,
+    ) -> int | None:
+        search_payload = self._client.get_json(
+            "/search/keyword",
+            params={
+                "query": query,
+                "page": "1",
+            },
+        )
+        exact_match_id: int | None = None
+        for result in _objects(search_payload.get("results")):
+            keyword_id = _int_value(result.get("id"))
+            keyword_name = _string_value(result.get("name"))
+            if keyword_id is None or keyword_name is None:
+                continue
+            if keyword_name.casefold() == query.casefold():
+                return keyword_id
+            if exact_match_id is None:
+                exact_match_id = keyword_id
+        return exact_match_id
+
+    def _provider_ids_for_session(
+        self,
+        session: SessionContext,
+        household_defaults: HouseholdDefaults,
+    ) -> tuple[str, ...]:
+        service = session.service_constraint or household_defaults.default_service
+        if not service:
+            return ()
+        if "prime" in service.casefold():
+            return self._config.default_provider_ids
+        return ()
+
+    def _watch_monetization_types_for_session(
         self,
         session: SessionContext,
         household_defaults: HouseholdDefaults,
     ) -> str:
-        service = session.service_constraint or household_defaults.default_service
-        if not service:
-            return ""
+        service = session.service_constraint or household_defaults.default_service or ""
         if "prime" in service.casefold():
-            return self._config.default_provider_id
-        return ""
+            return "|".join(
+                (
+                    ProviderAccessType.FLATRATE.value,
+                    ProviderAccessType.RENT.value,
+                    ProviderAccessType.BUY.value,
+                )
+            )
+        return ProviderAccessType.FLATRATE.value
 
     def _candidate_from_payloads(
         self,
@@ -309,6 +466,7 @@ class TmdbCandidateSource:
             overview=_string_value(details.get("overview"))
             or _string_value(result.get("overview"))
             or "",
+            top_cast=_top_cast_names(details.get("credits")),
             providers=tuple(
                 dict.fromkeys(
                     availability.provider_name for availability in provider_availability
@@ -367,6 +525,23 @@ def _provider_availability_for_region(
     return tuple(availability)
 
 
+def _genre_id_for_hint(genre_hint: str | None) -> str | None:
+    if not genre_hint:
+        return None
+    return TMDB_GENRE_IDS.get(genre_hint.strip().casefold())
+
+
+def _theme_keyword_queries(mood_text: str | None) -> tuple[str, ...]:
+    if not mood_text:
+        return ()
+    lowered = mood_text.casefold()
+    queries: list[str] = []
+    for cues, keyword_queries in TMDB_THEME_QUERY_RULES:
+        if any(cue in lowered for cue in cues):
+            queries.extend(keyword_queries)
+    return tuple(dict.fromkeys(queries))
+
+
 def _genre_names(details: Mapping[str, object]) -> tuple[str, ...]:
     return tuple(
         name
@@ -388,6 +563,22 @@ def _person_movie_credits(
         results.append(credit)
 
     return tuple(results)
+
+
+def _top_cast_names(credits: object) -> tuple[str, ...]:
+    if not isinstance(credits, Mapping):
+        return ()
+
+    names: list[str] = []
+    for credit in _objects(credits.get("cast")):
+        name = _string_value(credit.get("name"))
+        if name is None:
+            continue
+        names.append(name)
+        if len(names) >= 3:
+            break
+
+    return tuple(names)
 
 
 def _spoken_language_codes(details: Mapping[str, object]) -> tuple[str, ...]:

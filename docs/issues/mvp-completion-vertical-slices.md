@@ -1,44 +1,134 @@
-# MVP Completion Vertical Slices
+# MVP+6 Vertical Slices
 
-This issue set breaks [docs/prd-mvp-completion.md](../prd-mvp-completion.md) into bounded vertical slices.
-It is prepared as local issue material and is not yet published to GitHub Issues.
-Publishing these as GitHub issues is an external service action and should happen only after explicit approval.
+This issue set refreshes [docs/prd-mvp-completion.md](../prd-mvp-completion.md) against the later accepted validation trail in MVP+3, MVP+4, and MVP+5.
+It is the working issue plan for closing stale docs, encoding the current Amazon DE availability decision, and keeping future agent work low-touch and independently executable.
+It is prepared as local issue material first so the published GitHub issues match current product decisions instead of older intermediate assumptions.
 
-## Slice 1 - Align Demo Fixture Contract
+## Published GitHub Tracker
+
+- #105 - MVP+6 Slice 1 - Reconcile MVP source of truth and retire stale gate assumptions
+- #106 - MVP+6 Slice 2 - Update Amazon DE watchability policy with TDD
+- #107 - MVP+6 Slice 3 - Align demo and live candidate contracts to the updated availability rule
+- #108 - MVP+6 Slice 4 - Record current validation coverage and tighten the remaining local UX gate
+- #109 - MVP+6 Slice 5 - Decide the remaining live-usable MVP gate after the Amazon DE rule
+- #110 - MVP+6 Slice 6 - Publish and maintain the refreshed GitHub queue
+
+## Current Phase
+
+MVP+6: [██████] 6/6 issues closed.
+
+The repo already has accepted validation for major product-flow proof in:
+
+- `docs/validation/mvp-plus-3-acceptance-gate-2026-07-07.md`
+- `docs/validation/mvp-plus-4-acceptance-gate-2026-07-07.md`
+- `docs/validation/mvp-plus-5-acceptance-gate-2026-07-07.md`
+
+This issue set should not pretend those gates did not happen.
+Instead, it should reconcile stale planning docs, tighten current contracts, and record the remaining MVP-readiness questions honestly.
+
+## Founder Decision Now In Scope
+
+Amazon DE availability should count as valid whether the title is subscription, rental, or purchase.
+Do not downgrade Amazon DE rental or purchase titles to `Needs Quick Check` solely because they are paid rather than included in subscription.
+Continue to enforce the other active rules such as language compatibility, watched-state filtering, and any future manual watchability correction logic.
+
+## Agent Execution Posture
+
+Write and publish these issues so an agent can work as independently as possible.
+Each AFK issue should prefer local code and doc changes, local validation commands, and no network dependency unless the issue is explicitly about GitHub publication or a founder-facing decision note.
+If a later implementation issue truly requires external permissions, it should say so once, early, and in one batched request rather than through repeated prompts.
+
+## Treehouse Posture
+
+Treehouse fanout is appropriate for thin AFK slices with clear blockers and stable contracts.
+Treehouse is not the default for HITL decision slices or any slice that would amplify noisy permission prompts.
+The best Treehouse candidates in this set are Slices 1, 2, 3, and 4 after blockers are satisfied.
+
+## Slice 1 - Reconcile MVP Source Of Truth And Retire Stale Gate Assumptions
 
 - Type: AFK
-- Suggested labels: `mvp`, `ready-for-agent`, `tests`
+- Suggested labels: `mvp`, `ready-for-agent`, `docs`
 - Blocked by: None
-- Primary goal: restore a clean backend validation gate after the accepted demo candidate set changed.
+- Treehouse candidate: yes
+- Primary goal: make the repo's local planning docs reflect the accepted validation trail and current product posture.
 
 ### What to build
 
-Update the fixture-facing backend tests and docs so they assert the accepted candidate contract from checkpoint `13835d0`.
-The slice should preserve the candidate order, scoring behavior, Safe Pick behavior, and web-facing payload shape unless a failing test proves a real product mismatch.
+Update the MVP-completion planning docs so they stop describing already-accepted validation work as future work.
+Record that MVP+3 and MVP+4 already proved real phone-sized dogfood paths, and that MVP+5 passed deterministic checks with the remaining local mobile block recorded as an environment limitation rather than a hidden product failure.
+Use this slice to make later implementation issues trustworthy.
 
 ### Owned areas
 
-- `apps/api/tests/test_candidate_generation_adapter.py`
-- `apps/api/tests/test_demo_couple_fixture.py`
-- `apps/api/tests/test_shortlist_api.py`
-- `docs/architecture/api-contracts.md`
-- `docs/architecture/demo-couple-evaluation-fixture.md`
+- `docs/issues/mvp-completion-vertical-slices.md`
+- `docs/prd-mvp-completion.md`
+- `docs/validation/live-usable-mvp-gate-2026-06-30.md`
+- Other small planning or validation-note docs if needed to remove direct contradictions
 
 ### Off-limits areas
 
-- Accepted visual styling.
-- Candidate ranking formula changes.
-- Live TMDb calls.
-- Live poster providers.
-- Live critic-score providers.
-- Private household data.
+- Backend recommendation logic
+- UI redesign
+- Provider integration changes
+- GitHub issue publication
 
 ### Acceptance criteria
 
-- [ ] Backend tests expect the accepted demo source IDs.
-- [ ] Backend tests still prove rejected, unsafe, and already-watched fixture candidates do not leak into the main shortlist.
-- [ ] Backend tests still prove Needs Quick Check items do not become the main shared recommendation by default.
-- [ ] API contract docs no longer advertise the older synthetic shortlist as the current accepted demo payload.
+- [ ] Local planning docs no longer describe already-accepted MVP+3 or MVP+4 product-flow proof as undone work.
+- [ ] MVP+5 local browser blocking is described as an environment limitation where that distinction matters.
+- [ ] The refreshed docs make clear which work is historical proof, which work is current cleanup, and which work is still an open decision.
+- [ ] `pnpm check` still passes if code-facing docs or tests are touched.
+
+### Validation commands
+
+```sh
+pnpm check
+```
+
+### Stop condition
+
+Stop when a new reader can understand current state without being misled by older MVP-completion language.
+
+### Risk notes
+
+Do not rewrite accepted history.
+Reconcile it.
+
+## Slice 2 - Update Amazon DE Watchability Policy With TDD
+
+- Type: AFK
+- Suggested labels: `mvp`, `ready-for-agent`, `tdd`, `provider`
+- Blocked by: Slice 1 recommended, but not strictly required
+- Treehouse candidate: yes
+- Primary goal: encode the founder decision that Amazon DE access counts whether the title is flatrate, rent, or buy.
+
+### What to build
+
+Write failing tests first for the new Amazon DE rule.
+Then update the watchability classifier, shortlist behavior, fixtures, and decision docs so Amazon DE titles remain eligible when they satisfy the other active filters.
+Language compatibility, watched-state filtering, and explicit manual watchability decisions should still behave normally.
+
+### Owned areas
+
+- `apps/api/src/movie_night_mediator/app/safe_pick.py`
+- `apps/api/src/movie_night_mediator/adapters/tmdb_candidate_source.py`
+- Related tests in `apps/api/tests`
+- `docs/architecture/safe-pick-decision-table.md`
+- Any nearby contract or validation docs that explicitly mention the old subscription-only rule
+
+### Off-limits areas
+
+- Paid vendor additions
+- New live provider integrations beyond current TMDb usage
+- Broad scoring changes unrelated to watchability classification
+- UI redesign
+
+### Acceptance criteria
+
+- [ ] Tests are added first for Amazon DE flatrate, rent, and buy eligibility.
+- [ ] Amazon DE rent-only or buy-only access no longer becomes `Needs Quick Check` solely due to being paid access.
+- [ ] English audio, subtitle, watched-state, and manual correction rules still behave as intended.
+- [ ] The docs no longer describe Amazon DE paid access as subscription-invalid by default.
 - [ ] `pnpm check` passes.
 
 ### Validation commands
@@ -49,117 +139,51 @@ pnpm check
 
 ### Stop condition
 
-Stop when the backend fixture contract agrees with the accepted demo shortlist and the API validation gate is clean.
+Stop when Amazon DE access is treated the way the founder requested and the rule is locked in by tests.
 
 ### Risk notes
 
-Do not make the tests pass by changing ranking logic unless the accepted demo contract itself is wrong.
-This slice is meant to align tests and docs to the accepted behavior, not change the behavior.
+Do not silently broaden the decision beyond Amazon DE wording unless the tests and docs make that scope explicit.
 
-## Slice 2 - Preserve Accepted UI Refactor And Run Local UX Gate
+## Slice 3 - Align Demo And Live Candidate Contracts To The Updated Availability Rule
 
-- Type: HITL for final browser proof, AFK for code and docs verification
-- Suggested labels: `mvp`, `ui`, `validation`
-- Blocked by: Slice 1 recommended, but not strictly required
-- Primary goal: prove that the accepted cinematic UI refactor is ready to merge without behavior drift.
-
-### What to build
-
-Keep the current component, helper, model, and CSS sectioning refactor intact.
-Run the non-browser checks in the agent environment and run the phone-sized browser smoke in a normal local browser environment.
-Capture what was clicked, what passed, and any visible rough edges.
-
-### Owned areas
-
-- `apps/web/app/pass-the-phone-wizard.tsx`
-- `apps/web/app/pass-the-phone-components.tsx`
-- `apps/web/app/pass-the-phone-helpers.ts`
-- `apps/web/app/pass-the-phone-model.ts`
-- `apps/web/app/globals.css`
-- `docs/setup/mobile-pass-the-phone-ux-smoke.md`
-
-### Off-limits areas
-
-- Visual redesign away from checkpoint `13835d0`.
-- Rollback to checkpoint `ab5568f`.
-- Backend scoring changes.
-- Live provider integration.
-
-### Acceptance criteria
-
-- [ ] TypeScript check passes for the web app.
-- [ ] Web production build passes.
-- [ ] API compile check passes.
-- [ ] Phone-sized browser smoke completes on a normal local browser.
-- [ ] The click-through covers Launch, Setup, Reaction, Handoff, and Results.
-- [ ] The summary records whether the flow used demo mode or backend-backed mode.
-
-### Validation commands
-
-```sh
-pnpm build:web
-```
-
-```sh
-pnpm compile:api
-```
-
-```sh
-pnpm smoke:ux:mobile
-```
-
-### Stop condition
-
-Stop when the accepted UI has a clean build and a recorded phone-sized click-through result.
-
-### Risk notes
-
-Browser startup failures inside the agent sandbox should be recorded as environment failures.
-They should not be treated as product failures unless the same flow fails in a normal local browser.
-
-## Slice 3 - Make Demo Data Provenance Honest
-
-- Type: AFK, with HITL only if visible main-flow copy changes
-- Suggested labels: `mvp`, `trust`, `fixtures`
-- Blocked by: Slice 1
-- Primary goal: prevent demo fixture values from being mistaken for live sourced data.
+- Type: AFK
+- Suggested labels: `mvp`, `ready-for-agent`, `tests`, `fixtures`
+- Blocked by: Slice 2
+- Treehouse candidate: yes
+- Primary goal: make fixture tests, live-source tests, and shortlist docs agree on the current candidate contract after the Amazon DE rule change.
 
 ### What to build
 
-Keep local poster assets and fixture scores available for the accepted demo.
-Add or tighten code-facing and doc-facing provenance so future agents know which fields are local demo assets, hard-coded fixture values, API payload values, or unavailable.
-Only change visible UI copy if the current UI clearly implies live sourcing.
+Update the fixture-facing and live-source tests so they assert the accepted shortlist shape and provider semantics under the new availability rule.
+Keep the candidate order, scoring behavior, and web-facing payload shape stable unless a failing test proves a real contract mismatch.
 
 ### Owned areas
 
-- `apps/web/app/pass-the-phone-model.ts`
-- `apps/web/app/pass-the-phone-helpers.ts`
-- `apps/web/app/session-fixtures.ts`
-- `docs/architecture/mobile-pass-the-phone-wizard.md`
-- `docs/prd-mvp-completion.md`
+- `apps/api/tests/test_candidate_generation_adapter.py`
+- `apps/api/tests/test_demo_couple_fixture.py`
+- `apps/api/tests/test_shortlist_api.py`
+- `apps/api/tests/test_tmdb_candidate_source.py`
+- `docs/architecture/api-contracts.md`
+- `docs/architecture/demo-couple-evaluation-fixture.md`
 
 ### Off-limits areas
 
-- Main visual redesign.
-- Live poster provider wiring.
-- Live critic-score provider wiring.
-- Live availability provider wiring.
-- LLM explanation copy.
+- Accepted visual styling
+- Broad recommendation-score retuning
+- Live poster providers
+- Live critic-score providers
+- Private household data
 
 ### Acceptance criteria
 
-- [ ] Candidate view models expose poster and critic-score provenance where the UI needs it.
-- [ ] Docs state that local poster assets are demo assets.
-- [ ] Docs state that critic scores are fixture values.
-- [ ] Docs state that no live poster or critic-score provider is wired into local demo mode.
-- [ ] Normal demo behavior and visual design are preserved.
-- [ ] Web production build passes if frontend files change.
+- [ ] Backend tests expect the accepted demo source IDs and current provider semantics.
+- [ ] Tests still prove rejected, unsafe, and already-watched candidates do not leak into the main shortlist.
+- [ ] Tests and docs no longer encode the old Amazon DE subscription-only interpretation.
+- [ ] API contract docs describe the accepted shortlist payload honestly.
+- [ ] `pnpm check` passes.
 
 ### Validation commands
-
-```sh
-pnpm build:web
-```
 
 ```sh
 pnpm check
@@ -167,60 +191,52 @@ pnpm check
 
 ### Stop condition
 
-Stop when demo provenance is explicit without changing the accepted experience.
+Stop when the backend fixture and live-source contract agree with the accepted shortlist and updated watchability rule.
 
 ### Risk notes
 
-Visible provenance copy can quickly make the pass-the-phone flow feel like an internal test harness.
-Prefer code and docs first unless the UI is actively misleading.
+Do not make tests pass by casually changing ranking behavior.
+Contract alignment should be driven by the intended product rule, not by convenience.
 
-## Slice 4 - Prove Backend-Backed Local Couch Flow
+## Slice 4 - Record Current Validation Coverage And Tighten Remaining Local UX Gate
 
-- Type: AFK where the environment can launch a browser, otherwise HITL for final smoke
+- Type: HITL for a normal local browser rerun if needed, AFK for code and docs verification
 - Suggested labels: `mvp`, `validation`, `local-web`
-- Blocked by: Slices 1 and 2
-- Primary goal: prove the MVP flow against isolated local storage, not just demo fallback state.
+- Blocked by: Slices 1 and 3
+- Treehouse candidate: limited
+- Primary goal: document exactly what has already been proven and what narrow founder-side validation still remains.
 
 ### What to build
 
-Run and, if necessary, repair the backend-backed local smoke path.
-The flow should seed safe default setup data, start a shared session, collect both reaction passes, rerank, record outcome, record post-watch feedback, and inspect debug history.
-It must use an isolated temporary database.
+Refresh the local validation story so it reflects the accepted MVP+3 through MVP+5 trail and the updated Amazon DE behavior.
+If the normal local browser rerun is still needed after the policy change, keep it narrow and explicit.
+Do not restate broad backend-backed proof as if it never happened.
 
 ### Owned areas
 
-- `scripts/mobile_pass_the_phone_ux_smoke.mjs`
-- `scripts/couch_flow_smoke.py`
-- `apps/web/app/session-client.ts`
-- `apps/web/app/api/session/**`
-- `apps/api/src/movie_night_mediator/app/session.py`
-- `apps/api/src/movie_night_mediator/app/outcome.py`
-- `apps/api/src/movie_night_mediator/app/feedback.py`
-- `apps/api/src/movie_night_mediator/app/debug_history.py`
-- Related tests in `apps/api/tests`
+- `docs/validation/live-usable-mvp-gate-2026-06-30.md`
+- `docs/setup/mobile-pass-the-phone-ux-smoke.md`
+- `scripts/mobile_pass_the_phone_ux_smoke.mjs` only if the gate itself needs a small fix
+- Small related validation docs if they directly contradict accepted history
 
 ### Off-limits areas
 
-- Visual redesign.
-- Live provider calls.
-- Persistent real household database writes.
-- LLM interpretation.
+- Visual redesign
+- New product scope
+- Provider expansion beyond the accepted rule change
+- Persistent real household database writes
 
 ### Acceptance criteria
 
-- [ ] Backend-backed smoke uses an isolated temporary SQLite database.
-- [ ] Both participants can submit reactions.
-- [ ] Handoff state is exercised.
-- [ ] Results include a best pick and reranked shortlist.
-- [ ] Outcome capture succeeds.
-- [ ] Per-person post-watch feedback succeeds.
-- [ ] Debug history shows persisted evidence.
-- [ ] `MOBILE_UX_SMOKE_EXPECT_API=1 pnpm smoke:ux:mobile` passes in a normal local browser environment.
+- [ ] The validation docs distinguish historical accepted proof from any remaining manual rerun clearly.
+- [ ] Any remaining founder-side click-through is described as a narrow confirmation step, not as missing end-to-end proof from scratch.
+- [ ] If smoke code changes are needed, they stay limited to validation reliability rather than feature work.
+- [ ] `pnpm check` passes if validation scripts are touched.
 
 ### Validation commands
 
 ```sh
-python3 scripts/couch_flow_smoke.py
+pnpm check
 ```
 
 ```sh
@@ -229,48 +245,48 @@ MOBILE_UX_SMOKE_EXPECT_API=1 pnpm smoke:ux:mobile
 
 ### Stop condition
 
-Stop when the local backend-backed pass-the-phone flow is proven without touching real household data.
+Stop when the repo says exactly what has been proven and exactly what, if anything, still needs a normal-browser confirmation.
 
 ### Risk notes
 
-The highest risk is accidentally pointing the smoke at the real local database.
-The command must make temporary storage explicit.
+Do not reopen settled product questions here.
+This slice is about evidence and clarity.
 
-## Slice 5 - Clarify Live Candidate Provider MVP Gate
+## Slice 5 - Decide The Remaining Live-Usable MVP Gate After The Amazon DE Rule
 
-- Type: HITL decision, then AFK implementation planning
+- Type: HITL decision, then AFK doc follow-through
 - Suggested labels: `mvp`, `product-decision`, `provider`
 - Blocked by: Slices 1 through 4
-- Primary goal: decide whether the first declared MVP is demo-complete or live-candidate usable.
+- Treehouse candidate: no
+- Primary goal: record whether the remaining live-usable MVP definition is now satisfied or still awaits one specific founder-side confirmation.
 
 ### What to build
 
-Produce a short decision note that reconciles the existing architecture statement that live TMDb is required before the app is usable with the current accepted local demo UI.
-If the founder confirms that live candidate sourcing is still required for MVP, break that work into a separate implementation issue set.
-If the founder decides the local demo MVP can close first, explicitly mark live candidate sourcing as the next MVP readiness phase rather than MVP plus 1.
-This pass records the gate only and does not create live-provider implementation issues unless the founder explicitly asks for that work.
+Produce a short decision note that reconciles the current accepted gates, the live TMDb path, and the new Amazon DE access policy.
+If the founder still wants one more normal-browser rerun before calling the app live-usable MVP, record that as the last narrow gate.
+If not, record the app as live-usable MVP with any remaining work reclassified as next-phase polish rather than false MVP incompleteness.
 
 ### Owned areas
 
-- `docs/architecture/code-first-app-architecture.md`
-- `docs/prd-code-first-mvp.md`
 - `docs/prd-mvp-completion.md`
+- `docs/validation/live-usable-mvp-gate-2026-06-30.md`
+- `docs/architecture/code-first-app-architecture.md`
 - `docs/issues/mvp-completion-vertical-slices.md`
-- A future provider issue file if approved
+- A short new decision note if that is cleaner than further patching old docs
 
 ### Off-limits areas
 
-- Provider implementation before the decision is recorded.
-- Critic-score provider implementation.
-- Paid vendor commitments.
-- Secrets or credentials.
+- New provider implementation
+- Critic-score provider implementation
+- Paid vendor commitments
+- Secrets or credentials
 
 ### Acceptance criteria
 
-- [ ] The repo states whether live candidate sourcing is required before the MVP is called usable.
-- [ ] The repo separates live poster, live critic score, and live candidate-provider concerns.
-- [ ] Any provider implementation issues include credential needs, network needs, owned files, off-limits files, and validation commands.
-- [ ] No external service change happens without approval.
+- [ ] The repo states clearly whether the app is already live-usable MVP or what one remaining gate still blocks that label.
+- [ ] The repo separates live candidate sourcing, poster sourcing, critic-score sourcing, and watchability policy decisions cleanly.
+- [ ] The docs no longer confuse MVP readiness with MVP plus 1 or later recommendation work.
+- [ ] No external service change happens as part of this decision note.
 
 ### Validation commands
 
@@ -280,44 +296,45 @@ pnpm check
 
 ### Stop condition
 
-Stop when the founder-facing MVP gate is explicit and no one can confuse MVP completion with MVP plus 1 LLM work.
+Stop when the founder-facing MVP status is explicit and reviewable.
 
 ### Risk notes
 
-This is the one remaining slice that may need founder judgment.
-The existing docs lean toward live TMDb being MVP-required, but the recent accepted UI work is a local demo flow.
+This slice is allowed to conclude that the old gate language is now stale.
+It does not need to preserve outdated ambiguity.
 
-## Slice 6 - Publish MVP Completion Issues To GitHub
+## Slice 6 - Publish Refreshed MVP+6 Issues To GitHub
 
-- Type: HITL
+- Type: HITL approved, AFK execution
 - Suggested labels: `process`, `issues`
 - Blocked by: Founder approval to publish issues
-- Primary goal: turn this local issue file into tracker issues once the founder wants GitHub to become the working queue.
+- Treehouse candidate: no
+- Primary goal: publish the refreshed slices as low-touch, agent-ready GitHub issues in dependency order.
 
 ### What to build
 
 Create one GitHub issue for each accepted slice.
-Preserve the objective, owned areas, off-limits areas, acceptance criteria, validation commands, and stop condition.
-Apply the agreed labels after confirming the labels exist or can be created.
+Write them so an agent can work independently with local validation, minimal network needs, and explicit blocker handling.
+Where an issue may need external permissions later, say so once and ask future agents to batch permission requests early instead of repeatedly.
 
 ### Owned areas
 
-- GitHub Issues
+- GitHub Issues for `czzzry/watchsignal`
 - `docs/issues/mvp-completion-vertical-slices.md`
 
 ### Off-limits areas
 
-- Source changes unrelated to issue publication.
-- Remote pushes.
-- PR creation.
-- Label taxonomy changes without approval.
+- Source changes unrelated to issue publication
+- Remote pushes
+- PR creation
+- Label taxonomy changes without approval
 
 ### Acceptance criteria
 
-- [ ] Each approved slice has a GitHub issue.
-- [ ] Each issue links back to the local PRD or issue-slice doc.
-- [ ] Each issue has clear validation commands.
-- [ ] No issue includes MVP plus 1 implementation scope unless explicitly approved.
+- [ ] Each approved slice has a GitHub issue in dependency order.
+- [ ] Each issue is worded as a vertical slice with clear acceptance criteria and blocker handling.
+- [ ] Each issue tells future agents to batch unavoidable permission asks early rather than surfacing repeated prompts.
+- [ ] Treehouse-suitable AFK issues are obvious from the published wording.
 
 ### Validation commands
 
@@ -327,15 +344,14 @@ gh issue list
 
 ### Stop condition
 
-Stop when the approved local slices exist as GitHub issues and the local docs link to them if desired.
+Stop when the refreshed local slices exist as publish-ready GitHub issues and the wording supports low-touch independent execution.
 
 ### Risk notes
 
 Publishing issues is an external service change.
-Do not do it as part of ordinary local doc cleanup.
+Do not let the published wording drift from the refreshed local source of truth.
 
 ## Recommended First Implementation Slice
 
-Start with Slice 1.
-It has the narrowest blast radius and clears the known test drift caused by the accepted candidate set.
-It should not touch the accepted UI visuals, live providers, or product scope.
+Start with Slice 2.
+It encodes the active founder decision, benefits from TDD immediately, and will unblock the remaining contract and validation cleanup from the right product rule.

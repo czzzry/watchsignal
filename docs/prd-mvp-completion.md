@@ -1,4 +1,4 @@
-# PRD - MVP Completion
+# PRD - MVP+6 MVP Readiness Reconciliation
 
 ## Problem Statement
 
@@ -23,50 +23,28 @@ Do not introduce LLM interpretation, hosted deployment, Telegram, separate-phone
 - The UI can continue in demo mode when the local API is unavailable.
 - The backend already has session, reaction, outcome, feedback, history, setup, onboarding, scoring, and fixture-backed shortlist seams.
 - A behavior-preserving UI refactor exists on `codex/cinematic-pass-phone-refactor`.
-- Browser smoke validation is blocked inside the current sandbox by macOS browser startup restrictions, not by known app code failure.
+- Accepted MVP+3 and MVP+4 gates already proved real phone-sized dogfood coverage.
+- Current sandbox browser smoke remains vulnerable to macOS browser startup restrictions, not known app code failure.
 
 ## Remaining MVP Issues
 
-### 1. Accepted UI refactor needs final local browser proof
+### 1. Source-of-truth docs still need reconciliation
 
-The refactor branch preserves the accepted design and has passed TypeScript, production build, API compile, and partial backend validation.
-The final phone-sized browser smoke still needs to run in a normal local browser environment.
-This is a release-readiness issue, not a product feature.
+The repo contains older MVP-completion language that predates the accepted MVP+3 through MVP+5 validation trail.
+That stale language can make already-proven flow coverage sound hypothetical.
+The remaining cleanup work is largely about making the docs match the accepted validation record and the current product rules.
 
-### 2. Demo shortlist fixture contract drift
+### 2. Amazon DE watchability policy is now broader than older docs assumed
 
-The backend demo fixture now uses accepted real movie IDs such as `arrival`, `knives-out`, `the-grand-budapest-hotel`, `edge-of-tomorrow`, and `past-lives`.
-Before Slice 1, several backend tests and docs still asserted older synthetic IDs such as `fixture:shared-time-loop`.
-Slice 1 aligns the fixture-facing tests and API contract docs to the accepted demo IDs so future failures can point to real regressions.
+The current product decision is that Amazon DE access counts whether the title is flatrate, rental, or purchase, as long as it still passes the active language and watched-state rules.
+Several older docs and tests had assumed a subscription-only interpretation.
+MVP+6 brings those tests, fixtures, and decision docs back into sync.
 
-### 3. Demo data provenance must be explicit
+### 3. Live-usable MVP now hinges on environment-independent browser confirmation
 
-The mobile demo uses local poster assets and hard-coded critic score values.
-The local demo does not have a live poster provider or live critic-score provider wired into the flow.
-The MVP must be honest about this in code, docs, tests, and any visible UI copy that could otherwise imply sourced real-time data.
-Slice 3 keeps the accepted flow visually unchanged while making poster, critic-score, descriptive-copy, API-payload, fallback, and unavailable-field provenance explicit in code-facing and doc-facing surfaces.
-
-### 4. Backend-backed local happy path needs one clean gate
-
-The app has a demo-safe UI path and a backend-backed local path.
-MVP completion needs one documented command path that proves setup, shared session, reactions, handoff, rerank, outcome, feedback, and debug history against isolated local storage.
-This should avoid real household data and avoid external network calls.
-
-### 5. MVP source-of-truth docs need a completion layer
-
-The repo contains older n8n and Telegram-oriented MVP docs as historical guidance.
-The code-first app has since settled on local mobile web.
-MVP completion needs a short current layer that explains what remains, what is deliberately deferred, and what the first implementation slice should be.
-
-### 6. Live candidate and provider integration remains a separate MVP readiness question
-
-Existing architecture docs say live TMDb is required before the app is considered usable outside demo mode.
-The current completion plan does not hide that requirement.
-It separates the immediate local-demo tie-up from the larger live-candidate-provider work.
-For this completion pass, MVP closure means a demo-complete local mobile web baseline with honest fixture provenance and validated backend-backed local storage.
-Live candidate sourcing remains required before the app is called live-usable outside fixture/demo mode.
-That live candidate sourcing work is a next MVP readiness phase, not MVP plus 1 LLM work.
-Poster provider integration, critic-score provider integration, and richer availability verification are not part of the UI refactor cleanup.
+The product flow itself has already been exercised through accepted dogfood gates and passing backend-backed validation.
+What remains is not an observed product-flow defect.
+What remains is deciding whether one final normal-browser or real-phone rerun outside the current sandbox is still required before the repo declares the live-usable MVP gate fully closed.
 
 ## User Stories
 
@@ -84,7 +62,7 @@ Poster provider integration, critic-score provider integration, and richer avail
 - The API unit test suite passes or has only separately documented environmental failures.
 - The web production build passes.
 - The API compile check passes.
-- The phone-sized UX smoke command is documented and runnable in a normal local browser environment.
+- The phone-sized UX smoke command is documented, and sandbox browser failures are distinguished from observed product-flow failures.
 - Demo mode clearly remains fixture-backed.
 - Backend-backed local mode writes only to isolated local storage during smoke validation.
 - MVP plus 1 work is not included in MVP completion issues.
@@ -139,6 +117,5 @@ If the browser smoke cannot run inside an agent sandbox, run it from a normal lo
 
 ## Recommended First Slice
 
-Start with the fixture and test contract alignment slice.
-It is the cleanest AFK slice because it fixes a known validation failure without changing product behavior or visual design.
-After that, run the local validation gate and only then touch demo provenance or live-provider scope decisions.
+Start with doc and contract reconciliation against the accepted validation trail.
+That keeps later implementation slices grounded in current truth rather than stale intermediate assumptions.

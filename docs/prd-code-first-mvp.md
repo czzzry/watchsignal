@@ -48,7 +48,7 @@ Kun Cheng GNHF can later execute bounded issues once each issue has clear owners
 18. As a founder, I want a low-polish manual backfill path, so that I can add watched-history data without waiting for a beautiful UX.
 19. As a household user, I want live TMDb metadata in the MVP, so that the app can recommend real titles rather than fixture-only examples.
 20. As a household user, I want the app to distinguish Safe Picks from Needs Quick Check titles, so that I know which recommendations are truly ready for tonight.
-21. As a household user, I want Amazon rent or buy availability not to be confused with Prime subscription availability, so that recommendations do not create surprise costs.
+21. As a household user, I want Amazon DE titles to remain eligible whether they are flatrate, rental, or purchase, so that the shortlist reflects real accessible options rather than only subscription-included ones.
 22. As a household user, I want foreign-language titles without verified English subtitles to appear only as Needs Quick Check, so that the main recommendation stays trustworthy.
 23. As a household user, I want to manually correct watchability errors, so that practical Prime Germany knowledge improves over time.
 24. As a household user, I want a five-title shortlist, so that there is enough variety without making pass-the-phone feel like homework.
@@ -104,7 +104,7 @@ Kun Cheng GNHF can later execute bounded issues once each issue has clear owners
 - The app tries TMDb resolution immediately and allows unresolved text fallback.
 - The main recommendation pool uses Safe Picks.
 - Needs Quick Check titles can be visible separately but should not become the main recommendation by default.
-- Amazon Video rent or buy is not equivalent to Prime Video subscription availability.
+- Amazon DE access may be flatrate, rent, or buy as long as the title still passes the active language and watched-state rules.
 - Foreign-language titles require verified English subtitles before becoming Safe Picks.
 - Manual verified-watchable corrections should be stored.
 - The shortlist has five titles.

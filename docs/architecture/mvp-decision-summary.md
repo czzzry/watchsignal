@@ -34,7 +34,7 @@ Inherited product decisions from the carried-over docs stand unless this file or
 - MVP ranking should use Safe Picks by default.
 - A Safe Pick is Prime Video Germany, language-compatible, constraint-compatible, and not already watched unless rewatches are allowed.
 - Needs Quick Check items may be shown separately but should not be the main recommendation.
-- Amazon Video rent or buy is not the same as Prime Video subscription availability.
+- Amazon DE access may be flatrate, rent, or buy as long as the title otherwise passes the active filters.
 - Foreign-language titles should be Needs Quick Check unless English subtitles are verified by another source or manual correction.
 - Manual verified-watchable corrections should be stored so practical availability can improve over time.
 - The shortlist should show five titles.

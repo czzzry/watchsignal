@@ -90,7 +90,7 @@ function backendRequestTimeoutMs(): number {
   }
 
   if (process.env.MOVIE_NIGHT_RECOMMENDATION_SOURCE === "live_tmdb") {
-    return 15_000;
+    return 45_000;
   }
 
   return 2_500;

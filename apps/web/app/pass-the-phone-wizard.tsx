@@ -15,6 +15,7 @@ import {
   continuationExcludedSourceMovieIds,
   latestTonightIntent,
   scoringReactionSignals,
+  scoringReactionSignalsFromLocal,
   sessionShortlistFromCandidates,
   usePassThePhoneSessionControl,
 } from "./pass-the-phone/session-control";
@@ -76,6 +77,7 @@ import {
   getSessionDebugHistory,
   getTasteProfileSummary,
   interpretTonightIntent,
+  interpretDirectedNudge,
   loadRecommendationShortlist,
   saveProfileOnboarding,
   submitSessionReactions,
@@ -180,6 +182,8 @@ export function PassThePhoneWizard({
   const [sharedSession, setSharedSession] = useState<SharedSessionPayload | null>(
     null,
   );
+  const [liveSessionId, setLiveSessionId] = useState<string | null>(null);
+  const [shownSourceMovieIds, setShownSourceMovieIds] = useState<string[]>([]);
   const [debugHistory, setDebugHistory] =
     useState<DebugHistorySessionPayload | null>(null);
   const [tasteProfileSummaries, setTasteProfileSummaries] = useState<
@@ -327,6 +331,8 @@ export function PassThePhoneWizard({
     setStep("setup");
     resetBatch();
     setSharedSession(null);
+    setLiveSessionId(null);
+    setShownSourceMovieIds([]);
     setRecommendationSource("demo");
     setDebugHistory(null);
     setTasteProfileSummaries([]);
@@ -732,6 +738,7 @@ export function PassThePhoneWizard({
         householdId: "default-household",
         activeMode: toApiSessionMode(sessionMode),
         participantIds,
+        source: "live_tmdb",
         shortlistSize: effectiveSetupLoad.setup.defaults.shortlistSize,
         availabilityRegion: effectiveSetupLoad.setup.defaults.availabilityRegion,
         serviceConstraint: serviceConstraintFromAvailability(
@@ -749,28 +756,47 @@ export function PassThePhoneWizard({
 
       resetBatch(candidates);
 
-      try {
-        const session = await createSharedSession({
-          sessionId,
-          householdId: "default-household",
-          activeMode: toApiSessionMode(sessionMode),
-          participantIds,
-          shortlist: sessionShortlistFromCandidates(candidates),
-        });
+      setShownSourceMovieIds(candidates.map((candidate) => candidate.id));
 
-        setSharedSession(session);
-        setSessionSource("api");
-        await loadTasteProfileSummariesForSession(session);
-      } catch (error) {
+      if (isCoupleSession) {
+        try {
+          const session = await createSharedSession({
+            sessionId,
+            householdId: "default-household",
+            activeMode: toApiSessionMode(sessionMode),
+            participantIds,
+            shortlist: sessionShortlistFromCandidates(candidates),
+          });
+
+          setSharedSession(session);
+          setLiveSessionId(null);
+          setSessionSource("api");
+          await loadTasteProfileSummariesForSession(session);
+        } catch (error) {
+          setSharedSession(null);
+          setLiveSessionId(null);
+          setSessionSource("demo");
+          setApiError(
+            `${toSessionCreationErrorMessage(error)} Continuing on the same shortlist in local mode.`,
+          );
+        }
+      } else {
         setSharedSession(null);
-        setSessionSource("demo");
-        setApiError(
-          `${toSessionCreationErrorMessage(error)} Continuing on the same shortlist in local mode.`,
-        );
+        setLiveSessionId(sessionId);
+        setSessionSource("api");
+        try {
+          setTasteProfileSummaries(
+            await tasteProfileSummariesForSession("default-household", participantIds),
+          );
+        } catch {
+          setTasteProfileSummaries([]);
+        }
       }
     } catch (error) {
       resetBatch();
       setSharedSession(null);
+      setLiveSessionId(null);
+      setShownSourceMovieIds([]);
       setSessionSource("demo");
       setDebugHistoryStatus("idle");
       setDebugHistoryMessage(null);
@@ -788,7 +814,7 @@ export function PassThePhoneWizard({
   async function continueWithTonightIntents(
     nextTonightIntents: TonightIntentInterpretationPayload[],
   ): Promise<void> {
-    if (!apiHealth.connected || sharedSession === null || sessionSource !== "api") {
+    if (!apiHealth.connected || sessionSource !== "api") {
       setApiError("Show 5 more needs the synced session so earlier reactions can stay attached.");
       return;
     }
@@ -801,10 +827,11 @@ export function PassThePhoneWizard({
 
     try {
       const shortlistResponse = await loadRecommendationShortlist({
-        sessionId: sharedSession.sessionId,
-        householdId: sharedSession.householdId,
+        sessionId: sharedSession?.sessionId ?? liveSessionId ?? createSessionId(),
+        householdId: sharedSession?.householdId ?? "default-household",
         activeMode: toApiSessionMode(sessionMode),
         participantIds,
+        source: "live_tmdb",
         shortlistSize: effectiveSetupLoad.setup.defaults.shortlistSize,
         availabilityRegion: effectiveSetupLoad.setup.defaults.availabilityRegion,
         serviceConstraint: serviceConstraintFromAvailability(
@@ -812,11 +839,24 @@ export function PassThePhoneWizard({
         ),
         tonightIntent: latestTonightIntent(nextTonightIntents),
         tonightIntents: nextTonightIntents,
-        excludedSourceMovieIds: continuationExcludedSourceMovieIds(
-          sharedSession,
-          sessionCandidates,
-        ),
-        sessionReactions: scoringReactionSignals(sharedSession),
+        excludedSourceMovieIds:
+          sharedSession !== null
+            ? continuationExcludedSourceMovieIds(sharedSession, sessionCandidates)
+            : Array.from(
+                new Set([
+                  ...shownSourceMovieIds,
+                  ...sessionCandidates.map((candidate) => candidate.id),
+                ]),
+              ),
+        sessionReactions:
+          sharedSession !== null
+            ? scoringReactionSignals(sharedSession)
+            : scoringReactionSignalsFromLocal({
+                sessionId: liveSessionId ?? createSessionId(),
+                participantId: participantIds[0],
+                candidates: sessionCandidates,
+                reactions: firstPassActor === "founder" ? founderReactions : wifeReactions,
+              }),
       });
       const candidates = shortlistResponse.shortlist.map(toSessionCandidate);
       setRecommendationSource(shortlistResponse.recommendationSource);
@@ -825,13 +865,21 @@ export function PassThePhoneWizard({
         throw new Error("Recommendation API did not return five fresh picks.");
       }
 
-      const continuedSession = await continueSharedSession(
-        sharedSession.sessionId,
-        sessionShortlistFromCandidates(candidates),
-      );
+      if (sharedSession !== null) {
+        const continuedSession = await continueSharedSession(
+          sharedSession.sessionId,
+          sessionShortlistFromCandidates(candidates),
+        );
 
-      setSharedSession(continuedSession);
-      await loadTasteProfileSummariesForSession(continuedSession);
+        setSharedSession(continuedSession);
+        await loadTasteProfileSummariesForSession(continuedSession);
+      } else {
+        setShownSourceMovieIds((current) =>
+          Array.from(
+            new Set([...current, ...candidates.map((candidate) => candidate.id)]),
+          ),
+        );
+      }
       resetBatch(candidates);
       setStep("founder");
     } catch (error) {
@@ -921,7 +969,7 @@ export function PassThePhoneWizard({
     setSteerMessage(null);
 
     try {
-      const interpretation = await interpretTonightIntent(text);
+      const interpretation = await interpretDirectedNudge(text);
       setPendingSteerIntent(interpretation);
       setSteerClarificationText("");
       setSteerMessage(
@@ -956,7 +1004,7 @@ export function PassThePhoneWizard({
     setSteerMessage(null);
 
     try {
-      const interpretation = await interpretTonightIntent(
+      const interpretation = await interpretDirectedNudge(
         `${pendingSteerIntent.rawText}. Clarification: ${answer}`,
       );
       setPendingSteerIntent(interpretation);

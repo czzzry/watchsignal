@@ -10,6 +10,12 @@ from movie_night_mediator.api.main import (
     create_app,
 )
 from movie_night_mediator.app.onboarding import SQLiteOnboardingStore
+from movie_night_mediator.storage import SQLiteTasteLabStore
+from movie_night_mediator.taste_lab import (
+    TasteLabMovieIdentity,
+    TasteLabRatingExport,
+    TasteLabRatingLabel,
+)
 
 
 GENERIC_PROFILE_ONBOARDING = {
@@ -125,6 +131,35 @@ class OnboardingApiTest(unittest.TestCase):
             )
             self.assertEqual(complete_completion.incompleteProfileIds, [])
 
+    def test_completion_api_counts_meaningful_taste_lab_calibration_as_ready(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "onboarding.sqlite3"
+            _, _, get_completion = onboarding_route_endpoints(
+                create_app(
+                    onboarding_store=SQLiteOnboardingStore(
+                        database_path=database_path
+                    ),
+                    taste_lab_store=SQLiteTasteLabStore(database_path=database_path),
+                )
+            )
+            taste_lab_store = SQLiteTasteLabStore(database_path=database_path)
+            taste_lab_store.save_ratings(
+                ratings=(
+                    taste_lab_rating("profile-a", "Action Seed", TasteLabRatingLabel.LOVED),
+                    taste_lab_rating("profile-a", "Comedy Seed", TasteLabRatingLabel.LIKED),
+                    taste_lab_rating("profile-a", "Drama Seed", TasteLabRatingLabel.HATED),
+                )
+            )
+
+            completion = get_completion(["profile-a"])
+
+            self.assertFalse(completion.sharedRecommendationLocked)
+            self.assertTrue(completion.sharedRecommendationUnlocked)
+            self.assertEqual(completion.completedProfileIds, ["profile-a"])
+            self.assertEqual(completion.incompleteProfileIds, [])
+
     def test_path_profile_id_must_match_payload_profile_id(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             database_path = Path(directory) / "onboarding.sqlite3"
@@ -164,6 +199,24 @@ def payload_to_dict(payload: ParticipantOnboardingPayload) -> dict:
         return payload.model_dump(mode="json", exclude_none=True)
 
     return payload.dict(exclude_none=True)
+
+
+def taste_lab_rating(
+    profile_id: str,
+    title: str,
+    label: TasteLabRatingLabel,
+) -> TasteLabRatingExport:
+    return TasteLabRatingExport(
+        household_id="default-household",
+        profile_id=profile_id,
+        movie=TasteLabMovieIdentity(
+            source_movie_id=f"fixture:{title.casefold().replace(' ', '-')}",
+            title=title,
+            genres=("Drama",),
+        ),
+        label=label,
+        rated_at="2026-07-08T08:00:00Z",
+    )
 
 
 if __name__ == "__main__":

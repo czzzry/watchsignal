@@ -14,6 +14,12 @@ class DirectedNudgeStatus(StrEnum):
     CLARIFICATION_REQUIRED = "clarification_required"
 
 
+class DirectedNudgeResolution(StrEnum):
+    EXACT = "exact"
+    GUESS = "guess"
+    UNSUPPORTED = "unsupported"
+
+
 class FiveMoreAction(StrEnum):
     SAME_DIRECTION = "same_direction"
     DIFFERENT_DIRECTION = "different_direction"
@@ -224,6 +230,8 @@ class DirectedNudge:
     status: DirectedNudgeStatus
     user_facing_summary: str | None = None
     clarification_question: str | None = None
+    resolution: DirectedNudgeResolution = DirectedNudgeResolution.EXACT
+    unsupported_reason: str | None = None
     filters: Mapping[str, object] = field(default_factory=dict)
     soft_signals: tuple[str, ...] = ()
     excluded_signals: tuple[str, ...] = ()
@@ -242,6 +250,7 @@ class DirectedNudge:
         )
         user_facing_summary = _optional_text(self.user_facing_summary)
         clarification_question = _optional_text(self.clarification_question)
+        unsupported_reason = _optional_text(self.unsupported_reason)
         filters = MappingProxyType(dict(self.filters))
         soft_signals = tuple(
             signal.strip() for signal in self.soft_signals if signal.strip()
@@ -268,10 +277,21 @@ class DirectedNudge:
                     "Ambiguous directed nudges cannot include a user-facing summary."
                 )
 
+        if self.resolution == DirectedNudgeResolution.UNSUPPORTED:
+            if not unsupported_reason:
+                raise ValueError(
+                    "Unsupported directed nudges require an unsupported reason."
+                )
+        elif unsupported_reason:
+            raise ValueError(
+                "Only unsupported directed nudges can include an unsupported reason."
+            )
+
         object.__setattr__(self, "raw_text", raw_text)
         object.__setattr__(self, "confidence", confidence)
         object.__setattr__(self, "user_facing_summary", user_facing_summary)
         object.__setattr__(self, "clarification_question", clarification_question)
+        object.__setattr__(self, "unsupported_reason", unsupported_reason)
         object.__setattr__(self, "filters", filters)
         object.__setattr__(self, "soft_signals", soft_signals)
         object.__setattr__(self, "excluded_signals", excluded_signals)
