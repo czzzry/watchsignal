@@ -1,0 +1,140 @@
+{
+  "cannot_prove": [
+    "quality for two-person or household compromise",
+    "tonight-specific mood or directed intent",
+    "current streaming availability",
+    "real product usefulness, trust, or adoption"
+  ],
+  "cohorts": {
+    "cold_start": {
+      "history_size": 10,
+      "holdout_size": 10,
+      "minimum_window_span_days": 365,
+      "requires_complete_holdout_tmdb_mapping": true,
+      "requires_positive_and_negative_holdout": true,
+      "role_counts": {
+        "exploration": 308,
+        "sealed": 313,
+        "validation": 313
+      },
+      "strict_timestamp_boundary": true,
+      "window_anchor": "start"
+    },
+    "deep_history": {
+      "history_size": 500,
+      "holdout_size": 50,
+      "minimum_window_span_days": 365,
+      "requires_complete_holdout_tmdb_mapping": true,
+      "requires_positive_and_negative_holdout": true,
+      "role_counts": {
+        "exploration": 1883,
+        "sealed": 2073,
+        "validation": 1956
+      },
+      "strict_timestamp_boundary": true,
+      "window_anchor": "end"
+    },
+    "established": {
+      "history_size": 100,
+      "holdout_size": 30,
+      "minimum_window_span_days": 365,
+      "requires_complete_holdout_tmdb_mapping": true,
+      "requires_positive_and_negative_holdout": true,
+      "role_counts": {
+        "exploration": 4617,
+        "sealed": 5000,
+        "validation": 5000
+      },
+      "strict_timestamp_boundary": true,
+      "window_anchor": "end"
+    },
+    "prolific": {
+      "history_size": 1000,
+      "holdout_size": 100,
+      "minimum_window_span_days": 365,
+      "requires_complete_holdout_tmdb_mapping": true,
+      "requires_positive_and_negative_holdout": true,
+      "role_counts": {
+        "exploration": 602,
+        "sealed": 688,
+        "validation": 699
+      },
+      "strict_timestamp_boundary": true,
+      "window_anchor": "end"
+    },
+    "sparse_recent_profile": {
+      "history_size": 10,
+      "holdout_size": 10,
+      "minimum_window_span_days": 365,
+      "requires_complete_holdout_tmdb_mapping": true,
+      "requires_positive_and_negative_holdout": true,
+      "role_counts": {
+        "exploration": 1930,
+        "sealed": 2068,
+        "validation": 2078
+      },
+      "strict_timestamp_boundary": true,
+      "window_anchor": "end"
+    }
+  },
+  "dataset": {
+    "archive_sha256": "e4a68655d7386b8f95f2f2424b2ff975dfdd15ffd59e0d864a14dca43e99d6ee",
+    "license_posture": "local research use only; no raw redistribution",
+    "name": "MovieLens 32M"
+  },
+  "decision_date": "2026-07-10",
+  "founder_approved": true,
+  "manifest_checksums": {
+    "exploration": {
+      "file": "exploration.json",
+      "sha256": "c8ac9641fb80f3b9318fa3d4970ad4360cb71cd0dd7057db4594355ae0acfa05",
+      "user_memberships": 9340
+    },
+    "sealed": {
+      "file": "sealed.json",
+      "sha256": "62b0e7a47e1c010a303b8b95a7a83554a7051af9ed29e29ffc423ad81456d003",
+      "user_memberships": 10142
+    },
+    "validation": {
+      "file": "validation.json",
+      "sha256": "0e68d33cc6ed370656b581ca9cc55aab61e76561d9f761bb4d4f3b5b4a30117b",
+      "user_memberships": 10046
+    }
+  },
+  "metrics": {
+    "confidence_interval": "per-user 95% bootstrap",
+    "exclusions": "report every exclusion reason and denominator",
+    "minimum_useful_improvement": 0.02,
+    "primary": [
+      "ndcg_at_5",
+      "pairwise_preference_accuracy"
+    ],
+    "safety": {
+      "known_dislike_rate_at_5": {
+        "maximum_allowed_regression": 0.01
+      }
+    }
+  },
+  "partition": {
+    "cross_role_user_overlap": 0,
+    "main_cohort": "established",
+    "main_split_sizes": {
+      "exploration": 4617,
+      "sealed": 5000,
+      "validation": 5000
+    },
+    "seed": 20260710
+  },
+  "protocol_version": "movielens-32m-v1",
+  "sealed_access": {
+    "access_event_required": true,
+    "labels_may_be_opened_in_issue": 126,
+    "reset_trigger": "Any inspection that influences model or feature choices retires the sealed panel as independent evidence and requires a recorded replacement.",
+    "selection_artifact_checksum_required": true
+  },
+  "temporal_policy": {
+    "boundary": "per-user chronological windows",
+    "global_time_boundary": null,
+    "reason": "A global cutoff is not used because MovieLens activity periods differ substantially by user; each profile must still end strictly before its future labels begin."
+  }
+}

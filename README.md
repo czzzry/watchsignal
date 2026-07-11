@@ -27,6 +27,7 @@ Start here if you want the project story:
 
 - [MVP decision summary](docs/architecture/mvp-decision-summary.md)
 - [Code-first app architecture](docs/architecture/code-first-app-architecture.md)
+- [Recommendation evaluation](docs/recommendation-evaluation.md)
 - [Taste Lab PRD](docs/prd-taste-lab.md)
 - [Taste Lab issue breakdown](docs/issues/taste-lab-issue-breakdown.md)
 - [MVP Plus 2 PRD](docs/prd-mvp-plus-2.md)
@@ -131,6 +132,53 @@ The fixed evaluation currently shows the high-signal Taste Lab strategy moving t
 That is not a claim that the recommender is mature.
 It is proof that the data path is real and measurable.
 
+## Recommendation Evaluation
+
+WatchSignal treats recommendation improvement as an evidence problem rather than a model-demo problem.
+The Recommendation Learning Lab uses MovieLens 32M to compare popularity, V1, V2, collaborative, and hybrid approaches under chronological holdouts and protected exploration, validation, and sealed roles.
+
+The current protocol covers 14,617 analysis-ready established users and locks NDCG@5, pairwise preference accuracy, a known-dislike safety guardrail, per-user confidence intervals, and a two-point minimum useful improvement before model training begins.
+MovieLens-derived manifests remain local, while committed checksums make the benchmark reproducible without publishing raw user identifiers or future labels.
+
+The first one-user tracer proves that V1 and V2 can receive byte-equivalent inputs before hidden future ratings are revealed to a separate evaluator.
+The first cohort-scale result covers 14,077 protected exploration and validation evaluations.
+It shows that popularity is a much stronger MovieLens baseline than either heuristic and that V2 does not yet beat V1, giving the learned-model work an honest bar rather than a predetermined success story.
+The first ratings-only collaborative model clears that bar for deep-history validation users, but not yet for sparse or broadly established users.
+Its deterministic artifact stores movie factors without storing user histories, and new users are folded in from only their earlier ratings.
+The first fixed-snapshot hybrid adds genre, release-era, and pre-cutoff tag features without live metadata calls.
+Its overall gain is small, but its strongest evidence is a repeatable sparse-item improvement for deep-history users.
+Controlled ablations retain all three available content families and freeze one reproducible full-hybrid checksum before the sealed benchmark.
+The sealed benchmark recommends **hold** rather than promotion: the selected hybrid beats the strongest comparator by 0.56 NDCG@5 points with a confidence interval above zero, but misses the predeclared two-point minimum useful improvement.
+That is the point of the gate: it can say "real, but not yet worth changing the product default."
+The founder decision is to promote the hybrid to reversible product integration because it beats the current V2 heuristic by 16.00 NDCG@5 points and achieves the highest sealed score, while retaining the household gate before any default change.
+The original hybrid-versus-collaborative practical-effect gate remains failed; a [dated decision addendum](docs/validation/movielens-founder-decision-addendum.md) records the separate product rationale without rewriting the protocol.
+The reversible learned-taste integration and household gate are documented in [the product integration packet](docs/validation/learned-taste-product-integration.md); V2 remains the default, and the gate is blocked until both active profiles meet the 10-rating cold-start minimum.
+The completed second discovery round follows a [two-gate model-improvement protocol](docs/validation/model-improvement-development-protocol.md): learned candidates must materially beat V2, then earn preference over hybrid through quality or defensible simplicity.
+The round searched 12 predeclared collaborative and ranking-aligned configurations, tuned hybrid support behavior, and selected a 16-dimension collaborative model with regularization `2.0` before opening the shared internal test.
+Preference-weighted candidates did not win, and that negative result remains visible rather than being discarded.
+
+The evaluated ladder contains five distinct approaches rather than three versions of one model.
+V1 and V2 are hand-authored product heuristics, popularity is a non-personalized control, collaborative is a ratings-only model trained from scratch without V1 or V2, and hybrid adds content evidence to that collaborative model without using V1 or V2.
+V1 narrowly beats V2 on validation-established users, while sealed-established results reverse by a negligible amount, so the defensible conclusion is that V2 has not established an improvement over V1 and both trail the learned models substantially.
+
+The shared 2,924-user internal test found the collaborative challenger and support-aware hybrid practically tied on NDCG@5 while the challenger was smaller, faster, and independent of the content snapshot.
+The challenger therefore passed the predeclared simplicity route rather than the 0.02 quality route.
+
+A checksum-locked replacement panel then used 5,000 previously unused MovieLens users with the same 100-history and 30-future task but a disjoint 30-to-364-day activity-span contract.
+On that one-time panel, collaborative scored `0.615832` NDCG@5, hybrid scored `0.615439`, and V2 scored `0.437816`.
+Collaborative minus hybrid was `+0.000393`, with a paired 95% interval from `-0.001928` to `0.002588`, safely inside the locked `-0.005` non-inferiority margin.
+Collaborative also improved pairwise accuracy, slightly reduced known-dislike exposure, retained `0.997120` coverage, reduced artifact size by `78.6%`, reduced measured fit time by `43.5%`, and reduced same-loop scoring time by `35.5%`.
+The replacement benchmark therefore promotes the regularization-2.0 collaborative model as the **offline individual-taste champion** through the simplicity route.
+Its checksum is `d6858942711fe929858c9143c8ca419952be9f135addd3f9b9694ac2294a344b`, and the reversible `v2_collaborative` adapter now targets that exact artifact.
+
+The replacement panel is independent at the user level but remains part of MovieLens 32M, so this is not cross-dataset replication.
+The panel is now spent, and any model revision informed by its results requires fresh independent evidence.
+This is deliberately an offline quality gate, not a claim of complete product success.
+Any winning model must still pass household review because historical individual ratings cannot represent couple compromise, tonight intent, streaming availability, or user trust.
+V2 remains the product default while the configured second profile lacks enough real Taste Lab evidence for a valid household comparison.
+
+Read the [evaluation narrative](docs/recommendation-evaluation.md) or the [locked benchmark protocol](docs/validation/movielens-benchmark-protocol.md).
+
 ## Safety And Privacy Boundaries
 
 - This repo does not commit secrets, local databases, downloaded MovieLens data, or generated MovieLens-derived queue artifacts.
@@ -152,6 +200,22 @@ It is proof that the data path is real and measurable.
 - Taste Lab research brief: [docs/taste-lab-research-brief.md](docs/taste-lab-research-brief.md)
 - Taste Lab generated queue setup: [docs/setup/taste-lab-generated-seed-queue.md](docs/setup/taste-lab-generated-seed-queue.md)
 - Taste Lab evaluation setup: [docs/setup/taste-lab-evaluation.md](docs/setup/taste-lab-evaluation.md)
+- Recommendation evaluation: [docs/recommendation-evaluation.md](docs/recommendation-evaluation.md)
+- Locked MovieLens benchmark protocol: [docs/validation/movielens-benchmark-protocol.md](docs/validation/movielens-benchmark-protocol.md)
+- One-user chronological tracer: [docs/validation/movielens-one-user-trace.md](docs/validation/movielens-one-user-trace.md)
+- MovieLens cohort baselines: [docs/validation/movielens-cohort-baselines.md](docs/validation/movielens-cohort-baselines.md)
+- Ratings-only collaborative baseline: [docs/validation/movielens-collaborative-baseline.md](docs/validation/movielens-collaborative-baseline.md)
+- Content-collaborative hybrid: [docs/validation/movielens-hybrid-baseline.md](docs/validation/movielens-hybrid-baseline.md)
+- Feature ablation and model selection: [docs/validation/movielens-model-selection.md](docs/validation/movielens-model-selection.md)
+- Sealed benchmark decision packet: [docs/validation/movielens-sealed-benchmark.md](docs/validation/movielens-sealed-benchmark.md)
+- Learned taste product integration: [docs/validation/learned-taste-product-integration.md](docs/validation/learned-taste-product-integration.md)
+- Model improvement development protocol: [docs/validation/model-improvement-development-protocol.md](docs/validation/model-improvement-development-protocol.md)
+- Model improvement protocol lock: [docs/validation/model-improvement-protocol-lock.json](docs/validation/model-improvement-protocol-lock.json)
+- Support-aware hybrid search: [docs/validation/movielens-support-aware-hybrid.md](docs/validation/movielens-support-aware-hybrid.md)
+- Collaborative and ranking search: [docs/validation/movielens-collaborative-search.md](docs/validation/movielens-collaborative-search.md)
+- Shared internal-test winner: [docs/validation/movielens-internal-winner.md](docs/validation/movielens-internal-winner.md)
+- Replacement sealed-panel lock: [docs/validation/replacement-sealed-panel-lock.json](docs/validation/replacement-sealed-panel-lock.json)
+- Replacement sealed benchmark: [docs/validation/movielens-replacement-sealed-benchmark.md](docs/validation/movielens-replacement-sealed-benchmark.md)
 - MVP gate validation: [docs/validation/live-usable-mvp-gate-2026-06-30.md](docs/validation/live-usable-mvp-gate-2026-06-30.md)
 
 ## Repo Guide
@@ -290,5 +354,7 @@ These paths are local-only and should not be committed:
 ## Current Status
 
 The local MVP is functional and the Taste Lab MVP plus 1 outcome is implemented.
-The strongest next product lane is recommendation quality beyond genre-level evidence: title similarity, tag dimensions, feedback learning, and a better evaluation harness.
+The offline individual-taste champion is the sealed regularization-2.0 collaborative model, available behind the reversible `v2_collaborative` adapter while V2 remains the default.
+The strongest next product lane is a valid two-person household comparison after both configured profiles have enough real Taste Lab evidence.
+The strongest next model-research lane is richer fixed-source content evidence or ranking objectives, but any new final claim requires a fresh independent panel.
 The strongest next portfolio lane is a clearer public story showing calibration in Taste Lab changing WatchSignal's final pick.

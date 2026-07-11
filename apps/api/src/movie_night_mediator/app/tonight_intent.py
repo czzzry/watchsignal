@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass, field
+from enum import StrEnum
 from typing import Protocol
 
 from movie_night_mediator.mvp_plus_3 import (
@@ -14,6 +16,26 @@ from movie_night_mediator.mvp_plus_2 import (
     IntentInterpretation,
     IntentInterpretationStatus,
 )
+
+
+logger = logging.getLogger(__name__)
+
+
+class DirectedNudgeProviderFailureReason(StrEnum):
+    AUTHENTICATION = "authentication"
+    RATE_LIMITED = "rate_limited"
+    PROVIDER_HTTP_ERROR = "provider_http_error"
+    CONNECTION = "connection"
+    TIMEOUT = "timeout"
+    EMPTY_RESPONSE = "empty_response"
+    MALFORMED_RESPONSE = "malformed_response"
+    INVALID_CONTRACT = "invalid_contract"
+
+
+class DirectedNudgeProviderError(RuntimeError):
+    def __init__(self, reason: DirectedNudgeProviderFailureReason) -> None:
+        self.reason = reason
+        super().__init__(f"Directed nudge provider failed: {reason.value}")
 
 
 class TonightIntentProvider(Protocol):
@@ -46,8 +68,18 @@ class TonightIntentInterpreter:
                     deterministic=deterministic,
                     live_nudge=live_nudge,
                 )
-            except ValueError:
-                pass
+            except DirectedNudgeProviderError as exc:
+                provider_name = type(self.directed_nudge_provider).__name__
+                logger.warning(
+                    "Live directed nudge provider failed; using deterministic fallback "
+                    "(provider=%s, reason=%s)",
+                    provider_name,
+                    exc.reason.value,
+                    extra={
+                        "directed_nudge_provider": provider_name,
+                        "directed_nudge_failure_reason": exc.reason.value,
+                    },
+                )
 
         return deterministic
 

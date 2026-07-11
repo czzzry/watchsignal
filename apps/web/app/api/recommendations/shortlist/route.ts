@@ -48,13 +48,26 @@ function withConfiguredShortlistSource(
   };
 }
 
-function configuredScoringEngine(): "v1_heuristic" | "v2_contract" | null {
+function configuredScoringEngine():
+  | "v1_heuristic"
+  | "v2_contract"
+  | "v2_collaborative"
+  | "v2_hybrid"
+  | null {
   if (process.env.MOVIE_NIGHT_SCORING_ENGINE === "v1_heuristic") {
     return "v1_heuristic";
   }
 
   if (process.env.MOVIE_NIGHT_SCORING_ENGINE === "v2_contract") {
     return "v2_contract";
+  }
+
+  if (process.env.MOVIE_NIGHT_SCORING_ENGINE === "v2_collaborative") {
+    return "v2_collaborative";
+  }
+
+  if (process.env.MOVIE_NIGHT_SCORING_ENGINE === "v2_hybrid") {
+    return "v2_hybrid";
   }
 
   return null;

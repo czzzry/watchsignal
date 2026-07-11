@@ -323,7 +323,7 @@ export type SaveWatchlistEntryPayload = {
   title: string;
 };
 
-export type ScoringEngineId = "v1_heuristic" | "v2_contract";
+export type ScoringEngineId = "v1_heuristic" | "v2_contract" | "v2_collaborative" | "v2_hybrid";
 
 export type ScoringSessionReactionPayload = {
   reactionLabel: string;

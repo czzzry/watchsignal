@@ -11,6 +11,13 @@ The goal is to compare clarity, maintainability, and recommendation-engine flexi
 The founder or product lead owns final product, architecture, privacy, vendor, and portfolio decisions.
 Codex should treat the carried-over docs as product guidance, not as immutable implementation law.
 
+## Founder learning and intent interpretation
+
+Treat founder-supplied numbers, implementation ideas, feature examples, and technical vocabulary as hypotheses that communicate intent, not as validated requirements.
+Codex remains responsible for identifying the underlying goal, checking the technical and statistical details independently, and recommending the strongest approach supported by evidence.
+Explain unfamiliar systems from first principles in plain language, distinguish what the founder guessed from what the evidence supports, and tie analogies back to the actual project data, code, and decision.
+Be protective without being patronizing: do not require the founder to invent technical options before Codex can recommend a path, and do not agree with an example merely because it was proposed confidently.
+
 ## Codex may
 
 - Create and maintain docs, app scaffolding, schemas, tests, samples, and reversible code structure
@@ -127,6 +134,23 @@ See `docs/agents/domain.md`.
 A Pocock-style skill setup has been carried over through the `docs/agents/` structure.
 Kun Cheng's GNHF skill has been copied into the local agent skills folder, but autonomous GNHF runs should wait until the repo has bounded issues, validation commands, and clean worktree rules.
 See `docs/agents/autonomous-work-protocol.md`.
+
+## Engineering evidence loop
+
+For substantial product, architecture, AI-behavior, or cross-boundary work, use this loop:
+
+1. Claim: State what user or system outcome should improve.
+2. Contract: State what schema, invariant, state shape, or interface carries the meaning.
+3. Boundary: State which component owns the behavior and what it must not own.
+4. Behavior: State what observable result should change or remain stable.
+5. Evidence: State what proves the result and what that evidence does not prove.
+6. Decision: State whether to promote, hold, revise, or roll back, and who owns that decision.
+
+Before implementation, state the first four items plus the planned evidence and decision gate.
+At completion, report the actual six-item loop.
+Use `unchanged`, `not applicable`, `hypothesis`, or `unproven` instead of inventing a connection.
+Use one loop per coherent vertical slice, not one loop per file.
+For routine fixes, provide only a compact evidence-loop summary.
 
 ## End-of-task summary rule
 

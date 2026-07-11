@@ -1,0 +1,1275 @@
+{
+  "candidate_reports": [
+    {
+      "aggregate": {
+        "development_tune:established": {
+          "excluded_neutral_labels": 29981,
+          "mean_profile_item_coverage": 0.995891,
+          "metrics": {
+            "coverage": {
+              "ci_95_lower": 0.99147,
+              "ci_95_upper": 0.99391,
+              "mean": 0.992747,
+              "users": 2923
+            },
+            "known_dislike_rate_at_5": {
+              "ci_95_lower": 0.076291,
+              "ci_95_upper": 0.087239,
+              "mean": 0.081218,
+              "users": 2923
+            },
+            "ndcg_at_5": {
+              "ci_95_lower": 0.603416,
+              "ci_95_upper": 0.617399,
+              "mean": 0.609993,
+              "users": 2923
+            },
+            "pairwise_preference_accuracy": {
+              "ci_95_lower": 0.754728,
+              "ci_95_upper": 0.769212,
+              "mean": 0.76223,
+              "users": 2923
+            }
+          },
+          "unknown_candidate_items": 636,
+          "users": 2923
+        }
+      },
+      "config": {
+        "bias_regularization": 5.0,
+        "iterations": 5,
+        "latent_dimensions": 16,
+        "objective": "regularized_explicit_rating_squared_error",
+        "optimizer": "alternating_ridge_regression",
+        "regularization": 0.5,
+        "seed": 20260711
+      },
+      "evaluation_seconds": 0.751,
+      "name": "als_d16_r0.5_i5",
+      "search_spec": {
+        "iterations": 5,
+        "latent_dimensions": 16,
+        "name": "als_d16_r0.5_i5",
+        "preference_weighting": 0.0,
+        "regularization": 0.5
+      },
+      "training_rmse_by_iteration": [
+        0.729433,
+        0.666475,
+        0.641203,
+        0.628448,
+        0.620756
+      ],
+      "training_seconds": 19.228
+    },
+    {
+      "aggregate": {
+        "development_tune:established": {
+          "excluded_neutral_labels": 29981,
+          "mean_profile_item_coverage": 0.995891,
+          "metrics": {
+            "coverage": {
+              "ci_95_lower": 0.99147,
+              "ci_95_upper": 0.99391,
+              "mean": 0.992747,
+              "users": 2923
+            },
+            "known_dislike_rate_at_5": {
+              "ci_95_lower": 0.069654,
+              "ci_95_upper": 0.080671,
+              "mean": 0.074581,
+              "users": 2923
+            },
+            "ndcg_at_5": {
+              "ci_95_lower": 0.61307,
+              "ci_95_upper": 0.627692,
+              "mean": 0.619756,
+              "users": 2923
+            },
+            "pairwise_preference_accuracy": {
+              "ci_95_lower": 0.764296,
+              "ci_95_upper": 0.778213,
+              "mean": 0.771673,
+              "users": 2923
+            }
+          },
+          "unknown_candidate_items": 636,
+          "users": 2923
+        }
+      },
+      "config": {
+        "bias_regularization": 5.0,
+        "iterations": 5,
+        "latent_dimensions": 16,
+        "objective": "regularized_explicit_rating_squared_error",
+        "optimizer": "alternating_ridge_regression",
+        "regularization": 1.0,
+        "seed": 20260711
+      },
+      "evaluation_seconds": 0.8,
+      "name": "als_d16_r1_i5_reference",
+      "search_spec": {
+        "iterations": 5,
+        "latent_dimensions": 16,
+        "name": "als_d16_r1_i5_reference",
+        "preference_weighting": 0.0,
+        "regularization": 1.0
+      },
+      "training_rmse_by_iteration": [
+        0.734535,
+        0.666167,
+        0.641029,
+        0.628859,
+        0.621769
+      ],
+      "training_seconds": 20.361
+    },
+    {
+      "aggregate": {
+        "development_tune:established": {
+          "excluded_neutral_labels": 29981,
+          "mean_profile_item_coverage": 0.995891,
+          "metrics": {
+            "coverage": {
+              "ci_95_lower": 0.99147,
+              "ci_95_upper": 0.99391,
+              "mean": 0.992747,
+              "users": 2923
+            },
+            "known_dislike_rate_at_5": {
+              "ci_95_lower": 0.064249,
+              "ci_95_upper": 0.074649,
+              "mean": 0.069039,
+              "users": 2923
+            },
+            "ndcg_at_5": {
+              "ci_95_lower": 0.624855,
+              "ci_95_upper": 0.637762,
+              "mean": 0.63076,
+              "users": 2923
+            },
+            "pairwise_preference_accuracy": {
+              "ci_95_lower": 0.77305,
+              "ci_95_upper": 0.786876,
+              "mean": 0.780191,
+              "users": 2923
+            }
+          },
+          "unknown_candidate_items": 636,
+          "users": 2923
+        }
+      },
+      "config": {
+        "bias_regularization": 5.0,
+        "iterations": 5,
+        "latent_dimensions": 16,
+        "objective": "regularized_explicit_rating_squared_error",
+        "optimizer": "alternating_ridge_regression",
+        "regularization": 2.0,
+        "seed": 20260711
+      },
+      "evaluation_seconds": 0.72,
+      "name": "als_d16_r2_i5",
+      "search_spec": {
+        "iterations": 5,
+        "latent_dimensions": 16,
+        "name": "als_d16_r2_i5",
+        "preference_weighting": 0.0,
+        "regularization": 2.0
+      },
+      "training_rmse_by_iteration": [
+        0.746066,
+        0.669165,
+        0.644353,
+        0.63296,
+        0.626537
+      ],
+      "training_seconds": 18.42
+    },
+    {
+      "aggregate": {
+        "development_tune:established": {
+          "excluded_neutral_labels": 29981,
+          "mean_profile_item_coverage": 0.995891,
+          "metrics": {
+            "coverage": {
+              "ci_95_lower": 0.99147,
+              "ci_95_upper": 0.99391,
+              "mean": 0.992747,
+              "users": 2923
+            },
+            "known_dislike_rate_at_5": {
+              "ci_95_lower": 0.080192,
+              "ci_95_upper": 0.09196,
+              "mean": 0.085939,
+              "users": 2923
+            },
+            "ndcg_at_5": {
+              "ci_95_lower": 0.589735,
+              "ci_95_upper": 0.603043,
+              "mean": 0.595864,
+              "users": 2923
+            },
+            "pairwise_preference_accuracy": {
+              "ci_95_lower": 0.739719,
+              "ci_95_upper": 0.754838,
+              "mean": 0.747022,
+              "users": 2923
+            }
+          },
+          "unknown_candidate_items": 636,
+          "users": 2923
+        }
+      },
+      "config": {
+        "bias_regularization": 5.0,
+        "iterations": 5,
+        "latent_dimensions": 32,
+        "objective": "regularized_explicit_rating_squared_error",
+        "optimizer": "alternating_ridge_regression",
+        "regularization": 1.0,
+        "seed": 20260711
+      },
+      "evaluation_seconds": 0.855,
+      "name": "als_d32_r1_i5",
+      "search_spec": {
+        "iterations": 5,
+        "latent_dimensions": 32,
+        "name": "als_d32_r1_i5",
+        "preference_weighting": 0.0,
+        "regularization": 1.0
+      },
+      "training_rmse_by_iteration": [
+        0.680888,
+        0.594865,
+        0.566468,
+        0.552256,
+        0.543702
+      ],
+      "training_seconds": 25.962
+    },
+    {
+      "aggregate": {
+        "development_tune:established": {
+          "excluded_neutral_labels": 29981,
+          "mean_profile_item_coverage": 0.995891,
+          "metrics": {
+            "coverage": {
+              "ci_95_lower": 0.99147,
+              "ci_95_upper": 0.99391,
+              "mean": 0.992747,
+              "users": 2923
+            },
+            "known_dislike_rate_at_5": {
+              "ci_95_lower": 0.074649,
+              "ci_95_upper": 0.085529,
+              "mean": 0.08026,
+              "users": 2923
+            },
+            "ndcg_at_5": {
+              "ci_95_lower": 0.602849,
+              "ci_95_upper": 0.615896,
+              "mean": 0.608958,
+              "users": 2923
+            },
+            "pairwise_preference_accuracy": {
+              "ci_95_lower": 0.753963,
+              "ci_95_upper": 0.769463,
+              "mean": 0.76199,
+              "users": 2923
+            }
+          },
+          "unknown_candidate_items": 636,
+          "users": 2923
+        }
+      },
+      "config": {
+        "bias_regularization": 5.0,
+        "iterations": 5,
+        "latent_dimensions": 32,
+        "objective": "regularized_explicit_rating_squared_error",
+        "optimizer": "alternating_ridge_regression",
+        "regularization": 2.0,
+        "seed": 20260711
+      },
+      "evaluation_seconds": 0.904,
+      "name": "als_d32_r2_i5",
+      "search_spec": {
+        "iterations": 5,
+        "latent_dimensions": 32,
+        "name": "als_d32_r2_i5",
+        "preference_weighting": 0.0,
+        "regularization": 2.0
+      },
+      "training_rmse_by_iteration": [
+        0.695184,
+        0.59943,
+        0.571636,
+        0.55848,
+        0.550838
+      ],
+      "training_seconds": 25.621
+    },
+    {
+      "aggregate": {
+        "development_tune:established": {
+          "excluded_neutral_labels": 29981,
+          "mean_profile_item_coverage": 0.995891,
+          "metrics": {
+            "coverage": {
+              "ci_95_lower": 0.99147,
+              "ci_95_upper": 0.99391,
+              "mean": 0.992747,
+              "users": 2923
+            },
+            "known_dislike_rate_at_5": {
+              "ci_95_lower": 0.06767,
+              "ci_95_upper": 0.078344,
+              "mean": 0.072733,
+              "users": 2923
+            },
+            "ndcg_at_5": {
+              "ci_95_lower": 0.619441,
+              "ci_95_upper": 0.632936,
+              "mean": 0.625778,
+              "users": 2923
+            },
+            "pairwise_preference_accuracy": {
+              "ci_95_lower": 0.769711,
+              "ci_95_upper": 0.783889,
+              "mean": 0.776668,
+              "users": 2923
+            }
+          },
+          "unknown_candidate_items": 636,
+          "users": 2923
+        }
+      },
+      "config": {
+        "bias_regularization": 5.0,
+        "iterations": 8,
+        "latent_dimensions": 16,
+        "objective": "regularized_explicit_rating_squared_error",
+        "optimizer": "alternating_ridge_regression",
+        "regularization": 1.0,
+        "seed": 20260711
+      },
+      "evaluation_seconds": 0.719,
+      "name": "als_d16_r1_i8",
+      "search_spec": {
+        "iterations": 8,
+        "latent_dimensions": 16,
+        "name": "als_d16_r1_i8",
+        "preference_weighting": 0.0,
+        "regularization": 1.0
+      },
+      "training_rmse_by_iteration": [
+        0.734535,
+        0.666167,
+        0.641029,
+        0.628859,
+        0.621769,
+        0.617223,
+        0.614119,
+        0.611899
+      ],
+      "training_seconds": 32.443
+    },
+    {
+      "aggregate": {
+        "development_tune:established": {
+          "excluded_neutral_labels": 29981,
+          "mean_profile_item_coverage": 0.995891,
+          "metrics": {
+            "coverage": {
+              "ci_95_lower": 0.99147,
+              "ci_95_upper": 0.99391,
+              "mean": 0.992747,
+              "users": 2923
+            },
+            "known_dislike_rate_at_5": {
+              "ci_95_lower": 0.071981,
+              "ci_95_upper": 0.083339,
+              "mean": 0.077728,
+              "users": 2923
+            },
+            "ndcg_at_5": {
+              "ci_95_lower": 0.605415,
+              "ci_95_upper": 0.618557,
+              "mean": 0.611411,
+              "users": 2923
+            },
+            "pairwise_preference_accuracy": {
+              "ci_95_lower": 0.75568,
+              "ci_95_upper": 0.770185,
+              "mean": 0.763507,
+              "users": 2923
+            }
+          },
+          "unknown_candidate_items": 636,
+          "users": 2923
+        }
+      },
+      "config": {
+        "bias_regularization": 5.0,
+        "iterations": 8,
+        "latent_dimensions": 32,
+        "objective": "regularized_explicit_rating_squared_error",
+        "optimizer": "alternating_ridge_regression",
+        "regularization": 2.0,
+        "seed": 20260711
+      },
+      "evaluation_seconds": 0.856,
+      "name": "als_d32_r2_i8",
+      "search_spec": {
+        "iterations": 8,
+        "latent_dimensions": 32,
+        "name": "als_d32_r2_i8",
+        "preference_weighting": 0.0,
+        "regularization": 2.0
+      },
+      "training_rmse_by_iteration": [
+        0.695184,
+        0.59943,
+        0.571636,
+        0.55848,
+        0.550838,
+        0.54584,
+        0.542293,
+        0.539632
+      ],
+      "training_seconds": 45.689
+    },
+    {
+      "aggregate": {
+        "development_tune:established": {
+          "excluded_neutral_labels": 29981,
+          "mean_profile_item_coverage": 0.995891,
+          "metrics": {
+            "coverage": {
+              "ci_95_lower": 0.99147,
+              "ci_95_upper": 0.99391,
+              "mean": 0.992747,
+              "users": 2923
+            },
+            "known_dislike_rate_at_5": {
+              "ci_95_lower": 0.074444,
+              "ci_95_upper": 0.085255,
+              "mean": 0.079439,
+              "users": 2923
+            },
+            "ndcg_at_5": {
+              "ci_95_lower": 0.604225,
+              "ci_95_upper": 0.617746,
+              "mean": 0.610659,
+              "users": 2923
+            },
+            "pairwise_preference_accuracy": {
+              "ci_95_lower": 0.754716,
+              "ci_95_upper": 0.768789,
+              "mean": 0.761834,
+              "users": 2923
+            }
+          },
+          "unknown_candidate_items": 636,
+          "users": 2923
+        }
+      },
+      "config": {
+        "bias_regularization": 5.0,
+        "iterations": 5,
+        "latent_dimensions": 16,
+        "objective": "extreme_preference_weighted_squared_error:0.5",
+        "optimizer": "alternating_ridge_regression",
+        "regularization": 1.0,
+        "seed": 20260711
+      },
+      "evaluation_seconds": 0.885,
+      "name": "weighted_d16_r1_i5_w0.5",
+      "search_spec": {
+        "iterations": 5,
+        "latent_dimensions": 16,
+        "name": "weighted_d16_r1_i5_w0.5",
+        "preference_weighting": 0.5,
+        "regularization": 1.0
+      },
+      "training_rmse_by_iteration": [
+        0.740847,
+        0.672345,
+        0.646738,
+        0.634187,
+        0.626743
+      ],
+      "training_seconds": 24.462
+    },
+    {
+      "aggregate": {
+        "development_tune:established": {
+          "excluded_neutral_labels": 29981,
+          "mean_profile_item_coverage": 0.995891,
+          "metrics": {
+            "coverage": {
+              "ci_95_lower": 0.99147,
+              "ci_95_upper": 0.99391,
+              "mean": 0.992747,
+              "users": 2923
+            },
+            "known_dislike_rate_at_5": {
+              "ci_95_lower": 0.075813,
+              "ci_95_upper": 0.086829,
+              "mean": 0.081081,
+              "users": 2923
+            },
+            "ndcg_at_5": {
+              "ci_95_lower": 0.599209,
+              "ci_95_upper": 0.613424,
+              "mean": 0.605998,
+              "users": 2923
+            },
+            "pairwise_preference_accuracy": {
+              "ci_95_lower": 0.749917,
+              "ci_95_upper": 0.763856,
+              "mean": 0.757071,
+              "users": 2923
+            }
+          },
+          "unknown_candidate_items": 636,
+          "users": 2923
+        }
+      },
+      "config": {
+        "bias_regularization": 5.0,
+        "iterations": 5,
+        "latent_dimensions": 16,
+        "objective": "extreme_preference_weighted_squared_error:1",
+        "optimizer": "alternating_ridge_regression",
+        "regularization": 1.0,
+        "seed": 20260711
+      },
+      "evaluation_seconds": 0.829,
+      "name": "weighted_d16_r1_i5_w1",
+      "search_spec": {
+        "iterations": 5,
+        "latent_dimensions": 16,
+        "name": "weighted_d16_r1_i5_w1",
+        "preference_weighting": 1.0,
+        "regularization": 1.0
+      },
+      "training_rmse_by_iteration": [
+        0.751652,
+        0.68225,
+        0.656212,
+        0.643403,
+        0.635738
+      ],
+      "training_seconds": 26.668
+    },
+    {
+      "aggregate": {
+        "development_tune:established": {
+          "excluded_neutral_labels": 29981,
+          "mean_profile_item_coverage": 0.995891,
+          "metrics": {
+            "coverage": {
+              "ci_95_lower": 0.99147,
+              "ci_95_upper": 0.99391,
+              "mean": 0.992747,
+              "users": 2923
+            },
+            "known_dislike_rate_at_5": {
+              "ci_95_lower": 0.079713,
+              "ci_95_upper": 0.091071,
+              "mean": 0.084913,
+              "users": 2923
+            },
+            "ndcg_at_5": {
+              "ci_95_lower": 0.58996,
+              "ci_95_upper": 0.60434,
+              "mean": 0.596987,
+              "users": 2923
+            },
+            "pairwise_preference_accuracy": {
+              "ci_95_lower": 0.744501,
+              "ci_95_upper": 0.75903,
+              "mean": 0.751912,
+              "users": 2923
+            }
+          },
+          "unknown_candidate_items": 636,
+          "users": 2923
+        }
+      },
+      "config": {
+        "bias_regularization": 5.0,
+        "iterations": 5,
+        "latent_dimensions": 16,
+        "objective": "extreme_preference_weighted_squared_error:2",
+        "optimizer": "alternating_ridge_regression",
+        "regularization": 1.0,
+        "seed": 20260711
+      },
+      "evaluation_seconds": 0.846,
+      "name": "weighted_d16_r1_i5_w2",
+      "search_spec": {
+        "iterations": 5,
+        "latent_dimensions": 16,
+        "name": "weighted_d16_r1_i5_w2",
+        "preference_weighting": 2.0,
+        "regularization": 1.0
+      },
+      "training_rmse_by_iteration": [
+        0.767733,
+        0.697408,
+        0.670966,
+        0.657909,
+        0.650065
+      ],
+      "training_seconds": 23.996
+    },
+    {
+      "aggregate": {
+        "development_tune:established": {
+          "excluded_neutral_labels": 29981,
+          "mean_profile_item_coverage": 0.995891,
+          "metrics": {
+            "coverage": {
+              "ci_95_lower": 0.99147,
+              "ci_95_upper": 0.99391,
+              "mean": 0.992747,
+              "users": 2923
+            },
+            "known_dislike_rate_at_5": {
+              "ci_95_lower": 0.080055,
+              "ci_95_upper": 0.091892,
+              "mean": 0.085597,
+              "users": 2923
+            },
+            "ndcg_at_5": {
+              "ci_95_lower": 0.584007,
+              "ci_95_upper": 0.597311,
+              "mean": 0.590111,
+              "users": 2923
+            },
+            "pairwise_preference_accuracy": {
+              "ci_95_lower": 0.737298,
+              "ci_95_upper": 0.752229,
+              "mean": 0.744792,
+              "users": 2923
+            }
+          },
+          "unknown_candidate_items": 636,
+          "users": 2923
+        }
+      },
+      "config": {
+        "bias_regularization": 5.0,
+        "iterations": 5,
+        "latent_dimensions": 32,
+        "objective": "extreme_preference_weighted_squared_error:1",
+        "optimizer": "alternating_ridge_regression",
+        "regularization": 2.0,
+        "seed": 20260711
+      },
+      "evaluation_seconds": 0.877,
+      "name": "weighted_d32_r2_i5_w1",
+      "search_spec": {
+        "iterations": 5,
+        "latent_dimensions": 32,
+        "name": "weighted_d32_r2_i5_w1",
+        "preference_weighting": 1.0,
+        "regularization": 2.0
+      },
+      "training_rmse_by_iteration": [
+        0.702409,
+        0.61116,
+        0.582087,
+        0.567632,
+        0.558882
+      ],
+      "training_seconds": 32.25
+    },
+    {
+      "aggregate": {
+        "development_tune:established": {
+          "excluded_neutral_labels": 29981,
+          "mean_profile_item_coverage": 0.995891,
+          "metrics": {
+            "coverage": {
+              "ci_95_lower": 0.99147,
+              "ci_95_upper": 0.99391,
+              "mean": 0.992747,
+              "users": 2923
+            },
+            "known_dislike_rate_at_5": {
+              "ci_95_lower": 0.077249,
+              "ci_95_upper": 0.088334,
+              "mean": 0.08286,
+              "users": 2923
+            },
+            "ndcg_at_5": {
+              "ci_95_lower": 0.581642,
+              "ci_95_upper": 0.595757,
+              "mean": 0.588438,
+              "users": 2923
+            },
+            "pairwise_preference_accuracy": {
+              "ci_95_lower": 0.739953,
+              "ci_95_upper": 0.755492,
+              "mean": 0.747655,
+              "users": 2923
+            }
+          },
+          "unknown_candidate_items": 636,
+          "users": 2923
+        }
+      },
+      "config": {
+        "bias_regularization": 5.0,
+        "iterations": 8,
+        "latent_dimensions": 32,
+        "objective": "extreme_preference_weighted_squared_error:1",
+        "optimizer": "alternating_ridge_regression",
+        "regularization": 2.0,
+        "seed": 20260711
+      },
+      "evaluation_seconds": 0.854,
+      "name": "weighted_d32_r2_i8_w1",
+      "search_spec": {
+        "iterations": 8,
+        "latent_dimensions": 32,
+        "name": "weighted_d32_r2_i8_w1",
+        "preference_weighting": 1.0,
+        "regularization": 2.0
+      },
+      "training_rmse_by_iteration": [
+        0.702409,
+        0.61116,
+        0.582087,
+        0.567632,
+        0.558882,
+        0.552992,
+        0.548758,
+        0.545568
+      ],
+      "training_seconds": 51.853
+    }
+  ],
+  "comparator_artifacts": {
+    "support_aware_hybrid_file": "support-aware-hybrid-candidate.zip",
+    "support_aware_hybrid_size_bytes": 11879157
+  },
+  "hybrid_aggregate": {
+    "development_tune:cold_start": {
+      "excluded_neutral_labels": 456,
+      "mean_profile_item_coverage": 1.0,
+      "metrics": {
+        "coverage": {
+          "ci_95_lower": 1.0,
+          "ci_95_upper": 1.0,
+          "mean": 1.0,
+          "users": 189
+        },
+        "known_dislike_rate_at_5": {
+          "ci_95_lower": 0.107937,
+          "ci_95_upper": 0.159788,
+          "mean": 0.132275,
+          "users": 189
+        },
+        "ndcg_at_5": {
+          "ci_95_lower": 0.707038,
+          "ci_95_upper": 0.760663,
+          "mean": 0.733314,
+          "users": 189
+        },
+        "pairwise_preference_accuracy": {
+          "ci_95_lower": 0.733176,
+          "ci_95_upper": 0.807803,
+          "mean": 0.76907,
+          "users": 189
+        }
+      },
+      "unknown_candidate_items": 0,
+      "users": 189
+    },
+    "development_tune:deep_history": {
+      "excluded_neutral_labels": 23155,
+      "mean_profile_item_coverage": 1.0,
+      "metrics": {
+        "coverage": {
+          "ci_95_lower": 1.0,
+          "ci_95_upper": 1.0,
+          "mean": 1.0,
+          "users": 1189
+        },
+        "known_dislike_rate_at_5": {
+          "ci_95_lower": 0.055172,
+          "ci_95_upper": 0.07132,
+          "mean": 0.063078,
+          "users": 1189
+        },
+        "ndcg_at_5": {
+          "ci_95_lower": 0.607765,
+          "ci_95_upper": 0.630685,
+          "mean": 0.619313,
+          "users": 1189
+        },
+        "pairwise_preference_accuracy": {
+          "ci_95_lower": 0.822539,
+          "ci_95_upper": 0.839449,
+          "mean": 0.830726,
+          "users": 1189
+        }
+      },
+      "unknown_candidate_items": 0,
+      "users": 1189
+    },
+    "development_tune:established": {
+      "excluded_neutral_labels": 29981,
+      "mean_profile_item_coverage": 1.0,
+      "metrics": {
+        "coverage": {
+          "ci_95_lower": 1.0,
+          "ci_95_upper": 1.0,
+          "mean": 1.0,
+          "users": 2923
+        },
+        "known_dislike_rate_at_5": {
+          "ci_95_lower": 0.066096,
+          "ci_95_upper": 0.076223,
+          "mean": 0.070954,
+          "users": 2923
+        },
+        "ndcg_at_5": {
+          "ci_95_lower": 0.619962,
+          "ci_95_upper": 0.633781,
+          "mean": 0.626529,
+          "users": 2923
+        },
+        "pairwise_preference_accuracy": {
+          "ci_95_lower": 0.769882,
+          "ci_95_upper": 0.784222,
+          "mean": 0.777368,
+          "users": 2923
+        }
+      },
+      "unknown_candidate_items": 0,
+      "users": 2923
+    }
+  },
+  "local_report_sha256": "fb54009e8acd660e307b36300a8642e1c8c557a96897e77b03c4f2379218c38a",
+  "per_user_rows": {
+    "refit_collaborative": 4301,
+    "selected": 4301,
+    "support_aware_hybrid": 4301
+  },
+  "protocol": {
+    "candidate_budget": 12,
+    "declared_candidate_count": 12,
+    "fit_role": "development_fit",
+    "internal_test_opened": false,
+    "objective_note": "Preference weighting is a predeclared ranking-aligned squared-error surrogate that emphasizes strong likes and dislikes; it is not BPR.",
+    "selection_cohort": "established",
+    "selection_role": "development_tune",
+    "selection_rule": "highest tune-established NDCG@5, then pairwise accuracy, then fewer latent dimensions, fewer iterations, and lower weighting"
+  },
+  "reference_aggregate": {
+    "development_tune:cold_start": {
+      "excluded_neutral_labels": 456,
+      "mean_profile_item_coverage": 1.0,
+      "metrics": {
+        "coverage": {
+          "ci_95_lower": 1.0,
+          "ci_95_upper": 1.0,
+          "mean": 1.0,
+          "users": 189
+        },
+        "known_dislike_rate_at_5": {
+          "ci_95_lower": 0.108995,
+          "ci_95_upper": 0.156614,
+          "mean": 0.131217,
+          "users": 189
+        },
+        "ndcg_at_5": {
+          "ci_95_lower": 0.6982,
+          "ci_95_upper": 0.752459,
+          "mean": 0.725061,
+          "users": 189
+        },
+        "pairwise_preference_accuracy": {
+          "ci_95_lower": 0.717062,
+          "ci_95_upper": 0.793452,
+          "mean": 0.755065,
+          "users": 189
+        }
+      },
+      "unknown_candidate_items": 0,
+      "users": 189
+    },
+    "development_tune:deep_history": {
+      "excluded_neutral_labels": 23155,
+      "mean_profile_item_coverage": 0.992791,
+      "metrics": {
+        "coverage": {
+          "ci_95_lower": 0.983566,
+          "ci_95_upper": 0.988898,
+          "mean": 0.986308,
+          "users": 1189
+        },
+        "known_dislike_rate_at_5": {
+          "ci_95_lower": 0.057023,
+          "ci_95_upper": 0.073507,
+          "mean": 0.06476,
+          "users": 1189
+        },
+        "ndcg_at_5": {
+          "ci_95_lower": 0.603917,
+          "ci_95_upper": 0.626693,
+          "mean": 0.615503,
+          "users": 1189
+        },
+        "pairwise_preference_accuracy": {
+          "ci_95_lower": 0.818954,
+          "ci_95_upper": 0.835616,
+          "mean": 0.827273,
+          "users": 1189
+        }
+      },
+      "unknown_candidate_items": 814,
+      "users": 1189
+    },
+    "development_tune:established": {
+      "excluded_neutral_labels": 29981,
+      "mean_profile_item_coverage": 0.995891,
+      "metrics": {
+        "coverage": {
+          "ci_95_lower": 0.991527,
+          "ci_95_upper": 0.993819,
+          "mean": 0.992747,
+          "users": 2923
+        },
+        "known_dislike_rate_at_5": {
+          "ci_95_lower": 0.069586,
+          "ci_95_upper": 0.080397,
+          "mean": 0.074581,
+          "users": 2923
+        },
+        "ndcg_at_5": {
+          "ci_95_lower": 0.613239,
+          "ci_95_upper": 0.627061,
+          "mean": 0.619756,
+          "users": 2923
+        },
+        "pairwise_preference_accuracy": {
+          "ci_95_lower": 0.764296,
+          "ci_95_upper": 0.778214,
+          "mean": 0.771673,
+          "users": 2923
+        }
+      },
+      "unknown_candidate_items": 636,
+      "users": 2923
+    }
+  },
+  "report_date": "2026-07-11",
+  "report_version": "collaborative-ranking-search-v1",
+  "result_sha256": "619258b03351fc84d9bfe4dc74f22d47beb4108ef3c7e724530f1ad22a8063b8",
+  "runtime": {
+    "numpy": "2.4.6",
+    "peak_memory_mb": 864.85,
+    "platform": "macOS-26.5.2-x86_64-i386-64bit-Mach-O",
+    "python": "3.13.1",
+    "total_seconds": 683.476
+  },
+  "selected_aggregate": {
+    "development_tune:cold_start": {
+      "excluded_neutral_labels": 456,
+      "mean_profile_item_coverage": 1.0,
+      "metrics": {
+        "coverage": {
+          "ci_95_lower": 1.0,
+          "ci_95_upper": 1.0,
+          "mean": 1.0,
+          "users": 189
+        },
+        "known_dislike_rate_at_5": {
+          "ci_95_lower": 0.110053,
+          "ci_95_upper": 0.159788,
+          "mean": 0.133333,
+          "users": 189
+        },
+        "ndcg_at_5": {
+          "ci_95_lower": 0.701097,
+          "ci_95_upper": 0.756187,
+          "mean": 0.728536,
+          "users": 189
+        },
+        "pairwise_preference_accuracy": {
+          "ci_95_lower": 0.737068,
+          "ci_95_upper": 0.809027,
+          "mean": 0.772406,
+          "users": 189
+        }
+      },
+      "unknown_candidate_items": 0,
+      "users": 189
+    },
+    "development_tune:deep_history": {
+      "excluded_neutral_labels": 23155,
+      "mean_profile_item_coverage": 0.992791,
+      "metrics": {
+        "coverage": {
+          "ci_95_lower": 0.983566,
+          "ci_95_upper": 0.988898,
+          "mean": 0.986308,
+          "users": 1189
+        },
+        "known_dislike_rate_at_5": {
+          "ci_95_lower": 0.055004,
+          "ci_95_upper": 0.070816,
+          "mean": 0.062742,
+          "users": 1189
+        },
+        "ndcg_at_5": {
+          "ci_95_lower": 0.608836,
+          "ci_95_upper": 0.631332,
+          "mean": 0.620661,
+          "users": 1189
+        },
+        "pairwise_preference_accuracy": {
+          "ci_95_lower": 0.825752,
+          "ci_95_upper": 0.842086,
+          "mean": 0.833858,
+          "users": 1189
+        }
+      },
+      "unknown_candidate_items": 814,
+      "users": 1189
+    },
+    "development_tune:established": {
+      "excluded_neutral_labels": 29981,
+      "mean_profile_item_coverage": 0.995891,
+      "metrics": {
+        "coverage": {
+          "ci_95_lower": 0.991527,
+          "ci_95_upper": 0.993819,
+          "mean": 0.992747,
+          "users": 2923
+        },
+        "known_dislike_rate_at_5": {
+          "ci_95_lower": 0.064181,
+          "ci_95_upper": 0.074512,
+          "mean": 0.069039,
+          "users": 2923
+        },
+        "ndcg_at_5": {
+          "ci_95_lower": 0.624564,
+          "ci_95_upper": 0.637685,
+          "mean": 0.63076,
+          "users": 2923
+        },
+        "pairwise_preference_accuracy": {
+          "ci_95_lower": 0.772905,
+          "ci_95_upper": 0.787143,
+          "mean": 0.780191,
+          "users": 2923
+        }
+      },
+      "unknown_candidate_items": 636,
+      "users": 2923
+    }
+  },
+  "selected_candidate": {
+    "artifact_file": "collaborative-search-candidate.zip",
+    "artifact_sha256": "d6858942711fe929858c9143c8ca419952be9f135addd3f9b9694ac2294a344b",
+    "artifact_size_bytes": 2545226,
+    "config": {
+      "bias_regularization": 5.0,
+      "iterations": 5,
+      "latent_dimensions": 16,
+      "objective": "regularized_explicit_rating_squared_error",
+      "optimizer": "alternating_ridge_regression",
+      "regularization": 2.0,
+      "seed": 20260711
+    },
+    "name": "als_d16_r2_i5",
+    "search_spec": {
+      "iterations": 5,
+      "latent_dimensions": 16,
+      "name": "als_d16_r2_i5",
+      "preference_weighting": 0.0,
+      "regularization": 2.0
+    }
+  },
+  "selected_paired_results": {
+    "minus_frozen_support_aware_hybrid": {
+      "development_tune:cold_start": {
+        "coverage": {
+          "ci_95_lower": 0.0,
+          "ci_95_upper": 0.0,
+          "mean": 0.0,
+          "users": 189
+        },
+        "known_dislike_rate_at_5": {
+          "ci_95_lower": -0.005291,
+          "ci_95_upper": 0.007407,
+          "mean": 0.001058,
+          "users": 189
+        },
+        "ndcg_at_5": {
+          "ci_95_lower": -0.01488,
+          "ci_95_upper": 0.003959,
+          "mean": -0.004778,
+          "users": 189
+        },
+        "pairwise_preference_accuracy": {
+          "ci_95_lower": -0.007332,
+          "ci_95_upper": 0.014725,
+          "mean": 0.003336,
+          "users": 189
+        }
+      },
+      "development_tune:deep_history": {
+        "coverage": {
+          "ci_95_lower": -0.016367,
+          "ci_95_upper": -0.011169,
+          "mean": -0.013692,
+          "users": 1189
+        },
+        "known_dislike_rate_at_5": {
+          "ci_95_lower": -0.004878,
+          "ci_95_upper": 0.004037,
+          "mean": -0.000336,
+          "users": 1189
+        },
+        "ndcg_at_5": {
+          "ci_95_lower": -0.003938,
+          "ci_95_upper": 0.006623,
+          "mean": 0.001348,
+          "users": 1189
+        },
+        "pairwise_preference_accuracy": {
+          "ci_95_lower": 6.8e-05,
+          "ci_95_upper": 0.006205,
+          "mean": 0.003132,
+          "users": 1189
+        }
+      },
+      "development_tune:established": {
+        "coverage": {
+          "ci_95_lower": -0.008439,
+          "ci_95_upper": -0.006181,
+          "mean": -0.007253,
+          "users": 2923
+        },
+        "known_dislike_rate_at_5": {
+          "ci_95_lower": -0.004653,
+          "ci_95_upper": 0.000889,
+          "mean": -0.001916,
+          "users": 2923
+        },
+        "ndcg_at_5": {
+          "ci_95_lower": 0.000925,
+          "ci_95_upper": 0.007393,
+          "mean": 0.004231,
+          "users": 2923
+        },
+        "pairwise_preference_accuracy": {
+          "ci_95_lower": 0.000121,
+          "ci_95_upper": 0.005505,
+          "mean": 0.002822,
+          "users": 2923
+        }
+      }
+    },
+    "minus_refit_collaborative": {
+      "development_tune:cold_start": {
+        "coverage": {
+          "ci_95_lower": 0.0,
+          "ci_95_upper": 0.0,
+          "mean": 0.0,
+          "users": 189
+        },
+        "known_dislike_rate_at_5": {
+          "ci_95_lower": -0.005291,
+          "ci_95_upper": 0.010582,
+          "mean": 0.002116,
+          "users": 189
+        },
+        "ndcg_at_5": {
+          "ci_95_lower": -0.004452,
+          "ci_95_upper": 0.011079,
+          "mean": 0.003475,
+          "users": 189
+        },
+        "pairwise_preference_accuracy": {
+          "ci_95_lower": 0.003749,
+          "ci_95_upper": 0.031531,
+          "mean": 0.017341,
+          "users": 189
+        }
+      },
+      "development_tune:deep_history": {
+        "coverage": {
+          "ci_95_lower": 0.0,
+          "ci_95_upper": 0.0,
+          "mean": 0.0,
+          "users": 1189
+        },
+        "known_dislike_rate_at_5": {
+          "ci_95_lower": -0.005046,
+          "ci_95_upper": 0.001177,
+          "mean": -0.002019,
+          "users": 1189
+        },
+        "ndcg_at_5": {
+          "ci_95_lower": 0.001706,
+          "ci_95_upper": 0.008664,
+          "mean": 0.005158,
+          "users": 1189
+        },
+        "pairwise_preference_accuracy": {
+          "ci_95_lower": 0.004793,
+          "ci_95_upper": 0.008459,
+          "mean": 0.006585,
+          "users": 1189
+        }
+      },
+      "development_tune:established": {
+        "coverage": {
+          "ci_95_lower": 0.0,
+          "ci_95_upper": 0.0,
+          "mean": 0.0,
+          "users": 2923
+        },
+        "known_dislike_rate_at_5": {
+          "ci_95_lower": -0.007937,
+          "ci_95_upper": -0.003284,
+          "mean": -0.005542,
+          "users": 2923
+        },
+        "ndcg_at_5": {
+          "ci_95_lower": 0.008429,
+          "ci_95_upper": 0.013626,
+          "mean": 0.011004,
+          "users": 2923
+        },
+        "pairwise_preference_accuracy": {
+          "ci_95_lower": 0.006777,
+          "ci_95_upper": 0.010228,
+          "mean": 0.008517,
+          "users": 2923
+        }
+      }
+    }
+  },
+  "training": {
+    "items": 49299,
+    "rows": 2395300,
+    "source_profile_counts": {
+      "cold_start": 500,
+      "deep_history": 3554,
+      "established": 6133
+    },
+    "users": 10187
+  }
+}

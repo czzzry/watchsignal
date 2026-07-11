@@ -5,6 +5,7 @@ description = "FastAPI backend and recommendation core for the Movie Night Media
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.116.0",
+    "numpy==2.4.6",
     "uvicorn[standard]>=0.35.0",
 ]
 

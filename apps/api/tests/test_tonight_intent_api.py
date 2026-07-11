@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 import unittest
+from unittest import mock
 
 from fastapi.routing import APIRoute
 
@@ -11,6 +13,11 @@ from movie_night_mediator.api.main import (
 
 
 class TonightIntentApiTest(unittest.TestCase):
+    def setUp(self) -> None:
+        openai_key_patch = mock.patch.dict(os.environ, {"OPENAI_API_KEY": ""})
+        openai_key_patch.start()
+        self.addCleanup(openai_key_patch.stop)
+
     def test_interpret_route_returns_confirmation_payload(self) -> None:
         interpret = tonight_intent_route_endpoint(create_app())
 

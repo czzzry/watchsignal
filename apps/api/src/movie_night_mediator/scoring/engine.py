@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from enum import StrEnum
+from functools import lru_cache
+import os
+from pathlib import Path
 
 from movie_night_mediator.domain import (
     AudienceMode,
@@ -21,11 +24,20 @@ from movie_night_mediator.scoring.concepts import (
 )
 from movie_night_mediator.scoring.heuristic import HeuristicScorer
 from movie_night_mediator.scoring.heuristic import _title_similarity
+from movie_night_mediator.scoring.learned_taste import (
+    LearnedTasteBatch,
+    LearnedTasteProvider,
+    LearnedTasteProviderError,
+    load_collaborative_taste_provider,
+    load_hybrid_taste_provider,
+)
 
 
 class ScoringEngineId(StrEnum):
     V1_HEURISTIC = "v1_heuristic"
     V2_CONTRACT = "v2_contract"
+    V2_COLLABORATIVE = "v2_collaborative"
+    V2_HYBRID = "v2_hybrid"
 
 
 class V2ContractScorer:
@@ -35,9 +47,15 @@ class V2ContractScorer:
         self,
         delegate: HeuristicScorer | None = None,
         concept_registry: ScoringConceptRegistry | None = None,
+        learned_taste_provider: LearnedTasteProvider | None = None,
+        scorer_version: str = ScoringEngineId.V2_CONTRACT.value,
+        learned_taste_fallback_reason: str | None = None,
     ) -> None:
         self._delegate = delegate or HeuristicScorer()
         self._concept_registry = concept_registry or ScoringConceptRegistry()
+        self._learned_taste_provider = learned_taste_provider
+        self._scorer_version = scorer_version
+        self._learned_taste_fallback_reason = learned_taste_fallback_reason
 
     def score(self, request: ScoringRequest) -> RecommendationResult:
         result = self._delegate.score(request)
@@ -48,6 +66,16 @@ class V2ContractScorer:
         profile_affinities = tuple(
             self._concept_registry.affinities_for_user(user) for user in active_users
         )
+        learned_batch, learned_fallback_reason = self._learned_taste_batch(request)
+        learned_candidates = tuple(
+            _candidate_with_learned_taste(
+                candidate,
+                active_users=active_users,
+                session_mode=request.session.session_mode,
+                learned_batch=learned_batch,
+            )
+            for candidate in result.ranked_candidates
+        )
         scored_candidates = tuple(
             _ranked_candidate_with_v2_concepts(
                 candidate,
@@ -57,16 +85,31 @@ class V2ContractScorer:
                 tonight_intents=request.session.tonight_intents,
                 concept_registry=self._concept_registry,
                 profile_affinities=profile_affinities,
+                learned_positive_evidence=candidate.dominant_positive_evidence,
             )
-            for candidate in result.ranked_candidates
+            for candidate in learned_candidates
         )
         ranked_candidates = _rerank_candidates(scored_candidates)
-        fallback_reason = _fallback_reason(ranked_candidates)
+        metadata_fallback_reason = _fallback_reason(ranked_candidates)
+        fallback_reason = learned_fallback_reason or metadata_fallback_reason
         confidence = _confidence_assessment(
             result=result,
             ranked_candidates=ranked_candidates,
-            fallback_reason=fallback_reason,
+            fallback_reason=metadata_fallback_reason,
         )
+        if learned_fallback_reason:
+            confidence = replace(
+                confidence,
+                is_uncertain=True,
+                uncertainty_reason=(
+                    "Configured learned taste evidence was unavailable; the V2 "
+                    "rollback path produced this shortlist."
+                ),
+                recommended_follow_up=(
+                    "Verify the local model and link artifacts before comparing "
+                    "this learned scoring path."
+                ),
+            )
         return replace(
             result,
             ranked_candidates=ranked_candidates,
@@ -74,7 +117,7 @@ class V2ContractScorer:
                 result.interesting_safe_pick,
                 ranked_candidates,
             ),
-            scorer_version=ScoringEngineId.V2_CONTRACT.value,
+            scorer_version=self._scorer_version,
             is_uncertain=confidence.is_uncertain,
             uncertainty_reason=confidence.uncertainty_reason,
             recommended_follow_up=confidence.recommended_follow_up,
@@ -83,9 +126,28 @@ class V2ContractScorer:
             partial_support_notes=_partial_support_notes(
                 request.session.tonight_intents,
                 ranked_candidates,
+            )
+            + (
+                (f"Learned taste fallback: {learned_fallback_reason}.",)
+                if learned_fallback_reason
+                else ()
             ),
             fallback_reason=fallback_reason,
         )
+
+    def _learned_taste_batch(
+        self,
+        request: ScoringRequest,
+    ) -> tuple[LearnedTasteBatch | None, str | None]:
+        if self._learned_taste_provider is None:
+            return None, self._learned_taste_fallback_reason
+        try:
+            batch = self._learned_taste_provider.score(request)
+        except LearnedTasteProviderError as error:
+            return None, str(error)
+        if not batch.scores:
+            return batch, "no_mapped_profile_and_candidate_evidence"
+        return batch, None
 
 
 def build_recommendation_scorer(
@@ -94,7 +156,68 @@ def build_recommendation_scorer(
     engine = _normalized_engine_id(engine_id)
     if engine == ScoringEngineId.V2_CONTRACT:
         return V2ContractScorer()
+    if engine in {
+        ScoringEngineId.V2_COLLABORATIVE,
+        ScoringEngineId.V2_HYBRID,
+    }:
+        provider, fallback_reason = _configured_learned_taste_provider(engine)
+        return V2ContractScorer(
+            learned_taste_provider=provider,
+            scorer_version=engine.value,
+            learned_taste_fallback_reason=fallback_reason,
+        )
     return HeuristicScorer()
+
+
+def _configured_learned_taste_provider(
+    engine: ScoringEngineId,
+) -> tuple[LearnedTasteProvider | None, str | None]:
+    project_root = Path(__file__).resolve().parents[5]
+    links_path = Path(
+        os.environ.get(
+            "MOVIE_NIGHT_LEARNED_TASTE_LINKS_PATH",
+            project_root / ".tools/models/movielens-tmdb-links-v1.json",
+        )
+    )
+    if engine == ScoringEngineId.V2_COLLABORATIVE:
+        artifact_path = Path(
+            os.environ.get(
+                "MOVIE_NIGHT_COLLABORATIVE_MODEL_PATH",
+                project_root / ".tools/models/collaborative-search-candidate.zip",
+            )
+        )
+    else:
+        artifact_path = Path(
+            os.environ.get(
+                "MOVIE_NIGHT_HYBRID_MODEL_PATH",
+                project_root / ".tools/models/hybrid-v1.zip",
+            )
+        )
+    try:
+        return _load_learned_taste_provider(
+            engine.value,
+            str(artifact_path),
+            str(links_path),
+        ), None
+    except LearnedTasteProviderError as error:
+        return None, str(error)
+
+
+@lru_cache(maxsize=8)
+def _load_learned_taste_provider(
+    engine_value: str,
+    artifact_path: str,
+    links_path: str,
+) -> LearnedTasteProvider:
+    if engine_value == ScoringEngineId.V2_COLLABORATIVE.value:
+        return load_collaborative_taste_provider(
+            Path(artifact_path),
+            Path(links_path),
+        )
+    return load_hybrid_taste_provider(
+        Path(artifact_path),
+        Path(links_path),
+    )
 
 
 def _normalized_engine_id(
@@ -117,6 +240,7 @@ def _ranked_candidate_with_v2_concepts(
     tonight_intents: tuple[TonightIntentContract, ...],
     concept_registry: ScoringConceptRegistry,
     profile_affinities: tuple[tuple[ProfileConceptAffinity, ...], ...],
+    learned_positive_evidence: tuple[str, ...] = (),
 ) -> RankedCandidate:
     contributions = tuple(
         contribution
@@ -190,7 +314,7 @@ def _ranked_candidate_with_v2_concepts(
             session=session,
         )
     )
-    positives = positive_concepts + tuple(
+    positives = learned_positive_evidence + positive_concepts + tuple(
         profile_positive_evidence
     ) + tuple(
         nudge_positive_evidence
@@ -249,6 +373,102 @@ def _ranked_candidate_with_v2_concepts(
         dominant_positive_evidence=positives,
         dominant_penalties=penalties,
     )
+
+
+def _candidate_with_learned_taste(
+    candidate: RankedCandidate,
+    *,
+    active_users: tuple[UserProfile, ...],
+    session_mode: SessionMode,
+    learned_batch: LearnedTasteBatch | None,
+) -> RankedCandidate:
+    if learned_batch is None:
+        return candidate
+    old_scores = [
+        score
+        for score in (candidate.user_a_score, candidate.user_b_score)
+        if score is not None
+    ]
+    new_scores: list[float] = []
+    learned_users: list[tuple[UserProfile, float, int]] = []
+    for index, user in enumerate(active_users[:2]):
+        fallback_score = old_scores[index] if index < len(old_scores) else 0.5
+        learned_score = learned_batch.scores.get(
+            (user.user_id, candidate.source_movie_id)
+        )
+        score = learned_score if learned_score is not None else fallback_score
+        new_scores.append(score)
+        if learned_score is not None:
+            learned_users.append(
+                (
+                    user,
+                    learned_score,
+                    learned_batch.profile_match_counts.get(user.user_id, 0),
+                )
+            )
+    if not learned_users:
+        return candidate
+
+    old_group_score = _group_score(session_mode, old_scores)
+    learned_group_score = _group_score(session_mode, new_scores)
+    adjusted_group_score = min(
+        1.0,
+        max(0.0, candidate.group_score + learned_group_score - old_group_score),
+    )
+    if not candidate.hard_filter_pass:
+        adjusted_group_score = 0.0
+    learned_evidence = tuple(
+        f"learned_taste:{learned_batch.model_name}:{user.user_id}:"
+        f"{match_count}_profile_items"
+        for user, _, match_count in learned_users
+    )
+    score_text = "; ".join(
+        f"{user.display_label}: {score:.2f}"
+        for user, score, _ in learned_users
+    )
+    return replace(
+        candidate,
+        user_a_score=new_scores[0] if new_scores else None,
+        user_b_score=new_scores[1] if len(new_scores) > 1 else None,
+        group_score=round(adjusted_group_score, 4),
+        fit_bucket=_fit_bucket(session_mode, new_scores),
+        why_short=(
+            f"{learned_batch.model_name.title()} learned taste informed the "
+            f"individual fit ({score_text}); V2 household and tonight logic "
+            "remain applied."
+        ),
+        dominant_positive_evidence=learned_evidence,
+    )
+
+
+def _group_score(session_mode: SessionMode, user_scores: list[float]) -> float:
+    if not user_scores:
+        return 0.0
+    if len(user_scores) == 1:
+        return user_scores[0]
+    user_a, user_b = user_scores[:2]
+    if session_mode == SessionMode.HUSBAND_FIRST:
+        return (user_a * 0.7) + (user_b * 0.3)
+    if session_mode == SessionMode.WIFE_FIRST:
+        return (user_a * 0.3) + (user_b * 0.7)
+    least_misery_floor = min(user_a, user_b)
+    average = (user_a + user_b) / 2
+    group_score = (least_misery_floor * 0.6) + (average * 0.4)
+    if least_misery_floor <= 0.35:
+        group_score *= 0.75
+    return group_score
+
+
+def _fit_bucket(session_mode: SessionMode, user_scores: list[float]) -> str:
+    if len(user_scores) < 2:
+        return "shared"
+    if session_mode == SessionMode.HUSBAND_FIRST:
+        return "user_a"
+    if session_mode == SessionMode.WIFE_FIRST:
+        return "user_b"
+    if abs(user_scores[0] - user_scores[1]) <= 0.15:
+        return "compromise"
+    return "user_a" if user_scores[0] > user_scores[1] else "user_b"
 
 
 def _profile_candidate_concept_score(

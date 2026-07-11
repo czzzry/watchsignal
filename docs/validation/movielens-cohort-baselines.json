@@ -1,0 +1,1332 @@
+{
+  "aggregate": {
+    "exploration:cold_start": {
+      "excluded_neutral_labels": 772,
+      "future_rows_per_user": 10,
+      "missing_movie_identifiers": 0,
+      "models": {
+        "popularity": {
+          "coverage": {
+            "ci_95_lower": 1.0,
+            "ci_95_upper": 1.0,
+            "mean": 1.0,
+            "users": 308
+          },
+          "known_dislike_rate_at_5": {
+            "ci_95_lower": 0.12987,
+            "ci_95_upper": 0.177273,
+            "mean": 0.151948,
+            "users": 308
+          },
+          "mean_runtime_ms": 0.04118,
+          "ndcg_at_5": {
+            "ci_95_lower": 0.679223,
+            "ci_95_upper": 0.724229,
+            "mean": 0.702329,
+            "users": 308
+          },
+          "pairwise_preference_accuracy": {
+            "ci_95_lower": 0.704764,
+            "ci_95_upper": 0.770305,
+            "mean": 0.73719,
+            "users": 308
+          }
+        },
+        "random": {
+          "coverage": {
+            "ci_95_lower": 1.0,
+            "ci_95_upper": 1.0,
+            "mean": 1.0,
+            "users": 308
+          },
+          "known_dislike_rate_at_5": {
+            "ci_95_lower": 0.211039,
+            "ci_95_upper": 0.257792,
+            "mean": 0.235714,
+            "users": 308
+          },
+          "mean_runtime_ms": 0.026338,
+          "ndcg_at_5": {
+            "ci_95_lower": 0.51705,
+            "ci_95_upper": 0.563079,
+            "mean": 0.539876,
+            "users": 308
+          },
+          "pairwise_preference_accuracy": {
+            "ci_95_lower": 0.482173,
+            "ci_95_upper": 0.543012,
+            "mean": 0.512424,
+            "users": 308
+          }
+        },
+        "v1": {
+          "coverage": {
+            "ci_95_lower": 1.0,
+            "ci_95_upper": 1.0,
+            "mean": 1.0,
+            "users": 308
+          },
+          "known_dislike_rate_at_5": {
+            "ci_95_lower": 0.187662,
+            "ci_95_upper": 0.236364,
+            "mean": 0.212338,
+            "users": 308
+          },
+          "mean_runtime_ms": 1.393206,
+          "ndcg_at_5": {
+            "ci_95_lower": 0.555164,
+            "ci_95_upper": 0.602089,
+            "mean": 0.578755,
+            "users": 308
+          },
+          "pairwise_preference_accuracy": {
+            "ci_95_lower": 0.545691,
+            "ci_95_upper": 0.612834,
+            "mean": 0.580355,
+            "users": 308
+          }
+        },
+        "v2": {
+          "coverage": {
+            "ci_95_lower": 1.0,
+            "ci_95_upper": 1.0,
+            "mean": 1.0,
+            "users": 308
+          },
+          "known_dislike_rate_at_5": {
+            "ci_95_lower": 0.194156,
+            "ci_95_upper": 0.23961,
+            "mean": 0.216234,
+            "users": 308
+          },
+          "mean_runtime_ms": 2.482648,
+          "ndcg_at_5": {
+            "ci_95_lower": 0.553084,
+            "ci_95_upper": 0.597946,
+            "mean": 0.57559,
+            "users": 308
+          },
+          "pairwise_preference_accuracy": {
+            "ci_95_lower": 0.546061,
+            "ci_95_upper": 0.614141,
+            "mean": 0.578982,
+            "users": 308
+          }
+        }
+      },
+      "paired_v2_minus_v1": {
+        "known_dislike_rate_at_5": {
+          "ci_95_lower": -0.004545,
+          "ci_95_upper": 0.012987,
+          "mean": 0.003896,
+          "users": 308
+        },
+        "ndcg_at_5": {
+          "ci_95_lower": -0.012111,
+          "ci_95_upper": 0.007151,
+          "mean": -0.003165,
+          "users": 308
+        },
+        "pairwise_preference_accuracy": {
+          "ci_95_lower": -0.014261,
+          "ci_95_upper": 0.012231,
+          "mean": -0.001373,
+          "users": 308
+        }
+      },
+      "profile_rows_per_user": 10,
+      "users": 308,
+      "v1_uncertain_rate": 0.0,
+      "v2_mean_confidence_score": 0.44,
+      "v2_uncertain_rate": 1.0
+    },
+    "exploration:deep_history": {
+      "excluded_neutral_labels": 37434,
+      "future_rows_per_user": 50,
+      "missing_movie_identifiers": 0,
+      "models": {
+        "popularity": {
+          "coverage": {
+            "ci_95_lower": 1.0,
+            "ci_95_upper": 1.0,
+            "mean": 1.0,
+            "users": 1883
+          },
+          "known_dislike_rate_at_5": {
+            "ci_95_lower": 0.08582,
+            "ci_95_upper": 0.10069,
+            "mean": 0.093043,
+            "users": 1883
+          },
+          "mean_runtime_ms": 0.195692,
+          "ndcg_at_5": {
+            "ci_95_lower": 0.558769,
+            "ci_95_upper": 0.577235,
+            "mean": 0.568065,
+            "users": 1883
+          },
+          "pairwise_preference_accuracy": {
+            "ci_95_lower": 0.755142,
+            "ci_95_upper": 0.771008,
+            "mean": 0.76339,
+            "users": 1883
+          }
+        },
+        "random": {
+          "coverage": {
+            "ci_95_lower": 1.0,
+            "ci_95_upper": 1.0,
+            "mean": 1.0,
+            "users": 1883
+          },
+          "known_dislike_rate_at_5": {
+            "ci_95_lower": 0.204461,
+            "ci_95_upper": 0.225173,
+            "mean": 0.215401,
+            "users": 1883
+          },
+          "mean_runtime_ms": 0.116714,
+          "ndcg_at_5": {
+            "ci_95_lower": 0.35601,
+            "ci_95_upper": 0.373208,
+            "mean": 0.364816,
+            "users": 1883
+          },
+          "pairwise_preference_accuracy": {
+            "ci_95_lower": 0.495281,
+            "ci_95_upper": 0.51005,
+            "mean": 0.502883,
+            "users": 1883
+          }
+        },
+        "v1": {
+          "coverage": {
+            "ci_95_lower": 1.0,
+            "ci_95_upper": 1.0,
+            "mean": 1.0,
+            "users": 1883
+          },
+          "known_dislike_rate_at_5": {
+            "ci_95_lower": 0.16718,
+            "ci_95_upper": 0.185555,
+            "mean": 0.177058,
+            "users": 1883
+          },
+          "mean_runtime_ms": 132.17258,
+          "ndcg_at_5": {
+            "ci_95_lower": 0.380038,
+            "ci_95_upper": 0.396728,
+            "mean": 0.388282,
+            "users": 1883
+          },
+          "pairwise_preference_accuracy": {
+            "ci_95_lower": 0.525039,
+            "ci_95_upper": 0.541602,
+            "mean": 0.533312,
+            "users": 1883
+          }
+        },
+        "v2": {
+          "coverage": {
+            "ci_95_lower": 1.0,
+            "ci_95_upper": 1.0,
+            "mean": 1.0,
+            "users": 1883
+          },
+          "known_dislike_rate_at_5": {
+            "ci_95_lower": 0.167074,
+            "ci_95_upper": 0.185449,
+            "mean": 0.176314,
+            "users": 1883
+          },
+          "mean_runtime_ms": 146.661833,
+          "ndcg_at_5": {
+            "ci_95_lower": 0.379795,
+            "ci_95_upper": 0.395733,
+            "mean": 0.387432,
+            "users": 1883
+          },
+          "pairwise_preference_accuracy": {
+            "ci_95_lower": 0.523552,
+            "ci_95_upper": 0.540409,
+            "mean": 0.531295,
+            "users": 1883
+          }
+        }
+      },
+      "paired_v2_minus_v1": {
+        "known_dislike_rate_at_5": {
+          "ci_95_lower": -0.002655,
+          "ci_95_upper": 0.001381,
+          "mean": -0.000743,
+          "users": 1883
+        },
+        "ndcg_at_5": {
+          "ci_95_lower": -0.002329,
+          "ci_95_upper": 0.00071,
+          "mean": -0.00085,
+          "users": 1883
+        },
+        "pairwise_preference_accuracy": {
+          "ci_95_lower": -0.003297,
+          "ci_95_upper": -0.000814,
+          "mean": -0.002017,
+          "users": 1883
+        }
+      },
+      "profile_rows_per_user": 500,
+      "users": 1883,
+      "v1_uncertain_rate": 0.0,
+      "v2_mean_confidence_score": 0.438581,
+      "v2_uncertain_rate": 1.0
+    },
+    "exploration:established": {
+      "excluded_neutral_labels": 48605,
+      "future_rows_per_user": 30,
+      "missing_movie_identifiers": 0,
+      "models": {
+        "popularity": {
+          "coverage": {
+            "ci_95_lower": 1.0,
+            "ci_95_upper": 1.0,
+            "mean": 1.0,
+            "users": 4617
+          },
+          "known_dislike_rate_at_5": {
+            "ci_95_lower": 0.08434,
+            "ci_95_upper": 0.093567,
+            "mean": 0.088889,
+            "users": 4617
+          },
+          "mean_runtime_ms": 0.184851,
+          "ndcg_at_5": {
+            "ci_95_lower": 0.594482,
+            "ci_95_upper": 0.606118,
+            "mean": 0.600184,
+            "users": 4617
+          },
+          "pairwise_preference_accuracy": {
+            "ci_95_lower": 0.737072,
+            "ci_95_upper": 0.749551,
+            "mean": 0.743233,
+            "users": 4617
+          }
+        },
+        "random": {
+          "coverage": {
+            "ci_95_lower": 1.0,
+            "ci_95_upper": 1.0,
+            "mean": 1.0,
+            "users": 4617
+          },
+          "known_dislike_rate_at_5": {
+            "ci_95_lower": 0.171323,
+            "ci_95_upper": 0.183842,
+            "mean": 0.177518,
+            "users": 4617
+          },
+          "mean_runtime_ms": 0.07341,
+          "ndcg_at_5": {
+            "ci_95_lower": 0.423626,
+            "ci_95_upper": 0.434372,
+            "mean": 0.429225,
+            "users": 4617
+          },
+          "pairwise_preference_accuracy": {
+            "ci_95_lower": 0.495963,
+            "ci_95_upper": 0.507474,
+            "mean": 0.501797,
+            "users": 4617
+          }
+        },
+        "v1": {
+          "coverage": {
+            "ci_95_lower": 1.0,
+            "ci_95_upper": 1.0,
+            "mean": 1.0,
+            "users": 4617
+          },
+          "known_dislike_rate_at_5": {
+            "ci_95_lower": 0.14295,
+            "ci_95_upper": 0.153563,
+            "mean": 0.148062,
+            "users": 4617
+          },
+          "mean_runtime_ms": 17.738603,
+          "ndcg_at_5": {
+            "ci_95_lower": 0.445174,
+            "ci_95_upper": 0.455653,
+            "mean": 0.450803,
+            "users": 4617
+          },
+          "pairwise_preference_accuracy": {
+            "ci_95_lower": 0.545854,
+            "ci_95_upper": 0.55889,
+            "mean": 0.552625,
+            "users": 4617
+          }
+        },
+        "v2": {
+          "coverage": {
+            "ci_95_lower": 1.0,
+            "ci_95_upper": 1.0,
+            "mean": 1.0,
+            "users": 4617
+          },
+          "known_dislike_rate_at_5": {
+            "ci_95_lower": 0.143816,
+            "ci_95_upper": 0.154906,
+            "mean": 0.149188,
+            "users": 4617
+          },
+          "mean_runtime_ms": 22.153774,
+          "ndcg_at_5": {
+            "ci_95_lower": 0.444164,
+            "ci_95_upper": 0.455167,
+            "mean": 0.449429,
+            "users": 4617
+          },
+          "pairwise_preference_accuracy": {
+            "ci_95_lower": 0.542966,
+            "ci_95_upper": 0.556081,
+            "mean": 0.549447,
+            "users": 4617
+          }
+        }
+      },
+      "paired_v2_minus_v1": {
+        "known_dislike_rate_at_5": {
+          "ci_95_lower": 8.7e-05,
+          "ci_95_upper": 0.002209,
+          "mean": 0.001126,
+          "users": 4617
+        },
+        "ndcg_at_5": {
+          "ci_95_lower": -0.002292,
+          "ci_95_upper": -0.000397,
+          "mean": -0.001374,
+          "users": 4617
+        },
+        "pairwise_preference_accuracy": {
+          "ci_95_lower": -0.004362,
+          "ci_95_upper": -0.002035,
+          "mean": -0.003178,
+          "users": 4617
+        }
+      },
+      "profile_rows_per_user": 100,
+      "users": 4617,
+      "v1_uncertain_rate": 0.0,
+      "v2_mean_confidence_score": 0.439363,
+      "v2_uncertain_rate": 1.0
+    },
+    "validation:cold_start": {
+      "excluded_neutral_labels": 742,
+      "future_rows_per_user": 10,
+      "missing_movie_identifiers": 0,
+      "models": {
+        "popularity": {
+          "coverage": {
+            "ci_95_lower": 1.0,
+            "ci_95_upper": 1.0,
+            "mean": 1.0,
+            "users": 313
+          },
+          "known_dislike_rate_at_5": {
+            "ci_95_lower": 0.113099,
+            "ci_95_upper": 0.151438,
+            "mean": 0.132268,
+            "users": 313
+          },
+          "mean_runtime_ms": 0.043511,
+          "ndcg_at_5": {
+            "ci_95_lower": 0.705095,
+            "ci_95_upper": 0.745226,
+            "mean": 0.723535,
+            "users": 313
+          },
+          "pairwise_preference_accuracy": {
+            "ci_95_lower": 0.708414,
+            "ci_95_upper": 0.77004,
+            "mean": 0.739979,
+            "users": 313
+          }
+        },
+        "random": {
+          "coverage": {
+            "ci_95_lower": 1.0,
+            "ci_95_upper": 1.0,
+            "mean": 1.0,
+            "users": 313
+          },
+          "known_dislike_rate_at_5": {
+            "ci_95_lower": 0.196805,
+            "ci_95_upper": 0.238339,
+            "mean": 0.217252,
+            "users": 313
+          },
+          "mean_runtime_ms": 0.030677,
+          "ndcg_at_5": {
+            "ci_95_lower": 0.532634,
+            "ci_95_upper": 0.574954,
+            "mean": 0.55422,
+            "users": 313
+          },
+          "pairwise_preference_accuracy": {
+            "ci_95_lower": 0.48671,
+            "ci_95_upper": 0.552703,
+            "mean": 0.519073,
+            "users": 313
+          }
+        },
+        "v1": {
+          "coverage": {
+            "ci_95_lower": 1.0,
+            "ci_95_upper": 1.0,
+            "mean": 1.0,
+            "users": 313
+          },
+          "known_dislike_rate_at_5": {
+            "ci_95_lower": 0.175719,
+            "ci_95_upper": 0.219169,
+            "mean": 0.196166,
+            "users": 313
+          },
+          "mean_runtime_ms": 1.384607,
+          "ndcg_at_5": {
+            "ci_95_lower": 0.563175,
+            "ci_95_upper": 0.609084,
+            "mean": 0.586754,
+            "users": 313
+          },
+          "pairwise_preference_accuracy": {
+            "ci_95_lower": 0.518317,
+            "ci_95_upper": 0.585435,
+            "mean": 0.551462,
+            "users": 313
+          }
+        },
+        "v2": {
+          "coverage": {
+            "ci_95_lower": 1.0,
+            "ci_95_upper": 1.0,
+            "mean": 1.0,
+            "users": 313
+          },
+          "known_dislike_rate_at_5": {
+            "ci_95_lower": 0.176358,
+            "ci_95_upper": 0.220447,
+            "mean": 0.198083,
+            "users": 313
+          },
+          "mean_runtime_ms": 2.502652,
+          "ndcg_at_5": {
+            "ci_95_lower": 0.564375,
+            "ci_95_upper": 0.610396,
+            "mean": 0.587682,
+            "users": 313
+          },
+          "pairwise_preference_accuracy": {
+            "ci_95_lower": 0.521094,
+            "ci_95_upper": 0.58352,
+            "mean": 0.552442,
+            "users": 313
+          }
+        }
+      },
+      "paired_v2_minus_v1": {
+        "known_dislike_rate_at_5": {
+          "ci_95_lower": -0.00639,
+          "ci_95_upper": 0.010863,
+          "mean": 0.001917,
+          "users": 313
+        },
+        "ndcg_at_5": {
+          "ci_95_lower": -0.007851,
+          "ci_95_upper": 0.010506,
+          "mean": 0.000929,
+          "users": 313
+        },
+        "pairwise_preference_accuracy": {
+          "ci_95_lower": -0.013646,
+          "ci_95_upper": 0.016752,
+          "mean": 0.00098,
+          "users": 313
+        }
+      },
+      "profile_rows_per_user": 10,
+      "users": 313,
+      "v1_uncertain_rate": 0.0,
+      "v2_mean_confidence_score": 0.44,
+      "v2_uncertain_rate": 1.0
+    },
+    "validation:deep_history": {
+      "excluded_neutral_labels": 38136,
+      "future_rows_per_user": 50,
+      "missing_movie_identifiers": 0,
+      "models": {
+        "popularity": {
+          "coverage": {
+            "ci_95_lower": 1.0,
+            "ci_95_upper": 1.0,
+            "mean": 1.0,
+            "users": 1956
+          },
+          "known_dislike_rate_at_5": {
+            "ci_95_lower": 0.083742,
+            "ci_95_upper": 0.09908,
+            "mean": 0.091207,
+            "users": 1956
+          },
+          "mean_runtime_ms": 0.172737,
+          "ndcg_at_5": {
+            "ci_95_lower": 0.564123,
+            "ci_95_upper": 0.582554,
+            "mean": 0.573171,
+            "users": 1956
+          },
+          "pairwise_preference_accuracy": {
+            "ci_95_lower": 0.765468,
+            "ci_95_upper": 0.780566,
+            "mean": 0.772612,
+            "users": 1956
+          }
+        },
+        "random": {
+          "coverage": {
+            "ci_95_lower": 1.0,
+            "ci_95_upper": 1.0,
+            "mean": 1.0,
+            "users": 1956
+          },
+          "known_dislike_rate_at_5": {
+            "ci_95_lower": 0.208998,
+            "ci_95_upper": 0.230164,
+            "mean": 0.21953,
+            "users": 1956
+          },
+          "mean_runtime_ms": 0.129846,
+          "ndcg_at_5": {
+            "ci_95_lower": 0.34996,
+            "ci_95_upper": 0.366339,
+            "mean": 0.358139,
+            "users": 1956
+          },
+          "pairwise_preference_accuracy": {
+            "ci_95_lower": 0.486398,
+            "ci_95_upper": 0.501552,
+            "mean": 0.494142,
+            "users": 1956
+          }
+        },
+        "v1": {
+          "coverage": {
+            "ci_95_lower": 1.0,
+            "ci_95_upper": 1.0,
+            "mean": 1.0,
+            "users": 1956
+          },
+          "known_dislike_rate_at_5": {
+            "ci_95_lower": 0.172188,
+            "ci_95_upper": 0.192229,
+            "mean": 0.182413,
+            "users": 1956
+          },
+          "mean_runtime_ms": 133.987833,
+          "ndcg_at_5": {
+            "ci_95_lower": 0.380827,
+            "ci_95_upper": 0.396325,
+            "mean": 0.388845,
+            "users": 1956
+          },
+          "pairwise_preference_accuracy": {
+            "ci_95_lower": 0.528954,
+            "ci_95_upper": 0.545937,
+            "mean": 0.537654,
+            "users": 1956
+          }
+        },
+        "v2": {
+          "coverage": {
+            "ci_95_lower": 1.0,
+            "ci_95_upper": 1.0,
+            "mean": 1.0,
+            "users": 1956
+          },
+          "known_dislike_rate_at_5": {
+            "ci_95_lower": 0.172086,
+            "ci_95_upper": 0.191718,
+            "mean": 0.182106,
+            "users": 1956
+          },
+          "mean_runtime_ms": 148.714098,
+          "ndcg_at_5": {
+            "ci_95_lower": 0.380649,
+            "ci_95_upper": 0.397274,
+            "mean": 0.388999,
+            "users": 1956
+          },
+          "pairwise_preference_accuracy": {
+            "ci_95_lower": 0.528792,
+            "ci_95_upper": 0.545185,
+            "mean": 0.536947,
+            "users": 1956
+          }
+        }
+      },
+      "paired_v2_minus_v1": {
+        "known_dislike_rate_at_5": {
+          "ci_95_lower": -0.002045,
+          "ci_95_upper": 0.001534,
+          "mean": -0.000307,
+          "users": 1956
+        },
+        "ndcg_at_5": {
+          "ci_95_lower": -0.001167,
+          "ci_95_upper": 0.001506,
+          "mean": 0.000153,
+          "users": 1956
+        },
+        "pairwise_preference_accuracy": {
+          "ci_95_lower": -0.002104,
+          "ci_95_upper": 0.000723,
+          "mean": -0.000706,
+          "users": 1956
+        }
+      },
+      "profile_rows_per_user": 500,
+      "users": 1956,
+      "v1_uncertain_rate": 0.0,
+      "v2_mean_confidence_score": 0.438716,
+      "v2_uncertain_rate": 1.0
+    },
+    "validation:established": {
+      "excluded_neutral_labels": 51715,
+      "future_rows_per_user": 30,
+      "missing_movie_identifiers": 0,
+      "models": {
+        "popularity": {
+          "coverage": {
+            "ci_95_lower": 1.0,
+            "ci_95_upper": 1.0,
+            "mean": 1.0,
+            "users": 5000
+          },
+          "known_dislike_rate_at_5": {
+            "ci_95_lower": 0.08096,
+            "ci_95_upper": 0.08964,
+            "mean": 0.08568,
+            "users": 5000
+          },
+          "mean_runtime_ms": 0.105568,
+          "ndcg_at_5": {
+            "ci_95_lower": 0.594675,
+            "ci_95_upper": 0.60524,
+            "mean": 0.600178,
+            "users": 5000
+          },
+          "pairwise_preference_accuracy": {
+            "ci_95_lower": 0.741128,
+            "ci_95_upper": 0.752022,
+            "mean": 0.746438,
+            "users": 5000
+          }
+        },
+        "random": {
+          "coverage": {
+            "ci_95_lower": 1.0,
+            "ci_95_upper": 1.0,
+            "mean": 1.0,
+            "users": 5000
+          },
+          "known_dislike_rate_at_5": {
+            "ci_95_lower": 0.17112,
+            "ci_95_upper": 0.18316,
+            "mean": 0.17724,
+            "users": 5000
+          },
+          "mean_runtime_ms": 0.074561,
+          "ndcg_at_5": {
+            "ci_95_lower": 0.423364,
+            "ci_95_upper": 0.433686,
+            "mean": 0.428572,
+            "users": 5000
+          },
+          "pairwise_preference_accuracy": {
+            "ci_95_lower": 0.493468,
+            "ci_95_upper": 0.505514,
+            "mean": 0.499583,
+            "users": 5000
+          }
+        },
+        "v1": {
+          "coverage": {
+            "ci_95_lower": 1.0,
+            "ci_95_upper": 1.0,
+            "mean": 1.0,
+            "users": 5000
+          },
+          "known_dislike_rate_at_5": {
+            "ci_95_lower": 0.14496,
+            "ci_95_upper": 0.1552,
+            "mean": 0.14996,
+            "users": 5000
+          },
+          "mean_runtime_ms": 18.064683,
+          "ndcg_at_5": {
+            "ci_95_lower": 0.445382,
+            "ci_95_upper": 0.455538,
+            "mean": 0.450406,
+            "users": 5000
+          },
+          "pairwise_preference_accuracy": {
+            "ci_95_lower": 0.539637,
+            "ci_95_upper": 0.552077,
+            "mean": 0.546035,
+            "users": 5000
+          }
+        },
+        "v2": {
+          "coverage": {
+            "ci_95_lower": 1.0,
+            "ci_95_upper": 1.0,
+            "mean": 1.0,
+            "users": 5000
+          },
+          "known_dislike_rate_at_5": {
+            "ci_95_lower": 0.14512,
+            "ci_95_upper": 0.15612,
+            "mean": 0.15052,
+            "users": 5000
+          },
+          "mean_runtime_ms": 22.328881,
+          "ndcg_at_5": {
+            "ci_95_lower": 0.443902,
+            "ci_95_upper": 0.4547,
+            "mean": 0.449374,
+            "users": 5000
+          },
+          "pairwise_preference_accuracy": {
+            "ci_95_lower": 0.537849,
+            "ci_95_upper": 0.549442,
+            "mean": 0.543221,
+            "users": 5000
+          }
+        }
+      },
+      "paired_v2_minus_v1": {
+        "known_dislike_rate_at_5": {
+          "ci_95_lower": -0.00048,
+          "ci_95_upper": 0.00168,
+          "mean": 0.00056,
+          "users": 5000
+        },
+        "ndcg_at_5": {
+          "ci_95_lower": -0.001798,
+          "ci_95_upper": -0.000329,
+          "mean": -0.001032,
+          "users": 5000
+        },
+        "pairwise_preference_accuracy": {
+          "ci_95_lower": -0.003929,
+          "ci_95_upper": -0.001623,
+          "mean": -0.002814,
+          "users": 5000
+        }
+      },
+      "profile_rows_per_user": 100,
+      "users": 5000,
+      "v1_uncertain_rate": 0.0,
+      "v2_mean_confidence_score": 0.439314,
+      "v2_uncertain_rate": 1.0
+    }
+  },
+  "bootstrap": {
+    "confidence": 0.95,
+    "method": "paired user-level percentile bootstrap",
+    "resamples": 1000,
+    "seed": 20260710
+  },
+  "result_sha256": "4324fea79f87989a6ebf4efbc20e21fb8aa791ded332cc8e147746b31e60870f",
+  "local_per_user_report_sha256": "f57050903de171ee8a7fe6ee35d50aadd7aa5fb99a33bb50258b27ca88a44b76",
+  "per_user_rows": 14077,
+  "popularity_training": {
+    "future_labels_used": false,
+    "global_mean_rating": 3.495821,
+    "global_profile_rows": 461700,
+    "leave_one_user_out_for_exploration_evaluation": true,
+    "source": "exploration established profile rows only"
+  },
+  "profile_depth_learning_curve": {
+    "aggregate": {
+      "exploration": {
+        "candidate_rows_per_user": 50,
+        "depths": {
+          "10": {
+            "models": {
+              "v1": {
+                "coverage": {
+                  "ci_95_lower": 1.0,
+                  "ci_95_upper": 1.0,
+                  "mean": 1.0,
+                  "users": 1883
+                },
+                "known_dislike_rate_at_5": {
+                  "ci_95_lower": 0.177483,
+                  "ci_95_upper": 0.195751,
+                  "mean": 0.186086,
+                  "users": 1883
+                },
+                "mean_runtime_ms": 5.063158,
+                "ndcg_at_5": {
+                  "ci_95_lower": 0.374099,
+                  "ci_95_upper": 0.390466,
+                  "mean": 0.382138,
+                  "users": 1883
+                },
+                "paired_ndcg_gain_vs_depth_10": {
+                  "ci_95_lower": 0.0,
+                  "ci_95_upper": 0.0,
+                  "mean": 0.0,
+                  "users": 1883
+                },
+                "pairwise_preference_accuracy": {
+                  "ci_95_lower": 0.545936,
+                  "ci_95_upper": 0.562384,
+                  "mean": 0.553581,
+                  "users": 1883
+                }
+              },
+              "v2": {
+                "coverage": {
+                  "ci_95_lower": 1.0,
+                  "ci_95_upper": 1.0,
+                  "mean": 1.0,
+                  "users": 1883
+                },
+                "known_dislike_rate_at_5": {
+                  "ci_95_lower": 0.176527,
+                  "ci_95_upper": 0.19607,
+                  "mean": 0.186192,
+                  "users": 1883
+                },
+                "mean_runtime_ms": 8.095099,
+                "ndcg_at_5": {
+                  "ci_95_lower": 0.373808,
+                  "ci_95_upper": 0.390624,
+                  "mean": 0.382206,
+                  "users": 1883
+                },
+                "paired_ndcg_gain_vs_depth_10": {
+                  "ci_95_lower": 0.0,
+                  "ci_95_upper": 0.0,
+                  "mean": 0.0,
+                  "users": 1883
+                },
+                "pairwise_preference_accuracy": {
+                  "ci_95_lower": 0.539776,
+                  "ci_95_upper": 0.555384,
+                  "mean": 0.547576,
+                  "users": 1883
+                }
+              }
+            }
+          },
+          "100": {
+            "models": {
+              "v1": {
+                "coverage": {
+                  "ci_95_lower": 1.0,
+                  "ci_95_upper": 1.0,
+                  "mean": 1.0,
+                  "users": 1883
+                },
+                "known_dislike_rate_at_5": {
+                  "ci_95_lower": 0.162719,
+                  "ci_95_upper": 0.180351,
+                  "mean": 0.17111,
+                  "users": 1883
+                },
+                "mean_runtime_ms": 22.351171,
+                "ndcg_at_5": {
+                  "ci_95_lower": 0.383776,
+                  "ci_95_upper": 0.399377,
+                  "mean": 0.391483,
+                  "users": 1883
+                },
+                "paired_ndcg_gain_vs_depth_10": {
+                  "ci_95_lower": 0.001596,
+                  "ci_95_upper": 0.018419,
+                  "mean": 0.009345,
+                  "users": 1883
+                },
+                "pairwise_preference_accuracy": {
+                  "ci_95_lower": 0.553234,
+                  "ci_95_upper": 0.569286,
+                  "mean": 0.561196,
+                  "users": 1883
+                }
+              },
+              "v2": {
+                "coverage": {
+                  "ci_95_lower": 1.0,
+                  "ci_95_upper": 1.0,
+                  "mean": 1.0,
+                  "users": 1883
+                },
+                "known_dislike_rate_at_5": {
+                  "ci_95_lower": 0.163463,
+                  "ci_95_upper": 0.180457,
+                  "mean": 0.171641,
+                  "users": 1883
+                },
+                "mean_runtime_ms": 27.391082,
+                "ndcg_at_5": {
+                  "ci_95_lower": 0.382639,
+                  "ci_95_upper": 0.398146,
+                  "mean": 0.390543,
+                  "users": 1883
+                },
+                "paired_ndcg_gain_vs_depth_10": {
+                  "ci_95_lower": -0.000297,
+                  "ci_95_upper": 0.016648,
+                  "mean": 0.008337,
+                  "users": 1883
+                },
+                "pairwise_preference_accuracy": {
+                  "ci_95_lower": 0.547584,
+                  "ci_95_upper": 0.562843,
+                  "mean": 0.555443,
+                  "users": 1883
+                }
+              }
+            }
+          },
+          "500": {
+            "models": {
+              "v1": {
+                "coverage": {
+                  "ci_95_lower": 1.0,
+                  "ci_95_upper": 1.0,
+                  "mean": 1.0,
+                  "users": 1883
+                },
+                "known_dislike_rate_at_5": {
+                  "ci_95_lower": 0.16803,
+                  "ci_95_upper": 0.186723,
+                  "mean": 0.177058,
+                  "users": 1883
+                },
+                "mean_runtime_ms": 132.17258,
+                "ndcg_at_5": {
+                  "ci_95_lower": 0.38068,
+                  "ci_95_upper": 0.396461,
+                  "mean": 0.388282,
+                  "users": 1883
+                },
+                "paired_ndcg_gain_vs_depth_10": {
+                  "ci_95_lower": -0.002873,
+                  "ci_95_upper": 0.014919,
+                  "mean": 0.006144,
+                  "users": 1883
+                },
+                "pairwise_preference_accuracy": {
+                  "ci_95_lower": 0.525088,
+                  "ci_95_upper": 0.541287,
+                  "mean": 0.533312,
+                  "users": 1883
+                }
+              },
+              "v2": {
+                "coverage": {
+                  "ci_95_lower": 1.0,
+                  "ci_95_upper": 1.0,
+                  "mean": 1.0,
+                  "users": 1883
+                },
+                "known_dislike_rate_at_5": {
+                  "ci_95_lower": 0.167392,
+                  "ci_95_upper": 0.186298,
+                  "mean": 0.176314,
+                  "users": 1883
+                },
+                "mean_runtime_ms": 146.661833,
+                "ndcg_at_5": {
+                  "ci_95_lower": 0.379576,
+                  "ci_95_upper": 0.395111,
+                  "mean": 0.387432,
+                  "users": 1883
+                },
+                "paired_ndcg_gain_vs_depth_10": {
+                  "ci_95_lower": -0.003231,
+                  "ci_95_upper": 0.014573,
+                  "mean": 0.005227,
+                  "users": 1883
+                },
+                "pairwise_preference_accuracy": {
+                  "ci_95_lower": 0.523372,
+                  "ci_95_upper": 0.539558,
+                  "mean": 0.531295,
+                  "users": 1883
+                }
+              }
+            }
+          }
+        },
+        "missing_movie_identifiers": 0,
+        "users": 1883
+      },
+      "validation": {
+        "candidate_rows_per_user": 50,
+        "depths": {
+          "10": {
+            "models": {
+              "v1": {
+                "coverage": {
+                  "ci_95_lower": 1.0,
+                  "ci_95_upper": 1.0,
+                  "mean": 1.0,
+                  "users": 1956
+                },
+                "known_dislike_rate_at_5": {
+                  "ci_95_lower": 0.178221,
+                  "ci_95_upper": 0.197239,
+                  "mean": 0.187832,
+                  "users": 1956
+                },
+                "mean_runtime_ms": 4.982846,
+                "ndcg_at_5": {
+                  "ci_95_lower": 0.377319,
+                  "ci_95_upper": 0.393179,
+                  "mean": 0.385126,
+                  "users": 1956
+                },
+                "paired_ndcg_gain_vs_depth_10": {
+                  "ci_95_lower": 0.0,
+                  "ci_95_upper": 0.0,
+                  "mean": 0.0,
+                  "users": 1956
+                },
+                "pairwise_preference_accuracy": {
+                  "ci_95_lower": 0.546735,
+                  "ci_95_upper": 0.562794,
+                  "mean": 0.554541,
+                  "users": 1956
+                }
+              },
+              "v2": {
+                "coverage": {
+                  "ci_95_lower": 1.0,
+                  "ci_95_upper": 1.0,
+                  "mean": 1.0,
+                  "users": 1956
+                },
+                "known_dislike_rate_at_5": {
+                  "ci_95_lower": 0.181595,
+                  "ci_95_upper": 0.201022,
+                  "mean": 0.191207,
+                  "users": 1956
+                },
+                "mean_runtime_ms": 8.120513,
+                "ndcg_at_5": {
+                  "ci_95_lower": 0.375526,
+                  "ci_95_upper": 0.391755,
+                  "mean": 0.383734,
+                  "users": 1956
+                },
+                "paired_ndcg_gain_vs_depth_10": {
+                  "ci_95_lower": 0.0,
+                  "ci_95_upper": 0.0,
+                  "mean": 0.0,
+                  "users": 1956
+                },
+                "pairwise_preference_accuracy": {
+                  "ci_95_lower": 0.542639,
+                  "ci_95_upper": 0.557762,
+                  "mean": 0.550103,
+                  "users": 1956
+                }
+              }
+            }
+          },
+          "100": {
+            "models": {
+              "v1": {
+                "coverage": {
+                  "ci_95_lower": 1.0,
+                  "ci_95_upper": 1.0,
+                  "mean": 1.0,
+                  "users": 1956
+                },
+                "known_dislike_rate_at_5": {
+                  "ci_95_lower": 0.165644,
+                  "ci_95_upper": 0.184356,
+                  "mean": 0.175358,
+                  "users": 1956
+                },
+                "mean_runtime_ms": 22.384113,
+                "ndcg_at_5": {
+                  "ci_95_lower": 0.383985,
+                  "ci_95_upper": 0.400027,
+                  "mean": 0.391782,
+                  "users": 1956
+                },
+                "paired_ndcg_gain_vs_depth_10": {
+                  "ci_95_lower": -0.000878,
+                  "ci_95_upper": 0.014465,
+                  "mean": 0.006656,
+                  "users": 1956
+                },
+                "pairwise_preference_accuracy": {
+                  "ci_95_lower": 0.550678,
+                  "ci_95_upper": 0.566871,
+                  "mean": 0.558728,
+                  "users": 1956
+                }
+              },
+              "v2": {
+                "coverage": {
+                  "ci_95_lower": 1.0,
+                  "ci_95_upper": 1.0,
+                  "mean": 1.0,
+                  "users": 1956
+                },
+                "known_dislike_rate_at_5": {
+                  "ci_95_lower": 0.167076,
+                  "ci_95_upper": 0.186401,
+                  "mean": 0.176789,
+                  "users": 1956
+                },
+                "mean_runtime_ms": 27.529604,
+                "ndcg_at_5": {
+                  "ci_95_lower": 0.384461,
+                  "ci_95_upper": 0.400574,
+                  "mean": 0.392395,
+                  "users": 1956
+                },
+                "paired_ndcg_gain_vs_depth_10": {
+                  "ci_95_lower": 0.000919,
+                  "ci_95_upper": 0.016412,
+                  "mean": 0.008661,
+                  "users": 1956
+                },
+                "pairwise_preference_accuracy": {
+                  "ci_95_lower": 0.548707,
+                  "ci_95_upper": 0.564528,
+                  "mean": 0.556161,
+                  "users": 1956
+                }
+              }
+            }
+          },
+          "500": {
+            "models": {
+              "v1": {
+                "coverage": {
+                  "ci_95_lower": 1.0,
+                  "ci_95_upper": 1.0,
+                  "mean": 1.0,
+                  "users": 1956
+                },
+                "known_dislike_rate_at_5": {
+                  "ci_95_lower": 0.172699,
+                  "ci_95_upper": 0.192434,
+                  "mean": 0.182413,
+                  "users": 1956
+                },
+                "mean_runtime_ms": 133.987833,
+                "ndcg_at_5": {
+                  "ci_95_lower": 0.380991,
+                  "ci_95_upper": 0.397304,
+                  "mean": 0.388845,
+                  "users": 1956
+                },
+                "paired_ndcg_gain_vs_depth_10": {
+                  "ci_95_lower": -0.004651,
+                  "ci_95_upper": 0.01217,
+                  "mean": 0.00372,
+                  "users": 1956
+                },
+                "pairwise_preference_accuracy": {
+                  "ci_95_lower": 0.529161,
+                  "ci_95_upper": 0.54633,
+                  "mean": 0.537654,
+                  "users": 1956
+                }
+              },
+              "v2": {
+                "coverage": {
+                  "ci_95_lower": 1.0,
+                  "ci_95_upper": 1.0,
+                  "mean": 1.0,
+                  "users": 1956
+                },
+                "known_dislike_rate_at_5": {
+                  "ci_95_lower": 0.172699,
+                  "ci_95_upper": 0.191411,
+                  "mean": 0.182106,
+                  "users": 1956
+                },
+                "mean_runtime_ms": 148.714098,
+                "ndcg_at_5": {
+                  "ci_95_lower": 0.380698,
+                  "ci_95_upper": 0.397107,
+                  "mean": 0.388999,
+                  "users": 1956
+                },
+                "paired_ndcg_gain_vs_depth_10": {
+                  "ci_95_lower": -0.002646,
+                  "ci_95_upper": 0.013154,
+                  "mean": 0.005265,
+                  "users": 1956
+                },
+                "pairwise_preference_accuracy": {
+                  "ci_95_lower": 0.52879,
+                  "ci_95_upper": 0.545139,
+                  "mean": 0.536947,
+                  "users": 1956
+                }
+              }
+            }
+          }
+        },
+        "missing_movie_identifiers": 0,
+        "users": 1956
+      }
+    },
+    "bootstrap": {
+      "confidence": 0.95,
+      "method": "paired user-level percentile bootstrap",
+      "resamples": 1000,
+      "seed": 20260710
+    },
+    "contract": {
+      "future_candidates": "the same final 50 movies at every depth",
+      "profile_depths": [
+        10,
+        100,
+        500
+      ],
+      "random_and_popularity_controls": "unchanged because they do not consume personal profile evidence",
+      "users": "the same deep-history users at every depth"
+    },
+    "local_curve_sha256": "2c7d3fbf3c5a06fbf0ca8fa070306e57c95874c350c8dc55226b1513eea59b00",
+    "per_user_rows": 3839,
+    "result_sha256": "2752f8cb456d7bc56788d92f79f70e2aa1a6be530b2d30275adc8f6cd4b54b7a",
+    "runtime_seconds": 395.211
+  },
+  "report_date": "2026-07-10",
+  "report_version": "cohort-baselines-v1",
+  "roles_opened": [
+    "exploration",
+    "validation"
+  ],
+  "runtime": {
+    "peak_memory_mb": 138.93,
+    "platform": "macOS-26.5.2-x86_64-i386-64bit-Mach-O",
+    "python": "3.13.1",
+    "total_seconds": 1938.266
+  },
+  "sealed_labels_opened": false,
+  "seed": 20260710
+}

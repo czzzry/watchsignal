@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from dataclasses import dataclass
 from typing import Any
 from urllib import error, request
 
+from movie_night_mediator.app.tonight_intent import (
+    DirectedNudgeProviderError,
+    DirectedNudgeProviderFailureReason,
+)
 from movie_night_mediator.mvp_plus_3 import (
     DirectedNudge,
     DirectedNudgeResolution,
@@ -17,6 +22,7 @@ OPENAI_API_KEY_ENV_VAR = "OPENAI_API_KEY"
 OPENAI_INTENT_MODEL_ENV_VAR = "OPENAI_INTENT_MODEL"
 DEFAULT_OPENAI_INTENT_MODEL = "gpt-4.1-mini"
 OPENAI_CHAT_COMPLETIONS_URL = "https://api.openai.com/v1/chat/completions"
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -28,6 +34,14 @@ class OpenAIDirectedNudgeProvider:
     def from_env(cls) -> OpenAIDirectedNudgeProvider | None:
         api_key = os.environ.get(OPENAI_API_KEY_ENV_VAR, "").strip()
         if not api_key:
+            logger.info(
+                "OpenAI directed nudge provider not configured; using deterministic "
+                "interpretation only (reason=missing_api_key)",
+                extra={
+                    "directed_nudge_provider": cls.__name__,
+                    "directed_nudge_configuration_reason": "missing_api_key",
+                },
+            )
             return None
         model = os.environ.get(OPENAI_INTENT_MODEL_ENV_VAR, "").strip()
         return cls(api_key=api_key, model=model or DEFAULT_OPENAI_INTENT_MODEL)
@@ -92,7 +106,12 @@ class OpenAIDirectedNudgeProvider:
         }
 
         response_payload = self._chat_completion_json(prompt)
-        return _payload_to_directed_nudge(text, response_payload)
+        try:
+            return _payload_to_directed_nudge(text, response_payload)
+        except (TypeError, ValueError) as exc:
+            raise DirectedNudgeProviderError(
+                DirectedNudgeProviderFailureReason.INVALID_CONTRACT
+            ) from exc
 
     def _chat_completion_json(self, prompt: dict[str, Any]) -> dict[str, Any]:
         body = {
@@ -125,21 +144,62 @@ class OpenAIDirectedNudgeProvider:
             with request.urlopen(req, timeout=20) as response:
                 payload = json.loads(response.read().decode("utf-8"))
         except error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", errors="ignore")
-            raise ValueError(f"LLM steer request failed: {detail or exc.reason}") from exc
+            if exc.code in {401, 403}:
+                reason = DirectedNudgeProviderFailureReason.AUTHENTICATION
+            elif exc.code == 429:
+                reason = DirectedNudgeProviderFailureReason.RATE_LIMITED
+            else:
+                reason = DirectedNudgeProviderFailureReason.PROVIDER_HTTP_ERROR
+            raise DirectedNudgeProviderError(reason) from exc
         except error.URLError as exc:
-            raise ValueError(f"LLM steer request failed: {exc.reason}") from exc
+            reason = (
+                DirectedNudgeProviderFailureReason.TIMEOUT
+                if isinstance(exc.reason, TimeoutError)
+                else DirectedNudgeProviderFailureReason.CONNECTION
+            )
+            raise DirectedNudgeProviderError(reason) from exc
+        except TimeoutError as exc:
+            raise DirectedNudgeProviderError(
+                DirectedNudgeProviderFailureReason.TIMEOUT
+            ) from exc
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise DirectedNudgeProviderError(
+                DirectedNudgeProviderFailureReason.MALFORMED_RESPONSE
+            ) from exc
 
-        content = (
-            payload.get("choices", [{}])[0]
-            .get("message", {})
-            .get("content", "")
-        )
+        if not isinstance(payload, dict):
+            raise DirectedNudgeProviderError(
+                DirectedNudgeProviderFailureReason.MALFORMED_RESPONSE
+            )
+        choices = payload.get("choices")
+        if (
+            not isinstance(choices, list)
+            or not choices
+            or not isinstance(choices[0], dict)
+        ):
+            raise DirectedNudgeProviderError(
+                DirectedNudgeProviderFailureReason.MALFORMED_RESPONSE
+            )
+        message = choices[0].get("message")
+        if not isinstance(message, dict):
+            raise DirectedNudgeProviderError(
+                DirectedNudgeProviderFailureReason.MALFORMED_RESPONSE
+            )
+        content = message.get("content", "")
         if not isinstance(content, str) or not content.strip():
-            raise ValueError("LLM steer request returned no content.")
-        parsed = json.loads(content)
+            raise DirectedNudgeProviderError(
+                DirectedNudgeProviderFailureReason.EMPTY_RESPONSE
+            )
+        try:
+            parsed = json.loads(content)
+        except json.JSONDecodeError as exc:
+            raise DirectedNudgeProviderError(
+                DirectedNudgeProviderFailureReason.MALFORMED_RESPONSE
+            ) from exc
         if not isinstance(parsed, dict):
-            raise ValueError("LLM steer request returned invalid JSON.")
+            raise DirectedNudgeProviderError(
+                DirectedNudgeProviderFailureReason.MALFORMED_RESPONSE
+            )
         return parsed
 
 

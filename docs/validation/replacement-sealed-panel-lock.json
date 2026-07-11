@@ -1,0 +1,73 @@
+{
+  "claim_boundary": "Independent user evidence within MovieLens 32M; not cross-dataset, household, tonight-intent, availability, or product-adoption evidence.",
+  "decision_date": "2026-07-11",
+  "decision_rules": {
+    "hybrid_quality_route_minimum_ndcg_gain": 0.02,
+    "hybrid_simplicity_route_minimum_ndcg_ci_lower": -0.005,
+    "maximum_dislike_regression": 0.01,
+    "maximum_other_cost_regression": 0.25,
+    "minimum_cost_improvement": 0.25,
+    "minimum_coverage": 0.98,
+    "v2_eligibility_minimum_ndcg_gain": 0.02
+  },
+  "eligibility_contract": {
+    "exclude_every_prior_manifest_user": true,
+    "history_size": 100,
+    "holdout_size": 30,
+    "maximum_span_days_exclusive": 365,
+    "minimum_span_days": 30,
+    "requires_complete_future_tmdb_mapping": true,
+    "requires_positive_and_negative_future_labels": true,
+    "strict_profile_future_timestamp_boundary": true,
+    "window_anchor": "end"
+  },
+  "eligibility_counts": {
+    "at_least_130_ratings": 63668,
+    "both_future_label_classes": 46072,
+    "complete_future_tmdb_mapping": 10565,
+    "eligible_after_exclusion": 9706,
+    "eligible_before_exclusion": 10565,
+    "excluded_prior_membership": 859,
+    "prior_unique_users": 19032,
+    "selected_prior_overlap": 0,
+    "selected_users": 5000,
+    "span_30_to_364_days": 10617,
+    "strict_boundary": 55777,
+    "users_scanned": 200948
+  },
+  "founder_approval_basis": "The founder instructed the agent to keep working until completion without asking further permissions after receiving the recommended panel contract.",
+  "founder_approved": true,
+  "manifest": {
+    "contains_labels": false,
+    "file": "replacement-sealed.json",
+    "sha256": "725e05dc742f56457ea712ad06039cc14c4ed0efaf0d9b4bb19578e469803919",
+    "user_memberships": 5000
+  },
+  "prior_manifest_checksums": {
+    "development-fit.json": "7211a3380b298b037383d8d7a9d307707f2e6d2567c7c3406bb6c681d3115b7d",
+    "development-tune.json": "7b4b35813464f31818d318be2cd42eb885e40d545d2a60ab3b477058db1f1f4d",
+    "exploration.json": "c8ac9641fb80f3b9318fa3d4970ad4360cb71cd0dd7057db4594355ae0acfa05",
+    "internal-test.json": "f2f7b58c3b4d53cb9a3691c1d2cdb3b5c4f7753076b2e2a7b7f777eb843c5b5f",
+    "sealed.json": "62b0e7a47e1c010a303b8b95a7a83554a7051af9ed29e29ffc423ad81456d003",
+    "validation.json": "0e68d33cc6ed370656b581ca9cc55aab61e76561d9f761bb4d4f3b5b4a30117b"
+  },
+  "protocol_version": "replacement-sealed-active-established-v1",
+  "sealed_access": {
+    "access_event_required_before_label_iteration": true,
+    "completed_rerun_refused": true,
+    "issue": 132,
+    "one_frozen_evaluator_run": true
+  },
+  "selection": {
+    "fail_closed_below_panel_size": true,
+    "method": "ascending SHA-256-derived user hash then numeric user ID",
+    "panel_size": 5000,
+    "seed": 20260712
+  },
+  "source": {
+    "archive_sha256": "e4a68655d7386b8f95f2f2424b2ff975dfdd15ffd59e0d864a14dca43e99d6ee",
+    "cross_dataset_replication": false,
+    "dataset": "MovieLens 32M",
+    "independence": "user-disjoint panel within the same source corpus"
+  }
+}

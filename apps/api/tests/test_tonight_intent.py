@@ -4,6 +4,8 @@ import unittest
 
 from movie_night_mediator.app.tonight_intent import (
     DeterministicTonightIntentProvider,
+    DirectedNudgeProviderError,
+    DirectedNudgeProviderFailureReason,
     TonightIntentInterpreter,
 )
 from movie_night_mediator.mvp_plus_2 import (
@@ -45,7 +47,14 @@ class FakeLiveDirectedNudgeProvider(FakeLiveIntentProvider):
 
 class FailingLiveDirectedNudgeProvider(FakeLiveIntentProvider):
     def interpret_directed_nudge(self, text: str) -> DirectedNudge:
-        raise ValueError("live steer unavailable")
+        raise DirectedNudgeProviderError(
+            DirectedNudgeProviderFailureReason.CONNECTION
+        )
+
+
+class UnexpectedValueErrorDirectedNudgeProvider(FakeLiveIntentProvider):
+    def interpret_directed_nudge(self, text: str) -> DirectedNudge:
+        raise ValueError("unexpected provider bug")
 
 
 class GenericLiveDirectedNudgeProvider(FakeLiveIntentProvider):
@@ -342,12 +351,31 @@ class TonightIntentInterpreterTest(unittest.TestCase):
     def test_directed_nudge_falls_back_to_deterministic_when_live_provider_fails(
         self,
     ) -> None:
-        nudge = TonightIntentInterpreter(
-            directed_nudge_provider=FailingLiveDirectedNudgeProvider()
-        ).interpret_directed_nudge("include Tom Cruise")
+        with self.assertLogs(
+            "movie_night_mediator.app.tonight_intent", level="WARNING"
+        ) as captured_logs:
+            nudge = TonightIntentInterpreter(
+                directed_nudge_provider=FailingLiveDirectedNudgeProvider()
+            ).interpret_directed_nudge("include Tom Cruise")
 
         self.assertEqual(nudge.resolution, DirectedNudgeResolution.EXACT)
         self.assertEqual(nudge.filters["people"], ["Tom Cruise"])
+        self.assertEqual(len(captured_logs.records), 1)
+        record = captured_logs.records[0]
+        self.assertEqual(record.directed_nudge_failure_reason, "connection")
+        self.assertEqual(
+            record.directed_nudge_provider,
+            "FailingLiveDirectedNudgeProvider",
+        )
+        self.assertNotIn("include Tom Cruise", record.getMessage())
+
+    def test_directed_nudge_does_not_hide_unexpected_value_errors(self) -> None:
+        interpreter = TonightIntentInterpreter(
+            directed_nudge_provider=UnexpectedValueErrorDirectedNudgeProvider()
+        )
+
+        with self.assertRaisesRegex(ValueError, "unexpected provider bug"):
+            interpreter.interpret_directed_nudge("include Tom Cruise")
 
     def test_directed_nudge_preserves_specific_ncfom_style_cues(self) -> None:
         nudge = DeterministicTonightIntentProvider().interpret_directed_nudge(

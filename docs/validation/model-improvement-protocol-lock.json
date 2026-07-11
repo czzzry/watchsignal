@@ -1,0 +1,86 @@
+{
+  "cohorts": {
+    "cold_start": {
+      "role_counts": {
+        "development_fit": 564,
+        "development_tune": 189,
+        "internal_test": 181
+      },
+      "source_users": 934
+    },
+    "deep_history": {
+      "role_counts": {
+        "development_fit": 3554,
+        "development_tune": 1189,
+        "internal_test": 1169
+      },
+      "source_users": 5912
+    },
+    "established": {
+      "role_counts": {
+        "development_fit": 8770,
+        "development_tune": 2923,
+        "internal_test": 2924
+      },
+      "source_users": 14617
+    },
+    "prolific": {
+      "role_counts": {
+        "development_fit": 1191,
+        "development_tune": 402,
+        "internal_test": 396
+      },
+      "source_users": 1989
+    },
+    "sparse_recent_profile": {
+      "role_counts": {
+        "development_fit": 3639,
+        "development_tune": 1217,
+        "internal_test": 1220
+      },
+      "source_users": 6076
+    }
+  },
+  "decision_date": "2026-07-11",
+  "evidence_status": "Internal development evidence only; prior aggregate results from this population have been opened.",
+  "founder_approved": true,
+  "manifest_checksums": {
+    "development_fit": {
+      "file": "development-fit.json",
+      "sha256": "7211a3380b298b037383d8d7a9d307707f2e6d2567c7c3406bb6c681d3115b7d",
+      "user_memberships": 17718
+    },
+    "development_tune": {
+      "file": "development-tune.json",
+      "sha256": "7b4b35813464f31818d318be2cd42eb885e40d545d2a60ab3b477058db1f1f4d",
+      "user_memberships": 5920
+    },
+    "internal_test": {
+      "file": "internal-test.json",
+      "sha256": "f2f7b58c3b4d53cb9a3691c1d2cdb3b5c4f7753076b2e2a7b7f777eb843c5b5f",
+      "user_memberships": 5890
+    }
+  },
+  "partition": {
+    "contains_labels": false,
+    "cross_role_user_overlap": 0,
+    "main_cohort": "established",
+    "main_split_sizes": {
+      "development_fit": 8770,
+      "development_tune": 2923,
+      "internal_test": 2924
+    },
+    "seed": 20260711,
+    "stratified_by_cohort_membership": true
+  },
+  "protocol_version": "recommendation-model-improvement-v1",
+  "replacement_sealed_panel": {
+    "may_be_created_in_issue": 132,
+    "requires_frozen_internal_winner": true
+  },
+  "source_manifest_checksums": {
+    "exploration.json": "c8ac9641fb80f3b9318fa3d4970ad4360cb71cd0dd7057db4594355ae0acfa05",
+    "sealed.json": "62b0e7a47e1c010a303b8b95a7a83554a7051af9ed29e29ffc423ad81456d003",
+    "validation.json": "0e68d33cc6ed370656b581ca9cc55aab61e76561d9f761bb4d4f3b5b4a30117b"
+  }
+}
