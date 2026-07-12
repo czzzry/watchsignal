@@ -237,18 +237,27 @@ class SetupApiTest(unittest.TestCase):
 
             self.assertEqual(
                 [profile["id"] for profile in payload_to_dict(payload)["profiles"]],
-                ["cezary-tester", "profile-1", "profile-2"],
+                ["cezary-tester", "sophie-tester", "profile-1", "profile-2"],
             )
             self.assertEqual(payload_to_dict(payload)["activeProfileId"], "cezary-tester")
             self.assertEqual(payload_to_dict(payload)["partnerProfileId"], "profile-1")
             self.assertEqual(
                 [profile["label"] for profile in payload_to_dict(payload)["profiles"]],
-                ["Cezary - tester", "Husband", "Wife"],
+                ["Cezary - tester", "Sophie - tester", "Husband", "Wife"],
             )
             self.assertEqual(
                 [profile["id"] for profile in payload_to_dict(payload_again)["profiles"]],
-                ["cezary-tester", "profile-1", "profile-2"],
+                ["cezary-tester", "sophie-tester", "profile-1", "profile-2"],
             )
+
+            sophie = next(
+                profile
+                for profile in payload_to_dict(payload_again)["profiles"]
+                if profile["id"] == "sophie-tester"
+            )
+            self.assertEqual(sophie["label"], "Sophie - tester")
+            self.assertEqual(sophie["avatarKey"], "moon")
+            self.assertEqual(sophie["colorKey"], "rose")
 
     def test_patch_profile_renames_without_changing_stable_id(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

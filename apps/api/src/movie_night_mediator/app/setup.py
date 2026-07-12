@@ -15,6 +15,10 @@ TESTER_PROFILE_ID = "cezary-tester"
 TESTER_PROFILE_LABEL = "Cezary - tester"
 TESTER_PROFILE_AVATAR_KEY = "comet"
 TESTER_PROFILE_COLOR_KEY = "amber"
+SOPHIE_TESTER_PROFILE_ID = "sophie-tester"
+SOPHIE_TESTER_PROFILE_LABEL = "Sophie - tester"
+SOPHIE_TESTER_PROFILE_AVATAR_KEY = "moon"
+SOPHIE_TESTER_PROFILE_COLOR_KEY = "rose"
 AVATAR_KEYS = ("spark", "moon", "comet", "ticket")
 COLOR_KEYS = ("cyan", "rose", "amber", "violet")
 
@@ -247,32 +251,41 @@ class SQLiteSetupStore:
 
     def ensure_tester_profile(self) -> SetupState:
         setup = self.load_setup()
-        existing_tester = next(
-            (profile for profile in setup.profiles if profile.id == TESTER_PROFILE_ID),
-            None,
-        )
-        if existing_tester is None:
-            tester_profile = SetupProfile(
+        protected_testers = (
+            SetupProfile(
                 id=TESTER_PROFILE_ID,
                 label=TESTER_PROFILE_LABEL,
                 order=1,
                 avatar_key=TESTER_PROFILE_AVATAR_KEY,
                 color_key=TESTER_PROFILE_COLOR_KEY,
-            )
-            remaining_profiles = setup.profiles
-        else:
-            tester_profile = existing_tester
-            remaining_profiles = tuple(
-                profile for profile in setup.profiles if profile.id != TESTER_PROFILE_ID
-            )
+            ),
+            SetupProfile(
+                id=SOPHIE_TESTER_PROFILE_ID,
+                label=SOPHIE_TESTER_PROFILE_LABEL,
+                order=2,
+                avatar_key=SOPHIE_TESTER_PROFILE_AVATAR_KEY,
+                color_key=SOPHIE_TESTER_PROFILE_COLOR_KEY,
+            ),
+        )
+        existing_by_id = {profile.id: profile for profile in setup.profiles}
+        tester_profiles = tuple(
+            existing_by_id.get(profile.id, profile) for profile in protected_testers
+        )
+        protected_ids = {profile.id for profile in protected_testers}
+        remaining_profiles = tuple(
+            profile for profile in setup.profiles if profile.id not in protected_ids
+        )
 
         reordered_profiles = (
-            SetupProfile(
-                id=tester_profile.id,
-                label=tester_profile.label,
-                order=1,
-                avatar_key=tester_profile.avatar_key,
-                color_key=tester_profile.color_key,
+            *(
+                SetupProfile(
+                    id=profile.id,
+                    label=profile.label,
+                    order=index,
+                    avatar_key=profile.avatar_key,
+                    color_key=profile.color_key,
+                )
+                for index, profile in enumerate(tester_profiles, start=1)
             ),
             *(
                 SetupProfile(
@@ -284,7 +297,7 @@ class SQLiteSetupStore:
                 )
                 for index, profile in enumerate(
                     sorted(remaining_profiles, key=lambda profile: profile.order),
-                    start=2,
+                    start=len(tester_profiles) + 1,
                 )
             ),
         )
@@ -301,7 +314,7 @@ class SQLiteSetupStore:
                 partner_profile_id=next(
                     profile.id
                     for profile in reordered_profiles
-                    if profile.id != TESTER_PROFILE_ID
+                    if profile.id not in protected_ids
                 ),
             )
         )

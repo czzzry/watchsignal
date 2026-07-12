@@ -16,6 +16,7 @@ import {
 
 const householdId = "default-household";
 const testerProfileId = "cezary-tester";
+const sophieTesterProfileId = "sophie-tester";
 const fallbackProfiles: SetupProfilePayload[] = [
   {
     id: testerProfileId,
@@ -25,16 +26,23 @@ const fallbackProfiles: SetupProfilePayload[] = [
     colorKey: "amber",
   },
   {
+    id: sophieTesterProfileId,
+    label: "Sophie - tester",
+    order: 2,
+    avatarKey: "moon",
+    colorKey: "rose",
+  },
+  {
     id: "profile-1",
     label: "Husband",
-    order: 2,
+    order: 3,
     avatarKey: "spark",
     colorKey: "cyan",
   },
   {
     id: "profile-2",
     label: "Wife",
-    order: 3,
+    order: 4,
     avatarKey: "moon",
     colorKey: "rose",
   },
