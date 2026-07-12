@@ -1,7 +1,7 @@
 # Founder Decisions
 
 This document captures the founder decisions made during the grill session.
-It is the short-form companion to [decision-register.md](/Users/cezarybaraniecki/Documents/n8n%20movie%20recommender/docs/decision-register.md).
+It is the short-form companion to [decision-register.md](decision-register.md).
 These decisions guide the first vertical slice.
 They do not replace ADRs for later architecture changes.
 

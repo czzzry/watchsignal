@@ -30,13 +30,14 @@ apps/api/.venv/bin/python scripts/couch_flow_smoke.py
 If a Treehouse worktree's backend environment is not synced, use the parent checkout's backend environment:
 
 ```sh
-/Users/cezarybaraniecki/Documents/movie-night-mediator-app/apps/api/.venv/bin/python scripts/couch_flow_smoke.py
+WATCHSIGNAL_ROOT="$(git rev-parse --show-toplevel)"
+"$WATCHSIGNAL_ROOT/apps/api/.venv/bin/python" scripts/couch_flow_smoke.py
 ```
 
 In a Treehouse worktree that shares the parent checkout's local `uv` install, this form also works after dependencies are available in the local cache:
 
 ```sh
-UV_CACHE_DIR=/Users/cezarybaraniecki/Documents/movie-night-mediator-app/.tools/cache/uv /Users/cezarybaraniecki/Documents/movie-night-mediator-app/.tools/uv/bin/uv run --project apps/api python scripts/couch_flow_smoke.py
+UV_CACHE_DIR="$WATCHSIGNAL_ROOT/.tools/cache/uv" "$WATCHSIGNAL_ROOT/.tools/uv/bin/uv" run --project apps/api python scripts/couch_flow_smoke.py
 ```
 
 ## What It Proves

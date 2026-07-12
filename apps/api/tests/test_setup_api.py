@@ -237,17 +237,17 @@ class SetupApiTest(unittest.TestCase):
 
             self.assertEqual(
                 [profile["id"] for profile in payload_to_dict(payload)["profiles"]],
-                ["cezary-tester", "profile-1", "profile-2"],
+                ["alex-tester", "profile-1", "profile-2"],
             )
-            self.assertEqual(payload_to_dict(payload)["activeProfileId"], "cezary-tester")
+            self.assertEqual(payload_to_dict(payload)["activeProfileId"], "alex-tester")
             self.assertEqual(payload_to_dict(payload)["partnerProfileId"], "profile-1")
             self.assertEqual(
                 [profile["label"] for profile in payload_to_dict(payload)["profiles"]],
-                ["Cezary - tester", "Husband", "Wife"],
+                ["Alex - tester", "Husband", "Wife"],
             )
             self.assertEqual(
                 [profile["id"] for profile in payload_to_dict(payload_again)["profiles"]],
-                ["cezary-tester", "profile-1", "profile-2"],
+                ["alex-tester", "profile-1", "profile-2"],
             )
 
     def test_patch_profile_renames_without_changing_stable_id(self) -> None:
@@ -259,15 +259,15 @@ class SetupApiTest(unittest.TestCase):
             endpoints["POST", "/setup/profiles/tester"]()
 
             payload = endpoints["PATCH", "/setup/profiles/{profile_id}"](
-                "cezary-tester",
-                SetupProfileRenamePayload(label="Cezary"),
+                "alex-tester",
+                SetupProfileRenamePayload(label="Alex"),
             )
 
             profiles = payload_to_dict(payload)["profiles"]
             tester_profile = next(
-                profile for profile in profiles if profile["id"] == "cezary-tester"
+                profile for profile in profiles if profile["id"] == "alex-tester"
             )
-            self.assertEqual(tester_profile["label"], "Cezary")
+            self.assertEqual(tester_profile["label"], "Alex")
 
     def test_post_profile_creates_name_only_profile_and_selects_it(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -277,16 +277,16 @@ class SetupApiTest(unittest.TestCase):
             )
 
             payload = endpoints["POST", "/setup/profiles"](
-                SetupProfileCreatePayload(label="Cezary"),
+                SetupProfileCreatePayload(label="Alex"),
             )
 
             result = payload_to_dict(payload)
-            self.assertEqual(result["activeProfileId"], "cezary")
+            self.assertEqual(result["activeProfileId"], "alex")
             self.assertEqual(result["partnerProfileId"], "profile-1")
             self.assertIn(
                 {
-                    "id": "cezary",
-                    "label": "Cezary",
+                    "id": "alex",
+                    "label": "Alex",
                     "order": 3,
                     "avatarKey": "comet",
                     "colorKey": "amber",

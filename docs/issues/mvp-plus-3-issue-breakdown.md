@@ -61,7 +61,7 @@ It should also define the final phone-sized dogfood path and recommendation-qual
 ### Acceptance criteria
 
 - [x] Profile contract uses stable ids and renameable display labels.
-- [x] `Cezary - tester` is represented as a normal persistent profile, not special-case UI text.
+- [x] `Alex - tester` is represented as a normal persistent profile, not special-case UI text.
 - [x] Taste Lab rating ownership is defined by profile id.
 - [x] Main recommendation session profile selection is explicit.
 - [x] Nudge interpretation contract supports filters, soft signals, clarification, confidence, and deterministic fallback.
@@ -95,17 +95,17 @@ Do not implement the whole feature set inside the contract slice.
 - Suggested labels: `ready-for-agent`
 - Blocked by: Slice 1
 - User stories covered: 3, 4, 5, 9
-- Primary goal: make `Cezary - tester` a durable, renameable profile that survives local use.
+- Primary goal: make `Alex - tester` a durable, renameable profile that survives local use.
 
 ### What to build
 
-Add the minimum real profile management needed for the founder dogfood loop.
-The app should support creating or selecting `Cezary - tester`, renaming the display label later, and keeping one default or partner profile available for shared recommendation behavior.
+Add the minimum durable profile management needed for the founder dogfood loop.
+The app should support creating or selecting `Alex - tester`, renaming the display label later, and keeping one default or partner profile available for shared recommendation behavior.
 Persistence should be profile-id based so renames do not orphan taste data.
 
 ### Acceptance criteria
 
-- [x] The user can create or select a `Cezary - tester` profile.
+- [x] The user can create or select a `Alex - tester` profile.
 - [x] The profile has a stable id separate from the display label.
 - [x] The profile can be renamed without losing stored identity.
 - [x] The profile persists through reload or local app restart boundaries.
@@ -145,13 +145,13 @@ This is local persistent profile management, not hosted identity.
 ### What to build
 
 Update Taste Lab so ratings are tied to the selected real profile.
-The founder should be able to select `Cezary - tester`, rate Taste Lab candidates, reload, and see those ratings remain attached to that profile.
+The founder should be able to select `Alex - tester`, rate Taste Lab candidates, reload, and see those ratings remain attached to that profile.
 Existing Taste Lab evidence read models should continue feeding WatchSignal profile evidence.
 
 ### Acceptance criteria
 
 - [x] Taste Lab shows the selected rating profile.
-- [x] The user can choose `Cezary - tester` for Taste Lab rating.
+- [x] The user can choose `Alex - tester` for Taste Lab rating.
 - [x] Saved ratings include the tester profile id.
 - [x] Ratings survive reload or local restart boundaries.
 - [x] The profile evidence read model can read the tester profile's Taste Lab ratings.
@@ -171,7 +171,7 @@ pnpm build:web
 
 Stop when Taste Lab can be used as the founder's real private calibration path.
 
-Completed by dynamic Taste Lab profile loading through the setup profile API and a backend regression proving `Cezary - tester` owns durable Taste Lab ratings.
+Completed by dynamic Taste Lab profile loading through the setup profile API and a backend regression proving `Alex - tester` owns durable Taste Lab ratings.
 
 ### Risk notes
 
@@ -193,7 +193,7 @@ The result screen or evidence surface should show when Taste Lab or durable prof
 
 ### Acceptance criteria
 
-- [x] The main flow can start with `Cezary - tester` selected.
+- [x] The main flow can start with `Alex - tester` selected.
 - [x] A second profile can participate in the shared recommendation flow.
 - [x] Tester profile Taste Lab evidence is available to scoring.
 - [x] Recommendation explanations mention profile evidence when it materially affects a result.
@@ -461,7 +461,7 @@ It should say whether the phase is complete and should not quietly add new scope
 ### Acceptance criteria
 
 - [x] The acceptance note records the current phase and accepted issue count.
-- [x] The dogfood flow uses `Cezary - tester` or a local-safe equivalent that proves the same profile behavior.
+- [x] The dogfood flow uses `Alex - tester` or a local-safe equivalent that proves the same profile behavior.
 - [x] The dogfood flow covers Taste Lab rating, main-flow recommendation, directed nudge, five more, bookmark, reload, and persistence.
 - [x] The recommendation-quality report compares profile calibration plus nudges against a baseline.
 - [x] The report shows rank changes, top-pick changes, explanation excerpts, and visible caveats.
