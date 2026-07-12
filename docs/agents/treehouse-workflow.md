@@ -55,16 +55,17 @@ Before an AFK multi-agent run, the host should either prewarm each leased worktr
 Backend validation can use the main repo's `uv` binary and cache:
 
 ```sh
-cd apps/api
-env XDG_CACHE_HOME=/Users/cezarybaraniecki/Documents/movie-night-mediator-app/.tools/cache /Users/cezarybaraniecki/Documents/movie-night-mediator-app/.tools/uv/bin/uv run python -m unittest discover -s tests
-env XDG_CACHE_HOME=/Users/cezarybaraniecki/Documents/movie-night-mediator-app/.tools/cache /Users/cezarybaraniecki/Documents/movie-night-mediator-app/.tools/uv/bin/uv run python -m compileall -q src tests
+WATCHSIGNAL_ROOT="$(git rev-parse --show-toplevel)"
+cd "$WATCHSIGNAL_ROOT/apps/api"
+env XDG_CACHE_HOME="$WATCHSIGNAL_ROOT/.tools/cache" "$WATCHSIGNAL_ROOT/.tools/uv/bin/uv" run python -m unittest discover -s tests
+env XDG_CACHE_HOME="$WATCHSIGNAL_ROOT/.tools/cache" "$WATCHSIGNAL_ROOT/.tools/uv/bin/uv" run python -m compileall -q src tests
 ```
 
 Web validation should install dependencies in the leased worktree before building:
 
 ```sh
-env npm_config_cache=/Users/cezarybaraniecki/Documents/movie-night-mediator-app/.tools/npm-cache PNPM_HOME=/Users/cezarybaraniecki/Documents/movie-night-mediator-app/.tools/pnpm XDG_CACHE_HOME=/Users/cezarybaraniecki/Documents/movie-night-mediator-app/.tools/cache npm exec --yes --package=pnpm@10 -- pnpm --dir apps/web install
-env npm_config_cache=/Users/cezarybaraniecki/Documents/movie-night-mediator-app/.tools/npm-cache PNPM_HOME=/Users/cezarybaraniecki/Documents/movie-night-mediator-app/.tools/pnpm XDG_CACHE_HOME=/Users/cezarybaraniecki/Documents/movie-night-mediator-app/.tools/cache npm exec --yes --package=pnpm@10 -- pnpm --dir apps/web build
+env npm_config_cache="$WATCHSIGNAL_ROOT/.tools/npm-cache" PNPM_HOME="$WATCHSIGNAL_ROOT/.tools/pnpm" XDG_CACHE_HOME="$WATCHSIGNAL_ROOT/.tools/cache" npm exec --yes --package=pnpm@10 -- pnpm --dir "$WATCHSIGNAL_ROOT/apps/web" install
+env npm_config_cache="$WATCHSIGNAL_ROOT/.tools/npm-cache" PNPM_HOME="$WATCHSIGNAL_ROOT/.tools/pnpm" XDG_CACHE_HOME="$WATCHSIGNAL_ROOT/.tools/cache" npm exec --yes --package=pnpm@10 -- pnpm --dir "$WATCHSIGNAL_ROOT/apps/web" build
 ```
 
 This prevents agents from mistaking missing local tooling for product failure.

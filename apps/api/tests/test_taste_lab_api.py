@@ -448,7 +448,7 @@ class TasteLabApiTest(unittest.TestCase):
             tester_profile = next(
                 profile
                 for profile in setup.profiles
-                if profile.id == "cezary-tester"
+                if profile.id == "alex-tester"
             )
             routes["seed_candidates"]([_candidate_payload(1)], householdId="default-household")
             queue = routes["get_queue"](
@@ -481,8 +481,8 @@ class TasteLabApiTest(unittest.TestCase):
                 householdId="default-household",
             )
 
-        self.assertEqual(tester_profile.label, "Cezary - tester")
-        self.assertEqual(tester_ratings[0].profileId, "cezary-tester")
+        self.assertEqual(tester_profile.label, "Alex - tester")
+        self.assertEqual(tester_ratings[0].profileId, "alex-tester")
         self.assertEqual(tester_ratings[0].movie.sourceMovieId, "movielens:1")
         self.assertEqual(partner_ratings, [])
 

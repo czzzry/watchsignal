@@ -178,17 +178,17 @@ def _tester_profile_plus_nudge_request() -> ScoringRequest:
 
 def _untrained_tester() -> UserProfile:
     return UserProfile(
-        user_id="cezary-tester",
+        user_id="alex-tester",
         role="founder",
-        display_label="Cezary - tester",
+        display_label="Alex - tester",
     )
 
 
 def _calibrated_tester() -> UserProfile:
     return UserProfile(
-        user_id="cezary-tester",
+        user_id="alex-tester",
         role="founder",
-        display_label="Cezary - tester",
+        display_label="Alex - tester",
         taste_profile_evidence=(
             ProfileTasteEvidence(
                 source="taste_lab",

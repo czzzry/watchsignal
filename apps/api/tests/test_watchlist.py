@@ -22,7 +22,7 @@ class SharedWatchlistTest(unittest.TestCase):
                 source_movie_id="tmdb:603",
                 title="The Matrix",
                 saved_by_profile_id="husband",
-                saved_by_display_label="Cezary - tester",
+                saved_by_display_label="Alex - tester",
                 poster_url="https://image.example/matrix.jpg",
                 release_year=1999,
             )
@@ -30,7 +30,7 @@ class SharedWatchlistTest(unittest.TestCase):
 
             self.assertEqual(listed, (saved,))
             self.assertEqual(saved.saved_by_profile_id, "husband")
-            self.assertEqual(saved.saved_by_display_label, "Cezary - tester")
+            self.assertEqual(saved.saved_by_display_label, "Alex - tester")
             self.assertFalse(saved.is_taste_signal)
             self.assertFalse(saved.can_be_recommendation_seed)
 
@@ -52,8 +52,8 @@ class SharedWatchlistTest(unittest.TestCase):
                 household_id="household-1",
                 source_movie_id="tmdb:155",
                 title="The Dark Knight",
-                saved_by_profile_id="cezary-tester",
-                saved_by_display_label="Cezary - tester",
+                saved_by_profile_id="alex-tester",
+                saved_by_display_label="Alex - tester",
                 poster_url="https://image.example/dark-knight.jpg",
                 release_year=2008,
             )
@@ -66,8 +66,8 @@ class SharedWatchlistTest(unittest.TestCase):
             self.assertEqual(len(listed), 1)
             self.assertEqual(listed[0].source_movie_id, "tmdb:155")
             self.assertEqual(listed[0].title, "The Dark Knight")
-            self.assertEqual(listed[0].saved_by_profile_id, "cezary-tester")
-            self.assertEqual(listed[0].saved_by_display_label, "Cezary - tester")
+            self.assertEqual(listed[0].saved_by_profile_id, "alex-tester")
+            self.assertEqual(listed[0].saved_by_display_label, "Alex - tester")
             self.assertFalse(listed[0].is_taste_signal)
             self.assertFalse(listed[0].can_be_recommendation_seed)
 
@@ -109,7 +109,7 @@ class SharedWatchlistTest(unittest.TestCase):
                             )
                             VALUES (?, ?, ?, ?)
                             """,
-                            ("household-1", "tmdb:13", "Forrest Gump", "cezary-tester"),
+                            ("household-1", "tmdb:13", "Forrest Gump", "alex-tester"),
                         )
                         connection.execute("DROP TABLE watchlist_entries_new_schema")
                 gc.collect()
@@ -129,11 +129,11 @@ class SharedWatchlistTest(unittest.TestCase):
                 household_id="household-1",
                 source_movie_id="tmdb:13",
                 title="Forrest Gump",
-                saved_by_display_label="Cezary - tester",
+                saved_by_display_label="Alex - tester",
             )
 
-            self.assertEqual(migrated.saved_by_profile_id, "cezary-tester")
-            self.assertEqual(migrated.saved_by_display_label, "Cezary - tester")
+            self.assertEqual(migrated.saved_by_profile_id, "alex-tester")
+            self.assertEqual(migrated.saved_by_display_label, "Alex - tester")
 
     def test_duplicate_save_updates_existing_entry_without_duplicate(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

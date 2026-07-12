@@ -6,7 +6,7 @@ from types import MappingProxyType
 from typing import Mapping
 
 
-TESTER_PROFILE_DISPLAY_LABEL = "Cezary - tester"
+TESTER_PROFILE_DISPLAY_LABEL = "Alex - tester"
 
 
 class DirectedNudgeStatus(StrEnum):

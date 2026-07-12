@@ -13,14 +13,14 @@ MVP+3: [████████████████████] 10/10 issu
 
 Goal: prove that WatchSignal can support a real persistent tester profile, calibrate it through Taste Lab, and turn natural-language nudges into better next-five recommendation batches.
 MVP plus 2 proved that WatchSignal has memory and taste steering.
-MVP plus 3 should make that loop dogfoodable with a real profile named `Cezary - tester`, profile-specific Taste Lab ratings, directed discovery, five-more redo semantics, saved titles, and visible evidence that calibration plus nudging changed results.
+MVP plus 3 should make that loop dogfoodable with a durable synthetic profile named `Alex - tester`, profile-specific Taste Lab ratings, directed discovery, five-more redo semantics, saved titles, and visible evidence that calibration plus nudging changed results.
 
 The phase should include persistent profiles and the founder dogfood path.
 It should not expand into hosted accounts, full profile analytics, a public Taste Lab redesign, or famous-person taste matching.
 
 Questions to resolve:
 - What contract lets implementation work parallelize profile persistence, Taste Lab ownership, nudge interpretation, person filtering, five-more behavior, bookmarks, explanations, and evaluation?
-- What is the smallest profile management surface that makes `Cezary - tester` durable and renameable?
+- What is the smallest profile management surface that makes `Alex - tester` durable and renameable?
 - How should Taste Lab choose and persist the active rating profile?
 - How should the main flow use selected real profiles without breaking the two-person movie-night model?
 - How should a user ask for "five more" in the same direction, a different direction, more like this, avoid this, or with a new nudge?

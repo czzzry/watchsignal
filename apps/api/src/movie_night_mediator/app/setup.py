@@ -11,8 +11,8 @@ from movie_night_mediator.storage import SQLiteSettings
 CURRENT_SETUP_ID = "current"
 DEFAULT_HUSBAND_PROFILE_ID = "profile-1"
 DEFAULT_WIFE_PROFILE_ID = "profile-2"
-TESTER_PROFILE_ID = "cezary-tester"
-TESTER_PROFILE_LABEL = "Cezary - tester"
+TESTER_PROFILE_ID = "alex-tester"
+TESTER_PROFILE_LABEL = "Alex - tester"
 TESTER_PROFILE_AVATAR_KEY = "comet"
 TESTER_PROFILE_COLOR_KEY = "amber"
 AVATAR_KEYS = ("spark", "moon", "comet", "ticket")

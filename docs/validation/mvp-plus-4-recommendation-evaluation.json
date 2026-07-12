@@ -5,13 +5,13 @@
   "results": [
     {
       "actual_movement": "same",
-      "after_explanation": "Fits compromise mode with signal from Sci-Fi, Drama. Cezary - tester: 0.66, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.",
+      "after_explanation": "Fits compromise mode with signal from Sci-Fi, Drama. Alex - tester: 0.66, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.",
       "after_signal_families": [
         "genre",
         "title_similarity",
         "feature_tag"
       ],
-      "before_explanation": "Fits compromise mode with signal from Sci-Fi, Drama. Cezary - tester: 0.66, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.",
+      "before_explanation": "Fits compromise mode with signal from Sci-Fi, Drama. Alex - tester: 0.66, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.",
       "before_signal_families": [
         "genre",
         "title_similarity",
@@ -44,7 +44,7 @@
     },
     {
       "actual_movement": "up",
-      "after_explanation": "Strong fit for Cezary - tester with signal from Horror, Thriller. Built from profile score 0.68, 1 Taste Lab signals. Evidence: genre, title_similarity.",
+      "after_explanation": "Strong fit for Alex - tester with signal from Horror, Thriller. Built from profile score 0.68, 1 Taste Lab signals. Evidence: genre, title_similarity.",
       "after_signal_families": [
         "genre",
         "title_similarity"
@@ -82,7 +82,7 @@
       "actual_movement": "removed",
       "after_explanation": null,
       "after_signal_families": [],
-      "before_explanation": "Fits compromise mode with signal from Sci-Fi, Drama. Cezary - tester: 0.66, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.",
+      "before_explanation": "Fits compromise mode with signal from Sci-Fi, Drama. Alex - tester: 0.66, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.",
       "before_signal_families": [
         "genre",
         "title_similarity",
@@ -115,11 +115,11 @@
     },
     {
       "actual_movement": "up",
-      "after_explanation": "Fits compromise mode with signal from Horror, Thriller. Cezary - tester: 0.5, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: tonight_intent.",
+      "after_explanation": "Fits compromise mode with signal from Horror, Thriller. Alex - tester: 0.5, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: tonight_intent.",
       "after_signal_families": [
         "tonight_intent"
       ],
-      "before_explanation": "Fits compromise mode with signal from Horror, Thriller. Cezary - tester: 0.5, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1.",
+      "before_explanation": "Fits compromise mode with signal from Horror, Thriller. Alex - tester: 0.5, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1.",
       "before_signal_families": [],
       "category": "recommendation",
       "expected_movement": "up",
@@ -150,11 +150,11 @@
     },
     {
       "actual_movement": "up",
-      "after_explanation": "Fits compromise mode with signal from Drama. Cezary - tester: 0.5, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: tonight_intent.",
+      "after_explanation": "Fits compromise mode with signal from Drama. Alex - tester: 0.5, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: tonight_intent.",
       "after_signal_families": [
         "tonight_intent"
       ],
-      "before_explanation": "Fits compromise mode with signal from Drama. Cezary - tester: 0.5, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1.",
+      "before_explanation": "Fits compromise mode with signal from Drama. Alex - tester: 0.5, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1.",
       "before_signal_families": [],
       "category": "recommendation",
       "expected_movement": "up",
@@ -183,9 +183,9 @@
     },
     {
       "actual_movement": "same",
-      "after_explanation": "Fits compromise mode with signal from Action, Thriller. Cezary - tester: 0.5, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1.",
+      "after_explanation": "Fits compromise mode with signal from Action, Thriller. Alex - tester: 0.5, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1.",
       "after_signal_families": [],
-      "before_explanation": "Fits compromise mode with signal from Action, Thriller. Cezary - tester: 0.5, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1.",
+      "before_explanation": "Fits compromise mode with signal from Action, Thriller. Alex - tester: 0.5, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1.",
       "before_signal_families": [],
       "category": "recommendation",
       "expected_movement": "up",
@@ -216,14 +216,14 @@
     },
     {
       "actual_movement": "up",
-      "after_explanation": "Fits compromise mode with signal from Comedy, Adventure. Cezary - tester: 0.5, Taste Lab signals: 1; Wife: 0.62, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag, tonight_intent.",
+      "after_explanation": "Fits compromise mode with signal from Comedy, Adventure. Alex - tester: 0.5, Taste Lab signals: 1; Wife: 0.62, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag, tonight_intent.",
       "after_signal_families": [
         "genre",
         "title_similarity",
         "feature_tag",
         "tonight_intent"
       ],
-      "before_explanation": "Fits compromise mode with signal from Comedy, Adventure. Cezary - tester: 0.5, Taste Lab signals: 1; Wife: 0.62, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.",
+      "before_explanation": "Fits compromise mode with signal from Comedy, Adventure. Alex - tester: 0.5, Taste Lab signals: 1; Wife: 0.62, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.",
       "before_signal_families": [
         "genre",
         "title_similarity",
@@ -300,7 +300,7 @@
         "genre",
         "feature_tag"
       ],
-      "before_explanation": "Strong fit for Cezary - tester with signal from Mystery, Comedy. Built from profile score 0.5, 1 Taste Lab signals.",
+      "before_explanation": "Strong fit for Alex - tester with signal from Mystery, Comedy. Built from profile score 0.5, 1 Taste Lab signals.",
       "before_signal_families": [],
       "category": "recommendation",
       "expected_movement": "up",
@@ -366,14 +366,14 @@
     },
     {
       "actual_movement": "same",
-      "after_explanation": "Fits compromise mode with signal from Sci-Fi, Drama. Cezary - tester: 0.66, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag, tonight_intent.",
+      "after_explanation": "Fits compromise mode with signal from Sci-Fi, Drama. Alex - tester: 0.66, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag, tonight_intent.",
       "after_signal_families": [
         "genre",
         "title_similarity",
         "feature_tag",
         "tonight_intent"
       ],
-      "before_explanation": "Fits compromise mode with signal from Sci-Fi, Drama. Cezary - tester: 0.66, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.",
+      "before_explanation": "Fits compromise mode with signal from Sci-Fi, Drama. Alex - tester: 0.66, Taste Lab signals: 1; Wife: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, feature_tag.",
       "before_signal_families": [
         "genre",
         "title_similarity",

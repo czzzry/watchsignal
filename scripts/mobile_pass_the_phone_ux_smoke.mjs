@@ -53,7 +53,7 @@ async function main() {
   try {
     await waitForText(tab, "Start first pass", "setup screen");
     if (useBackendMode) {
-      await waitForText(tab, "Cezary - tester + Husband", "persisted household profile pairing");
+      await waitForText(tab, "Alex - tester + Husband", "persisted household profile pairing");
     }
     if (process.env.MOBILE_UX_SMOKE_CAPTURE_LAUNCH === "1") {
       await captureScreenshot(tab, screenshotDir, "00-launch");
@@ -107,7 +107,7 @@ async function main() {
       await waitForText(tab, "Backups we also liked", "results backups");
       if (useBackendMode) {
         await waitForText(tab, "Current signals", "results evidence panel");
-        await waitForText(tab, "Cezary - tester: 1 signals", "tester Taste Lab evidence");
+        await waitForText(tab, "Alex - tester: 1 signals", "tester Taste Lab evidence");
         await waitForText(tab, "Why it moved", "recommendation trust movement evidence");
         await waitForText(tab, "Held back", "recommendation trust penalty evidence");
         if (expectedRecommendationSource === "live_tmdb") {
@@ -167,7 +167,7 @@ async function main() {
         await clickButton(tab, "Watched best pick");
       }
       await clickButton(tab, "Save outcome");
-      await clickButtonInSection(tab, "Cezary - tester", "Loved");
+      await clickButtonInSection(tab, "Alex - tester", "Loved");
       await clickButtonInSection(tab, "Husband", "Fine");
       await clickButton(tab, "Save feedback");
       await clickButton(tab, "Start new night");
@@ -332,7 +332,7 @@ async function seedBackendOnboarding(apiBaseUrl) {
   if (profiles.length < 2) {
     throw new Error("Backend-backed UX smoke could not load two setup profiles.");
   }
-  const testerProfile = profiles.find((profile) => profile?.id === "cezary-tester");
+  const testerProfile = profiles.find((profile) => profile?.id === "alex-tester");
   if (!testerProfile) {
     throw new Error("Backend-backed UX smoke could not create the tester profile.");
   }
