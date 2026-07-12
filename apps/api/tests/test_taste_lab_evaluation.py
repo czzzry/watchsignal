@@ -43,7 +43,7 @@ class TasteLabEvaluationTest(unittest.TestCase):
             payload["rank_deltas_vs_baseline"]["popularity_seeded"],
         )
 
-    def test_taste_lab_ratings_adapt_to_current_three_bucket_scorer(self) -> None:
+    def test_taste_lab_ratings_adapt_to_current_three_bucket_scorer_without_turning_neutral_positive(self) -> None:
         ratings = (
             _rating("Arrival", ("Sci-Fi",), TasteLabRatingLabel.LOVED),
             _rating("Knives Out", ("Mystery",), TasteLabRatingLabel.LIKED),
@@ -68,12 +68,6 @@ class TasteLabEvaluationTest(unittest.TestCase):
                     label="fine",
                     genres=("Mystery",),
                     notes="Taste Lab import: liked",
-                ),
-                OnboardingSeed(
-                    title="Neutral",
-                    label="fine",
-                    genres=("Drama",),
-                    notes="Taste Lab import: meh",
                 ),
                 OnboardingSeed(
                     title="Saw",

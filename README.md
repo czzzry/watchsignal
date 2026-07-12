@@ -175,7 +175,11 @@ The replacement panel is independent at the user level but remains part of Movie
 The panel is now spent, and any model revision informed by its results requires fresh independent evidence.
 This is deliberately an offline quality gate, not a claim of complete product success.
 Any winning model must still pass household review because historical individual ratings cannot represent couple compromise, tonight intent, streaming availability, or user trust.
-V2 remains the product default while the configured second profile lacks enough real Taste Lab evidence for a valid household comparison.
+Sophie now has enough saved Taste Lab evidence for a future first household calibration pass, but real couple-mode validation is deferred until actual app use next week.
+The current status is recorded in [Sophie household validation status](docs/validation/sophie-household-validation-status-2026-07-12.md).
+V2 remains the product default until a separate household decision changes it.
+The next offline research lane is [Recommendation Model Discovery Phase 2](docs/issues/recommendation-model-discovery-phase-2-issue-breakdown.md), which keeps household validation separate from MovieLens model discovery.
+That phase completed locally with a hold decision: the collaborative regularization-2.0 model remains the offline individual-taste champion, no fresh evidence panel was spent, and the next model-research step should be a separate fixed-source metadata snapshot before testing cast, crew, language, keyword, runtime, or production features.
 
 Read the [evaluation narrative](docs/recommendation-evaluation.md) or the [locked benchmark protocol](docs/validation/movielens-benchmark-protocol.md).
 
@@ -197,6 +201,7 @@ Read the [evaluation narrative](docs/recommendation-evaluation.md) or the [locke
 - Shared session state machine: [docs/architecture/shared-session-state-machine.md](docs/architecture/shared-session-state-machine.md)
 - Mode-aware scoring: [docs/architecture/mode-aware-shared-scoring.md](docs/architecture/mode-aware-shared-scoring.md)
 - History and debug visibility: [docs/architecture/history-debug-visibility.md](docs/architecture/history-debug-visibility.md)
+- Taste signal scale contract: [docs/architecture/taste-signal-scale-contract.md](docs/architecture/taste-signal-scale-contract.md)
 - Taste Lab research brief: [docs/taste-lab-research-brief.md](docs/taste-lab-research-brief.md)
 - Taste Lab generated queue setup: [docs/setup/taste-lab-generated-seed-queue.md](docs/setup/taste-lab-generated-seed-queue.md)
 - Taste Lab evaluation setup: [docs/setup/taste-lab-evaluation.md](docs/setup/taste-lab-evaluation.md)
@@ -216,6 +221,9 @@ Read the [evaluation narrative](docs/recommendation-evaluation.md) or the [locke
 - Shared internal-test winner: [docs/validation/movielens-internal-winner.md](docs/validation/movielens-internal-winner.md)
 - Replacement sealed-panel lock: [docs/validation/replacement-sealed-panel-lock.json](docs/validation/replacement-sealed-panel-lock.json)
 - Replacement sealed benchmark: [docs/validation/movielens-replacement-sealed-benchmark.md](docs/validation/movielens-replacement-sealed-benchmark.md)
+- Sophie household validation status: [docs/validation/sophie-household-validation-status-2026-07-12.md](docs/validation/sophie-household-validation-status-2026-07-12.md)
+- Recommendation Model Discovery Phase 2: [docs/issues/recommendation-model-discovery-phase-2-issue-breakdown.md](docs/issues/recommendation-model-discovery-phase-2-issue-breakdown.md)
+- Phase 2 final decision: [docs/validation/phase-2-final-decision-2026-07-12.md](docs/validation/phase-2-final-decision-2026-07-12.md)
 - MVP gate validation: [docs/validation/live-usable-mvp-gate-2026-06-30.md](docs/validation/live-usable-mvp-gate-2026-06-30.md)
 
 ## Repo Guide

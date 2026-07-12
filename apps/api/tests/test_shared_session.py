@@ -62,6 +62,28 @@ class SharedSessionServiceTest(unittest.TestCase):
 
             assert reloaded is not None
             self.assertEqual(reloaded.state, SharedSessionState.RERANKED)
+            self.assertEqual(reloaded.participant_ids, ("husband", "wife"))
+            self.assertEqual(reloaded.shortlist, GENERIC_SHORTLIST)
+            self.assertEqual(
+                [(reaction.participant_id, reaction.reaction_label.value) for reaction in reloaded.founder_reactions],
+                [
+                    ("husband", "maybe"),
+                    ("husband", "interested"),
+                    ("husband", "no"),
+                    ("husband", "seen"),
+                    ("husband", "maybe"),
+                ],
+            )
+            self.assertEqual(
+                [(reaction.participant_id, reaction.reaction_label.value) for reaction in reloaded.wife_reactions],
+                [
+                    ("wife", "interested"),
+                    ("wife", "maybe"),
+                    ("wife", "no"),
+                    ("wife", "seen"),
+                    ("wife", "interested"),
+                ],
+            )
             self.assertEqual(reloaded.reranked_source_movie_ids, after_wife.reranked_source_movie_ids)
             self.assertEqual(len(reloaded.wife_reactions), 5)
 
@@ -174,6 +196,9 @@ class SharedSessionServiceTest(unittest.TestCase):
             assert reloaded is not None
             self.assertEqual(reloaded.previous_shortlist, GENERIC_SHORTLIST)
             self.assertEqual(len(reloaded.previous_founder_reactions), 5)
+            self.assertEqual(len(reloaded.previous_wife_reactions), 5)
+            self.assertEqual(reloaded.founder_reactions, ())
+            self.assertEqual(reloaded.wife_reactions, ())
 
     def test_continue_rejects_already_shown_movies(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -456,7 +456,7 @@ def _rating(
 def _scorer_label(label: TasteLabRatingLabel) -> str | None:
     if label == TasteLabRatingLabel.LOVED:
         return "loved"
-    if label in {TasteLabRatingLabel.LIKED, TasteLabRatingLabel.MEH}:
+    if label == TasteLabRatingLabel.LIKED:
         return "fine"
     if label == TasteLabRatingLabel.HATED:
         return "no"
