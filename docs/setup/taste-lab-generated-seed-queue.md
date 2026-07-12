@@ -27,9 +27,9 @@ unzip -o /private/tmp/ml-latest-small.zip -d /private/tmp/watchsignal-movielens
 Generate the WatchSignal queue artifact:
 
 ```bash
-cd /Users/cezarybaraniecki/Documents/movie-night-mediator-app
-env UV_CACHE_DIR=/Users/cezarybaraniecki/Documents/movie-night-mediator-app/.tools/uv-cache \
-  apps/api/../../.tools/uv/bin/uv run --project apps/api \
+cd "$(git rev-parse --show-toplevel)"
+env UV_CACHE_DIR="$PWD/.tools/uv-cache" \
+  .tools/uv/bin/uv run --project apps/api \
   python scripts/taste_lab_generate_seed_queue.py \
   --movies /private/tmp/watchsignal-movielens/ml-latest-small/movies.csv \
   --ratings /private/tmp/watchsignal-movielens/ml-latest-small/ratings.csv \
@@ -42,9 +42,9 @@ env UV_CACHE_DIR=/Users/cezarybaraniecki/Documents/movie-night-mediator-app/.too
 Generate the same queue with TMDb poster paths:
 
 ```bash
-cd /Users/cezarybaraniecki/Documents/movie-night-mediator-app
-env UV_CACHE_DIR=/Users/cezarybaraniecki/Documents/movie-night-mediator-app/.tools/uv-cache \
-  apps/api/../../.tools/uv/bin/uv run --project apps/api \
+cd "$(git rev-parse --show-toplevel)"
+env UV_CACHE_DIR="$PWD/.tools/uv-cache" \
+  .tools/uv/bin/uv run --project apps/api \
   python scripts/taste_lab_generate_seed_queue.py \
   --movies /private/tmp/watchsignal-movielens/ml-latest-small/movies.csv \
   --ratings /private/tmp/watchsignal-movielens/ml-latest-small/ratings.csv \

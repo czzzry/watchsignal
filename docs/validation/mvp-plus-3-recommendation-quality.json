@@ -14,11 +14,11 @@
         "Quiet Sad Drama"
       ],
       "strategy_name": "baseline_no_profile_no_nudge",
-      "target_explanation_excerpt": "Fits compromise mode with signal from Horror, Thriller. Cezary - tester: 0.5; Partner: 0.5, Taste Lab signals: 1.",
+      "target_explanation_excerpt": "Fits compromise mode with signal from Horror, Thriller. Alex - tester: 0.5; Partner: 0.5, Taste Lab signals: 1.",
       "target_rank": 2,
       "target_signal_families": [],
       "top_pick_changed_vs_baseline": false,
-      "top_pick_explanation_excerpt": "Fits compromise mode with signal from Mystery, Comedy. Cezary - tester: 0.5; Partner: 0.62, Taste Lab signals: 1. Evidence: genre.",
+      "top_pick_explanation_excerpt": "Fits compromise mode with signal from Mystery, Comedy. Alex - tester: 0.5; Partner: 0.62, Taste Lab signals: 1. Evidence: genre.",
       "top_pick_title": "Cozy Mystery Night"
     },
     {
@@ -33,14 +33,14 @@
         "Cozy Mystery Night"
       ],
       "strategy_name": "tester_profile_calibration",
-      "target_explanation_excerpt": "Fits compromise mode with signal from Horror, Thriller. Cezary - tester: 0.92, Taste Lab signals: 3; Partner: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity.",
+      "target_explanation_excerpt": "Fits compromise mode with signal from Horror, Thriller. Alex - tester: 0.92, Taste Lab signals: 3; Partner: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity.",
       "target_rank": 1,
       "target_signal_families": [
         "genre",
         "title_similarity"
       ],
       "top_pick_changed_vs_baseline": true,
-      "top_pick_explanation_excerpt": "Fits compromise mode with signal from Horror, Thriller. Cezary - tester: 0.92, Taste Lab signals: 3; Partner: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity.",
+      "top_pick_explanation_excerpt": "Fits compromise mode with signal from Horror, Thriller. Alex - tester: 0.92, Taste Lab signals: 3; Partner: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity.",
       "top_pick_title": "The Shining"
     },
     {
@@ -55,7 +55,7 @@
         "Cozy Mystery Night"
       ],
       "strategy_name": "tester_profile_plus_directed_nudge",
-      "target_explanation_excerpt": "Fits compromise mode with signal from Horror, Thriller. Cezary - tester: 0.92, Taste Lab signals: 3; Partner: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, tonight_intent.",
+      "target_explanation_excerpt": "Fits compromise mode with signal from Horror, Thriller. Alex - tester: 0.92, Taste Lab signals: 3; Partner: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, tonight_intent.",
       "target_rank": 1,
       "target_signal_families": [
         "genre",
@@ -63,7 +63,7 @@
         "tonight_intent"
       ],
       "top_pick_changed_vs_baseline": true,
-      "top_pick_explanation_excerpt": "Fits compromise mode with signal from Horror, Thriller. Cezary - tester: 0.92, Taste Lab signals: 3; Partner: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, tonight_intent.",
+      "top_pick_explanation_excerpt": "Fits compromise mode with signal from Horror, Thriller. Alex - tester: 0.92, Taste Lab signals: 3; Partner: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, tonight_intent.",
       "top_pick_title": "The Shining"
     }
   ],

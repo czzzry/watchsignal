@@ -24,8 +24,8 @@ Target title: The Shining
 - Top pick changed vs baseline: False
 - Target signal families: none
 - Matched person names: Jack Nicholson
-- Top-pick explanation: Fits compromise mode with signal from Mystery, Comedy. Cezary - tester: 0.5; Partner: 0.62, Taste Lab signals: 1. Evidence: genre.
-- Target explanation: Fits compromise mode with signal from Horror, Thriller. Cezary - tester: 0.5; Partner: 0.5, Taste Lab signals: 1.
+- Top-pick explanation: Fits compromise mode with signal from Mystery, Comedy. Alex - tester: 0.5; Partner: 0.62, Taste Lab signals: 1. Evidence: genre.
+- Target explanation: Fits compromise mode with signal from Horror, Thriller. Alex - tester: 0.5; Partner: 0.5, Taste Lab signals: 1.
 
 ### tester_profile_calibration
 
@@ -35,8 +35,8 @@ Target title: The Shining
 - Top pick changed vs baseline: True
 - Target signal families: genre, title_similarity
 - Matched person names: Jack Nicholson
-- Top-pick explanation: Fits compromise mode with signal from Horror, Thriller. Cezary - tester: 0.92, Taste Lab signals: 3; Partner: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity.
-- Target explanation: Fits compromise mode with signal from Horror, Thriller. Cezary - tester: 0.92, Taste Lab signals: 3; Partner: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity.
+- Top-pick explanation: Fits compromise mode with signal from Horror, Thriller. Alex - tester: 0.92, Taste Lab signals: 3; Partner: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity.
+- Target explanation: Fits compromise mode with signal from Horror, Thriller. Alex - tester: 0.92, Taste Lab signals: 3; Partner: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity.
 
 ### tester_profile_plus_directed_nudge
 
@@ -46,8 +46,8 @@ Target title: The Shining
 - Top pick changed vs baseline: True
 - Target signal families: genre, title_similarity, tonight_intent
 - Matched person names: Jack Nicholson
-- Top-pick explanation: Fits compromise mode with signal from Horror, Thriller. Cezary - tester: 0.92, Taste Lab signals: 3; Partner: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, tonight_intent.
-- Target explanation: Fits compromise mode with signal from Horror, Thriller. Cezary - tester: 0.92, Taste Lab signals: 3; Partner: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, tonight_intent.
+- Top-pick explanation: Fits compromise mode with signal from Horror, Thriller. Alex - tester: 0.92, Taste Lab signals: 3; Partner: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, tonight_intent.
+- Target explanation: Fits compromise mode with signal from Horror, Thriller. Alex - tester: 0.92, Taste Lab signals: 3; Partner: 0.5, Taste Lab signals: 1. Evidence: genre, title_similarity, tonight_intent.
 
 ## Caveats
 

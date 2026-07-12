@@ -203,15 +203,15 @@ def _scenarios() -> tuple[EvaluationScenario, ...]:
             expected_movement="same",
             before=_request(
                 session_id="mvp4-profile-attribution-before",
-                users=(_cezary_tester(), _wife_profile()),
+                users=(_alex_tester(), _wife_profile()),
             ),
             after=_request(
                 session_id="mvp4-profile-attribution-after",
-                users=(_cezary_tester(), _wife_profile()),
-                viewer_user_ids=("cezary-tester", "profile-2"),
+                users=(_alex_tester(), _wife_profile()),
+                viewer_user_ids=("alex-tester", "profile-2"),
             ),
             check=lambda result: (
-                "Cezary - tester" in (result["after_explanation"] or "")
+                "Alex - tester" in (result["after_explanation"] or "")
                 and "Wife" in (result["after_explanation"] or "")
             ),
         ),
@@ -229,7 +229,7 @@ def _scenarios() -> tuple[EvaluationScenario, ...]:
                 session_id="mvp4-active-isolation-after",
                 users=(_horror_profile(),),
                 audience_mode=AudienceMode.SOLO,
-                viewer_user_ids=("cezary-tester",),
+                viewer_user_ids=("alex-tester",),
             ),
             check=lambda result: (
                 result["actual_movement"] == "up"
@@ -344,7 +344,7 @@ def _scenarios() -> tuple[EvaluationScenario, ...]:
             expected_movement="up",
             before=_request(
                 session_id="mvp4-watchlist-loved-before",
-                users=(_cezary_tester(),),
+                users=(_alex_tester(),),
                 audience_mode=AudienceMode.SOLO,
             ),
             after=_request(
@@ -425,17 +425,17 @@ def _request(
             person_constraints=person_constraints,
         ),
         household_defaults=HouseholdDefaults(),
-        users=users or (_cezary_tester(), _wife_profile()),
+        users=users or (_alex_tester(), _wife_profile()),
         candidates=candidates or _candidate_pool(),
         session_reactions=session_reactions,
     )
 
 
-def _cezary_tester() -> UserProfile:
+def _alex_tester() -> UserProfile:
     return UserProfile(
-        user_id="cezary-tester",
+        user_id="alex-tester",
         role="founder",
-        display_label="Cezary - tester",
+        display_label="Alex - tester",
         taste_profile_evidence=(
             _evidence("taste_lab", "tmdb:arrival-seed", "Arrival", ("Sci-Fi",), 1.0),
         ),
@@ -455,9 +455,9 @@ def _wife_profile() -> UserProfile:
 
 def _horror_profile() -> UserProfile:
     return UserProfile(
-        user_id="cezary-tester",
+        user_id="alex-tester",
         role="founder",
-        display_label="Cezary - tester",
+        display_label="Alex - tester",
         taste_profile_evidence=(
             _evidence("taste_lab", "tmdb:shining-seed", "The Shining", ("Horror", "Thriller"), 1.0),
         ),

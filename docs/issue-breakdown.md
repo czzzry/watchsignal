@@ -6,7 +6,7 @@ Each slice is meant to be independently understandable, demoable, and testable.
 
 ## Coverage note
 
-This breakdown is intended to cover the MVP-scoped user stories from [prd-mvp.md](/Users/cezarybaraniecki/Documents/n8n%20movie%20recommender/docs/prd-mvp.md).
+This breakdown is intended to cover the MVP-scoped user stories from [prd-mvp.md](prd-mvp.md).
 It does not fully implement the later ideas already parked in MVP plus 1 or MVP plus N.
 
 ## Slice 1 - Platform smoke test

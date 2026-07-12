@@ -1,7 +1,7 @@
 # Workflow Map
 
 This file maps likely workflow boundaries without implementing them yet.
-It now reflects the founder decisions currently recorded in [decision-register.md](/Users/cezarybaraniecki/Documents/n8n%20movie%20recommender/docs/decision-register.md).
+It now reflects the founder decisions currently recorded in [decision-register.md](decision-register.md).
 This is still a planning artifact, not an implementation artifact.
 
 ## Current status
@@ -54,4 +54,4 @@ The first vertical slice is a complete movie-night flow with real feedback learn
 
 ## Diagram links
 
-- System and flow diagrams live in [architecture-overview.md](/Users/cezarybaraniecki/Documents/n8n%20movie%20recommender/docs/architecture-overview.md)
+- System and flow diagrams live in [architecture-overview.md](architecture-overview.md)

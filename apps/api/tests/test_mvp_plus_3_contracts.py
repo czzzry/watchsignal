@@ -23,20 +23,20 @@ from movie_night_mediator.mvp_plus_3 import (
 class MvpPlus3ContractsTest(unittest.TestCase):
     def test_profile_identity_is_stable_through_rename(self) -> None:
         profile = ProfileIdentity(
-            profile_id=" cezary-tester ",
-            display_label="Cezary - tester",
+            profile_id=" alex-tester ",
+            display_label="Alex - tester",
             household_id="default-household",
         )
-        renamed = profile.renamed("Cezary")
+        renamed = profile.renamed("Alex")
 
         self.assertTrue(profile.is_tester_profile)
-        self.assertEqual(renamed.profile_id, "cezary-tester")
-        self.assertEqual(renamed.display_label, "Cezary")
+        self.assertEqual(renamed.profile_id, "alex-tester")
+        self.assertEqual(renamed.display_label, "Alex")
 
     def test_taste_lab_rating_ownership_requires_profile_identity(self) -> None:
         rating = TasteLabRatingOwnership(
             household_id="default-household",
-            profile_id="cezary-tester",
+            profile_id="alex-tester",
             source_movie_id="tmdb:539",
             rating_label="love",
             familiarity_label="seen",
@@ -44,24 +44,24 @@ class MvpPlus3ContractsTest(unittest.TestCase):
             rated_at="2026-07-07T08:00:00Z",
         )
 
-        self.assertEqual(rating.profile_id, "cezary-tester")
+        self.assertEqual(rating.profile_id, "alex-tester")
 
     def test_selected_profiles_preserve_two_person_movie_night(self) -> None:
         selected = SelectedRecommendationProfiles(
             household_id="default-household",
-            profile_ids=("cezary-tester", "partner"),
-            active_profile_order=("partner", "cezary-tester"),
+            profile_ids=("alex-tester", "partner"),
+            active_profile_order=("partner", "alex-tester"),
         )
 
         self.assertTrue(selected.supports_shared_movie_night)
-        self.assertEqual(selected.active_profile_order, ("partner", "cezary-tester"))
+        self.assertEqual(selected.active_profile_order, ("partner", "alex-tester"))
 
     def test_selected_profiles_reject_order_that_does_not_match_profiles(self) -> None:
         with self.assertRaisesRegex(ValueError, "must match"):
             SelectedRecommendationProfiles(
                 household_id="default-household",
-                profile_ids=("cezary-tester", "partner"),
-                active_profile_order=("cezary-tester", "guest"),
+                profile_ids=("alex-tester", "partner"),
+                active_profile_order=("alex-tester", "guest"),
             )
 
     def test_directed_nudge_supports_person_intent_and_excluded_signals(self) -> None:
@@ -130,7 +130,7 @@ class MvpPlus3ContractsTest(unittest.TestCase):
             source_movie_id="tmdb:603",
             title="The Matrix",
             saved_at="2026-07-07T08:30:00Z",
-            saved_by_profile_id="cezary-tester",
+            saved_by_profile_id="alex-tester",
         )
 
         self.assertFalse(bookmark.is_taste_signal)
@@ -174,19 +174,19 @@ class MvpPlus3ContractsTest(unittest.TestCase):
 
     def test_phase_contract_is_treehouse_ready_when_core_shapes_align(self) -> None:
         profile = ProfileIdentity(
-            profile_id="cezary-tester",
-            display_label="Cezary - tester",
+            profile_id="alex-tester",
+            display_label="Alex - tester",
             household_id="default-household",
         )
         contract = MvpPlus3PhaseContract(
             profile=profile,
             selected_profiles=SelectedRecommendationProfiles(
                 household_id="default-household",
-                profile_ids=("cezary-tester", "partner"),
+                profile_ids=("alex-tester", "partner"),
             ),
             taste_lab_rating=TasteLabRatingOwnership(
                 household_id="default-household",
-                profile_id="cezary-tester",
+                profile_id="alex-tester",
                 source_movie_id="tmdb:539",
                 rating_label="love",
                 familiarity_label="seen",
@@ -215,7 +215,7 @@ class MvpPlus3ContractsTest(unittest.TestCase):
                 source_movie_id="tmdb:603",
                 title="The Matrix",
                 saved_at="2026-07-07T08:30:00Z",
-                saved_by_profile_id="cezary-tester",
+                saved_by_profile_id="alex-tester",
             ),
             recommendation_evidence=RecommendationEvidenceContract(
                 source_movie_id="tmdb:603",

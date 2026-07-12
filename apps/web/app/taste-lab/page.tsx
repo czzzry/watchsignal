@@ -15,12 +15,12 @@ import {
 } from "../taste-lab-client";
 
 const householdId = "default-household";
-const testerProfileId = "cezary-tester";
+const testerProfileId = "alex-tester";
 const sophieTesterProfileId = "sophie-tester";
 const fallbackProfiles: SetupProfilePayload[] = [
   {
     id: testerProfileId,
-    label: "Cezary - tester",
+    label: "Alex - tester",
     order: 1,
     avatarKey: "comet",
     colorKey: "amber",

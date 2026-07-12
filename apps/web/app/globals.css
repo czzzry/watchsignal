@@ -40,6 +40,67 @@ body {
   overflow-x: clip;
 }
 
+.siteCreditsLink {
+  width: min(100%, 430px);
+  margin: 0 auto;
+  padding: 0 18px 24px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.siteCreditsLink a,
+.creditsPage a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+
+.creditsPage {
+  width: min(100%, 680px);
+  min-height: calc(100svh - 64px);
+  margin: 0 auto;
+  padding: 28px 18px 56px;
+}
+
+.creditsBack {
+  display: inline-block;
+  margin-bottom: 24px;
+  color: var(--muted);
+}
+
+.creditsCard {
+  display: grid;
+  gap: 18px;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.creditsCard h1,
+.creditsCard p {
+  margin: 0;
+}
+
+.creditsCard p {
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.creditsCard .eyebrow {
+  color: var(--cyan);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.tmdbLogo {
+  width: 96px;
+  height: auto;
+}
+
 body {
   margin: 0;
   background:

@@ -193,6 +193,14 @@ Read the [evaluation narrative](docs/recommendation-evaluation.md) or the [locke
 - TMDb credentials belong in local environment variables.
 - The project does not claim production-grade recommendation quality, auth, deployment hardening, or content-safety guarantees yet.
 
+Committed profiles, ratings, and demo artifacts are synthetic. The repository's [Public Data Policy](docs/public-data-policy.md) documents what may be committed, what must stay local, and the CI guardrail that checks common privacy leaks.
+
+## Data Attribution
+
+Live movie metadata and poster images come from [The Movie Database (TMDB)](https://www.themoviedb.org). The web app includes a dedicated `/credits` page with TMDB's approved logo and required attribution notice.
+
+This product uses the TMDB API but is not endorsed or certified by TMDB.
+
 ## Proof Points For Reviewers
 
 - Product demo: [docs/assets/watchsignal-showcase.gif](docs/assets/watchsignal-showcase.gif)

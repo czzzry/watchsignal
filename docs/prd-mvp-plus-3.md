@@ -7,7 +7,7 @@ That makes the product feel more real, but it does not yet give the founder a du
 The next milestone should let the founder create a real tester profile, load actual taste data into it, steer new recommendation batches with normal language, and judge whether the product is improving.
 
 The current risk is building more recommendation machinery without a dependable way to feel the payoff as a real user.
-The founder needs a persistent profile named `Cezary - tester`, a calibration loop that survives reloads and restarts, and a directed discovery loop that can answer requests like "scary but not bleak", "sad but beautiful", or "something with Jack Nicholson in it".
+The founder needs a persistent profile named `Alex - tester`, a calibration loop that survives reloads and restarts, and a directed discovery loop that can answer requests like "scary but not bleak", "sad but beautiful", or "something with Jack Nicholson in it".
 
 MVP Plus 3 should prove this promise:
 
@@ -27,7 +27,7 @@ The phase should connect profile persistence, private calibration, directed cand
 
 The user-facing loop should become:
 
-1. Create or select a persistent profile named `Cezary - tester`.
+1. Create or select a persistent profile named `Alex - tester`.
 2. Rename the profile later without losing taste data.
 3. Use that profile in Taste Lab.
 4. Save Taste Lab ratings under that real profile identity.
@@ -49,7 +49,7 @@ LLM assistance may translate messy user language into structured filters and sof
 
 1. As the founder, I want MVP Plus 3 to have a named phase boundary, so that ambitious discovery work does not sprawl.
 2. As the founder, I want the current phase tracker to show scoping until issues are accepted, so that the count is not fake.
-3. As the founder, I want a persistent `Cezary - tester` profile, so that I can load my real taste into the app.
+3. As the founder, I want a persistent `Alex - tester` profile, so that I can prove the taste-calibration flow without committing a real household identity.
 4. As the founder, I want to rename that profile later, so that the test profile can become a normal profile without losing data.
 5. As a household user, I want saved profiles to survive reloads and local app restarts, so that calibration work does not disappear.
 6. As a household user, I want Taste Lab to ask which profile is rating, so that ratings belong to the right person.
@@ -84,7 +84,7 @@ LLM assistance may translate messy user language into structured filters and sof
 - MVP Plus 3 is one phase named **Directed Discovery And Real Tester Profile**.
 - The accepted MVP Plus 3 issue count is not locked until the founder approves the issue breakdown.
 - The first implementation slice should define contracts and acceptance gates for profiles, Taste Lab ownership, nudges, redo semantics, bookmarks, and evidence.
-- `Cezary - tester` is an intended real profile, not throwaway fixture copy.
+- `Alex - tester` is a durable synthetic profile, not a real household identity or throwaway one-test fixture.
 - Profile identity must be stable by id even if the display name changes.
 - The default household should still support two-person recommendation behavior.
 - Taste Lab ratings belong to profile ids and should not silently merge people.
@@ -138,7 +138,7 @@ Famous-person taste matching remains attractive because it could make taste iden
 It should be treated as a later prototype or MVP Plus 4 candidate after the real-profile calibration loop works.
 
 The phrase "dogfood run" means using the app as a real user on a phone-sized flow and checking whether the experience actually holds together.
-For MVP Plus 3, that means using `Cezary - tester`, entering real Taste Lab ratings, steering recommendations with natural language, asking for five more, bookmarking a title, reloading, and confirming the product remembers the right things.
+For MVP Plus 3, that means using `Alex - tester`, entering deterministic fixture ratings, steering recommendations with natural language, asking for five more, bookmarking a title, reloading, and confirming the product remembers the right things.
 
 The phase should feel ambitious because it connects data ownership, recommendation quality, and human steering into one loop.
 It should still be bounded because the acceptance gate is one real tester profile, one shared recommendation flow, and visible evidence that calibration plus nudging changed results.

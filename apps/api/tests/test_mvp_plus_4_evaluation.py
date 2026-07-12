@@ -46,7 +46,7 @@ class MvpPlus4EvaluationTest(unittest.TestCase):
             results["scary_steer_moves_horror_pick_up"]["after_signal_families"],
         )
         self.assertIn(
-            "Cezary - tester",
+            "Alex - tester",
             results["profile_attribution_pairing_uses_both_household_profiles"][
                 "after_explanation"
             ],

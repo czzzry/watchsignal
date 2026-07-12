@@ -18,14 +18,14 @@ No new MVP Plus 3 scope was added during acceptance.
 
 The backend-backed dogfood smoke now seeds and verifies the MVP Plus 3 profile path before opening the browser:
 
-- Creates `Cezary - tester` through the setup API.
-- Promotes `Cezary - tester` into the first participant slot.
+- Creates `Alex - tester` through the setup API.
+- Promotes `Alex - tester` into the first participant slot.
 - Keeps the default partner profile as the second participant.
 - Seeds onboarding for both active participants.
-- Saves a Taste Lab `loved` rating for `Cezary - tester`.
+- Saves a Taste Lab `loved` rating for `Alex - tester`.
 - Reads the tester Taste Lab summary and verifies at least one preference evidence signal.
 - Starts a production web build and temporary backend database for the dogfood run.
-- Asserts that the result screen exposes `Current signals` and `Cezary - tester: 1 signals`.
+- Asserts that the result screen exposes `Current signals` and `Alex - tester: 1 signals`.
 
 The completed phone-sized run used a normal Chrome app instance with DevTools already open:
 
@@ -42,12 +42,12 @@ MOBILE_UX_SMOKE_DEBUGGING_URL=http://127.0.0.1:9222 pnpm beta:dogfood
 Observed coverage:
 
 - Temporary backend and production web server started.
-- `Cezary - tester` profile was created and used as the first active participant.
+- `Alex - tester` profile was created and used as the first active participant.
 - Taste Lab evidence was seeded and visible in the result evidence panel.
 - Main pass-the-phone recommendation flow completed through both participants.
 - Watchlist add, watched, and remove actions completed.
 - Session outcome was saved.
-- Post-watch feedback was saved for `Cezary - tester` and `Husband`.
+- Post-watch feedback was saved for `Alex - tester` and `Husband`.
 - Recent-session history reloaded and showed session outcome, feedback, and reaction evidence.
 - Viewport was 390 x 844 mobile.
 

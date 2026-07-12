@@ -1,7 +1,7 @@
 # Decision Grill
 
 Use this document to pressure-test the current recommendation set before accepting any architecture.
-It is grounded in [research-evidence-map.md](/Users/cezarybaraniecki/Documents/n8n%20movie%20recommender/docs/research/research-evidence-map.md).
+It is grounded in the repository's current [decision register](decision-register.md) and architecture notes.
 The goal is not to answer fast.
 The goal is to help the founder accept, reject, or modify each recommendation deliberately.
 

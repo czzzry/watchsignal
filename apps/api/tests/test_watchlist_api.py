@@ -24,7 +24,7 @@ class WatchlistApiTest(unittest.TestCase):
                     sourceMovieId="tmdb:603",
                     title="The Matrix",
                     savedByProfileId="husband",
-                    savedByDisplayLabel="Cezary - tester",
+                    savedByDisplayLabel="Alex - tester",
                     posterUrl="https://image.example/matrix.jpg",
                     releaseYear=1999,
                 )
@@ -43,7 +43,7 @@ class WatchlistApiTest(unittest.TestCase):
             ]
 
             self.assertEqual(saved.sourceMovieId, "tmdb:603")
-            self.assertEqual(saved.savedByDisplayLabel, "Cezary - tester")
+            self.assertEqual(saved.savedByDisplayLabel, "Alex - tester")
             self.assertEqual(duplicate.savedByProfileId, "wife")
             self.assertEqual(len(listed), 1)
             self.assertEqual(listed[0]["title"], "The Matrix Reloaded Back To Matrix")
@@ -74,8 +74,8 @@ class WatchlistApiTest(unittest.TestCase):
                     householdId="default-household",
                     sourceMovieId="tmdb:155",
                     title="The Dark Knight",
-                    savedByProfileId="cezary-tester",
-                    savedByDisplayLabel="Cezary - tester",
+                    savedByProfileId="alex-tester",
+                    savedByDisplayLabel="Alex - tester",
                 )
             )
 
@@ -93,8 +93,8 @@ class WatchlistApiTest(unittest.TestCase):
 
             self.assertEqual(len(listed), 1)
             self.assertEqual(listed[0]["sourceMovieId"], "tmdb:155")
-            self.assertEqual(listed[0]["savedByProfileId"], "cezary-tester")
-            self.assertEqual(listed[0]["savedByDisplayLabel"], "Cezary - tester")
+            self.assertEqual(listed[0]["savedByProfileId"], "alex-tester")
+            self.assertEqual(listed[0]["savedByDisplayLabel"], "Alex - tester")
             self.assertFalse(listed[0]["isTasteSignal"])
             self.assertFalse(listed[0]["canBeRecommendationSeed"])
 

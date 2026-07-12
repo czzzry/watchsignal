@@ -13,7 +13,7 @@ The contract tests are [apps/api/tests/test_mvp_plus_3_contracts.py](../../apps/
 
 - Profiles are durable local product entities with stable ids.
 - Display labels are editable and must not be used as durable identity.
-- `Cezary - tester` is a normal profile that can be renamed later.
+- `Alex - tester` is a normal profile that can be renamed later.
 - Taste Lab ratings belong to profile ids.
 - The main flow should explicitly know which profiles are participating.
 - Tonight-level nudges are session context unless a later approved feature promotes them to durable taste.
@@ -35,7 +35,7 @@ Profile identity includes:
 - `updated_at`
 
 The profile id remains stable through rename.
-The display label can be `Cezary - tester` during founder dogfood and something else later.
+The committed display label is the synthetic `Alex - tester`; private local profiles can use a different label later.
 Workers should import `ProfileIdentity` for the stable-id and rename behavior instead of using display labels as durable identity.
 
 ## Taste Lab Ownership
