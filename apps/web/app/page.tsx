@@ -1,5 +1,6 @@
 import { DEFAULT_API_BASE_URL, loadSetupState } from "./setup-api";
 import { PassThePhoneWizard } from "./pass-the-phone-wizard";
+import { apiRequestTimeoutMs } from "./api-timeout";
 
 type ApiHealth = {
   connected: boolean;
@@ -17,7 +18,7 @@ async function getApiHealth(
   try {
     const response = await fetch(healthUrl, {
       cache: "no-store",
-      signal: AbortSignal.timeout(2000),
+      signal: AbortSignal.timeout(apiRequestTimeoutMs()),
     });
 
     if (!response.ok) {

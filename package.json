@@ -3,6 +3,9 @@
   "private": true,
   "packageManager": "pnpm@10.0.0",
   "scripts": {
+    "hosted:preflight": "node scripts/hosted_android_preflight.mjs && node --check apps/web/public/sw.js && cd apps/api && ../../.tools/uv/bin/uv run python -m py_compile ../../scripts/migrate_sqlite_to_postgres.py",
+    "hosted:migrate": "cd apps/api && ../../.tools/uv/bin/uv run python ../../scripts/migrate_sqlite_to_postgres.py",
+    "hosted:check": "pnpm hosted:preflight && pnpm check && pnpm build:web",
     "beta:preflight": "node scripts/beta_readiness_preflight.mjs",
     "beta:check": "pnpm beta:preflight && pnpm check",
     "beta:mvp4": "node scripts/mvp_plus_4_acceptance_gate.mjs",

@@ -64,8 +64,6 @@ export type SetupStatePayload = {
   profiles: SetupProfilePayload[];
 };
 
-const DEFAULT_TASTE_LAB_API_BASE_URL = "http://127.0.0.1:8000";
-
 export async function seedTasteLabCandidates(
   householdId: string,
   candidates: TasteLabCandidatePayload[],
@@ -176,10 +174,7 @@ export async function ensureTesterProfile(): Promise<SetupStatePayload> {
 }
 
 function tasteLabApiUrl(path: string): string {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_TASTE_LAB_API_BASE_URL ?? DEFAULT_TASTE_LAB_API_BASE_URL;
-
-  return new URL(path, baseUrl).toString();
+  return `/api${path}`;
 }
 
 async function parseApiError(response: Response): Promise<string> {

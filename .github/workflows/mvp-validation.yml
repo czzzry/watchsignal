@@ -49,5 +49,8 @@ jobs:
       - name: Run API checks
         run: pnpm check
 
+      - name: Check hosted Android readiness
+        run: pnpm hosted:preflight
+
       - name: Build web app
         run: pnpm build:web
