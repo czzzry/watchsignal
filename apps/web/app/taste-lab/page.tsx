@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  ensureTesterProfile,
+  getTasteLabProfiles,
   getTasteLabQueue,
   getTasteLabRatings,
   seedDefaultTasteLabCandidates,
@@ -15,34 +15,19 @@ import {
 } from "../taste-lab-client";
 
 const householdId = "default-household";
-const testerProfileId = "alex-tester";
-const sophieTesterProfileId = "sophie-tester";
+const fallbackProfileId = "profile-1";
 const fallbackProfiles: SetupProfilePayload[] = [
-  {
-    id: testerProfileId,
-    label: "Alex - tester",
-    order: 1,
-    avatarKey: "comet",
-    colorKey: "amber",
-  },
-  {
-    id: sophieTesterProfileId,
-    label: "Sophie - tester",
-    order: 2,
-    avatarKey: "moon",
-    colorKey: "rose",
-  },
   {
     id: "profile-1",
     label: "Husband",
-    order: 3,
+    order: 1,
     avatarKey: "spark",
     colorKey: "cyan",
   },
   {
     id: "profile-2",
     label: "Wife",
-    order: 4,
+    order: 2,
     avatarKey: "moon",
     colorKey: "rose",
   },
@@ -62,7 +47,7 @@ const labels: {
 
 export default function TasteLabPage() {
   const [profiles, setProfiles] = useState<SetupProfilePayload[]>(fallbackProfiles);
-  const [profileId, setProfileId] = useState(testerProfileId);
+  const [profileId, setProfileId] = useState(fallbackProfileId);
   const [queue, setQueue] = useState<TasteLabCandidatePayload[]>([]);
   const [ratings, setRatings] = useState<Record<string, TasteLabRatingLabel>>({});
   const [history, setHistory] = useState<TasteLabRatingExportPayload[]>([]);
@@ -87,21 +72,20 @@ export default function TasteLabPage() {
 
   async function loadProfiles() {
     try {
-      const setup = await ensureTesterProfile();
+      const setup = await getTasteLabProfiles();
       const sortedProfiles = [...setup.profiles].sort(
         (first, second) => first.order - second.order,
       );
       setProfiles(sortedProfiles);
-      setProfileId((currentProfileId) =>
-        sortedProfiles.some((profile) => profile.id === currentProfileId)
-          ? currentProfileId
-          : sortedProfiles.some((profile) => profile.id === testerProfileId)
-            ? testerProfileId
-            : sortedProfiles[0]?.id ?? testerProfileId,
+      setProfileId(
+        setup.activeProfileId &&
+          sortedProfiles.some((profile) => profile.id === setup.activeProfileId)
+          ? setup.activeProfileId
+          : sortedProfiles[0]?.id ?? fallbackProfileId,
       );
     } catch {
       setProfiles(fallbackProfiles);
-      setProfileId(testerProfileId);
+      setProfileId(fallbackProfileId);
     }
   }
 

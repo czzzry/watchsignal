@@ -61,6 +61,8 @@ export type SetupProfilePayload = {
 
 export type SetupStatePayload = {
   householdLabel: string;
+  activeProfileId?: string | null;
+  partnerProfileId?: string | null;
   profiles: SetupProfilePayload[];
 };
 
@@ -160,9 +162,9 @@ export async function getTasteLabRatings(
   return (await response.json()) as TasteLabRatingExportPayload[];
 }
 
-export async function ensureTesterProfile(): Promise<SetupStatePayload> {
-  const response = await fetch("/api/setup/profiles/tester", {
-    method: "POST",
+export async function getTasteLabProfiles(): Promise<SetupStatePayload> {
+  const response = await fetch("/api/setup", {
+    method: "GET",
     cache: "no-store",
   });
 
