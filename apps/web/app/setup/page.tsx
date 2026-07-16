@@ -1,4 +1,5 @@
 import { DEFAULT_API_BASE_URL, loadSetupState } from "../setup-api";
+import { apiRequestTimeoutMs } from "../api-timeout";
 import { SetupWizard } from "../setup-wizard";
 
 type ApiHealth = {
@@ -17,7 +18,7 @@ async function getApiHealth(
   try {
     const response = await fetch(healthUrl, {
       cache: "no-store",
-      signal: AbortSignal.timeout(2000),
+      signal: AbortSignal.timeout(apiRequestTimeoutMs()),
     });
 
     if (!response.ok) {

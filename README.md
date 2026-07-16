@@ -36,6 +36,8 @@ Start here if you want the project story:
 - [MVP Plus 3 issue breakdown](docs/issues/mvp-plus-3-issue-breakdown.md)
 - [Beta Readiness runbook](docs/beta-readiness/fresh-checkout-runbook.md)
 - [Live usable MVP gate](docs/validation/live-usable-mvp-gate-2026-06-30.md)
+- [Hosted Android pilot setup](docs/setup/hosted-android-pilot.md)
+- [Hosted Android local readiness](docs/validation/hosted-android-local-readiness-2026-07-16.md)
 
 ## What The Demo Shows
 

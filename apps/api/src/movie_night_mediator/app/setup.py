@@ -7,6 +7,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from movie_night_mediator.storage import SQLiteSettings
+from movie_night_mediator.storage.database import (
+    DatabaseConnection,
+    connect_database,
+    prepare_database_path,
+)
 
 CURRENT_SETUP_ID = "current"
 DEFAULT_HUSBAND_PROFILE_ID = "profile-1"
@@ -388,7 +393,7 @@ class SQLiteSetupStore:
         )
 
     def initialize_schema(self) -> None:
-        self.database_path.parent.mkdir(parents=True, exist_ok=True)
+        prepare_database_path(self.database_path)
         with closing(self._connect()) as connection:
             with connection:
                 connection.executescript(
@@ -466,11 +471,8 @@ class SQLiteSetupStore:
                         """
                     )
 
-    def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.database_path)
-        connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA foreign_keys = ON")
-        return connection
+    def _connect(self) -> DatabaseConnection:
+        return connect_database(self.database_path)
 
 
 def _resolve_pairing(

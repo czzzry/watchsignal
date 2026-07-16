@@ -55,6 +55,22 @@ body {
   text-underline-offset: 3px;
 }
 
+.footerAction {
+  min-height: 0;
+  margin-left: 10px;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.footerAction:hover:enabled {
+  transform: none;
+}
+
 .creditsPage {
   width: min(100%, 680px);
   min-height: calc(100svh - 64px);
@@ -103,6 +119,10 @@ body {
 
 body {
   margin: 0;
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
   background:
     radial-gradient(circle at top center, rgba(120, 240, 255, 0.08), transparent 18%),
     radial-gradient(circle at 78% 8%, rgba(191, 143, 255, 0.08), transparent 16%),
@@ -166,6 +186,122 @@ summary:focus-visible {
   gap: 14px;
   position: relative;
   overflow-x: clip;
+}
+
+.loginShell {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: max(20px, env(safe-area-inset-top)) 20px
+    max(24px, env(safe-area-inset-bottom));
+}
+
+.loginCard {
+  width: min(100%, 390px);
+  display: grid;
+  gap: 14px;
+  padding: 28px 24px 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+}
+
+.loginCard img {
+  border-radius: 16px;
+}
+
+.loginCard h1,
+.loginCard p {
+  margin: 0;
+}
+
+.loginIdentity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 6px;
+}
+
+.loginIdentity > div {
+  display: grid;
+  gap: 5px;
+}
+
+.loginIdentity h1 {
+  font-size: 1.75rem;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.loginMessage {
+  color: var(--muted);
+  line-height: 1.5;
+  min-height: 3em;
+}
+
+.loginMessageError {
+  color: var(--coral);
+}
+
+.loginPasswordLabel {
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 680;
+}
+
+.loginPasswordField {
+  position: relative;
+}
+
+.loginPasswordField input {
+  min-height: 58px;
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  padding: 0 74px 0 16px;
+  background: var(--bg-soft);
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.loginPasswordField input[aria-invalid="true"] {
+  border-color: var(--coral);
+}
+
+.loginPasswordToggle {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  min-height: 48px;
+  padding: 0 12px;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--cyan);
+  font-size: 0.85rem;
+  letter-spacing: 0;
+}
+
+.loginPasswordToggle:hover:enabled {
+  transform: none;
+  background: var(--panel-strong);
+}
+
+.loginSessionNote {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 420px) {
+  .loginCard {
+    padding: 24px 20px 20px;
+  }
+
+  .loginIdentity img {
+    width: 72px;
+    height: 72px;
+  }
 }
 
 .topBar {

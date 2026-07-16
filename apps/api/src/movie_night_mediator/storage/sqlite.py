@@ -12,6 +12,11 @@ from movie_night_mediator.domain.models import (
     default_household_setup,
 )
 from movie_night_mediator.storage.settings import SQLiteSettings
+from movie_night_mediator.storage.database import (
+    DatabaseConnection,
+    connect_database,
+    prepare_database_path,
+)
 
 
 class SQLiteHouseholdStore:
@@ -30,7 +35,7 @@ class SQLiteHouseholdStore:
             self.database_path = resolved_settings.database_path
 
     def initialize_schema(self) -> None:
-        self.database_path.parent.mkdir(parents=True, exist_ok=True)
+        prepare_database_path(self.database_path)
         with closing(self._connect()) as connection:
             with connection:
                 connection.executescript(
@@ -198,8 +203,5 @@ class SQLiteHouseholdStore:
         )
         return HouseholdSetup(household=household, participant_profiles=profiles)
 
-    def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.database_path)
-        connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA foreign_keys = ON")
-        return connection
+    def _connect(self) -> DatabaseConnection:
+        return connect_database(self.database_path)

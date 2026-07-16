@@ -3,6 +3,7 @@ import type {
   SetupProfilePayload,
   SetupStatePayload,
 } from "./api-contract.generated";
+import { apiRequestTimeoutMs } from "./api-timeout";
 
 export const DEFAULT_API_BASE_URL = "http://127.0.0.1:8000";
 
@@ -65,8 +66,9 @@ export async function loadSetupState(
 
   try {
     const response = await fetch(setupUrl, {
+      headers: backendAuthorizationHeaders(),
       cache: "no-store",
-      signal: AbortSignal.timeout(2000),
+      signal: AbortSignal.timeout(apiRequestTimeoutMs()),
     });
 
     if (!response.ok) {
@@ -95,6 +97,12 @@ export async function loadSetupState(
       `Setup API is not reachable at ${apiBaseUrl}. Local defaults are shown for review.`,
     );
   }
+}
+
+function backendAuthorizationHeaders(): HeadersInit {
+  return process.env.BACKEND_SERVICE_TOKEN
+    ? { Authorization: `Bearer ${process.env.BACKEND_SERVICE_TOKEN}` }
+    : {};
 }
 
 export async function saveSetupState(setup: SetupState): Promise<SetupLoadResult> {

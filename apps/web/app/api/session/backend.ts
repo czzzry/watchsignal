@@ -1,4 +1,5 @@
 import { DEFAULT_API_BASE_URL } from "../../setup-api";
+import { apiRequestTimeoutMs } from "../../api-timeout";
 
 export async function postBackendSession(
   path: string,
@@ -36,12 +37,10 @@ async function sendBackendSession(
   try {
     const response = await fetch(url, {
       method,
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: backendHeaders(),
       body: body === undefined ? undefined : JSON.stringify(body),
       cache: "no-store",
-      signal: AbortSignal.timeout(backendRequestTimeoutMs()),
+      signal: AbortSignal.timeout(apiRequestTimeoutMs()),
     });
     const payload = (await response.json().catch(() => null)) as unknown;
 
@@ -67,8 +66,9 @@ export async function getBackendSession(path: string): Promise<Response> {
   try {
     const response = await fetch(url, {
       method: "GET",
+      headers: backendHeaders(false),
       cache: "no-store",
-      signal: AbortSignal.timeout(backendRequestTimeoutMs()),
+      signal: AbortSignal.timeout(apiRequestTimeoutMs()),
     });
     const payload = (await response.json().catch(() => null)) as unknown;
 
@@ -83,15 +83,13 @@ export async function getBackendSession(path: string): Promise<Response> {
   }
 }
 
-function backendRequestTimeoutMs(): number {
-  const configuredTimeout = Number(process.env.API_REQUEST_TIMEOUT_MS);
-  if (Number.isFinite(configuredTimeout) && configuredTimeout > 0) {
-    return configuredTimeout;
+function backendHeaders(includeContentType = true): HeadersInit {
+  const headers: Record<string, string> = {};
+  if (includeContentType) {
+    headers["Content-Type"] = "application/json";
   }
-
-  if (process.env.MOVIE_NIGHT_RECOMMENDATION_SOURCE === "live_tmdb") {
-    return 45_000;
+  if (process.env.BACKEND_SERVICE_TOKEN) {
+    headers.Authorization = `Bearer ${process.env.BACKEND_SERVICE_TOKEN}`;
   }
-
-  return 2_500;
+  return headers;
 }

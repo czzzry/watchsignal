@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import os
+import secrets
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from movie_night_mediator.adapters import (
@@ -355,6 +358,21 @@ def create_app(
         version="0.1.0",
         description="Local API for the code-first Movie Night Mediator prototype.",
     )
+
+    @app.middleware("http")
+    async def require_service_token(request: Request, call_next):
+        configured_token = os.environ.get("BACKEND_SERVICE_TOKEN")
+        if configured_token and request.url.path != "/health":
+            supplied_token = request.headers.get("Authorization", "")
+            if not secrets.compare_digest(
+                supplied_token,
+                f"Bearer {configured_token}",
+            ):
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "Backend service authorization required."},
+                )
+        return await call_next(request)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=(
