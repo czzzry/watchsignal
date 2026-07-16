@@ -322,6 +322,29 @@ class TmdbCandidateSourceTest(unittest.TestCase):
         self.assertEqual(tuple(candidate.source_movie_id for candidate in candidates), ("tmdb:11",))
         self.assertEqual(candidates[0].providers, ())
 
+    def test_one_movie_timeout_does_not_abort_the_remaining_candidate_pool(self) -> None:
+        client = OneMovieTimeoutTmdbClient(movie_ids=(11, 22, 33))
+        source = TmdbCandidateSource(
+            client=client,
+            config=TmdbCandidateSourceConfig(api_key="test"),
+        )
+
+        candidates = source.fetch_candidates(
+            session=SessionContext(
+                session_id="one-movie-timeout",
+                audience_mode=AudienceMode.SHARED,
+                region="DE",
+                service_constraint="Prime Video",
+            ),
+            household_defaults=HouseholdDefaults(),
+            limit=2,
+        )
+
+        self.assertEqual(
+            tuple(candidate.source_movie_id for candidate in candidates),
+            ("tmdb:22", "tmdb:33"),
+        )
+
     def test_repeated_person_and_keyword_lookups_reuse_cached_search_results(self) -> None:
         client = FakeTmdbClient(
             movie_ids=(11, 22, 33),
@@ -550,6 +573,18 @@ class ProviderTimeoutTmdbClient(FakeTmdbClient):
         params: Mapping[str, str] | None = None,
     ) -> Mapping[str, object]:
         if path.endswith("/watch/providers"):
+            raise TmdbCandidateSourceError("TMDb request timed out.")
+        return super().get_json(path, params=params)
+
+
+class OneMovieTimeoutTmdbClient(FakeTmdbClient):
+    def get_json(
+        self,
+        path: str,
+        *,
+        params: Mapping[str, str] | None = None,
+    ) -> Mapping[str, object]:
+        if path == "/movie/11":
             raise TmdbCandidateSourceError("TMDb request timed out.")
         return super().get_json(path, params=params)
 

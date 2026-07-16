@@ -249,17 +249,20 @@ class TmdbCandidateSource:
                     continue
                 seen_tmdb_ids.add(tmdb_id)
 
-                details_payload = self._movie_details(
-                    tmdb_id,
-                    language=language,
-                    include_credits=True,
-                )
-                providers_payload = self._movie_providers_for_details(
-                    tmdb_id,
-                    details_payload,
-                    session=session,
-                    household_defaults=household_defaults,
-                )
+                try:
+                    details_payload = self._movie_details(
+                        tmdb_id,
+                        language=language,
+                        include_credits=True,
+                    )
+                    providers_payload = self._movie_providers_for_details(
+                        tmdb_id,
+                        details_payload,
+                        session=session,
+                        household_defaults=household_defaults,
+                    )
+                except TmdbCandidateSourceError:
+                    continue
                 candidate = self._candidate_from_payloads(
                     result,
                     details_payload,
@@ -360,17 +363,20 @@ class TmdbCandidateSource:
                     movie_ids.append(movie_id)
 
         for movie_id in movie_ids:
-            details_payload = self._movie_details(
-                movie_id,
-                language=language,
-                include_credits=False,
-            )
-            providers_payload = self._movie_providers_for_details(
-                movie_id,
-                details_payload,
-                session=session,
-                household_defaults=household_defaults,
-            )
+            try:
+                details_payload = self._movie_details(
+                    movie_id,
+                    language=language,
+                    include_credits=False,
+                )
+                providers_payload = self._movie_providers_for_details(
+                    movie_id,
+                    details_payload,
+                    session=session,
+                    household_defaults=household_defaults,
+                )
+            except TmdbCandidateSourceError:
+                continue
             candidate = self._candidate_from_payloads(
                 details_payload,
                 details_payload,
