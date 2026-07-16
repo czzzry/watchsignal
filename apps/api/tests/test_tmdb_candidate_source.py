@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from movie_night_mediator.adapters import (
     TmdbCandidateSource,
     TmdbCandidateSourceConfig,
+    TmdbCandidateSourceError,
 )
 from movie_night_mediator.app.shortlist import get_candidate_source_shortlist
 from movie_night_mediator.domain import (
@@ -278,6 +279,49 @@ class TmdbCandidateSourceTest(unittest.TestCase):
         self.assertEqual(client.movie_detail_requests, [11, 22])
         self.assertEqual(client.provider_requests, [11, 22])
 
+    def test_embedded_provider_payload_avoids_a_second_request_per_movie(self) -> None:
+        client = EmbeddedProviderTmdbClient(movie_ids=(11, 22))
+        source = TmdbCandidateSource(
+            client=client,
+            config=TmdbCandidateSourceConfig(api_key="test"),
+        )
+
+        candidates = source.fetch_candidates(
+            session=SessionContext(
+                session_id="embedded-providers",
+                audience_mode=AudienceMode.SHARED,
+                region="DE",
+                service_constraint="Prime Video",
+            ),
+            household_defaults=HouseholdDefaults(),
+            limit=2,
+        )
+
+        self.assertEqual(len(candidates), 2)
+        self.assertEqual(client.movie_detail_requests, [11, 22])
+        self.assertEqual(client.provider_requests, [])
+        self.assertEqual(candidates[0].providers, ("Amazon Prime Video",))
+
+    def test_provider_timeout_keeps_candidate_when_provider_filter_is_not_required(self) -> None:
+        client = ProviderTimeoutTmdbClient(movie_ids=(11,))
+        source = TmdbCandidateSource(
+            client=client,
+            config=TmdbCandidateSourceConfig(api_key="test"),
+        )
+
+        candidates = source.fetch_candidates(
+            session=SessionContext(
+                session_id="provider-timeout",
+                audience_mode=AudienceMode.SHARED,
+                region="DE",
+            ),
+            household_defaults=HouseholdDefaults(default_service=""),
+            limit=1,
+        )
+
+        self.assertEqual(tuple(candidate.source_movie_id for candidate in candidates), ("tmdb:11",))
+        self.assertEqual(candidates[0].providers, ())
+
     def test_repeated_person_and_keyword_lookups_reuse_cached_search_results(self) -> None:
         client = FakeTmdbClient(
             movie_ids=(11, 22, 33),
@@ -403,7 +447,8 @@ class FakeTmdbClient:
         if path == "/discover/movie":
             assert params is not None
             assert params["watch_region"] == "DE"
-            self.discover_provider_filters.append(params["with_watch_providers"])
+            if provider_filter := params.get("with_watch_providers"):
+                self.discover_provider_filters.append(provider_filter)
             self.discover_monetization_filters.append(
                 params["with_watch_monetization_types"]
             )
@@ -473,6 +518,40 @@ class FakeTmdbClient:
         }
         payload.update(self._movie_overrides.get(movie_id, {}))
         return payload
+
+
+class EmbeddedProviderTmdbClient(FakeTmdbClient):
+    def get_json(
+        self,
+        path: str,
+        *,
+        params: Mapping[str, str] | None = None,
+    ) -> Mapping[str, object]:
+        payload = super().get_json(path, params=params)
+        if path.startswith("/movie/") and not path.endswith("/watch/providers"):
+            return {
+                **payload,
+                "watch/providers": {
+                    "results": {
+                        "DE": {
+                            "flatrate": [{"provider_name": "Amazon Prime Video"}],
+                        }
+                    }
+                },
+            }
+        return payload
+
+
+class ProviderTimeoutTmdbClient(FakeTmdbClient):
+    def get_json(
+        self,
+        path: str,
+        *,
+        params: Mapping[str, str] | None = None,
+    ) -> Mapping[str, object]:
+        if path.endswith("/watch/providers"):
+            raise TmdbCandidateSourceError("TMDb request timed out.")
+        return super().get_json(path, params=params)
 
 
 if __name__ == "__main__":

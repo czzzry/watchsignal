@@ -5,6 +5,7 @@ import os
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from typing import Protocol
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -25,6 +26,7 @@ TMDB_BASE_URL = "https://api.themoviedb.org/3"
 TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w342"
 TMDB_PRIME_VIDEO_PROVIDER_IDS = ("9", "10")
 TMDB_DISCOVER_PAGE_SIZE = 20
+TMDB_REQUEST_TIMEOUT_SECONDS = 8
 TMDB_GENRE_IDS = {
     "action": "28",
     "adventure": "12",
@@ -122,8 +124,13 @@ class UrlopenTmdbHttpClient:
             url = f"{url}?{urlencode(query)}"
 
         request = Request(url, headers=headers)
-        with urlopen(request, timeout=20) as response:
-            payload = json.loads(response.read().decode("utf-8"))
+        try:
+            with urlopen(request, timeout=TMDB_REQUEST_TIMEOUT_SECONDS) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except (HTTPError, URLError, TimeoutError, OSError, json.JSONDecodeError) as error:
+            raise TmdbCandidateSourceError(
+                f"TMDb request failed for {path}."
+            ) from error
 
         if not isinstance(payload, Mapping):
             raise TmdbCandidateSourceError("TMDb returned a non-object response.")
@@ -247,8 +254,11 @@ class TmdbCandidateSource:
                     language=language,
                     include_credits=True,
                 )
-                providers_payload = self._movie_providers(
+                providers_payload = self._movie_providers_for_details(
                     tmdb_id,
+                    details_payload,
+                    session=session,
+                    household_defaults=household_defaults,
                 )
                 candidate = self._candidate_from_payloads(
                     result,
@@ -355,8 +365,11 @@ class TmdbCandidateSource:
                 language=language,
                 include_credits=False,
             )
-            providers_payload = self._movie_providers(
+            providers_payload = self._movie_providers_for_details(
                 movie_id,
+                details_payload,
+                session=session,
+                household_defaults=household_defaults,
             )
             candidate = self._candidate_from_payloads(
                 details_payload,
@@ -455,9 +468,12 @@ class TmdbCandidateSource:
         if cached is not None:
             return cached
 
-        params = {"language": language}
-        if include_credits:
-            params["append_to_response"] = "credits"
+        params = {
+            "language": language,
+            "append_to_response": (
+                "credits,watch/providers" if include_credits else "watch/providers"
+            ),
+        }
         payload = self._client.get_json(
             f"/movie/{movie_id}",
             params=params,
@@ -478,6 +494,26 @@ class TmdbCandidateSource:
         )
         self._movie_providers_cache[movie_id] = payload
         return payload
+
+    def _movie_providers_for_details(
+        self,
+        movie_id: int,
+        details: Mapping[str, object],
+        *,
+        session: SessionContext,
+        household_defaults: HouseholdDefaults,
+    ) -> Mapping[str, object]:
+        embedded = details.get("watch/providers")
+        if isinstance(embedded, Mapping):
+            self._movie_providers_cache[movie_id] = embedded
+            return embedded
+
+        try:
+            return self._movie_providers(movie_id)
+        except TmdbCandidateSourceError:
+            if self._provider_ids_for_session(session, household_defaults):
+                raise
+            return {}
 
     def _person_movie_credits_for_person(
         self,

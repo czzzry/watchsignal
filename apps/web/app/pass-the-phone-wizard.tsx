@@ -398,18 +398,43 @@ export function PassThePhoneWizard({
         }
       }
     } catch (error) {
-      resetBatch();
+      const fallbackSessionId = createSessionId();
+      const fallbackCandidates = demoCandidateViewModels.slice(0, 5);
+      resetBatch(fallbackCandidates);
       patchSession({
         sharedSession: null,
-        liveSessionId: null,
-        shownSourceMovieIds: [],
-        sessionSource: "demo",
-        apiError: toErrorMessage(error),
+        liveSessionId: isCoupleSession ? null : fallbackSessionId,
+        shownSourceMovieIds: fallbackCandidates.map((candidate) => candidate.id),
+        recommendationSource: "demo",
+        sessionSource: isCoupleSession ? "demo" : "api",
+        apiError: `${toErrorMessage(error)} Using the backup catalog for this round.`,
       });
       patchResults({
         debugHistoryStatus: "idle",
         debugHistoryMessage: null,
       });
+
+      if (isCoupleSession) {
+        try {
+          const fallbackSession = await createSharedSession({
+            sessionId: fallbackSessionId,
+            householdId: "default-household",
+            activeMode: toApiSessionMode(sessionMode),
+            participantIds,
+            shortlist: sessionShortlistFromCandidates(fallbackCandidates),
+          });
+          patchSession({
+            sharedSession: fallbackSession,
+            liveSessionId: null,
+            sessionSource: "api",
+          });
+          await loadTasteProfileSummariesForSession(fallbackSession);
+        } catch (sessionError) {
+          patchSession({
+            apiError: `${toErrorMessage(error)} ${toSessionCreationErrorMessage(sessionError)} The backup round will continue without saving.`,
+          });
+        }
+      }
     } finally {
       patchSession({ syncStatus: "ready" });
       setStep("founder");
