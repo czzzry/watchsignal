@@ -82,9 +82,9 @@ DatabaseConnection = sqlite3.Connection | PostgresConnection
 
 
 def connect_database(database_path: str | Path) -> DatabaseConnection:
-    database_url = os.environ.get(DATABASE_URL_ENV_VAR)
     resolved_path = Path(database_path)
-    if database_url and _uses_default_database_path(resolved_path):
+    if uses_postgres_database(resolved_path):
+        database_url = os.environ[DATABASE_URL_ENV_VAR]
         try:
             import psycopg
             from psycopg.rows import dict_row
@@ -100,6 +100,18 @@ def connect_database(database_path: str | Path) -> DatabaseConnection:
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
     return connection
+
+
+def prepare_database_path(database_path: str | Path) -> None:
+    resolved_path = Path(database_path)
+    if not uses_postgres_database(resolved_path):
+        resolved_path.parent.mkdir(parents=True, exist_ok=True)
+
+
+def uses_postgres_database(database_path: str | Path) -> bool:
+    return bool(os.environ.get(DATABASE_URL_ENV_VAR)) and _uses_default_database_path(
+        Path(database_path)
+    )
 
 
 def _uses_default_database_path(database_path: Path) -> bool:

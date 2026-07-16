@@ -11,7 +11,11 @@ from movie_night_mediator.domain import (
     TasteMemorySignalStatus,
 )
 from movie_night_mediator.storage.settings import SQLiteSettings
-from movie_night_mediator.storage.database import DatabaseConnection, connect_database
+from movie_night_mediator.storage.database import (
+    DatabaseConnection,
+    connect_database,
+    prepare_database_path,
+)
 
 
 class SQLiteTasteMemoryStore:
@@ -140,7 +144,7 @@ class SQLiteTasteMemoryStore:
         return tuple(_row_to_event(row) for row in rows)
 
     def initialize_schema(self) -> None:
-        self.database_path.parent.mkdir(parents=True, exist_ok=True)
+        prepare_database_path(self.database_path)
         with closing(self._connect()) as connection:
             with connection:
                 connection.executescript(
