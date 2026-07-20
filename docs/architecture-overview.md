@@ -93,17 +93,24 @@ Callers may request ranked domain candidates or display-ready shortlist items wi
 
 The pass-the-phone UI uses pure reducers for flow state and wizard navigation.
 Session synchronization, tonight-intent interpretation, results evidence, history panels, and navigation advance through named transitions.
-UI orchestration owns asynchronous effects and dispatches transitions.
+Application-level session operations own shortlist loading, shared-session creation, fallback recovery, continuation scoring, reaction persistence, seen-memory persistence, and handoff advancement.
+Those operations receive explicit state snapshots and output ports, so they can be tested without rendering React components.
+Focused hooks own asynchronous UI concerns for tonight-intent interpretation, session history, and results persistence.
 Components render the resulting state and do not directly choose arbitrary synchronization or wizard states.
-Tonight-intent interpretation and next-five steering orchestration live in a focused hook rather than the main wizard component.
+The main wizard is the composition layer that connects reducers, application operations, hooks, and screen components.
+Review-only evidence fixtures live outside the production orchestration component.
 
 ```mermaid
 flowchart LR
-    A["User action"] --> B["Async hook or event handler"]
-    B --> C["Named reducer action"]
-    C --> D["Pure state transition"]
-    D --> E["Rendered phone UI"]
+    A["User action"] --> B["Focused hook or session operation"]
+    B --> C["Explicit output port"]
+    C --> D["Named reducer action"]
+    D --> E["Pure state transition"]
+    E --> F["Rendered phone UI"]
 ```
+
+The results screen delegates outcome capture, watchlist behavior, watched-state recording, and post-watch feedback persistence to a dedicated results controller.
+The results component is responsible for composing panels and presentation, while the controller owns backend mutations and their local loading, error, and saved states.
 
 ## Upgrade path
 

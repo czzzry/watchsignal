@@ -17,7 +17,6 @@ import {
   entryKey,
   fallbackPosterUrl,
   formatSessionDate,
-  mergeSeenMemoryIntoOnboarding,
   suggestedSeedsForBucket,
   titleForSourceMovieId,
   toErrorMessage,
@@ -25,8 +24,6 @@ import {
 import type {
   ApiHealth,
   DebugHistoryStatus,
-  FeedbackNoteState,
-  FeedbackState,
   LanguageMode,
   OnboardingDraft,
   OnboardingPromptState,
@@ -43,27 +40,15 @@ import type {
   WizardStep,
 } from "./pass-the-phone-model";
 import {
-  getWatchlist,
-  markAppOwnedMovieWatched,
-  removeWatchlistEntry,
-  saveWatchlistEntry,
-  submitPostWatchFeedback,
-  submitSessionOutcome,
   type DebugHistoryReactionPayload,
   type DebugHistorySessionPayload,
   type OnboardingCompletionPayload,
-  type PostWatchFeedbackPayload,
   type ProfileMemorySummaryPayload,
   type RecentSessionSummaryPayload,
-  type SavePostWatchFeedbackRequest,
-  type SaveSessionOutcomeRequest,
   type SharedSessionPayload,
-  type SessionOutcomePayload,
-  type SessionOutcomeType,
   type TasteProfileSummaryPayload,
   type TasteMemoryEventPayload,
   type TonightIntentInterpretationPayload,
-  type WatchlistEntryPayload,
 } from "./session-client";
 import {
   BackupTitles,
@@ -77,6 +62,7 @@ import {
   WatchlistPanel,
   WinnerReveal,
 } from "./pass-the-phone/results/results-panels";
+import { useResultsPersistence } from "./pass-the-phone/results/use-results-persistence";
 
 const stepLabels: Record<WizardStep, string> = {
   setup: "Setup",
@@ -2220,25 +2206,6 @@ export function ResultsStep({
 }) {
   const bestPick = rankedCandidates[0];
   const [continuationOpen, setContinuationOpen] = useState(false);
-  const [outcomeType, setOutcomeType] = useState<SessionOutcomeType | null>(null);
-  const [otherPickId, setOtherPickId] = useState<string | null>(null);
-  const [outcomeNote, setOutcomeNote] = useState("");
-  const [savedOutcome, setSavedOutcome] = useState<SessionOutcomePayload | null>(null);
-  const [outcomeError, setOutcomeError] = useState<string | null>(null);
-  const [feedbackState, setFeedbackState] = useState<FeedbackState>({});
-  const [feedbackNotes, setFeedbackNotes] = useState<FeedbackNoteState>({});
-  const [savedFeedback, setSavedFeedback] = useState<PostWatchFeedbackPayload[]>([]);
-  const [feedbackError, setFeedbackError] = useState<string | null>(null);
-  const [watchlistEntries, setWatchlistEntries] = useState<WatchlistEntryPayload[]>([]);
-  const [watchlistStatus, setWatchlistStatus] = useState<"idle" | "loading" | "saving" | "removing" | "marking">("idle");
-  const [watchlistMessage, setWatchlistMessage] = useState<string | null>(null);
-  const [watchlistRatingState, setWatchlistRatingState] = useState<
-    Record<string, Record<string, "loved" | "fine" | "no">>
-  >({});
-  const householdId = sharedSession?.householdId ?? "default-household";
-  const canPersist = sessionSource === "api" && sharedSession !== null;
-  const canShowMore = sessionSource === "api";
-  const canSaveWatchlist = sessionSource === "api";
   const participantEntries: ResultsParticipantEntry[] =
     peopleMode === "couple"
       ? [
@@ -2248,16 +2215,48 @@ export function ResultsStep({
       : peopleMode === "founder"
         ? [{ id: participantIds[0], label: founderLabel, actor: "founder" as const }]
         : [{ id: participantIds[0], label: wifeLabel, actor: "wife" as const }];
-
-  useEffect(() => {
-    if (!canSaveWatchlist) {
-      setWatchlistEntries([]);
-      setWatchlistMessage(null);
-      return;
-    }
-
-    void refreshWatchlist();
-  }, [canSaveWatchlist, householdId]);
+  const persistence = useResultsPersistence({
+    sessionSource,
+    sharedSession,
+    participantIds,
+    participantEntries,
+    rankedCandidates,
+    bestPick,
+    onLoadDebugHistory,
+    onRefreshProfileMemory,
+  });
+  const {
+    canPersist,
+    canShowMore,
+    canSaveWatchlist,
+    outcomeType,
+    otherPickId,
+    outcomeNote,
+    savedOutcome,
+    outcomeError,
+    feedbackState,
+    feedbackNotes,
+    savedFeedback,
+    feedbackError,
+    feedbackReady,
+    watchedTitle,
+    watchlistEntries,
+    watchlistStatus,
+    watchlistMessage,
+    watchlistRatingState,
+    bestPickWatchlistEntry,
+    handleOutcomeTypeChange,
+    handleOtherPickChange,
+    handleOutcomeNoteChange,
+    handleFeedbackChange,
+    handleFeedbackNoteChange,
+    handleWatchlistRatingChange,
+    handleSaveBestPick,
+    handleRemoveWatchlistEntry,
+    handleMarkWatchlistEntryWatched,
+    handleSaveOutcome,
+    handleSaveFeedback,
+  } = persistence;
 
   useEffect(() => {
     if (
@@ -2290,24 +2289,7 @@ export function ResultsStep({
     );
   }
 
-  const watchedTitleSourceId =
-    savedOutcome?.selectedSourceMovieId ??
-    (outcomeType === "watched_recommended"
-      ? bestPick.id
-      : outcomeType === "watched_other"
-        ? otherPickId
-        : null);
-  const watchedTitle =
-    watchedTitleSourceId !== null
-      ? rankedCandidates.find((candidate) => candidate.id === watchedTitleSourceId) ?? null
-      : null;
-  const canSaveOutcome =
-    canPersist &&
-    outcomeType !== null &&
-    (outcomeType !== "watched_other" || otherPickId !== null);
-  const feedbackReady =
-    watchedTitleSourceId !== null &&
-    participantIds.every((participantId) => feedbackState[participantId] !== undefined);
+  const canSaveOutcome = persistence.canSaveOutcome;
   const sharedWhy = describeSharedWhy({
     candidate: bestPick,
     founderReaction: founderReactions[bestPick.id],
@@ -2316,229 +2298,6 @@ export function ResultsStep({
     founderLabel,
     wifeLabel,
   });
-  const bestPickWatchlistEntry = watchlistEntries.find(
-    (entry) => entry.sourceMovieId === bestPick.id,
-  );
-
-  function handleOutcomeTypeChange(nextOutcomeType: SessionOutcomeType): void {
-    setOutcomeType(nextOutcomeType);
-    if (nextOutcomeType !== "watched_other") {
-      setOtherPickId(null);
-    }
-    setSavedOutcome(null);
-    setSavedFeedback([]);
-    setOutcomeError(null);
-    setFeedbackError(null);
-  }
-
-  function handleOtherPickChange(sourceMovieId: string): void {
-    setOtherPickId(sourceMovieId);
-    setSavedOutcome(null);
-    setSavedFeedback([]);
-    setOutcomeError(null);
-    setFeedbackError(null);
-  }
-
-  function handleOutcomeNoteChange(note: string): void {
-    setOutcomeNote(note);
-    setOutcomeError(null);
-  }
-
-  function handleFeedbackChange(
-    participantId: string,
-    feedback: "loved" | "fine" | "no",
-  ): void {
-    setFeedbackState((current) => ({
-      ...current,
-      [participantId]: feedback,
-    }));
-    setFeedbackError(null);
-  }
-
-  function handleFeedbackNoteChange(participantId: string, note: string): void {
-    setFeedbackNotes((current) => ({
-      ...current,
-      [participantId]: note,
-    }));
-    setFeedbackError(null);
-  }
-
-  function handleWatchlistRatingChange(
-    sourceMovieId: string,
-    profileId: string,
-    rating: "loved" | "fine" | "no",
-  ): void {
-    setWatchlistRatingState((current) => ({
-      ...current,
-      [sourceMovieId]: {
-        ...(current[sourceMovieId] ?? {}),
-        [profileId]: rating,
-      },
-    }));
-  }
-
-  async function refreshWatchlist(): Promise<void> {
-    if (!canSaveWatchlist) {
-      return;
-    }
-
-    setWatchlistStatus("loading");
-    try {
-      const entries = await getWatchlist(householdId);
-      setWatchlistEntries(entries);
-      setWatchlistMessage(null);
-    } catch (error) {
-      setWatchlistMessage(toErrorMessage(error));
-    } finally {
-      setWatchlistStatus("idle");
-    }
-  }
-
-  async function handleSaveBestPick(): Promise<void> {
-    if (!canSaveWatchlist) {
-      setWatchlistMessage("Watchlist saving needs the live backend connection.");
-      return;
-    }
-
-    setWatchlistStatus("saving");
-    try {
-      const savedEntry = await saveWatchlistEntry({
-        householdId,
-        sourceMovieId: bestPick.id,
-        title: bestPick.title,
-        savedByProfileId: participantEntries[0]?.id ?? null,
-        savedByDisplayLabel: participantEntries[0]?.label ?? null,
-        posterUrl: bestPick.posterUrl,
-        releaseYear: bestPick.year,
-      });
-      setWatchlistEntries((currentEntries) => [
-        savedEntry,
-        ...currentEntries.filter(
-          (entry) => entry.sourceMovieId !== savedEntry.sourceMovieId,
-        ),
-      ]);
-      setWatchlistMessage(`${bestPick.title} is saved to your watchlist.`);
-    } catch (error) {
-      setWatchlistMessage(toErrorMessage(error));
-    } finally {
-      setWatchlistStatus("idle");
-    }
-  }
-
-  async function handleRemoveWatchlistEntry(sourceMovieId: string): Promise<void> {
-    if (!canSaveWatchlist) {
-      return;
-    }
-
-    setWatchlistStatus("removing");
-    try {
-      await removeWatchlistEntry(householdId, sourceMovieId);
-      setWatchlistEntries((currentEntries) =>
-        currentEntries.filter((entry) => entry.sourceMovieId !== sourceMovieId),
-      );
-      setWatchlistMessage("Removed from your watchlist.");
-    } catch (error) {
-      setWatchlistMessage(toErrorMessage(error));
-    } finally {
-      setWatchlistStatus("idle");
-    }
-  }
-
-  async function handleMarkWatchlistEntryWatched(entry: WatchlistEntryPayload): Promise<void> {
-    if (!canPersist || sharedSession === null) {
-      return;
-    }
-
-    setWatchlistStatus("marking");
-    try {
-      const ratings = Object.entries(watchlistRatingState[entry.sourceMovieId] ?? {})
-        .map(([profileId, tasteLabel]) => ({ profileId, tasteLabel }));
-      await markAppOwnedMovieWatched({
-        householdId: sharedSession.householdId,
-        sourceMovieId: entry.sourceMovieId,
-        title: entry.title,
-        ratings,
-      });
-      setWatchlistMessage(`${entry.title} is marked watched${ratings.length ? " with ratings." : "."}`);
-      await onLoadDebugHistory();
-    } catch (error) {
-      setWatchlistMessage(toErrorMessage(error));
-    } finally {
-      setWatchlistStatus("idle");
-    }
-  }
-
-  async function handleSaveOutcome(): Promise<void> {
-    if (!canPersist || sharedSession === null || outcomeType === null) {
-      return;
-    }
-
-    const selectedCandidate =
-      outcomeType === "watched_recommended"
-        ? bestPick
-        : outcomeType === "watched_other"
-          ? rankedCandidates.find((candidate) => candidate.id === otherPickId) ?? null
-          : null;
-
-    const payload: SaveSessionOutcomeRequest =
-      outcomeType === "watched_nothing"
-        ? {
-            householdId: sharedSession.householdId,
-            outcomeType,
-            notes: outcomeNote || null,
-          }
-        : {
-            householdId: sharedSession.householdId,
-            outcomeType,
-            selectedSourceMovieId: selectedCandidate?.id ?? null,
-            selectedTitle: selectedCandidate?.title ?? null,
-            selectionOrigin:
-              outcomeType === "watched_recommended"
-                ? "pick_for_us"
-                : "reranked_shortlist",
-            notes: outcomeNote || null,
-          };
-
-    setOutcomeError(null);
-    try {
-      const outcome = await submitSessionOutcome(sharedSession.sessionId, payload);
-      setSavedOutcome(outcome);
-      setSavedFeedback([]);
-      setFeedbackError(null);
-      await onLoadDebugHistory();
-    } catch (error) {
-      setOutcomeError(toErrorMessage(error));
-      console.error(error);
-    }
-  }
-
-  async function handleSaveFeedback(): Promise<void> {
-    if (!canPersist || sharedSession === null || watchedTitleSourceId === null || !feedbackReady) {
-      return;
-    }
-
-    setFeedbackError(null);
-    try {
-      const feedback = await Promise.all(
-        participantIds.map((participantId) =>
-          submitPostWatchFeedback({
-            householdId: sharedSession.householdId,
-            sessionId: sharedSession.sessionId,
-            userId: participantId,
-            sourceMovieId: watchedTitleSourceId,
-            feedbackLabel: feedbackState[participantId]!,
-            freeTextNote: feedbackNotes[participantId]?.trim() || null,
-          } satisfies SavePostWatchFeedbackRequest),
-        ),
-      );
-      setSavedFeedback(feedback);
-      await onLoadDebugHistory();
-      await onRefreshProfileMemory();
-    } catch (error) {
-      setFeedbackError(toErrorMessage(error));
-      console.error(error);
-    }
-  }
 
   return (
     <section className="wizardPanel resultsPanel cinematicResultsPanel" aria-labelledby="results-heading">
