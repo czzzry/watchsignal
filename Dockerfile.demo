@@ -1,0 +1,31 @@
+# syntax=docker/dockerfile:1
+
+FROM python:3.13-slim AS api
+
+WORKDIR /app
+COPY apps/api/pyproject.toml ./pyproject.toml
+COPY apps/api/src ./src
+RUN pip install --no-cache-dir . \
+    && useradd --create-home --uid 10001 watchsignal \
+    && mkdir -p /data \
+    && chown watchsignal:watchsignal /data
+
+ENV MOVIE_NIGHT_MEDIATOR_SQLITE_PATH=/data/watchsignal.sqlite3
+USER watchsignal
+EXPOSE 8000
+CMD ["uvicorn", "movie_night_mediator.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+FROM node:24-bookworm-slim AS web
+
+WORKDIR /workspace
+RUN corepack enable && corepack prepare pnpm@10.0.0 --activate
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json ./apps/web/package.json
+RUN pnpm install --frozen-lockfile --filter @movie-night-mediator/web...
+COPY apps/web ./apps/web
+RUN pnpm build:web
+
+ENV API_BASE_URL=http://api:8000
+ENV MOVIE_NIGHT_RECOMMENDATION_SOURCE=fixture
+EXPOSE 3000
+CMD ["pnpm", "--dir", "apps/web", "start"]

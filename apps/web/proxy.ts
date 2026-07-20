@@ -3,6 +3,7 @@ import {
   SESSION_COOKIE_NAME,
   verifySessionToken,
 } from "./app/auth/session";
+import { isPublicAppPath } from "./app/auth/public-paths";
 
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   const password = process.env.HOUSEHOLD_ACCESS_PASSWORD;
@@ -18,7 +19,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     return NextResponse.next();
   }
 
-  if (isPublicPath(request.nextUrl.pathname)) {
+  if (isPublicAppPath(request.nextUrl.pathname)) {
     return NextResponse.next();
   }
 
@@ -35,16 +36,6 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   loginUrl.pathname = "/login";
   loginUrl.search = "";
   return NextResponse.redirect(loginUrl);
-}
-
-function isPublicPath(pathname: string): boolean {
-  return (
-    pathname === "/login" ||
-    pathname === "/manifest.webmanifest" ||
-    pathname.startsWith("/api/auth/") ||
-    pathname.startsWith("/icons/") ||
-    pathname.startsWith("/_next/")
-  );
 }
 
 export const config = {
