@@ -15,10 +15,17 @@ flowchart LR
     E --> F["Generated TypeScript types"]
 ```
 
-API contract modules own Pydantic request and response models plus HTTP-to-application translation.
-Route modules own endpoint registration and application-error-to-HTTP translation.
+`api/recommendation_contract.py` owns recommendation payload models and HTTP-to-application translation.
+Route modules own endpoint registration, route-local payload models, and application-error-to-HTTP translation.
 Application services receive typed application requests and do not depend on FastAPI or Pydantic payloads.
 `api/main.py` owns application creation, dependency assembly, middleware, and route registration.
+
+The generated frontend contract lives in `apps/web/app/api-contract.generated.ts`.
+Regenerate it from FastAPI's OpenAPI schema with:
+
+```sh
+node scripts/run_api_uv.mjs run python -m movie_night_mediator.api.generate_typescript_contract
+```
 
 ## API Style
 
@@ -46,125 +53,30 @@ Examples:
 - outcome capture
 - post-watch feedback
 
-## Offline Recommendation Shortlist Contract
+## Recommendation Shortlist Contract
 
-The first recommendation API boundary is intentionally offline and fixture-backed.
-It does not call live TMDb, scraping, LLMs, or paid provider services.
-It exposes the deterministic demo couple shortlist in the shape the local web app can later consume when live provider integration exists.
+- `GET /recommendations/shortlist` returns the deterministic demo shortlist.
+- `POST /recommendations/shortlist` accepts session context and supports both the demo and live TMDb candidate sources.
 
-Expected endpoint:
-
-- `GET /recommendations/shortlist`
-
-Expected response:
-
-```json
-[
-  {
-    "sourceMovieId": "arrival",
-    "title": "Arrival",
-    "candidateRank": 1,
-    "mediaType": "movie",
-    "year": 2016,
-    "releaseYear": 2016,
-    "runtime": "1h 56m",
-    "runtimeMin": 116,
-    "genres": ["Drama", "Sci-Fi"],
-    "providerNames": ["Prime Video"],
-    "providerAvailability": [
-      {
-        "providerName": "Prime Video",
-        "accessType": "flatrate",
-        "region": "DE"
-      }
-    ],
-    "posterUrl": "https://image.tmdb.org/t/p/w342/x2FJsf1ElAgr63Y3PNPtJrcmpoe.jpg",
-    "safePickStatus": "Safe Pick",
-    "availability": "Prime Video DE flatrate",
-    "languageAccess": "English audio",
-    "tone": "Smart, tense, emotional",
-    "reason": "When mysterious spacecraft land around the world, a linguist is recruited to figure out whether the visitors come in peace before fear wins.",
-    "fitBucket": "compromise",
-    "groupScore": 0.624,
-    "founderScore": 72,
-    "wifeScore": 60,
-    "whyShort": "Interesting Safe Pick. Fits compromise mode with signal from Drama, Sci-Fi. Husband: 0.72; Wife: 0.6.",
-    "isInterestingPick": true,
-    "originalLanguage": "en",
-    "spokenLanguages": ["en"],
-    "englishSubtitlesVerified": false
-  }
-]
-```
-
-The response always returns five Safe Pick fixture candidates in stable rank order.
-The accepted local demo order is `arrival`, `knives-out`, `the-grand-budapest-hotel`, `edge-of-tomorrow`, and `past-lives`.
-The route is a provider-shaped boundary, not a live provider integration.
-The payload now includes both display-ready fields and the underlying fixture-backed provider and language fields that produced them.
-This keeps the API inspectable while reducing the amount of fallback logic the phone UI has to invent.
-Later TMDb and availability adapters should replace the fixture source behind this API without changing the web-facing shortlist fields unless the product contract changes.
+`RecommendationService` owns profile and memory loading, candidate-source selection, scoring, shortlist generation, snapshot persistence, and application-level failures.
+The route translates the generated HTTP contract into `RecommendationRequest` and maps service failures to HTTP responses.
+The Next.js recommendation proxy selects demo or live TMDb mode from `MOVIE_NIGHT_RECOMMENDATION_SOURCE`, so the browser does not choose the deployment's provider mode.
+The Pydantic models and generated TypeScript contract above own the exact request and response fields.
 
 ## Debug History Contract
 
 Debug history exposes read-only evidence for inspecting a saved local session.
-It is intentionally narrower than a full recommendation audit trail because persisted recommendation snapshots do not exist yet.
+When recommendation scoring has run for the session, it includes the persisted recommendation snapshot, candidate inputs, scoring evidence, and enrichment coverage.
+When evidence was not recorded, `unavailableEvidence` names the missing categories instead of reconstructing them from current state.
 
 Expected endpoint:
 
 - `GET /debug/history/sessions/{sessionId}`
 
-Expected response:
-
-```json
-{
-  "sessionId": "session-1",
-  "householdId": "default-household",
-  "activeMode": "compromise",
-  "state": "reranked",
-  "participantIds": ["husband", "wife"],
-  "shortlist": [
-    { "sourceMovieId": "tmdb:603", "title": "The Matrix", "candidateRank": 1 }
-  ],
-  "founderReactions": [
-    {
-      "participantId": "husband",
-      "sourceMovieId": "tmdb:603",
-      "reactionLabel": "interested"
-    }
-  ],
-  "wifeReactions": [
-    {
-      "participantId": "wife",
-      "sourceMovieId": "tmdb:603",
-      "reactionLabel": "maybe"
-    }
-  ],
-  "rerankedSourceMovieIds": ["tmdb:603"],
-  "bestPickSourceMovieId": "tmdb:603",
-  "postWatchFeedback": [
-    {
-      "userId": "wife",
-      "sourceMovieId": "tmdb:603",
-      "feedbackLabel": "loved",
-      "hasFreeTextNote": true
-    }
-  ],
-  "unavailableEvidence": [
-    "recommendation_scoring_request",
-    "candidate_inputs",
-    "hard_filter_results",
-    "per_person_scores",
-    "group_scores",
-    "fit_buckets",
-    "safe_pick_flags"
-  ]
-}
-```
-
 Missing sessions return `404`.
 The endpoint does not return raw free-text feedback notes.
 The endpoint does not invent score history from the current shortlist.
-Future persisted recommendation snapshots can extend this route or add a sibling route once the storage model exists.
+`DebugHistorySessionPayload` in the generated TypeScript contract owns the exact response shape.
 
 ## Post-Watch Feedback Contract
 

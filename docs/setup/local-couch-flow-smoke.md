@@ -9,36 +9,20 @@ It does not mutate `data/movie_night_mediator.sqlite3` or any real household dat
 From the repo root:
 
 ```sh
-python3 scripts/couch_flow_smoke.py
+node scripts/run_api_uv.mjs run python ../../scripts/couch_flow_smoke.py
 ```
 
 To prove the backend-backed couch flow with live-shaped recommendation candidates and persisted recommendation snapshots, run:
 
 ```sh
-python3 scripts/couch_flow_smoke.py --live-fake-candidates
+node scripts/run_api_uv.mjs run python ../../scripts/couch_flow_smoke.py --live-fake-candidates
 ```
 
 This mode still does not call TMDb.
 It uses a deterministic fake candidate source through the same API path that the live TMDb source uses.
 
-If the plain interpreter does not have the API dependencies active, run it with the backend environment instead:
-
-```sh
-apps/api/.venv/bin/python scripts/couch_flow_smoke.py
-```
-
-If a Treehouse worktree's backend environment is not synced, use the parent checkout's backend environment:
-
-```sh
-WATCHSIGNAL_ROOT="$(git rev-parse --show-toplevel)"
-"$WATCHSIGNAL_ROOT/apps/api/.venv/bin/python" scripts/couch_flow_smoke.py
-```
-
-The repository runner also works in a Treehouse worktree and discovers a shared installation before bootstrapping locally:
-
-```sh
-node "$WATCHSIGNAL_ROOT/scripts/run_api_uv.mjs" run python ../../scripts/couch_flow_smoke.py
-```
+The repository runner supplies the backend environment in normal checkouts and isolated worktrees.
+Its discovery and bootstrap behavior are documented in the [README](../../README.md#running-it-locally).
 
 ## What It Proves
 

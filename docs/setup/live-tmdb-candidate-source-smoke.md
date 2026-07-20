@@ -15,13 +15,7 @@ Do not commit `.env`.
 Run from the repo root:
 
 ```sh
-python3 scripts/tmdb_candidate_source_smoke.py
-```
-
-If the plain interpreter does not have the API package available, use the backend environment:
-
-```sh
-apps/api/.venv/bin/python scripts/tmdb_candidate_source_smoke.py
+node scripts/run_api_uv.mjs run python ../../scripts/tmdb_candidate_source_smoke.py
 ```
 
 ## Expected Result

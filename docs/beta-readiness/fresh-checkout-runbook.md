@@ -2,7 +2,7 @@
 
 This runbook is the target path for getting from a clean checkout to a dogfoodable local WatchSignal session in under 15 minutes.
 
-It assumes a local development machine with Node.js 22.6 or newer, pnpm, Python, and the repo-local uv helper available.
+It assumes a local development machine with Node.js 22.6 or newer, pnpm, and Python.
 
 ## 1. Install Dependencies
 
@@ -45,7 +45,7 @@ MOVIE_NIGHT_MEDIATOR_SQLITE_PATH=../../data/movie_night_mediator.sqlite3 \
   node scripts/run_api_uv.mjs run uvicorn movie_night_mediator.api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-The runner reuses an available `uv` executable or installs the pinned version under the ignored `.tools/` directory on first use.
+The backend runner and its bootstrap behavior are documented in the [README](../../README.md#running-it-locally).
 
 For an isolated dogfood run, prefer the mobile smoke command in step 6 because it creates a temporary database automatically.
 
