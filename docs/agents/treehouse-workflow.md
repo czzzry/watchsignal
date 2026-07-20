@@ -52,13 +52,12 @@ They do not automatically contain `.tools/uv`, `apps/web/node_modules`, or other
 
 Before an AFK multi-agent run, the host should either prewarm each leased worktree or give workers explicit commands that point at the main repo's shared caches.
 
-Backend validation can use the main repo's `uv` binary and cache:
+Backend validation uses the repository runner, which reuses a shared `uv` installation or bootstraps an isolated one:
 
 ```sh
 WATCHSIGNAL_ROOT="$(git rev-parse --show-toplevel)"
-cd "$WATCHSIGNAL_ROOT/apps/api"
-env XDG_CACHE_HOME="$WATCHSIGNAL_ROOT/.tools/cache" "$WATCHSIGNAL_ROOT/.tools/uv/bin/uv" run python -m unittest discover -s tests
-env XDG_CACHE_HOME="$WATCHSIGNAL_ROOT/.tools/cache" "$WATCHSIGNAL_ROOT/.tools/uv/bin/uv" run python -m compileall -q src tests
+node "$WATCHSIGNAL_ROOT/scripts/run_api_uv.mjs" run python -m unittest discover -s tests
+node "$WATCHSIGNAL_ROOT/scripts/run_api_uv.mjs" run python -m compileall -q src tests
 ```
 
 Web validation should install dependencies in the leased worktree before building:

@@ -3,6 +3,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
+import { resolveUvExecutable } from "./run_api_uv.mjs";
 
 const repoRoot = new URL("..", import.meta.url).pathname;
 
@@ -145,12 +146,11 @@ checkPackageScripts();
 checkCommand("node", ["--version"], "Node.js is available");
 checkCommand("pnpm", ["--version"], "pnpm is available");
 
-if (pathExists(".tools/uv/bin/uv")) {
-  ok("repo-local uv is available", ".tools/uv/bin/uv");
-} else if (pathExists("../../.tools/uv/bin/uv")) {
-  ok("parent uv is available", "../../.tools/uv/bin/uv");
+const uvExecutable = resolveUvExecutable();
+if (uvExecutable) {
+  ok("uv is available", uvExecutable);
 } else {
-  warn("uv helper was not found", "pnpm check may still work if the environment supplies uv another way.");
+  warn("uv is not installed yet", "The first API command will install the pinned runner under .tools/uv.");
 }
 
 if (pathExists("apps/web/node_modules")) {

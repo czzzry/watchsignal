@@ -28,9 +28,8 @@ Generate the WatchSignal queue artifact:
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
-env UV_CACHE_DIR="$PWD/.tools/uv-cache" \
-  .tools/uv/bin/uv run --project apps/api \
-  python scripts/taste_lab_generate_seed_queue.py \
+node scripts/run_api_uv.mjs run \
+  python ../../scripts/taste_lab_generate_seed_queue.py \
   --movies /private/tmp/watchsignal-movielens/ml-latest-small/movies.csv \
   --ratings /private/tmp/watchsignal-movielens/ml-latest-small/ratings.csv \
   --links /private/tmp/watchsignal-movielens/ml-latest-small/links.csv \
@@ -43,9 +42,8 @@ Generate the same queue with TMDb poster paths:
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
-env UV_CACHE_DIR="$PWD/.tools/uv-cache" \
-  .tools/uv/bin/uv run --project apps/api \
-  python scripts/taste_lab_generate_seed_queue.py \
+node scripts/run_api_uv.mjs run \
+  python ../../scripts/taste_lab_generate_seed_queue.py \
   --movies /private/tmp/watchsignal-movielens/ml-latest-small/movies.csv \
   --ratings /private/tmp/watchsignal-movielens/ml-latest-small/ratings.csv \
   --links /private/tmp/watchsignal-movielens/ml-latest-small/links.csv \

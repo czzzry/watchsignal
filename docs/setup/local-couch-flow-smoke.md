@@ -34,10 +34,10 @@ WATCHSIGNAL_ROOT="$(git rev-parse --show-toplevel)"
 "$WATCHSIGNAL_ROOT/apps/api/.venv/bin/python" scripts/couch_flow_smoke.py
 ```
 
-In a Treehouse worktree that shares the parent checkout's local `uv` install, this form also works after dependencies are available in the local cache:
+The repository runner also works in a Treehouse worktree and discovers a shared installation before bootstrapping locally:
 
 ```sh
-UV_CACHE_DIR="$WATCHSIGNAL_ROOT/.tools/cache/uv" "$WATCHSIGNAL_ROOT/.tools/uv/bin/uv" run --project apps/api python scripts/couch_flow_smoke.py
+node "$WATCHSIGNAL_ROOT/scripts/run_api_uv.mjs" run python ../../scripts/couch_flow_smoke.py
 ```
 
 ## What It Proves

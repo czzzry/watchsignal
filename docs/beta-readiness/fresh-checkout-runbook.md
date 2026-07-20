@@ -41,10 +41,11 @@ This runs the preflight plus the API test and compile gate.
 Use a local SQLite path when you want persistent local state:
 
 ```sh
-cd apps/api
 MOVIE_NIGHT_MEDIATOR_SQLITE_PATH=../../data/movie_night_mediator.sqlite3 \
-  ../../.tools/uv/bin/uv run uvicorn movie_night_mediator.api.main:app --reload --host 0.0.0.0 --port 8000
+  node scripts/run_api_uv.mjs run uvicorn movie_night_mediator.api.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+The runner reuses an available `uv` executable or installs the pinned version under the ignored `.tools/` directory on first use.
 
 For an isolated dogfood run, prefer the mobile smoke command in step 6 because it creates a temporary database automatically.
 

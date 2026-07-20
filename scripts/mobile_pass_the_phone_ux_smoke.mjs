@@ -6,6 +6,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { platform, tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
+import { ensureUvExecutable, uvEnvironment } from "./run_api_uv.mjs";
 
 const repoRoot = new URL("..", import.meta.url).pathname;
 const browserCandidates = getBrowserCandidates();
@@ -290,12 +291,7 @@ async function startWebServer(apiBaseUrl = null) {
 }
 
 async function startApiServer() {
-  const uvBinary = resolveToolPath("uv", "bin", "uv");
-  if (!existsSync(uvBinary)) {
-    throw new Error(
-      "Local uv runner was not found at .tools/uv/bin/uv, so backend-backed UX smoke cannot start FastAPI automatically.",
-    );
-  }
+  const uvBinary = ensureUvExecutable();
 
   const port = await getFreePort();
   backendTempDir = await mkdtemp(join(tmpdir(), "movie-night-api-ux-"));
@@ -314,9 +310,8 @@ async function startApiServer() {
     {
       cwd: join(repoRoot, "apps", "api"),
       env: {
-        ...process.env,
+        ...uvEnvironment(),
         MOVIE_NIGHT_MEDIATOR_SQLITE_PATH: databasePath,
-        UV_CACHE_DIR: resolveToolPath("uv-cache"),
       },
       stdio: ["ignore", "pipe", "pipe"],
       detached: true,

@@ -261,9 +261,10 @@ pnpm install
 Run the FastAPI backend from one terminal:
 
 ```sh
-cd apps/api
-../../.tools/uv/bin/uv run uvicorn movie_night_mediator.api.main:app --reload --host 0.0.0.0 --port 8000
+node scripts/run_api_uv.mjs run uvicorn movie_night_mediator.api.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+The runner uses an existing `uv` installation when available and otherwise installs the pinned version under the ignored `.tools/` directory.
 
 Run the Next.js web app from another terminal:
 
@@ -347,9 +348,8 @@ pnpm build:web
 Run backend tests directly:
 
 ```sh
-cd apps/api
-../../.tools/uv/bin/uv run python -m unittest discover -s tests
-../../.tools/uv/bin/uv run python -m compileall -q src tests
+pnpm test:api
+pnpm compile:api
 ```
 
 Run the web TypeScript check directly:
