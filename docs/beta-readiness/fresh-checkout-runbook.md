@@ -2,7 +2,7 @@
 
 This runbook is the target path for getting from a clean checkout to a dogfoodable local WatchSignal session in under 15 minutes.
 
-It assumes a local development machine with Node.js, pnpm, Python, and the repo-local uv helper available.
+It assumes a local development machine with Node.js 22.6 or newer, pnpm, Python, and the repo-local uv helper available.
 
 ## 1. Install Dependencies
 

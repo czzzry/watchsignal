@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import UTC, datetime
 import hashlib
 import json
@@ -15,22 +15,32 @@ API_ROOT = ROOT / "apps/api"
 sys.path.insert(0, str(API_ROOT / "src"))
 
 from movie_night_mediator.adapters import TmdbCandidateSource  # noqa: E402
-from movie_night_mediator.api.main import (  # noqa: E402
+from movie_night_mediator.api.recommendation_contract import (  # noqa: E402
     RecommendationShortlistRequestPayload,
-    _build_app_services,
-    _shortlist_household_defaults_from_payload,
-    _shortlist_session_from_payload,
-    _shortlist_users_from_taste_profile,
-    _shortlist_watched_source_movie_ids,
+    recommendation_request_from_payload,
 )
-from movie_night_mediator.app.shortlist import (  # noqa: E402
-    get_candidate_source_shortlist_items,
+from movie_night_mediator.app.backfill import ManualBackfillService  # noqa: E402
+from movie_night_mediator.app.recommendation import (  # noqa: E402
+    RecommendationService,
 )
-from movie_night_mediator.domain import Candidate  # noqa: E402
-from movie_night_mediator.scoring import (  # noqa: E402
-    ScoringEngineId,
-    build_recommendation_scorer,
+from movie_night_mediator.app.recommendation_snapshot import (  # noqa: E402
+    RecommendationSnapshotService,
 )
+from movie_night_mediator.app.setup import SQLiteSetupStore  # noqa: E402
+from movie_night_mediator.app.taste_memory import TasteMemoryService  # noqa: E402
+from movie_night_mediator.domain import Candidate, HouseholdDefaults  # noqa: E402
+from movie_night_mediator.fixtures.demo_couple import (  # noqa: E402
+    DEMO_HUSBAND_PROFILE,
+    DEMO_WIFE_PROFILE,
+)
+from movie_night_mediator.scoring import ScoringEngineId  # noqa: E402
+from movie_night_mediator.storage import (  # noqa: E402
+    SQLiteBackfillStore,
+    SQLiteRecommendationSnapshotStore,
+    SQLiteTasteLabStore,
+    SQLiteTasteMemoryStore,
+)
+from movie_night_mediator.taste_lab import TasteLabService  # noqa: E402
 
 
 OUTPUT_DIRECTORY = ROOT / ".lavish"
@@ -51,21 +61,10 @@ def main() -> None:
     comparison_id = args.comparison_id or datetime.now(UTC).strftime(
         "household-%Y%m%d-%H%M%S"
     )
-    services = _build_app_services(
-        setup_store=None,
-        onboarding_store=None,
-        backfill_store=None,
-        feedback_store=None,
-        outcome_store=None,
-        session_store=None,
-        recommendation_snapshot_store=None,
-        taste_lab_store=None,
-        taste_memory_store=None,
-        watchlist_store=None,
-    )
+    setup_store = SQLiteSetupStore()
     availability = (
         args.availability
-        or services.setup_store.load_setup().defaults.availability_region
+        or setup_store.load_setup().defaults.availability_region
     )
     payload = RecommendationShortlistRequestPayload(
         sessionId=comparison_id,
@@ -76,27 +75,24 @@ def main() -> None:
         availabilityRegion=availability,
         source="live_tmdb",
     )
-    session = _shortlist_session_from_payload(payload)
-    defaults = _shortlist_household_defaults_from_payload(payload)
-    users = _shortlist_users_from_taste_profile(
-        payload=payload,
-        taste_lab_service=services.taste_lab_service,
-        backfill_service=services.backfill_service,
-        taste_memory_service=services.taste_memory_service,
-        setup_store=services.setup_store,
-    )
-    watched_ids = _shortlist_watched_source_movie_ids(
-        payload=payload,
-        backfill_service=services.backfill_service,
-    )
+    request = recommendation_request_from_payload(payload)
     candidates = TmdbCandidateSource().fetch_candidates(
-        session=session,
-        household_defaults=defaults,
+        session=request.session,
+        household_defaults=HouseholdDefaults(
+            default_region=request.session.region or "DE",
+            default_service=request.session.service_constraint or "",
+        ),
         limit=args.candidate_count,
     )
     if len(candidates) < 5:
         raise RuntimeError("The live provider returned fewer than five candidates.")
     fixed_source = _FixedCandidateSource(candidates)
+    recommendation_service = _recommendation_service(
+        setup_store=setup_store,
+        candidate_source=fixed_source,
+    )
+    profile_ids = request.session.viewer_user_ids
+    profile_labels = _profile_labels(setup_store, profile_ids)
     candidate_fingerprint = _candidate_fingerprint(candidates)
     engines = [
         ScoringEngineId.V2_CONTRACT,
@@ -108,15 +104,8 @@ def main() -> None:
     paths = []
     reveal = {}
     for label, engine in zip(("A", "B", "C"), engines, strict=True):
-        items = get_candidate_source_shortlist_items(
-            fixed_source,
-            session=session,
-            household_defaults=defaults,
-            users=users,
-            limit=5,
-            candidate_limit=len(candidates),
-            scorer=build_recommendation_scorer(engine),
-            watched_source_movie_ids=watched_ids,
+        items = recommendation_service.recommend(
+            replace(request, scoring_engine=engine)
         )
         if len(items) != 5:
             raise RuntimeError(
@@ -133,12 +122,12 @@ def main() -> None:
             )
         if engine != ScoringEngineId.V2_CONTRACT:
             profile_counts = {
-                user.user_id: _profile_item_count(
+                profile_id: _profile_item_count(
                     items,
                     model_name=engine.value.removeprefix("v2_"),
-                    user_id=user.user_id,
+                    user_id=profile_id,
                 )
-                for user in users
+                for profile_id in profile_ids
             }
             sparse_profiles = {
                 profile_id: count
@@ -169,7 +158,7 @@ def main() -> None:
         "candidate_fingerprint": candidate_fingerprint,
         "candidate_count": len(candidates),
         "mode": args.mode,
-        "profiles": [user.display_label for user in users],
+        "profiles": profile_labels,
         "paths": paths,
     }
     key = {
@@ -177,7 +166,7 @@ def main() -> None:
         "generated_at": generated_at,
         "candidate_fingerprint": candidate_fingerprint,
         "candidate_count": len(candidates),
-        "profiles": [user.user_id for user in users],
+        "profiles": profile_ids,
         "path_to_engine": reveal,
     }
     OUTPUT_DIRECTORY.mkdir(parents=True, exist_ok=True)
@@ -188,6 +177,47 @@ def main() -> None:
     key_path.write_text(json.dumps(key, indent=2, sort_keys=True) + "\n")
     print(html_path)
     print(key_path)
+
+
+def _recommendation_service(
+    *,
+    setup_store: SQLiteSetupStore,
+    candidate_source: _FixedCandidateSource,
+) -> RecommendationService:
+    taste_memory_service = TasteMemoryService(SQLiteTasteMemoryStore())
+    return RecommendationService(
+        setup_store=setup_store,
+        taste_lab_service=TasteLabService(
+            SQLiteTasteLabStore(),
+            memory_sink=taste_memory_service,
+        ),
+        backfill_service=ManualBackfillService(SQLiteBackfillStore()),
+        taste_memory_service=taste_memory_service,
+        snapshot_service=RecommendationSnapshotService(
+            SQLiteRecommendationSnapshotStore()
+        ),
+        candidate_source=candidate_source,
+    )
+
+
+def _profile_labels(
+    setup_store: SQLiteSetupStore,
+    profile_ids: tuple[str, ...],
+) -> tuple[str, ...]:
+    setup_profiles = {
+        profile.id: profile.label for profile in setup_store.load_setup().profiles
+    }
+    fallback_labels = (
+        DEMO_HUSBAND_PROFILE.display_label,
+        DEMO_WIFE_PROFILE.display_label,
+    )
+    return tuple(
+        setup_profiles.get(
+            profile_id,
+            fallback_labels[min(index, len(fallback_labels) - 1)],
+        )
+        for index, profile_id in enumerate(profile_ids)
+    )
 
 
 def _arguments() -> argparse.Namespace:

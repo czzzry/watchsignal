@@ -7,6 +7,7 @@ import {
 } from "../app/pass-the-phone/pass-the-phone-flow-reducer.ts";
 import {
   initialPassThePhoneNavigationState,
+  passCompletedNavigationAction,
   passThePhoneNavigationReducer,
 } from "../app/pass-the-phone/pass-the-phone-navigation-reducer.ts";
 
@@ -111,14 +112,14 @@ test("couple navigation follows setup, founder, handoff, wife, results", () => {
     { type: "session.started" },
   );
   const handoff = passThePhoneNavigationReducer(founder, {
-    type: "founderPass.completed",
+    type: "firstPass.completed",
     coupleSession: true,
   });
   const wife = passThePhoneNavigationReducer(handoff, {
     type: "handoff.completed",
   });
   const results = passThePhoneNavigationReducer(wife, {
-    type: "wifePass.completed",
+    type: "secondPass.completed",
   });
 
   assert.equal(founder.step, "founder");
@@ -134,9 +135,26 @@ test("solo navigation skips handoff and second pass", () => {
     { type: "session.started" },
   );
   const results = passThePhoneNavigationReducer(founder, {
-    type: "founderPass.completed",
+    type: "firstPass.completed",
     coupleSession: false,
   });
+
+  assert.equal(results.step, "results");
+});
+
+
+test("solo-wife completion is treated as the first pass", () => {
+  const started = passThePhoneNavigationReducer(
+    initialPassThePhoneNavigationState,
+    { type: "session.started" },
+  );
+  const results = passThePhoneNavigationReducer(
+    started,
+    passCompletedNavigationAction({
+      actor: "wife",
+      coupleSession: false,
+    }),
+  );
 
   assert.equal(results.step, "results");
 });
@@ -145,7 +163,7 @@ test("solo navigation skips handoff and second pass", () => {
 test("navigation rejects completion events from the wrong step", () => {
   const unchanged = passThePhoneNavigationReducer(
     initialPassThePhoneNavigationState,
-    { type: "wifePass.completed" },
+    { type: "secondPass.completed" },
   );
 
   assert.equal(unchanged, initialPassThePhoneNavigationState);

@@ -2,6 +2,9 @@
   "name": "movie-night-mediator",
   "private": true,
   "packageManager": "pnpm@10.0.0",
+  "engines": {
+    "node": ">=22.6.0"
+  },
   "scripts": {
     "hosted:preflight": "node scripts/hosted_android_preflight.mjs && node --check apps/web/public/sw.js && node scripts/run_api_uv.mjs run python -m py_compile ../../scripts/migrate_sqlite_to_postgres.py",
     "hosted:migrate": "node scripts/run_api_uv.mjs run python ../../scripts/migrate_sqlite_to_postgres.py",

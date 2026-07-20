@@ -33,7 +33,7 @@ node scripts/run_api_uv.mjs run \
   --movies /private/tmp/watchsignal-movielens/ml-latest-small/movies.csv \
   --ratings /private/tmp/watchsignal-movielens/ml-latest-small/ratings.csv \
   --links /private/tmp/watchsignal-movielens/ml-latest-small/links.csv \
-  --output apps/api/data/taste_lab_seed_queue.generated.json \
+  --output data/taste_lab_seed_queue.generated.json \
   --limit 250 \
   --min-rating-count 20
 ```
@@ -47,7 +47,7 @@ node scripts/run_api_uv.mjs run \
   --movies /private/tmp/watchsignal-movielens/ml-latest-small/movies.csv \
   --ratings /private/tmp/watchsignal-movielens/ml-latest-small/ratings.csv \
   --links /private/tmp/watchsignal-movielens/ml-latest-small/links.csv \
-  --output apps/api/data/taste_lab_seed_queue.generated.json \
+  --output data/taste_lab_seed_queue.generated.json \
   --limit 250 \
   --min-rating-count 20 \
   --enrich-posters \

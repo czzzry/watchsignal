@@ -8,9 +8,9 @@ export type PassThePhoneNavigationState = {
 export type PassThePhoneNavigationAction =
   | { type: "session.reset" }
   | { type: "session.started" }
-  | { type: "founderPass.completed"; coupleSession: boolean }
+  | { type: "firstPass.completed"; coupleSession: boolean }
   | { type: "handoff.completed" }
-  | { type: "wifePass.completed" }
+  | { type: "secondPass.completed" }
   | { type: "navigation.back" };
 
 export const initialPassThePhoneNavigationState: PassThePhoneNavigationState = {
@@ -26,7 +26,7 @@ export function passThePhoneNavigationReducer(
       return initialPassThePhoneNavigationState;
     case "session.started":
       return { step: "founder" };
-    case "founderPass.completed":
+    case "firstPass.completed":
       if (state.step !== "founder") {
         return state;
       }
@@ -36,7 +36,7 @@ export function passThePhoneNavigationReducer(
         return state;
       }
       return { step: "wife" };
-    case "wifePass.completed":
+    case "secondPass.completed":
       if (state.step !== "wife") {
         return state;
       }
@@ -44,6 +44,19 @@ export function passThePhoneNavigationReducer(
     case "navigation.back":
       return { step: previousStep(state.step) };
   }
+}
+
+export function passCompletedNavigationAction({
+  actor,
+  coupleSession,
+}: {
+  actor: "founder" | "wife";
+  coupleSession: boolean;
+}): PassThePhoneNavigationAction {
+  if (coupleSession && actor === "wife") {
+    return { type: "secondPass.completed" };
+  }
+  return { type: "firstPass.completed", coupleSession };
 }
 
 function previousStep(step: WizardStep): WizardStep {

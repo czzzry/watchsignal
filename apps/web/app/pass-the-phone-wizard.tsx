@@ -27,6 +27,7 @@ import {
 } from "./pass-the-phone/review-fixtures";
 import {
   initialPassThePhoneNavigationState,
+  passCompletedNavigationAction,
   passThePhoneNavigationReducer,
 } from "./pass-the-phone/pass-the-phone-navigation-reducer";
 import { usePassThePhoneOnboardingSetupState } from "./pass-the-phone/use-pass-the-phone-onboarding-setup-state";
@@ -414,10 +415,12 @@ export function PassThePhoneWizard({
 
       if (founderIndex === sessionCandidates.length - 1) {
         await submitActorPass("founder", nextReactions);
-        dispatchNavigation({
-          type: "founderPass.completed",
-          coupleSession: isCoupleSession,
-        });
+        dispatchNavigation(
+          passCompletedNavigationAction({
+            actor: "founder",
+            coupleSession: isCoupleSession,
+          }),
+        );
         return;
       }
 
@@ -430,7 +433,12 @@ export function PassThePhoneWizard({
 
     if (wifeIndex === sessionCandidates.length - 1) {
       await submitActorPass("wife", nextReactions);
-      dispatchNavigation({ type: "wifePass.completed" });
+      dispatchNavigation(
+        passCompletedNavigationAction({
+          actor: "wife",
+          coupleSession: isCoupleSession,
+        }),
+      );
       return;
     }
 
