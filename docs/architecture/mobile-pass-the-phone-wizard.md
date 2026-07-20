@@ -19,7 +19,9 @@ flowchart TD
 
 The page still loads setup state and API health through the existing server-side boundary.
 The session shortlist uses the five seed titles in `apps/web/app/session-fixtures.ts`.
-The wizard state lives in `apps/web/app/pass-the-phone-wizard.tsx`.
+The wizard composes the flow in `apps/web/app/pass-the-phone-wizard.tsx`, while pure reducers under `apps/web/app/pass-the-phone/` own flow and navigation transitions.
+Focused hooks in that directory own onboarding and setup state, tonight-intent steering, history loading, and results persistence.
+The session lifecycle module owns shortlist loading, shared-session synchronization, fallback recovery, reaction persistence, and handoff advancement through explicit state snapshots and output ports.
 Browser interactions call `apps/web/app/session-client.ts`, which talks to Next route handlers under `apps/web/app/api/session/`.
 Those handlers proxy to FastAPI through `API_BASE_URL` and avoid making the mobile UI depend on auth, deployment, or browser CORS setup.
 
