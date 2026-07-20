@@ -11,7 +11,7 @@ const knivesOut = {
 
 export const metadata = {
   title: "WatchSignal Flow",
-  description: "A stylized WatchSignal product walkthrough for the README demo.",
+  description: "A short walkthrough of WatchSignal's private, pass-the-phone movie flow.",
 };
 
 export default function ShowcaseFlowPage() {
