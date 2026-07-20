@@ -16,6 +16,8 @@ class ApiContractExportTest(unittest.TestCase):
             contract,
         )
         self.assertIn("export type RecommendationShortlistItemPayload = {", contract)
+        self.assertIn("export type TonightIntentInterpretRequestPayload = {", contract)
+        self.assertIn("export type TonightIntentInterpretationPayload = {", contract)
 
 
 if __name__ == "__main__":

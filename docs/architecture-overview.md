@@ -68,6 +68,43 @@ flowchart LR
     E --> H["History, metrics, watched state, feedback"]
 ```
 
+## Recommendation application boundary
+
+The API route validates and translates HTTP payloads but does not execute the recommendation workflow.
+`RecommendationService` owns profile and memory evidence loading, candidate-source selection, fetch budgeting, scorer selection, shortlist generation, snapshot creation, and application-level failure semantics.
+The TMDb adapter owns provider communication and candidate construction.
+The scoring module owns ranking policy and evidence generation.
+
+```mermaid
+flowchart LR
+    A["Recommendation HTTP route"] --> B["Typed RecommendationRequest"]
+    B --> C["RecommendationService"]
+    C --> D["Profile and memory evidence"]
+    C --> E["Candidate source"]
+    C --> F["Scoring module"]
+    C --> G["Recommendation snapshot"]
+    E --> H["TMDb adapter or demo fixtures"]
+```
+
+The live candidate pipeline has one execution path for fetching, exclusion, enrichment, watched-state marking, scoring, and snapshotting.
+Callers may request ranked domain candidates or display-ready shortlist items without duplicating that pipeline.
+
+## Pass-the-phone state boundaries
+
+The pass-the-phone UI uses pure reducers for flow state and wizard navigation.
+Session synchronization, tonight-intent interpretation, results evidence, history panels, and navigation advance through named transitions.
+UI orchestration owns asynchronous effects and dispatches transitions.
+Components render the resulting state and do not directly choose arbitrary synchronization or wizard states.
+Tonight-intent interpretation and next-five steering orchestration live in a focused hook rather than the main wizard component.
+
+```mermaid
+flowchart LR
+    A["User action"] --> B["Async hook or event handler"]
+    B --> C["Named reducer action"]
+    C --> D["Pure state transition"]
+    D --> E["Rendered phone UI"]
+```
+
 ## Upgrade path
 
 ```mermaid

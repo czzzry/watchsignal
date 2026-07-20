@@ -6,9 +6,9 @@ from unittest import mock
 
 from fastapi.routing import APIRoute
 
-from movie_night_mediator.api.main import (
+from movie_night_mediator.api.main import create_app
+from movie_night_mediator.api.routes.tonight_intent import (
     TonightIntentInterpretRequestPayload,
-    create_app,
 )
 
 
@@ -35,6 +35,17 @@ class TonightIntentApiTest(unittest.TestCase):
         self.assertTrue(response["filters"]["exclude_watched"])
         self.assertIn("confirmationText", response)
         self.assertNotIn("rankedSourceMovieIds", response)
+
+    def test_create_app_registers_both_tonight_intent_routes(self) -> None:
+        route_keys = {
+            (route.path, method)
+            for route in create_app().routes
+            if isinstance(route, APIRoute)
+            for method in route.methods
+        }
+
+        self.assertIn(("/tonight-intent/interpret", "POST"), route_keys)
+        self.assertIn(("/tonight-intent/direct-nudge", "POST"), route_keys)
 
     def test_direct_nudge_route_returns_confirmation_payload(self) -> None:
         interpret = direct_nudge_route_endpoint(create_app())

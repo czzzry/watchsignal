@@ -12,8 +12,13 @@ flowchart LR
     B --> C["FastAPI route"]
     C --> D["Pydantic request and response models"]
     D --> E["OpenAPI schema"]
-    E --> F["Future generated TypeScript types"]
+    E --> F["Generated TypeScript types"]
 ```
+
+API contract modules own Pydantic request and response models plus HTTP-to-application translation.
+Route modules own endpoint registration and application-error-to-HTTP translation.
+Application services receive typed application requests and do not depend on FastAPI or Pydantic payloads.
+`api/main.py` owns application creation, dependency assembly, middleware, and route registration.
 
 ## API Style
 
