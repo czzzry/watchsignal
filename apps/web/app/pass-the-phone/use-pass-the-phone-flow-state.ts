@@ -1,58 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useReducer } from "react";
 
-import type {
-  DebugHistoryStatus,
-  SessionSource,
-  SyncStatus,
-} from "../pass-the-phone-model";
-import type {
-  DebugHistorySessionPayload,
-  RecentSessionSummaryPayload,
-  SharedSessionPayload,
-  TasteProfileSummaryPayload,
-  TonightIntentInterpretationPayload,
-} from "../session-client";
-
-type SessionFlowState = {
-  sessionSource: SessionSource;
-  recommendationSource: string;
-  syncStatus: SyncStatus;
-  apiError: string | null;
-  sharedSession: SharedSessionPayload | null;
-  liveSessionId: string | null;
-  shownSourceMovieIds: string[];
-};
-
-type TonightIntentFlowState = {
-  text: string;
-  clarificationText: string;
-  pendingIntent: TonightIntentInterpretationPayload | null;
-  activeIntents: TonightIntentInterpretationPayload[];
-  status: SyncStatus;
-  message: string | null;
-};
-
-type ResultsFlowState = {
-  steerText: string;
-  steerClarificationText: string;
-  pendingSteerIntent: TonightIntentInterpretationPayload | null;
-  steerMessage: string | null;
-  debugHistory: DebugHistorySessionPayload | null;
-  tasteProfileSummaries: TasteProfileSummaryPayload[];
-  debugHistoryStatus: DebugHistoryStatus;
-  debugHistoryMessage: string | null;
-};
-
-type HistoryPanelState = {
-  recentSessions: RecentSessionSummaryPayload[];
-  recentSessionsStatus: DebugHistoryStatus;
-  recentSessionsMessage: string | null;
-  selectedHistory: DebugHistorySessionPayload | null;
-  selectedHistoryStatus: DebugHistoryStatus;
-  selectedHistoryMessage: string | null;
-};
+import {
+  createPassThePhoneFlowState,
+  passThePhoneFlowReducer,
+  type HistoryPanelState,
+  type ResultsFlowState,
+  type SessionFlowState,
+  type TonightIntentFlowState,
+} from "./pass-the-phone-flow-reducer";
 
 type PassThePhoneFlowStateOptions = {
   apiConnected: boolean;
@@ -67,159 +24,78 @@ const BACKEND_DEBUG_HISTORY_MESSAGE =
 const RECENT_HISTORY_UNAVAILABLE_MESSAGE =
   "Recent history is only available when the backend API is connected.";
 
-function initialSessionFlowState(apiConnected: boolean): SessionFlowState {
-  return {
-    sessionSource: apiConnected ? "api" : "demo",
-    recommendationSource: "demo",
-    syncStatus: "ready",
-    apiError: apiConnected ? null : DISCONNECTED_SESSION_MESSAGE,
-    sharedSession: null,
-    liveSessionId: null,
-    shownSourceMovieIds: [],
-  };
-}
-
-function initialTonightIntentFlowState(): TonightIntentFlowState {
-  return {
-    text: "",
-    clarificationText: "",
-    pendingIntent: null,
-    activeIntents: [],
-    status: "ready",
-    message: null,
-  };
-}
-
-function initialResultsFlowState(): ResultsFlowState {
-  return {
-    steerText: "",
-    steerClarificationText: "",
-    pendingSteerIntent: null,
-    steerMessage: null,
-    debugHistory: null,
-    tasteProfileSummaries: [],
-    debugHistoryStatus: "idle",
-    debugHistoryMessage: null,
-  };
-}
-
-function initialHistoryPanelState(): HistoryPanelState {
-  return {
-    recentSessions: [],
-    recentSessionsStatus: "idle",
-    recentSessionsMessage: null,
-    selectedHistory: null,
-    selectedHistoryStatus: "idle",
-    selectedHistoryMessage: null,
-  };
-}
-
-function resolvePatch<TState>(
-  current: TState,
-  patch:
-    | Partial<TState>
-    | ((current: TState) => Partial<TState>),
-): TState {
-  const nextPatch = typeof patch === "function" ? patch(current) : patch;
-  return { ...current, ...nextPatch };
-}
-
 export function usePassThePhoneFlowState({
   apiConnected,
 }: PassThePhoneFlowStateOptions) {
-  const [session, setSessionState] = useState<SessionFlowState>(() =>
-    initialSessionFlowState(apiConnected),
-  );
-  const [tonightIntent, setTonightIntentState] = useState<TonightIntentFlowState>(
-    initialTonightIntentFlowState,
-  );
-  const [results, setResultsState] = useState<ResultsFlowState>(
-    initialResultsFlowState,
-  );
-  const [historyPanel, setHistoryPanelState] = useState<HistoryPanelState>(
-    initialHistoryPanelState,
+  const [state, dispatch] = useReducer(
+    passThePhoneFlowReducer,
+    apiConnected,
+    createPassThePhoneFlowState,
   );
 
-  function patchSession(
-    patch:
-      | Partial<SessionFlowState>
-      | ((current: SessionFlowState) => Partial<SessionFlowState>),
+  function updateSession(
+    updates: Partial<Omit<SessionFlowState, "syncStatus">>,
   ): void {
-    setSessionState((current) => resolvePatch(current, patch));
+    dispatch({ type: "session.updated", updates });
   }
 
-  function patchTonightIntent(
-    patch:
-      | Partial<TonightIntentFlowState>
-      | ((current: TonightIntentFlowState) => Partial<TonightIntentFlowState>),
-  ): void {
-    setTonightIntentState((current) => resolvePatch(current, patch));
+  function startSessionSync(status: "loading" | "saving"): void {
+    dispatch({ type: "session.syncStarted", status });
   }
 
-  function patchResults(
-    patch:
-      | Partial<ResultsFlowState>
-      | ((current: ResultsFlowState) => Partial<ResultsFlowState>),
-  ): void {
-    setResultsState((current) => resolvePatch(current, patch));
+  function finishSessionSync(): void {
+    dispatch({ type: "session.syncFinished" });
   }
 
-  function patchHistoryPanel(
-    patch:
-      | Partial<HistoryPanelState>
-      | ((current: HistoryPanelState) => Partial<HistoryPanelState>),
+  function addShownMovieIds(sourceMovieIds: string[]): void {
+    dispatch({ type: "session.shownMoviesAdded", sourceMovieIds });
+  }
+
+  function updateTonightIntent(
+    updates: Partial<Omit<TonightIntentFlowState, "status">>,
   ): void {
-    setHistoryPanelState((current) => resolvePatch(current, patch));
+    dispatch({ type: "tonightIntent.updated", updates });
+  }
+
+  function startTonightIntentInterpretation(): void {
+    dispatch({ type: "tonightIntent.started" });
+  }
+
+  function finishTonightIntentInterpretation(): void {
+    dispatch({ type: "tonightIntent.finished" });
+  }
+
+  function updateResults(updates: Partial<ResultsFlowState>): void {
+    dispatch({ type: "results.updated", updates });
+  }
+
+  function updateHistoryPanel(updates: Partial<HistoryPanelState>): void {
+    dispatch({ type: "historyPanel.updated", updates });
   }
 
   function resetAllFlowState(): void {
-    setSessionState(initialSessionFlowState(apiConnected));
-    setTonightIntentState(initialTonightIntentFlowState());
-    setResultsState(initialResultsFlowState());
-    setHistoryPanelState(initialHistoryPanelState());
+    dispatch({ type: "flow.reset", apiConnected });
   }
 
   function resetSessionProgress(): void {
-    setSessionState((current) => ({
-      ...current,
-      sessionSource: apiConnected ? "api" : "demo",
-      recommendationSource: "demo",
-      syncStatus: "ready",
-      apiError: apiConnected ? null : DISCONNECTED_SESSION_MESSAGE,
-      sharedSession: null,
-      liveSessionId: null,
-      shownSourceMovieIds: [],
-    }));
-    setResultsState((current) => ({
-      ...current,
-      debugHistory: null,
-      tasteProfileSummaries: [],
-      debugHistoryStatus: "idle",
-      debugHistoryMessage: null,
-      steerText: "",
-      steerClarificationText: "",
-      pendingSteerIntent: null,
-      steerMessage: null,
-    }));
+    dispatch({ type: "session.progressReset", apiConnected });
   }
 
   function setDemoDebugFallback(): void {
-    patchSession({ sessionSource: "demo" });
-    patchResults({
-      debugHistoryStatus: "failed",
-      debugHistoryMessage: DEMO_DEBUG_HISTORY_MESSAGE,
-    });
+    dispatch({ type: "session.demoFallback" });
   }
 
   return {
-    session,
-    tonightIntent,
-    results,
-    historyPanel,
-    patchSession,
-    patchTonightIntent,
-    patchResults,
-    patchHistoryPanel,
+    ...state,
+    updateSession,
+    startSessionSync,
+    finishSessionSync,
+    addShownMovieIds,
+    updateTonightIntent,
+    startTonightIntentInterpretation,
+    finishTonightIntentInterpretation,
+    updateResults,
+    updateHistoryPanel,
     resetAllFlowState,
     resetSessionProgress,
     setDemoDebugFallback,

@@ -4,7 +4,7 @@ import type {
   ParticipantOnboardingPayload,
   ShortlistCandidatePayload,
 } from "./session-client";
-import { demoCandidates, type DemoCandidate, type ReactionValue, type SessionMode } from "./session-fixtures";
+import { demoCandidates, type DemoCandidate, type ReactionValue, type SessionMode } from "./session-fixtures.ts";
 import type {
   CandidateProvenance,
   CandidateViewModel,

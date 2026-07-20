@@ -76,6 +76,12 @@ class OfflineShortlistItem:
     dominant_penalties: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True)
+class _CandidatePipelineResult:
+    candidates: tuple[Candidate, ...]
+    ranked_candidates: tuple[RankedCandidate, ...]
+
+
 def get_offline_demo_shortlist(
     *,
     session_id: str | None = None,
@@ -208,34 +214,20 @@ def get_candidate_source_shortlist(
     enrichment_service: CandidateEnrichmentService | None = None,
     session_reactions: tuple[ScoringSessionReaction, ...] = (),
 ) -> tuple[RankedCandidate, ...]:
-    excluded_ids = set(excluded_source_movie_ids)
-    candidates = candidate_source.fetch_candidates(
-        session=session,
-        household_defaults=household_defaults,
-        limit=candidate_limit,
-    )
-    candidates = tuple(
-        candidate
-        for candidate in candidates
-        if candidate.source_movie_id not in excluded_ids
-    )
-    candidates = (enrichment_service or CandidateEnrichmentService()).enrich_candidates(
-        candidates
-    )
-    candidates = _mark_already_watched(
-        candidates,
-        watched_source_movie_ids=watched_source_movie_ids,
-    )
-    result = _score_candidate_source_candidates(
-        candidates,
+    result = _run_candidate_pipeline(
+        candidate_source,
         session=session,
         household_defaults=household_defaults,
         users=users,
+        candidate_limit=candidate_limit,
         scorer=scorer,
         snapshot_service=snapshot_service,
+        excluded_source_movie_ids=excluded_source_movie_ids,
+        watched_source_movie_ids=watched_source_movie_ids,
+        enrichment_service=enrichment_service,
         session_reactions=session_reactions,
     )
-    return result[:limit]
+    return result.ranked_candidates[:limit]
 
 
 def get_candidate_source_shortlist_items(
@@ -253,6 +245,47 @@ def get_candidate_source_shortlist_items(
     enrichment_service: CandidateEnrichmentService | None = None,
     session_reactions: tuple[ScoringSessionReaction, ...] = (),
 ) -> tuple[OfflineShortlistItem, ...]:
+    result = _run_candidate_pipeline(
+        candidate_source,
+        session=session,
+        household_defaults=household_defaults,
+        users=users,
+        candidate_limit=candidate_limit,
+        scorer=scorer,
+        snapshot_service=snapshot_service,
+        excluded_source_movie_ids=excluded_source_movie_ids,
+        watched_source_movie_ids=watched_source_movie_ids,
+        enrichment_service=enrichment_service,
+        session_reactions=session_reactions,
+    )
+    ranked_candidates = result.ranked_candidates[:limit]
+    candidates_by_source_id = {
+        candidate.source_movie_id: candidate for candidate in result.candidates
+    }
+    return tuple(
+        _candidate_source_shortlist_item(
+            ranked,
+            candidates_by_source_id[ranked.source_movie_id],
+        )
+        for ranked in ranked_candidates
+        if ranked.source_movie_id in candidates_by_source_id
+    )
+
+
+def _run_candidate_pipeline(
+    candidate_source: CandidateSource,
+    *,
+    session: SessionContext,
+    household_defaults: HouseholdDefaults,
+    users: tuple[UserProfile, ...],
+    candidate_limit: int,
+    scorer: HeuristicScorer | None,
+    snapshot_service: RecommendationSnapshotService | None,
+    excluded_source_movie_ids: tuple[str, ...],
+    watched_source_movie_ids: tuple[str, ...],
+    enrichment_service: CandidateEnrichmentService | None,
+    session_reactions: tuple[ScoringSessionReaction, ...],
+) -> _CandidatePipelineResult:
     excluded_ids = set(excluded_source_movie_ids)
     candidates = candidate_source.fetch_candidates(
         session=session,
@@ -271,25 +304,17 @@ def get_candidate_source_shortlist_items(
         candidates,
         watched_source_movie_ids=watched_source_movie_ids,
     )
-    ranked_candidates = _score_candidate_source_candidates(
-        candidates,
-        session=session,
-        household_defaults=household_defaults,
-        users=users,
-        scorer=scorer,
-        snapshot_service=snapshot_service,
-        session_reactions=session_reactions,
-    )[:limit]
-    candidates_by_source_id = {
-        candidate.source_movie_id: candidate for candidate in candidates
-    }
-    return tuple(
-        _candidate_source_shortlist_item(
-            ranked,
-            candidates_by_source_id[ranked.source_movie_id],
-        )
-        for ranked in ranked_candidates
-        if ranked.source_movie_id in candidates_by_source_id
+    return _CandidatePipelineResult(
+        candidates=candidates,
+        ranked_candidates=_score_candidate_source_candidates(
+            candidates,
+            session=session,
+            household_defaults=household_defaults,
+            users=users,
+            scorer=scorer,
+            snapshot_service=snapshot_service,
+            session_reactions=session_reactions,
+        ),
     )
 
 

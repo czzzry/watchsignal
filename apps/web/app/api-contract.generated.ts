@@ -1,6 +1,6 @@
 // Generated from FastAPI OpenAPI components.
 // Do not edit by hand. Regenerate with:
-// cd apps/api && ../../.tools/uv/bin/uv run python -m movie_night_mediator.api.generate_typescript_contract
+// node scripts/run_api_uv.mjs run python -m movie_night_mediator.api.generate_typescript_contract
 
 export type AppOwnedMovieRatingPayload = {
   profileId: string;

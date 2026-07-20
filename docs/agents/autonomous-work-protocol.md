@@ -99,9 +99,8 @@ The primary output is still implemented, validated product behavior.
 Current validation commands:
 
 ```sh
-cd apps/api
-../../.tools/uv/bin/uv run python -m unittest discover -s tests
-../../.tools/uv/bin/uv run python -m compileall -q src tests
+pnpm test:api
+pnpm compile:api
 ```
 
 ```sh

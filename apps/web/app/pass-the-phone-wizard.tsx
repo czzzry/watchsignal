@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import { type SetupLoadResult } from "./setup-api";
 import {
   type DemoCandidate,
@@ -8,14 +8,28 @@ import {
   type SessionMode,
 } from "./session-fixtures";
 import {
-  continuationExcludedSourceMovieIds,
-  latestTonightIntent,
-  scoringReactionSignals,
-  scoringReactionSignalsFromLocal,
-  sessionShortlistFromCandidates,
   usePassThePhoneSessionControl,
 } from "./pass-the-phone/session-control";
+import {
+  advancePassThePhoneHandoff,
+  continuePassThePhoneSession,
+  persistSeenMemory,
+  startPassThePhoneSession,
+  submitActorSessionPass,
+  type SessionLifecyclePorts,
+} from "./pass-the-phone/session-lifecycle";
 import { usePassThePhoneFlowState } from "./pass-the-phone/use-pass-the-phone-flow-state";
+import { usePassThePhoneIntentSteering } from "./pass-the-phone/use-pass-the-phone-intent-steering";
+import { usePassThePhoneHistory } from "./pass-the-phone/use-pass-the-phone-history";
+import {
+  reviewModeTasteProfileSummaries,
+  reviewModeV2DebugHistory,
+} from "./pass-the-phone/review-fixtures";
+import {
+  initialPassThePhoneNavigationState,
+  passCompletedNavigationAction,
+  passThePhoneNavigationReducer,
+} from "./pass-the-phone/pass-the-phone-navigation-reducer";
 import { usePassThePhoneOnboardingSetupState } from "./pass-the-phone/use-pass-the-phone-onboarding-setup-state";
 import {
   HandoffStep,
@@ -29,47 +43,20 @@ import {
   SetupStep,
 } from "./pass-the-phone-components";
 import {
-  createSessionId,
   demoCandidateViewModels,
   formatSessionDate,
-  mergeSeenMemoryIntoOnboarding,
   rankCandidates,
-  reactionsPayload,
   stepHeadline,
-  toDebugHistoryErrorMessage,
-  toErrorMessage,
-  toSeenMemoryErrorMessage,
-  toSessionCandidate,
-  toSessionCreationErrorMessage,
 } from "./pass-the-phone-helpers";
 import type {
   ApiHealth,
   LanguageMode,
   PeopleMode,
-  RankedCandidate,
   ReactionState,
   SeenMemoryValue,
   WizardStep,
 } from "./pass-the-phone-model";
-import {
-  advanceSessionHandoff,
-  continueSharedSession,
-  createSharedSession,
-  getProfileOnboarding,
-  getRecentSessions,
-  getSessionDebugHistory,
-  getTasteProfileSummary,
-  interpretTonightIntent,
-  interpretDirectedNudge,
-  loadRecommendationShortlist,
-  saveProfileOnboarding,
-  submitSessionReactions,
-  toApiSessionMode,
-  type DebugHistorySessionPayload,
-  type SharedSessionPayload,
-  type TasteProfileSummaryPayload,
-  type TonightIntentInterpretationPayload,
-} from "./session-client";
+import { type TonightIntentInterpretationPayload } from "./session-client";
 
 type PassThePhoneWizardProps = {
   apiHealth: ApiHealth;
@@ -84,7 +71,11 @@ export function PassThePhoneWizard({
   setupLoad,
   configuredRecommendationSource,
 }: PassThePhoneWizardProps) {
-  const [step, setStep] = useState<WizardStep>("setup");
+  const [navigation, dispatchNavigation] = useReducer(
+    passThePhoneNavigationReducer,
+    initialPassThePhoneNavigationState,
+  );
+  const { step } = navigation;
   const [sessionMode, setSessionMode] = useState<SessionMode>("compromise");
   const [peopleMode, setPeopleMode] = useState<PeopleMode>("couple");
   const [languageMode, setLanguageMode] = useState<LanguageMode>("english");
@@ -153,10 +144,15 @@ export function PassThePhoneWizard({
     tonightIntent,
     results,
     historyPanel,
-    patchSession,
-    patchTonightIntent,
-    patchResults,
-    patchHistoryPanel,
+    updateSession,
+    startSessionSync,
+    finishSessionSync,
+    addShownMovieIds,
+    updateTonightIntent,
+    startTonightIntentInterpretation,
+    finishTonightIntentInterpretation,
+    updateResults,
+    updateHistoryPanel,
     resetAllFlowState,
     resetSessionProgress,
     setDemoDebugFallback,
@@ -197,6 +193,41 @@ export function PassThePhoneWizard({
     selectedHistoryStatus,
     selectedHistoryMessage,
   } = historyPanel;
+  const {
+    loadDebugHistory,
+    loadTasteProfileSummariesForSession,
+    loadSoloTasteProfileSummaries,
+    loadRecentSessions,
+    loadRecentSessionDetail,
+  } = usePassThePhoneHistory({
+    apiConnected: apiHealth.connected,
+    sessionSource,
+    sharedSession,
+    updateResults,
+    updateHistoryPanel,
+    backendDebugHistoryOnlyMessage: flowMessages.backendDebugHistoryOnly,
+    recentHistoryUnavailableMessage: flowMessages.recentHistoryUnavailable,
+  });
+  const {
+    activeTonightIntent,
+    interpretTonightIntentText,
+    answerTonightIntentClarification,
+    interpretSteerText,
+    answerSteerClarification,
+    applySteerAndShowMore,
+    addSteerToNextFive,
+    applyTonightIntent,
+    clearTonightIntent,
+  } = usePassThePhoneIntentSteering({
+    apiConnected: apiHealth.connected,
+    tonightIntent,
+    results,
+    updateTonightIntent,
+    startTonightIntentInterpretation,
+    finishTonightIntentInterpretation,
+    updateResults,
+    continueWithTonightIntents,
+  });
   const isCoupleSession = peopleMode === "couple";
   const founderCandidate = sessionCandidates[founderIndex];
   const wifeCandidate = sessionCandidates[wifeIndex];
@@ -235,10 +266,6 @@ export function PassThePhoneWizard({
   const currentStepIndex = activeStepOrder.indexOf(step);
   const isSyncing = syncStatus !== "ready";
   const tonightIntentBusy = tonightIntentStatus !== "ready";
-  const activeTonightIntent =
-    activeTonightIntents.length > 0
-      ? activeTonightIntents[activeTonightIntents.length - 1]
-      : null;
   const sessionDateLabel = formatSessionDate(new Date());
 
   useEffect(() => {
@@ -269,7 +296,7 @@ export function PassThePhoneWizard({
       return;
     }
 
-    patchResults({
+    updateResults({
       debugHistory: reviewModeV2DebugHistory({
         bestPick: rankedCandidates[0],
         participantIds,
@@ -282,7 +309,7 @@ export function PassThePhoneWizard({
   }, [
     debugHistoryStatus,
     participantIds,
-    patchResults,
+    updateResults,
     rankedCandidates,
     reviewMode,
     sessionMode,
@@ -291,7 +318,7 @@ export function PassThePhoneWizard({
   ]);
 
   function resetSession() {
-    setStep("setup");
+    dispatchNavigation({ type: "session.reset" });
     resetBatch();
     resetAllFlowState();
     if (apiHealth.connected) {
@@ -312,133 +339,21 @@ export function PassThePhoneWizard({
       }
     }
 
-    resetBatch();
-    resetSessionProgress();
-
-    if (!apiHealth.connected) {
-      patchSession({
-        sessionSource: "demo",
-        apiError: flowMessages.disconnectedSession,
-      });
-      setStep("founder");
-      return;
-    }
-
-    patchSession({ syncStatus: "loading", apiError: null });
-
-    try {
-      const sessionId = createSessionId();
-      const shortlistResponse = await loadRecommendationShortlist({
-        sessionId,
-        householdId: "default-household",
-        activeMode: toApiSessionMode(sessionMode),
+    await startPassThePhoneSession(
+      {
+        apiConnected: apiHealth.connected,
+        isCoupleSession,
+        sessionMode,
         participantIds,
-        source: "live_tmdb",
         shortlistSize: effectiveSetupLoad.setup.defaults.shortlistSize,
         availabilityRegion: effectiveSetupLoad.setup.defaults.availabilityRegion,
-        serviceConstraint: serviceConstraintFromAvailability(
-          effectiveSetupLoad.setup.defaults.availabilityRegion,
-        ),
-        tonightIntent: activeTonightIntent,
-        tonightIntents: activeTonightIntents,
-      });
-      const candidates = shortlistResponse.shortlist.map(toSessionCandidate);
-      patchSession({ recommendationSource: shortlistResponse.recommendationSource });
-
-      if (candidates.length === 0) {
-        throw new Error("Recommendation API returned no usable picks for this session.");
-      }
-
-      resetBatch(candidates);
-
-      patchSession({
-        shownSourceMovieIds: candidates.map((candidate) => candidate.id),
-      });
-
-      if (isCoupleSession) {
-        try {
-          const session = await createSharedSession({
-            sessionId,
-            householdId: "default-household",
-            activeMode: toApiSessionMode(sessionMode),
-            participantIds,
-            shortlist: sessionShortlistFromCandidates(candidates),
-          });
-
-          patchSession({
-            sharedSession: session,
-            liveSessionId: null,
-            sessionSource: "api",
-          });
-          await loadTasteProfileSummariesForSession(session);
-        } catch (error) {
-          patchSession({
-            sharedSession: null,
-            liveSessionId: null,
-            sessionSource: "demo",
-            apiError: `${toSessionCreationErrorMessage(error)} Continuing on the same shortlist in local mode.`,
-          });
-        }
-      } else {
-        patchSession({
-          sharedSession: null,
-          liveSessionId: sessionId,
-          sessionSource: "api",
-        });
-        try {
-          patchResults({
-            tasteProfileSummaries:
-              await tasteProfileSummariesForSession(
-                "default-household",
-                participantIds,
-              ),
-          });
-        } catch {
-          patchResults({ tasteProfileSummaries: [] });
-        }
-      }
-    } catch (error) {
-      const fallbackSessionId = createSessionId();
-      const fallbackCandidates = demoCandidateViewModels.slice(0, 5);
-      resetBatch(fallbackCandidates);
-      patchSession({
-        sharedSession: null,
-        liveSessionId: isCoupleSession ? null : fallbackSessionId,
-        shownSourceMovieIds: fallbackCandidates.map((candidate) => candidate.id),
-        recommendationSource: "demo",
-        sessionSource: isCoupleSession ? "demo" : "api",
-        apiError: `${toErrorMessage(error)} Using the backup catalog for this round.`,
-      });
-      patchResults({
-        debugHistoryStatus: "idle",
-        debugHistoryMessage: null,
-      });
-
-      if (isCoupleSession) {
-        try {
-          const fallbackSession = await createSharedSession({
-            sessionId: fallbackSessionId,
-            householdId: "default-household",
-            activeMode: toApiSessionMode(sessionMode),
-            participantIds,
-            shortlist: sessionShortlistFromCandidates(fallbackCandidates),
-          });
-          patchSession({
-            sharedSession: fallbackSession,
-            liveSessionId: null,
-            sessionSource: "api",
-          });
-          await loadTasteProfileSummariesForSession(fallbackSession);
-        } catch (sessionError) {
-          patchSession({
-            apiError: `${toErrorMessage(error)} ${toSessionCreationErrorMessage(sessionError)} The backup round will continue without saving.`,
-          });
-        }
-      }
-    } finally {
-      patchSession({ syncStatus: "ready" });
-      setStep("founder");
-    }
+        activeTonightIntent,
+        activeTonightIntents,
+        fallbackCandidates: demoCandidateViewModels,
+        disconnectedMessage: flowMessages.disconnectedSession,
+      },
+      sessionLifecyclePorts(),
+    );
   }
 
   async function showFiveMore(): Promise<void> {
@@ -448,279 +363,42 @@ export function PassThePhoneWizard({
   async function continueWithTonightIntents(
     nextTonightIntents: TonightIntentInterpretationPayload[],
   ): Promise<void> {
-    if (!apiHealth.connected || sessionSource !== "api") {
-      patchSession({
-        apiError: "Show 5 more needs the synced session so earlier reactions can stay attached.",
-      });
-      return;
-    }
-
-    patchSession({ syncStatus: "loading", apiError: null });
-    patchResults({
-      debugHistory: null,
-      debugHistoryStatus: "idle",
-      debugHistoryMessage: null,
-    });
-
-    try {
-      const shortlistResponse = await loadRecommendationShortlist({
-        sessionId: sharedSession?.sessionId ?? liveSessionId ?? createSessionId(),
-        householdId: sharedSession?.householdId ?? "default-household",
-        activeMode: toApiSessionMode(sessionMode),
+    await continuePassThePhoneSession(
+      {
+        apiConnected: apiHealth.connected,
+        sessionMode,
         participantIds,
-        source: "live_tmdb",
         shortlistSize: effectiveSetupLoad.setup.defaults.shortlistSize,
         availabilityRegion: effectiveSetupLoad.setup.defaults.availabilityRegion,
-        serviceConstraint: serviceConstraintFromAvailability(
-          effectiveSetupLoad.setup.defaults.availabilityRegion,
-        ),
-        tonightIntent: latestTonightIntent(nextTonightIntents),
+        sessionSource,
+        sharedSession,
+        liveSessionId,
+        shownSourceMovieIds,
+        sessionCandidates,
+        firstPassActor,
+        founderReactions,
+        wifeReactions,
         tonightIntents: nextTonightIntents,
-        excludedSourceMovieIds:
-          sharedSession !== null
-            ? continuationExcludedSourceMovieIds(sharedSession, sessionCandidates)
-            : Array.from(
-                new Set([
-                  ...shownSourceMovieIds,
-                  ...sessionCandidates.map((candidate) => candidate.id),
-                ]),
-              ),
-        sessionReactions:
-          sharedSession !== null
-            ? scoringReactionSignals(sharedSession)
-            : scoringReactionSignalsFromLocal({
-                sessionId: liveSessionId ?? createSessionId(),
-                participantId: participantIds[0],
-                candidates: sessionCandidates,
-                reactions: firstPassActor === "founder" ? founderReactions : wifeReactions,
-              }),
-      });
-      const candidates = shortlistResponse.shortlist.map(toSessionCandidate);
-      patchSession({ recommendationSource: shortlistResponse.recommendationSource });
-
-      if (candidates.length !== 5) {
-        throw new Error("Recommendation API did not return five fresh picks.");
-      }
-
-      if (sharedSession !== null) {
-        const continuedSession = await continueSharedSession(
-          sharedSession.sessionId,
-          sessionShortlistFromCandidates(candidates),
-        );
-
-        patchSession({ sharedSession: continuedSession });
-        await loadTasteProfileSummariesForSession(continuedSession);
-      } else {
-        patchSession((current) => ({
-          shownSourceMovieIds: Array.from(
-            new Set([
-              ...current.shownSourceMovieIds,
-              ...candidates.map((candidate) => candidate.id),
-            ]),
-          ),
-        }));
-      }
-      resetBatch(candidates);
-      setStep("founder");
-    } catch (error) {
-      patchSession({ apiError: toErrorMessage(error) });
-    } finally {
-      patchSession({ syncStatus: "ready" });
-    }
+      },
+      sessionLifecyclePorts(),
+    );
   }
 
-  async function interpretTonightIntentText(): Promise<void> {
-    const text = tonightIntentText.trim();
-    if (!text) {
-      patchTonightIntent({ message: "Add a short tonight note first." });
-      return;
-    }
-
-    if (!apiHealth.connected) {
-      patchTonightIntent({
-        message: "Tonight steering needs the local API connection.",
-      });
-      return;
-    }
-
-    patchTonightIntent({ status: "loading", message: null });
-
-    try {
-      const interpretation = await interpretTonightIntent(text);
-      patchTonightIntent({
-        pendingIntent: interpretation,
-        clarificationText: "",
-      });
-      if (interpretation.status === "confirmation_required") {
-        patchTonightIntent({ message: "Review this before applying it to tonight." });
-      } else {
-        patchTonightIntent({
-          message: "One quick clarification, then this stays tonight-only.",
-        });
-      }
-    } catch (error) {
-      patchTonightIntent({ message: toErrorMessage(error) });
-    } finally {
-      patchTonightIntent({ status: "ready" });
-    }
+  function sessionLifecyclePorts(): SessionLifecyclePorts {
+    return {
+      resetBatch,
+      resetSessionProgress,
+      updateSession,
+      updateResults,
+      startSessionSync,
+      finishSessionSync,
+      navigateToStarted: () => dispatchNavigation({ type: "session.started" }),
+      addShownMovieIds,
+      loadTasteProfileSummaries: loadTasteProfileSummariesForSession,
+      loadSoloTasteProfileSummaries,
+    };
   }
 
-  async function answerTonightIntentClarification(): Promise<void> {
-    if (pendingTonightIntent?.status !== "clarification_required") {
-      return;
-    }
-
-    const answer = tonightIntentClarificationText.trim();
-    if (!answer) {
-      patchTonightIntent({ message: "Answer the clarification first." });
-      return;
-    }
-
-    if (!apiHealth.connected) {
-      patchTonightIntent({
-        message: "Tonight steering needs the local API connection.",
-      });
-      return;
-    }
-
-    patchTonightIntent({ status: "loading", message: null });
-
-    try {
-      const interpretation = await interpretTonightIntent(
-        `${pendingTonightIntent.rawText}. Clarification: ${answer}`,
-      );
-      patchTonightIntent({
-        pendingIntent: interpretation,
-        clarificationText: "",
-        message: "Review this before applying it to tonight.",
-      });
-    } catch (error) {
-      patchTonightIntent({ message: toErrorMessage(error) });
-    } finally {
-      patchTonightIntent({ status: "ready" });
-    }
-  }
-
-  async function interpretSteerText(): Promise<void> {
-    const text = steerText.trim();
-    if (!text) {
-      patchResults({ steerMessage: "Add a short steer first." });
-      return;
-    }
-
-    if (!apiHealth.connected) {
-      patchResults({ steerMessage: "Steer next 5 needs the local API connection." });
-      return;
-    }
-
-    patchTonightIntent({ status: "loading" });
-    patchResults({ steerMessage: null });
-
-    try {
-      const interpretation = await interpretDirectedNudge(text);
-      patchResults({
-        pendingSteerIntent: interpretation,
-        steerClarificationText: "",
-        steerMessage:
-        interpretation.status === "confirmation_required"
-          ? "Review this steer before applying it to the next five."
-          : "One clarification, then the steer stays tonight-only.",
-      });
-    } catch (error) {
-      patchResults({ steerMessage: toErrorMessage(error) });
-    } finally {
-      patchTonightIntent({ status: "ready" });
-    }
-  }
-
-  async function answerSteerClarification(): Promise<void> {
-    if (pendingSteerIntent?.status !== "clarification_required") {
-      return;
-    }
-
-    const answer = steerClarificationText.trim();
-    if (!answer) {
-      patchResults({ steerMessage: "Answer the clarification first." });
-      return;
-    }
-
-    if (!apiHealth.connected) {
-      patchResults({ steerMessage: "Steer next 5 needs the local API connection." });
-      return;
-    }
-
-    patchTonightIntent({ status: "loading" });
-    patchResults({ steerMessage: null });
-
-    try {
-      const interpretation = await interpretDirectedNudge(
-        `${pendingSteerIntent.rawText}. Clarification: ${answer}`,
-      );
-      patchResults({
-        pendingSteerIntent: interpretation,
-        steerClarificationText: "",
-        steerMessage: "Review this steer before applying it to the next five.",
-      });
-    } catch (error) {
-      patchResults({ steerMessage: toErrorMessage(error) });
-    } finally {
-      patchTonightIntent({ status: "ready" });
-    }
-  }
-
-  async function applySteerAndShowMore(): Promise<void> {
-    if (pendingSteerIntent?.status !== "confirmation_required") {
-      return;
-    }
-
-    const nextTonightIntents = [...activeTonightIntents, pendingSteerIntent];
-    patchTonightIntent({ activeIntents: nextTonightIntents });
-    patchResults({
-      pendingSteerIntent: null,
-      steerText: "",
-      steerClarificationText: "",
-      steerMessage: null,
-    });
-    await continueWithTonightIntents(nextTonightIntents);
-  }
-
-  function addSteerToNextFive(): void {
-    if (pendingSteerIntent?.status !== "confirmation_required") {
-      return;
-    }
-
-    patchTonightIntent((current) => ({
-      activeIntents: [...current.activeIntents, pendingSteerIntent],
-    }));
-    patchResults({
-      pendingSteerIntent: null,
-      steerText: "",
-      steerClarificationText: "",
-      steerMessage: "Added. You can add another steer or find five more now.",
-    });
-  }
-
-  function applyTonightIntent(): void {
-    if (pendingTonightIntent?.status !== "confirmation_required") {
-      return;
-    }
-
-    patchTonightIntent({
-      activeIntents: [pendingTonightIntent],
-      pendingIntent: null,
-      message: "Applied to tonight only. Your taste profile is unchanged.",
-    });
-  }
-
-  function clearTonightIntent(): void {
-    patchTonightIntent({
-      activeIntents: [],
-      pendingIntent: null,
-      text: "",
-      clarificationText: "",
-      message: null,
-    });
-  }
 
   async function recordReaction(
     actor: "founder" | "wife",
@@ -737,7 +415,12 @@ export function PassThePhoneWizard({
 
       if (founderIndex === sessionCandidates.length - 1) {
         await submitActorPass("founder", nextReactions);
-        setStep(isCoupleSession ? "handoff" : "results");
+        dispatchNavigation(
+          passCompletedNavigationAction({
+            actor: "founder",
+            coupleSession: isCoupleSession,
+          }),
+        );
         return;
       }
 
@@ -750,7 +433,12 @@ export function PassThePhoneWizard({
 
     if (wifeIndex === sessionCandidates.length - 1) {
       await submitActorPass("wife", nextReactions);
-      setStep("results");
+      dispatchNavigation(
+        passCompletedNavigationAction({
+          actor: "wife",
+          coupleSession: isCoupleSession,
+        }),
+      );
       return;
     }
 
@@ -770,88 +458,52 @@ export function PassThePhoneWizard({
 
     setSeenMemoryPrompt(null);
 
-    if (!apiHealth.connected || memory === "forget") {
-      return;
-    }
-
-    patchSession({ syncStatus: "saving", apiError: null });
-
-    try {
-      const profileId = actor === "founder" ? participantIds[0] : participantIds[1];
-      const onboarding = await getProfileOnboarding(profileId);
-      await saveProfileOnboarding(
-        profileId,
-        mergeSeenMemoryIntoOnboarding(onboarding, candidate, memory),
-      );
-    } catch (error) {
-      patchSession({
-        apiError: `${toSeenMemoryErrorMessage(error)} This note is only local for now.`,
-      });
-    } finally {
-      patchSession({ syncStatus: "ready" });
-    }
-  }
-
-  function participantIdForActor(actor: "founder" | "wife"): string | null {
-    if (peopleMode === "couple") {
-      return actor === "founder" ? participantIds[0] : participantIds[1];
-    }
-
-    if (peopleMode === "founder") {
-      return actor === "founder" ? participantIds[0] : null;
-    }
-
-    return actor === "wife" ? participantIds[0] : null;
+    await persistSeenMemory(
+      {
+        apiConnected: apiHealth.connected,
+        peopleMode,
+        participantIds,
+        actor,
+        candidate,
+        memory,
+      },
+      sessionProgressPorts(),
+    );
   }
 
   async function submitActorPass(
     actor: "founder" | "wife",
     nextReactions: ReactionState,
   ): Promise<void> {
-    if (sessionSource !== "api" || sharedSession === null) {
-      return;
-    }
-
-    const participantId = participantIdForActor(actor);
-
-    if (!participantId) {
-      return;
-    }
-
-    patchSession({ syncStatus: "saving", apiError: null });
-
-    try {
-      const session = await submitSessionReactions(sharedSession.sessionId, {
-        participantId,
-        reactions: reactionsPayload(sessionCandidates, nextReactions),
-      });
-      patchSession({ sharedSession: session });
-    } catch (error) {
-      setDemoDebugFallback();
-      patchSession({ apiError: toErrorMessage(error) });
-    } finally {
-      patchSession({ syncStatus: "ready" });
-    }
+    await submitActorSessionPass(
+      {
+        sessionSource,
+        sharedSession,
+        peopleMode,
+        participantIds,
+        actor,
+        candidates: sessionCandidates,
+        reactions: nextReactions,
+      },
+      sessionProgressPorts(),
+    );
   }
 
   async function continueAfterHandoff(): Promise<void> {
-    if (sessionSource !== "api" || sharedSession === null) {
-      setStep("wife");
-      return;
-    }
+    await advancePassThePhoneHandoff(
+      { sessionSource, sharedSession },
+      sessionProgressPorts(),
+    );
+  }
 
-    patchSession({ syncStatus: "loading", apiError: null });
-
-    try {
-      const session = await advanceSessionHandoff(sharedSession.sessionId);
-      patchSession({ sharedSession: session });
-    } catch (error) {
-      setDemoDebugFallback();
-      patchSession({ apiError: toErrorMessage(error) });
-    } finally {
-      patchSession({ syncStatus: "ready" });
-      setStep("wife");
-    }
+  function sessionProgressPorts() {
+    return {
+      startSessionSync,
+      finishSessionSync,
+      updateSession,
+      setDemoDebugFallback,
+      completeHandoff: () => dispatchNavigation({ type: "handoff.completed" }),
+    };
   }
 
 
@@ -918,12 +570,12 @@ export function PassThePhoneWizard({
           profileMemoryEvents={profileMemoryEvents}
           profileMemoryMessage={profileMemoryMessage}
           tonightIntentText={tonightIntentText}
-          onTonightIntentTextChange={(value) => patchTonightIntent({ text: value })}
+          onTonightIntentTextChange={(value) => updateTonightIntent({ text: value })}
           pendingTonightIntent={pendingTonightIntent}
           activeTonightIntent={activeTonightIntent}
           tonightIntentClarificationText={tonightIntentClarificationText}
           onTonightIntentClarificationTextChange={(value) =>
-            patchTonightIntent({ clarificationText: value })
+            updateTonightIntent({ clarificationText: value })
           }
           tonightIntentBusy={tonightIntentBusy}
           tonightIntentMessage={tonightIntentMessage}
@@ -979,7 +631,7 @@ export function PassThePhoneWizard({
             }
             onBack={() => {
               if ((firstPassActor === "founder" ? founderIndex : wifeIndex) === 0) {
-                setStep("setup");
+                dispatchNavigation({ type: "session.reset" });
                 return;
               }
 
@@ -1007,7 +659,7 @@ export function PassThePhoneWizard({
           founderReactions={founderReactions}
           founderSeenMemories={founderSeenMemories}
           isSyncing={isSyncing}
-          onBack={() => setStep("founder")}
+          onBack={() => dispatchNavigation({ type: "navigation.back" })}
           onContinue={continueAfterHandoff}
         />
       ) : null}
@@ -1031,7 +683,7 @@ export function PassThePhoneWizard({
             }
             onBack={() => {
               if (wifeIndex === 0) {
-                setStep("handoff");
+                dispatchNavigation({ type: "navigation.back" });
                 return;
               }
 
@@ -1076,10 +728,10 @@ export function PassThePhoneWizard({
           onRefreshProfileMemory={loadProfileMemorySummaries}
           onReset={resetSession}
           onShowMore={showFiveMore}
-          onSteerTextChange={(value) => patchResults({ steerText: value })}
+          onSteerTextChange={(value) => updateResults({ steerText: value })}
           onInterpretSteer={interpretSteerText}
           onSteerClarificationTextChange={(value) =>
-            patchResults({ steerClarificationText: value })
+            updateResults({ steerClarificationText: value })
           }
           onAnswerSteerClarification={answerSteerClarification}
           onAddSteer={addSteerToNextFive}
@@ -1125,256 +777,4 @@ export function PassThePhoneWizard({
     </main>
   );
 
-  async function loadDebugHistory(): Promise<void> {
-    if (sessionSource !== "api" || sharedSession === null) {
-      patchResults({
-        debugHistory: null,
-        tasteProfileSummaries: [],
-        debugHistoryStatus: "failed",
-        debugHistoryMessage: flowMessages.backendDebugHistoryOnly,
-      });
-      return;
-    }
-
-    patchResults({ debugHistoryStatus: "loading", debugHistoryMessage: null });
-
-    try {
-      const history = await getSessionDebugHistory(sharedSession.sessionId);
-      const summaries = await tasteProfileSummariesForSession(
-        history.householdId,
-        history.participantIds,
-      );
-      patchResults({
-        debugHistory: history,
-        tasteProfileSummaries: summaries,
-        debugHistoryStatus: "ready",
-      });
-    } catch (error) {
-      patchResults({
-        debugHistory: null,
-        tasteProfileSummaries: [],
-        debugHistoryStatus: "failed",
-        debugHistoryMessage: toDebugHistoryErrorMessage(error),
-      });
-    }
-  }
-
-  async function loadTasteProfileSummariesForSession(
-    session: SharedSessionPayload,
-  ): Promise<void> {
-    try {
-      patchResults({
-        tasteProfileSummaries:
-          await tasteProfileSummariesForSession(
-            session.householdId,
-            session.participantIds,
-          ),
-      });
-    } catch {
-      patchResults({ tasteProfileSummaries: [] });
-    }
-  }
-
-  async function tasteProfileSummariesForSession(
-    householdId: string,
-    profileIds: string[],
-  ): Promise<TasteProfileSummaryPayload[]> {
-    return Promise.all(
-      profileIds.map((profileId) => getTasteProfileSummary(householdId, profileId)),
-    );
-  }
-
-  async function loadRecentSessions(): Promise<void> {
-    if (!apiHealth.connected) {
-      patchHistoryPanel({
-        recentSessions: [],
-        recentSessionsStatus: "failed",
-        recentSessionsMessage: flowMessages.recentHistoryUnavailable,
-      });
-      return;
-    }
-
-    patchHistoryPanel({ recentSessionsStatus: "loading", recentSessionsMessage: null });
-
-    try {
-      const sessions = await getRecentSessions("default-household", 6);
-      patchHistoryPanel({ recentSessions: sessions, recentSessionsStatus: "ready" });
-    } catch (error) {
-      patchHistoryPanel({
-        recentSessions: [],
-        recentSessionsStatus: "failed",
-        recentSessionsMessage: toDebugHistoryErrorMessage(error),
-      });
-    }
-  }
-
-  async function loadRecentSessionDetail(sessionId: string): Promise<void> {
-    patchHistoryPanel({ selectedHistoryStatus: "loading", selectedHistoryMessage: null });
-
-    try {
-      const history = await getSessionDebugHistory(sessionId);
-      patchHistoryPanel({ selectedHistory: history, selectedHistoryStatus: "ready" });
-    } catch (error) {
-      patchHistoryPanel({
-        selectedHistory: null,
-        selectedHistoryStatus: "failed",
-        selectedHistoryMessage: toDebugHistoryErrorMessage(error),
-      });
-    }
-  }
-}
-
-function serviceConstraintFromAvailability(availabilityRegion: string): string | null {
-  const normalized = availabilityRegion.trim().toLowerCase();
-  if (normalized.includes("any streaming") || normalized.includes("no provider")) {
-    return null;
-  }
-  if (normalized.includes("prime")) {
-    return "Prime Video";
-  }
-  return availabilityRegion.trim() || null;
-}
-
-function reviewModeV2DebugHistory({
-  bestPick,
-  participantIds,
-  sessionMode,
-}: {
-  bestPick: RankedCandidate;
-  participantIds: string[];
-  sessionMode: SessionMode;
-}): DebugHistorySessionPayload {
-  const sessionId = "review-v2-explanation";
-  return {
-    activeMode: sessionMode,
-    batchCount: 1,
-    bestPickSourceMovieId: bestPick.id,
-    founderReactions: [],
-    householdId: "default-household",
-    participantIds,
-    postWatchFeedback: [],
-    previousFounderReactions: [],
-    previousShortlist: [],
-    previousWifeReactions: [],
-    recommendationSnapshot: {
-      candidateInputs: [
-        {
-          alreadyWatched: false,
-          enrichmentFeatureScores: {
-            profile_concept_fit: 0.82,
-            candidate_concept_depth: 0.74,
-          },
-          enrichmentProvider: "review_fixture",
-          enrichmentStatus: "enriched",
-          genres: bestPick.genres,
-          isInterestingSafePick: bestPick.safePickStatus === "Safe Pick",
-          matchedEnrichmentSourceMovieId: bestPick.id,
-          providerAccess: [bestPick.availability],
-          providers: [bestPick.availability],
-          safetyStatus: bestPick.safePickStatus,
-          sourceMovieId: bestPick.id,
-          title: bestPick.title,
-        },
-      ],
-      candidates: [
-        {
-          candidateRank: 1,
-          dominantPositiveEvidence: [
-            "profile_memory:concept_fit",
-            "candidate_metadata:theme_depth",
-            "shared_reconciliation:bridge_pick",
-          ],
-          dominantPenalties: [
-            "negative_preference:slow_burn_risk",
-          ],
-          fitBucket: "strong",
-          groupScore: bestPick.score,
-          hardFilterPass: true,
-          isInterestingPick: true,
-          scoringEvidence: [
-            {
-              contributions: [
-                {
-                  family: "profile_memory",
-                  label: "profile_memory:concept_fit",
-                  value: 0.42,
-                },
-                {
-                  family: "candidate_metadata",
-                  label: "candidate_metadata:theme_depth",
-                  value: 0.31,
-                },
-                {
-                  family: "negative_preference",
-                  label: "negative_preference:slow_burn_risk",
-                  value: -0.11,
-                },
-              ],
-              enrichmentStatus: "enriched",
-              signalFamilies: [
-                "profile_memory",
-                "candidate_metadata",
-                "negative_preference",
-              ],
-              sourceMovieId: bestPick.id,
-            },
-          ],
-          sourceMovieId: bestPick.id,
-          title: bestPick.title,
-          userScores: participantIds.map((participantId, index) => ({
-            score: index === 0 ? 0.86 : 0.8,
-            userId: participantId,
-          })),
-          whyShort:
-            "V2 review fixture showing profile fit, candidate metadata, and a visible penalty.",
-        },
-      ],
-      confidenceLabel: "medium",
-      confidenceScore: 0.74,
-      enrichmentCoverage: {
-        candidateCount: 1,
-        enrichedCandidateCount: 1,
-        enrichmentRate: 1,
-        fallbackCandidateCount: 0,
-      },
-      fallbackReason: null,
-      interestingSafePickId: bestPick.id,
-      isUncertain: false,
-      partialSupportNotes: [
-        "V2 explanation fixture: profile and candidate evidence are visible in review mode.",
-      ],
-      recommendedFollowUp: null,
-      scorerVersion: "v2_contract",
-      sessionId,
-      uncertaintyReason: null,
-    },
-    rerankedSourceMovieIds: [bestPick.id],
-    sessionId,
-    sessionOutcome: null,
-    shortlist: [
-      {
-        candidateRank: 1,
-        sourceMovieId: bestPick.id,
-        title: bestPick.title,
-      },
-    ],
-    shownSourceMovieIds: [bestPick.id],
-    state: "reranked",
-    unavailableEvidence: [],
-    wifeReactions: [],
-  };
-}
-
-function reviewModeTasteProfileSummaries(
-  participantIds: string[],
-): TasteProfileSummaryPayload[] {
-  return participantIds.map((profileId) => ({
-    evidence: [],
-    familiarityOnlyCount: 0,
-    genreSignals: [],
-    householdId: "default-household",
-    preferenceEvidenceCount: 1,
-    profileId,
-    ratingCount: 1,
-  }));
 }
