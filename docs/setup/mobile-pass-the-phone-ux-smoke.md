@@ -21,6 +21,8 @@ pnpm beta:dogfood
 The script starts the Next.js web app on a temporary localhost port unless `MOBILE_UX_SMOKE_URL` is set.
 By default it points the web app at an unused local API port so the flow uses demo data and does not write household or session data to the backend.
 For browser startup it prefers, in order, `MOBILE_UX_SMOKE_BROWSER_BIN`, `BRAVE_BIN`, `CHROME_BIN`, the standard macOS Brave app path, the standard macOS Chrome and Chromium app paths, and then common PATH names such as `brave-browser` and `google-chrome`.
+The browser uses its normal multi-process architecture because current Chromium releases can fail to reserve V8 code memory in single-process mode.
+Set `MOBILE_UX_SMOKE_SINGLE_PROCESS=1` only in a constrained environment that explicitly requires the legacy mode.
 
 To target an already running local web app:
 

@@ -502,23 +502,26 @@ async function startChrome() {
   const port = await getFreePort();
   chromeProfileDir = await mkdtemp(join(tmpdir(), "movie-night-mobile-ux-"));
   let stderrOutput = "";
+  const browserArgs = [
+    "--headless=new",
+    `--remote-debugging-port=${port}`,
+    `--user-data-dir=${chromeProfileDir}`,
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--disable-background-networking",
+    "--disable-extensions",
+    "--disable-gpu",
+    "--disable-dev-shm-usage",
+    "--disable-setuid-sandbox",
+    "--no-sandbox",
+  ];
+  if (process.env.MOBILE_UX_SMOKE_SINGLE_PROCESS === "1") {
+    browserArgs.push("--single-process");
+  }
+  browserArgs.push("about:blank");
   const child = spawn(
     browserInstall.path,
-    [
-      "--headless=new",
-      `--remote-debugging-port=${port}`,
-      `--user-data-dir=${chromeProfileDir}`,
-      "--no-first-run",
-      "--no-default-browser-check",
-      "--disable-background-networking",
-      "--disable-extensions",
-      "--disable-gpu",
-      "--disable-dev-shm-usage",
-      "--disable-setuid-sandbox",
-      "--no-sandbox",
-      "--single-process",
-      "about:blank",
-    ],
+    browserArgs,
     { stdio: ["ignore", "ignore", "pipe"], detached: true },
   );
   startedProcesses.push(child);
