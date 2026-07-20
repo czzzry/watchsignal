@@ -344,7 +344,10 @@ async function seedBackendOnboarding(apiBaseUrl) {
     throw new Error("Backend-backed UX smoke could not create the tester profile.");
   }
 
-  for (const profile of profiles.slice(0, 2)) {
+  const selectedProfiles = [setup?.activeProfileId, setup?.partnerProfileId].map(
+    (profileId) => profiles.find((profile) => profile?.id === profileId),
+  );
+  for (const profile of selectedProfiles) {
     if (
       typeof profile !== "object" ||
       profile === null ||
