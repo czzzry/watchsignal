@@ -13,7 +13,7 @@
     "@tsparticles/slim": "^4.3.2",
     "next": "^16.2.10",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",
