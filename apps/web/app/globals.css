@@ -4481,6 +4481,42 @@ summary:focus-visible {
   font-weight: 800;
 }
 
+.showcaseActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.showcaseActions a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  border-radius: 999px;
+  padding: 0 20px;
+  font-size: 0.9rem;
+  font-weight: 900;
+  text-decoration: none;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.showcaseActions a:hover {
+  transform: translateY(-2px);
+}
+
+.showcaseActionPrimary {
+  border: 1px solid #79eaff;
+  background: #79eaff;
+  color: #061018;
+  box-shadow: 0 12px 32px rgba(111, 231, 255, 0.2);
+}
+
+.showcaseActionSecondary {
+  border: 1px solid rgba(239, 244, 255, 0.32);
+  background: rgba(12, 20, 32, 0.72);
+  color: #f7f8ff;
+}
+
 .showcasePhone {
   position: relative;
   z-index: 1;

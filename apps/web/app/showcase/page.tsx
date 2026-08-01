@@ -4,7 +4,7 @@ const bestPick = demoCandidates[0];
 
 export const metadata = {
   title: "WatchSignal Showcase",
-  description: "A recruiter-facing showcase for the WatchSignal MVP.",
+  description: "See how WatchSignal turns two private reactions into one shared movie pick.",
 };
 
 export default function ShowcasePage() {
@@ -23,6 +23,17 @@ export default function ShowcasePage() {
             <span>Find the overlap</span>
             <span>Dodge the vetoes</span>
             <span>Keep the couch happy</span>
+          </div>
+          <div className="showcaseActions">
+            <a className="showcaseActionPrimary" href="/showcase/flow">
+              See the two-person flow
+            </a>
+            <a
+              className="showcaseActionSecondary"
+              href="https://github.com/czzzry/WatchSignal"
+            >
+              Explore the build
+            </a>
           </div>
         </div>
 

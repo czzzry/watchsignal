@@ -1,0 +1,47 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.demo
+      target: api
+    environment:
+      MOVIE_NIGHT_MEDIATOR_SQLITE_PATH: /data/watchsignal.sqlite3
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - watchsignal-demo-data:/data
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.demo
+      target: web
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      API_BASE_URL: http://api:8000
+      MOVIE_NIGHT_RECOMMENDATION_SOURCE: fixture
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/showcase').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    ports:
+      - "127.0.0.1:3000:3000"
+
+volumes:
+  watchsignal-demo-data:
