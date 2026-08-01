@@ -34,6 +34,7 @@ import { usePassThePhoneOnboardingSetupState } from "./pass-the-phone/use-pass-t
 import {
   HandoffStep,
   LaunchSting,
+  CinematicTransitionOverlay,
   OnboardingDialog,
   ReactionStep,
   ResultsStep,
@@ -41,6 +42,7 @@ import {
   SeenMemoryDialog,
   SessionRecoveryStep,
   SetupStep,
+  type CinematicWaitKind,
 } from "./pass-the-phone-components";
 import {
   demoCandidateViewModels,
@@ -65,6 +67,11 @@ type PassThePhoneWizardProps = {
 };
 
 const stepOrder: WizardStep[] = ["setup", "founder", "handoff", "wife", "results"];
+
+function cinematicDelay(duration: number): Promise<void> {
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return new Promise((resolve) => window.setTimeout(resolve, prefersReducedMotion ? Math.min(duration, 180) : duration));
+}
 
 export function PassThePhoneWizard({
   apiHealth,
@@ -138,6 +145,7 @@ export function PassThePhoneWizard({
     resetBatch,
   } = sessionControl;
   const [showLaunchSting, setShowLaunchSting] = useState(true);
+  const [cinematicWait, setCinematicWait] = useState<CinematicWaitKind | null>(null);
   const [reviewMode, setReviewMode] = useState(false);
   const {
     session,
@@ -339,21 +347,38 @@ export function PassThePhoneWizard({
       }
     }
 
-    await startPassThePhoneSession(
-      {
-        apiConnected: apiHealth.connected,
-        isCoupleSession,
-        sessionMode,
-        participantIds,
-        shortlistSize: effectiveSetupLoad.setup.defaults.shortlistSize,
-        availabilityRegion: effectiveSetupLoad.setup.defaults.availabilityRegion,
-        activeTonightIntent,
-        activeTonightIntents,
-        fallbackCandidates: demoCandidateViewModels,
-        disconnectedMessage: flowMessages.disconnectedSession,
-      },
-      sessionLifecyclePorts(),
-    );
+    setCinematicWait("building");
+    let sessionReady = false;
+    try {
+      await Promise.all([
+        startPassThePhoneSession(
+          {
+            apiConnected: apiHealth.connected,
+            isCoupleSession,
+            sessionMode,
+            participantIds,
+            shortlistSize: effectiveSetupLoad.setup.defaults.shortlistSize,
+            availabilityRegion: effectiveSetupLoad.setup.defaults.availabilityRegion,
+            activeTonightIntent,
+            activeTonightIntents,
+            fallbackCandidates: demoCandidateViewModels,
+            disconnectedMessage: flowMessages.disconnectedSession,
+          },
+          {
+            ...sessionLifecyclePorts(),
+            navigateToStarted: () => {
+              sessionReady = true;
+            },
+          },
+        ),
+        cinematicDelay(1500),
+      ]);
+      if (sessionReady) {
+        dispatchNavigation({ type: "session.started" });
+      }
+    } finally {
+      setCinematicWait(null);
+    }
   }
 
   async function showFiveMore(): Promise<void> {
@@ -414,13 +439,21 @@ export function PassThePhoneWizard({
       setFounderReactions(nextReactions);
 
       if (founderIndex === sessionCandidates.length - 1) {
-        await submitActorPass("founder", nextReactions);
-        dispatchNavigation(
-          passCompletedNavigationAction({
-            actor: "founder",
-            coupleSession: isCoupleSession,
-          }),
-        );
+        setCinematicWait(isCoupleSession ? "sealing" : "matching");
+        try {
+          await Promise.all([
+            submitActorPass("founder", nextReactions),
+            cinematicDelay(isCoupleSession ? 1500 : 2100),
+          ]);
+          dispatchNavigation(
+            passCompletedNavigationAction({
+              actor: "founder",
+              coupleSession: isCoupleSession,
+            }),
+          );
+        } finally {
+          setCinematicWait(null);
+        }
         return;
       }
 
@@ -432,13 +465,21 @@ export function PassThePhoneWizard({
     setWifeReactions(nextReactions);
 
     if (wifeIndex === sessionCandidates.length - 1) {
-      await submitActorPass("wife", nextReactions);
-      dispatchNavigation(
-        passCompletedNavigationAction({
-          actor: "wife",
-          coupleSession: isCoupleSession,
-        }),
-      );
+      setCinematicWait("matching");
+      try {
+        await Promise.all([
+          submitActorPass("wife", nextReactions),
+          cinematicDelay(2100),
+        ]);
+        dispatchNavigation(
+          passCompletedNavigationAction({
+            actor: "wife",
+            coupleSession: isCoupleSession,
+          }),
+        );
+      } finally {
+        setCinematicWait(null);
+      }
       return;
     }
 
@@ -490,10 +531,27 @@ export function PassThePhoneWizard({
   }
 
   async function continueAfterHandoff(): Promise<void> {
-    await advancePassThePhoneHandoff(
-      { sessionSource, sharedSession },
-      sessionProgressPorts(),
-    );
+    setCinematicWait("handoff");
+    let handoffReady = false;
+    try {
+      await Promise.all([
+        advancePassThePhoneHandoff(
+          { sessionSource, sharedSession },
+          {
+            ...sessionProgressPorts(),
+            completeHandoff: () => {
+              handoffReady = true;
+            },
+          },
+        ),
+        cinematicDelay(1300),
+      ]);
+      if (handoffReady) {
+        dispatchNavigation({ type: "handoff.completed" });
+      }
+    } finally {
+      setCinematicWait(null);
+    }
   }
 
   function sessionProgressPorts() {
@@ -510,6 +568,7 @@ export function PassThePhoneWizard({
   return (
     <main className="appShell">
       {showLaunchSting ? <LaunchSting /> : null}
+      {cinematicWait ? <CinematicTransitionOverlay kind={cinematicWait} /> : null}
 
       {step !== "setup" && step !== "founder" && step !== "handoff" && step !== "wife" && step !== "results" ? (
         <header className="topBar">
@@ -656,8 +715,6 @@ export function PassThePhoneWizard({
         <HandoffStep
           founderLabel={founderLabel}
           wifeLabel={wifeLabel}
-          founderReactions={founderReactions}
-          founderSeenMemories={founderSeenMemories}
           isSyncing={isSyncing}
           onBack={() => dispatchNavigation({ type: "navigation.back" })}
           onContinue={continueAfterHandoff}

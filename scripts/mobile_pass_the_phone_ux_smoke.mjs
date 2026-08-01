@@ -80,6 +80,7 @@ async function main() {
     }
     await clickButton(tab, "Start first pass");
     await waitForText(tab, "1 of 5", "first pass");
+    await waitForCinematicScreen(tab, ".cinematicReactionPanel", "first pass entrance");
     await waitForPosterImage(tab);
     await captureScreenshot(tab, screenshotDir, "02-reaction-first");
 
@@ -96,9 +97,11 @@ async function main() {
     }
 
     await waitForText(tab, "Pass the phone to", "handoff screen");
+    await waitForCinematicScreen(tab, ".cinematicHandoffPanel", "handoff entrance");
     await assertNoHorizontalOverflow(tab, "handoff screen");
-    await clickButton(tab, "Start second pass");
+    await clickButton(tab, "begin");
     await waitForText(tab, "1 of 5", "second pass");
+    await waitForCinematicScreen(tab, ".cinematicReactionPanel", "second pass entrance");
 
     for (const [index, reaction] of ["Maybe", "Interested", "Interested", "Maybe", "No"].entries()) {
       await clickButton(tab, reaction);
@@ -107,6 +110,7 @@ async function main() {
 
     try {
       await waitForText(tab, "Tonight", "results screen");
+      await waitForCinematicScreen(tab, ".cinematicResultsPanel", "results entrance");
       await waitForText(tab, "Backups we also liked", "results backups");
       if (useBackendMode) {
         await waitForText(tab, "Current signals", "results evidence panel");
@@ -209,6 +213,9 @@ async function main() {
         `Outcome mode: ${outcomeMode === "other" ? "watched_other shortlist title" : "watched_recommended best pick"}`,
       );
     }
+  } catch (error) {
+    await reportVisiblePageState(tab, "journey failure");
+    throw error;
   } finally {
     if (process.env.MOBILE_UX_SMOKE_DEBUGGING_URL) {
       browser.disconnect();
@@ -958,6 +965,21 @@ async function waitForLaunchStingToFinish(tab) {
         return styles.visibility === "hidden" || Number(styles.opacity) < 0.05;
       }),
     "launch sting to finish",
+    5_000,
+  );
+}
+
+async function waitForCinematicScreen(tab, selector, label) {
+  await waitForValue(
+    async () =>
+      evaluate(tab, (wantedSelector) => {
+        const screen = document.querySelector(wantedSelector);
+        if (!screen) {
+          return false;
+        }
+        return screen.getAnimations().every((animation) => animation.playState === "finished");
+      }, selector),
+    label,
     5_000,
   );
 }

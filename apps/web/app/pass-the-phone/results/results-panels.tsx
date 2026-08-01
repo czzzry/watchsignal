@@ -237,11 +237,12 @@ export function ResultsActions({
       <div className="resultsActionRow" role="group" aria-label="Results actions">
         <button
           type="button"
-          className="resultsPrimaryAction"
+          className={isSyncing ? "resultsPrimaryAction cinematicResultActionPending" : "resultsPrimaryAction"}
           onClick={onShowMore}
           disabled={!canShowMore || isSyncing}
           aria-expanded={continuationOpen}
         >
+          {isSyncing ? <ResultBusyMark /> : null}
           <span>
             {isSyncing
               ? "Finding the next 5..."
@@ -249,14 +250,22 @@ export function ResultsActions({
                 ? "Close next-5 options"
                 : "Refine next 5"}
           </span>
-          <RedoIcon />
+          {!isSyncing ? <RedoIcon /> : null}
         </button>
         <button
           type="button"
-          className="secondaryButton resultsSecondaryAction"
+          className={
+            watchlistStatus === "saving"
+              ? "secondaryButton resultsSecondaryAction cinematicResultActionPending"
+              : isBestPickSaved
+                ? "secondaryButton resultsSecondaryAction cinematicResultActionSuccess"
+                : "secondaryButton resultsSecondaryAction"
+          }
           onClick={onSaveBestPick}
           disabled={!canSaveWatchlist || watchlistStatus === "saving"}
         >
+          {watchlistStatus === "saving" ? <ResultBusyMark /> : null}
+          {isBestPickSaved && watchlistStatus !== "saving" ? <span className="cinematicResultSuccessMark" aria-hidden="true">✓</span> : null}
           <span>
             {watchlistStatus === "saving"
               ? "Saving..."
@@ -264,7 +273,7 @@ export function ResultsActions({
                 ? "Saved for later"
                 : "Add to watchlist"}
           </span>
-          <BookmarkIcon />
+          {watchlistStatus !== "saving" && !isBestPickSaved ? <BookmarkIcon /> : null}
         </button>
       </div>
 
@@ -273,6 +282,16 @@ export function ResultsActions({
         <span>Start new night</span>
       </button>
     </>
+  );
+}
+
+function ResultBusyMark() {
+  return (
+    <span className="cinematicResultBusyMark" aria-hidden="true">
+      <i />
+      <i />
+      <i />
+    </span>
   );
 }
 
