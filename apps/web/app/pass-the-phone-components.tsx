@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { SetupLoadResult, SetupProfile } from "./setup-api";
 import {
   reactionLabels,
@@ -10,8 +10,6 @@ import {
 } from "./session-fixtures";
 import {
   bucketHint,
-  countReactions,
-  countSeenMemories,
   createSessionId,
   describeSharedWhy,
   entryKey,
@@ -103,6 +101,125 @@ const seenMemoryLabels: Record<SeenMemoryValue, string> = {
   no: "Hated it",
   forget: "I forget",
 };
+
+export type CinematicWaitKind = "building" | "sealing" | "handoff" | "matching";
+
+const cinematicWaitContent: Record<
+  CinematicWaitKind,
+  { eyebrow: string; title: string; steps: [string, string, string] }
+> = {
+  building: {
+    eyebrow: "WatchSignal is working",
+    title: "Building tonight's shortlist",
+    steps: ["Reading tonight's mood", "Balancing both taste profiles", "Shortlist ready"],
+  },
+  sealing: {
+    eyebrow: "Ballot complete",
+    title: "Keeping the first pass private",
+    steps: ["Saving reactions", "Removing vote clues", "Ready for handoff"],
+  },
+  handoff: {
+    eyebrow: "Private handoff",
+    title: "Opening a clean second pass",
+    steps: ["Locking the first ballot", "Clearing reaction traces", "Second pass ready"],
+  },
+  matching: {
+    eyebrow: "Two sealed ballots",
+    title: "Finding the overlap",
+    steps: ["Saving the second pass", "Ruling out hard noes", "Resolving the strongest match"],
+  },
+};
+
+function CinematicBusyMark() {
+  return (
+    <span className="cinematicBusyMark" aria-hidden="true">
+      <i />
+      <i />
+      <i />
+    </span>
+  );
+}
+
+export function CinematicTransitionOverlay({ kind }: { kind: CinematicWaitKind }) {
+  const [step, setStep] = useState(0);
+  const overlayRef = useRef<HTMLElement>(null);
+  const content = cinematicWaitContent[kind];
+
+  useEffect(() => {
+    setStep(0);
+    const second = window.setTimeout(() => setStep(1), 480);
+    const third = window.setTimeout(() => setStep(2), 980);
+
+    return () => {
+      window.clearTimeout(second);
+      window.clearTimeout(third);
+    };
+  }, [kind]);
+
+  useEffect(() => {
+    const previousFocus = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    overlayRef.current?.focus();
+
+    return () => previousFocus?.focus();
+  }, []);
+
+  return (
+    <section
+      ref={overlayRef}
+      className={`cinematicWaitOverlay cinematicWaitOverlay${kind}`}
+      role="dialog"
+      aria-modal="true"
+      aria-live="polite"
+      aria-labelledby="cinematic-wait-title"
+      aria-describedby="cinematic-wait-detail"
+      tabIndex={-1}
+      onKeyDown={(event) => {
+        if (event.key === "Tab") {
+          event.preventDefault();
+        }
+      }}
+    >
+      <div className="cinematicWaitDeck" aria-hidden="true">
+        <img src="/concept-knives-out-poster.svg" alt="" />
+        <img src="/concept-arrival-poster.png" alt="" />
+        <img src="/concept-edge-of-tomorrow-poster.svg" alt="" />
+        <span />
+      </div>
+
+      <div className="cinematicWaitCopy">
+        <p>{content.eyebrow}</p>
+        <h2 id="cinematic-wait-title">{content.title}</h2>
+        <span id="cinematic-wait-detail">{content.steps[step]}</span>
+      </div>
+
+      <div
+        className="cinematicWaitProgress"
+        role="progressbar"
+        aria-label={content.title}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={[34, 68, 100][step]}
+      >
+        <div><span style={{ transform: `scaleX(${[0.34, 0.68, 1][step]})` }} /></div>
+        <strong>{[34, 68, 100][step]}%</strong>
+      </div>
+
+      <div className="cinematicWaitSteps" aria-hidden="true">
+        {content.steps.map((label, index) => (
+          <div
+            key={label}
+            className={index < step ? "cinematicWaitStepDone" : index === step ? "cinematicWaitStepActive" : ""}
+          >
+            <i>{index < step ? "✓" : index + 1}</i>
+            <span>{label}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 function handlePosterFallback(event: {
   currentTarget: HTMLImageElement;
@@ -528,12 +645,18 @@ export function SetupStep({
 
             <button
               type="button"
-              className="primaryAction heroAction startupPrimaryButton"
+              className={
+                primaryDisabled
+                  ? "primaryAction heroAction startupPrimaryButton cinematicActionPending"
+                  : "primaryAction heroAction startupPrimaryButton"
+              }
               onClick={primaryAction}
               disabled={primaryDisabled}
             >
+              {primaryDisabled ? <CinematicBusyMark /> : null}
               <span>{primaryLabel}</span>
-              {!onboardingRequired ? <span className="startupPrimaryArrow" aria-hidden="true">→</span> : null}
+              {!onboardingRequired && !primaryDisabled ? <span className="startupPrimaryArrow" aria-hidden="true">→</span> : null}
+              {primaryDisabled ? <small>{onboardingRequired ? "Saving" : "Preparing"}</small> : null}
             </button>
 
             <p className="startupFooterNote">
@@ -1220,9 +1343,17 @@ export function ReactionStep({
   onBack: () => void;
 }) {
   const [detailsExpanded, setDetailsExpanded] = useState(false);
+  const [pendingReaction, setPendingReaction] = useState<{
+    candidateId: string;
+    reaction: ReactionValue;
+  } | null>(null);
   useEffect(() => {
     setDetailsExpanded(false);
   }, [candidate.id]);
+  const pendingForCurrent = pendingReaction?.candidateId === candidate.id
+    ? pendingReaction.reaction
+    : undefined;
+  const activeReaction = pendingForCurrent ?? selectedReaction;
   const confidenceScore = candidate.taste.founder && candidate.taste.wife
     ? Math.round((candidate.taste.founder + candidate.taste.wife) / 2)
     : 87;
@@ -1230,6 +1361,22 @@ export function ReactionStep({
   const reactionSummary = candidate.hook ?? candidate.reason;
   const reactionDetail = candidate.whyNow ?? candidate.languageAccess;
   const synopsis = candidate.overview ?? candidate.reason;
+
+  async function commitReaction(reaction: ReactionValue): Promise<void> {
+    if (pendingReaction !== null || isSyncing) {
+      return;
+    }
+
+    setPendingReaction({ candidateId: candidate.id, reaction });
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 560));
+
+    try {
+      await onReaction(actor, candidate.id, reaction);
+    } finally {
+      setPendingReaction(null);
+    }
+  }
+
   return (
     <section className="wizardPanel reactionPanel cinematicReactionPanel" aria-labelledby="reaction-heading">
       <div className="reactionChrome">
@@ -1256,7 +1403,10 @@ export function ReactionStep({
         </div>
       </div>
 
-      <article className="movieCard">
+      <article
+        key={candidate.id}
+        className={pendingForCurrent ? "movieCard cinematicMovieCard cinematicMovieCardCommitting" : "movieCard cinematicMovieCard"}
+      >
         <div className="posterFrame">
           <img
             src={candidate.posterUrl}
@@ -1326,6 +1476,12 @@ export function ReactionStep({
             </div>
           ) : null}
         </div>
+        {pendingForCurrent ? (
+          <div className="cinematicReactionReceipt" role="status" aria-live="polite">
+            <i>✓</i>
+            <strong>{reactionLabels[pendingForCurrent]} saved privately</strong>
+          </div>
+        ) : null}
       </article>
 
       <div className="reactionActionDock" role="group" aria-label={`Reaction for ${candidate.title}`}>
@@ -1334,17 +1490,19 @@ export function ReactionStep({
             key={reaction}
             type="button"
             className={
-              selectedReaction === reaction
-                ? `reactionOrbButton reactionOrbButton${reaction} reactionOrbButtonActive`
+              activeReaction === reaction
+                ? `reactionOrbButton reactionOrbButton${reaction} reactionOrbButtonActive${pendingForCurrent === reaction ? " cinematicReactionPending" : ""}`
                 : `reactionOrbButton reactionOrbButton${reaction}`
             }
-            onClick={() => onReaction(actor, candidate.id, reaction)}
-            disabled={isSyncing}
+            onClick={() => void commitReaction(reaction)}
+            disabled={isSyncing || pendingReaction !== null}
           >
             <span className="reactionOrbIcon" aria-hidden="true">
-              <ReactionChoiceIcon kind={reaction} />
+              {activeReaction === reaction ? <span className="cinematicReactionCheck">✓</span> : <ReactionChoiceIcon kind={reaction} />}
             </span>
-            <span className="reactionOrbLabel">{reactionLabels[reaction]}</span>
+            <span className="reactionOrbLabel">
+              {activeReaction === reaction ? "Saved" : reactionLabels[reaction]}
+            </span>
           </button>
         ))}
         <button
@@ -1355,7 +1513,7 @@ export function ReactionStep({
               : "reactionOrbButton reactionOrbButtonseen"
           }
           onClick={onSeenIt}
-          disabled={isSyncing}
+          disabled={isSyncing || pendingReaction !== null}
         >
           <span className="reactionOrbIcon" aria-hidden="true">
             <ReactionChoiceIcon kind="seen" />
@@ -1721,25 +1879,21 @@ function OnboardingBucket({
 export function HandoffStep({
   founderLabel,
   wifeLabel,
-  founderReactions,
-  founderSeenMemories,
   isSyncing,
   onBack,
   onContinue,
 }: {
   founderLabel: string;
   wifeLabel: string;
-  founderReactions: ReactionState;
-  founderSeenMemories: SeenMemoryState;
   isSyncing: boolean;
   onBack: () => void;
   onContinue: () => void | Promise<void>;
 }) {
-  const counts = countReactions(founderReactions);
-  const seenCount = countSeenMemories(founderSeenMemories);
-
   return (
-    <section className="wizardPanel handoffPanel cinematicHandoffPanel" aria-labelledby="handoff-heading">
+    <section
+      className={isSyncing ? "wizardPanel handoffPanel cinematicHandoffPanel cinematicHandoffPending" : "wizardPanel handoffPanel cinematicHandoffPanel"}
+      aria-labelledby="handoff-heading"
+    >
       <div className="handoffHero" aria-hidden="true">
         <div className="handoffPhone">
           <div className="handoffPhoneGlow" />
@@ -1764,11 +1918,9 @@ export function HandoffStep({
         <p>Hand it over now, let {wifeLabel} react solo, and we&apos;ll show the overlap only at the end.</p>
       </div>
 
-      <div className="handoffStats">
-        <SummaryTile label="Interested" value={String(counts.interested)} />
-        <SummaryTile label="Maybe" value={String(counts.maybe)} />
-        <SummaryTile label="No" value={String(counts.no)} />
-        <SummaryTile label="Seen noted" value={String(seenCount)} />
+      <div className="handoffPrivacyProof" aria-label="Privacy checks">
+        <span><i>✓</i> Reactions hidden</span>
+        <span><i>✓</i> Same shortlist</span>
       </div>
 
       <div className="bottomActions inlineActions">
@@ -1780,8 +1932,16 @@ export function HandoffStep({
         >
           Back
         </button>
-        <button type="button" onClick={onContinue} disabled={isSyncing}>
-          {isSyncing ? "Saving handoff..." : "Start second pass"}
+        <button
+          type="button"
+          aria-label="Start second pass"
+          className={isSyncing ? "cinematicActionPending" : undefined}
+          onClick={onContinue}
+          disabled={isSyncing}
+        >
+          {isSyncing ? <CinematicBusyMark /> : null}
+          <span>{isSyncing ? `Opening ${wifeLabel}'s private pass` : `I'm ${wifeLabel} - begin`}</span>
+          {isSyncing ? <small>Private</small> : null}
         </button>
       </div>
     </section>
@@ -2307,7 +2467,16 @@ export function ResultsStep({
         <div className="resultsTopIcon">↗</div>
       </div>
 
-        <div className="sectionHeading resultsHeading resultsHeadingCentered">
+      <div className="cinematicRevealSignal" aria-hidden="true">
+        <i />
+        <i />
+        <strong>W</strong>
+      </div>
+      <p className="cinematicRevealEyebrow">
+        {peopleMode === "couple" ? "Both ballots unlocked" : "Your private ballot is ready"}
+      </p>
+
+      <div className="sectionHeading resultsHeading resultsHeadingCentered">
         <h2 id="results-heading">Tonight&apos;s pick</h2>
       </div>
 
