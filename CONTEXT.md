@@ -33,10 +33,5 @@ The source product intent and decision posture were carried over from the n8n co
 
 ## Private-transition recovery direction
 
-- Option A durable database recovery is the accepted architecture for API-backed couple sessions.
-- R1 strict recovery contracts and durable storage are independently accepted.
-- R2 authenticated stateless transport and scheduled cleanup are independently accepted.
-- R3 canonical session idempotency, command leases, stale-worker fencing, exact taste-memory side effects, and crash-window reconciliation are independently accepted.
-- R4 browser integration, result acknowledgement, and removal of the process-local vault are independently accepted.
-- R5 local release evidence passes the full web and API suites, API compilation, TypeScript, the production build, the live 390 by 844 household journey, MVP+4, and MVP+5.
-- Publication remains founder-owned because a deployed Vercel and Neon cold-invocation trace and an intentional reviewed Git checkpoint are not local implementation actions.
+- [ADR-002](docs/adrs/ADR-002-private-transition-recovery.md) owns the selected recovery architecture, privacy, retention, and rollback contract.
+- The [redesign acceptance matrix](docs/redesign-gauntlet/acceptance-matrix.md) owns slice status, and the [release checkpoint](docs/validation/watchsignal-redesign-release-checkpoint-2026-08-14.md) owns validation and publication status.

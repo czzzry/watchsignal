@@ -4,9 +4,9 @@
 
 Accepted on 2026-08-13 by the founder.
 
-Option A is selected for implementation in quiet mode.
+Option A is implemented.
 
-Option B remains the documented rollback path if durable recovery cannot pass its privacy, concurrency, deployment, or usability gates.
+Option B remains the documented rollback path if a privacy, concurrency, deployment, or usability regression requires durable recovery to be withdrawn.
 
 The corresponding implementation gates are:
 
@@ -33,7 +33,7 @@ This is sensitive transient household data even though the same database already
 
 The decision must preserve pass-the-phone privacy, survive multi-instance routing and cold starts, remain inspectable locally through SQLite, add no new vendor, and leave recommendation scoring and ordering unchanged.
 
-## Proposed decision
+## Decision
 
 Choose Option A and replace the process-local vault with one durable `PrivateTransitionRecovery` module backed by the existing SQLite and PostgreSQL database seam.
 

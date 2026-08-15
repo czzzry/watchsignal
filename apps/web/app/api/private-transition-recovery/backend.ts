@@ -119,7 +119,7 @@ function isSafeSuccess(
   return false;
 }
 
-function isSafeProjection(body: unknown): boolean {
+function isSafeProjection(body: unknown): body is Record<string, unknown> {
   if (!isObject(body) || typeof body.kind !== "string") {
     return false;
   }

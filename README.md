@@ -9,8 +9,6 @@
 </p>
 
 <p align="center">
-  <a href="https://watchsignal-web.vercel.app/showcase"><strong>View the product showcase</strong></a>
-  ·
   <a href="docs/recommendation-evaluation.md">Read the evaluation</a>
   ·
   <a href="docs/architecture/code-first-app-architecture.md">Explore the architecture</a>
@@ -28,24 +26,28 @@ It includes a phone-first Next.js interface, a FastAPI service, persistent house
 
 ## The Product Flow
 
-1. Two people set their mood, constraints, and viewing preferences.
-2. They pass the phone and react to the same shortlist independently.
-3. WatchSignal filters deal-breakers and ranks the remaining overlap.
-4. The result explains the strongest shared signal instead of presenting an unexplained score.
-5. Feedback and optional Taste Lab ratings become evidence for later recommendations.
+1. One or two viewers confirm profiles, availability, language, and an optional Tonight direction.
+2. Any incomplete profile adds the required Loved, Ok, and No onboarding seeds before recommendations begin.
+3. Each participant privately reacts to five movies, with a sealed handoff between people in couple mode.
+4. WatchSignal filters deal-breakers and ranks the remaining overlap.
+5. The ranked result explains the strongest shared signal, offers honest provider guidance, and keeps details and secondary actions progressively disclosed.
+6. Feedback, watchlist actions, seen-before memory, and optional Taste Lab ratings become evidence for later recommendations.
 
-The public showcase uses synthetic profiles and a fixed product story.
+The development-only showcase uses synthetic profiles and a fixed product story.
+Production hides showcase and prototype routes so only the household product reaches consumers.
 The signed-in household app, private taste calibration, and personal viewing data stay behind household access controls.
 
 ## What Is Working
 
-- A responsive pass-the-phone flow for setup, private reactions, and a shared result.
+- A cinematic phone-first flow for setup, onboarding, private reactions, sealed handoff, matching, and a ranked shared result.
+- Durable refresh recovery for API-backed couple handoff and matching, with privacy-safe interruption handling for local-only rounds.
+- Mobile accessibility across keyboard use, focus-managed dialogs, reduced motion, safe areas, and 200 percent text zoom.
 - Compromise, person-first, and safe-pick recommendation modes.
 - Filtering for watched titles, provider availability, media type, horror exclusions, and other hard constraints.
 - SQLite persistence for profiles, sessions, reactions, outcomes, feedback, watchlists, and recommendation snapshots.
 - A live TMDB candidate source with a deterministic fixture fallback.
 - An optional Taste Lab that turns fast movie ratings into profile-specific recommendation evidence.
-- A review surface that shows the inputs, filters, scores, and signals behind a result.
+- An explicit review mode that shows recommendation inputs, filters, scores, and signals without leaking diagnostics into the household flow.
 - A repeatable MovieLens evaluation ladder covering heuristics, popularity, collaborative filtering, and hybrid approaches.
 
 ## Recommendation Work
@@ -73,7 +75,7 @@ It starts the web app, FastAPI service, deterministic recommendation fixtures, a
 docker compose up --build
 ```
 
-Open [http://localhost:3000/showcase](http://localhost:3000/showcase) for the product story or [http://localhost:3000](http://localhost:3000) for the working household flow.
+Open [http://localhost:3000](http://localhost:3000) for the working household flow.
 The API health check is available at [http://localhost:8000/health](http://localhost:8000/health).
 
 When you are finished:
@@ -102,6 +104,7 @@ uv run uvicorn movie_night_mediator.api.main:app --reload
 
 The default development path uses deterministic candidates and local SQLite storage.
 Copy `.env.example` to `.env` only when you want to configure optional live services such as TMDB.
+The synthetic showcase remains available for local review at [http://localhost:3000/showcase](http://localhost:3000/showcase) while the development server is running.
 
 ## Architecture
 
@@ -132,7 +135,7 @@ pnpm build:web
 ```
 
 The main check runs tooling tests, the Python suite, compile checks, and web state tests.
-Continuous integration also builds both demo containers and verifies the public showcase and API health endpoint.
+Continuous integration also builds both demo containers and probes the configured web and API health endpoints.
 
 The repository keeps larger MovieLens source files and generated user-level artifacts out of Git.
 Committed checksums and protocols make the experiments reproducible without publishing raw ratings or private household data.
@@ -157,5 +160,5 @@ The app includes the required TMDB attribution on its public credits page.
 ## Status
 
 WatchSignal is an actively developed prototype.
-The public showcase is safe to explore without signing in, while the real household route remains online and protected.
+Review-only showcase routes are hidden in production, while the hosted household route remains online and protected.
 The clearest next product proof is real household usage over repeated movie nights, especially whether better offline ranking produces decisions that both people trust.

@@ -4,7 +4,7 @@ Date: 2026-08-14.
 
 Phase: Complete mobile redesign and durable private-transition recovery.
 
-Local slice status: 22 of 23 accepted.
+Slice acceptance is owned by the canonical [redesign acceptance matrix](../redesign-gauntlet/acceptance-matrix.md).
 
 ## Purpose
 
@@ -75,8 +75,6 @@ The founder must approve the exact local checkpoint before a commit is created.
 The current `codex/watchsignal-redesign-release` branch is the reviewed release branch for this checkpoint.
 Commit, push, pull request, and CI actions remain owned by the outer publication gates.
 
-After approval, create a new `codex/watchsignal-redesign-release` branch and commit only the intended scope described here.
-
 The no-mistakes pipeline can then review the committed branch, run its configured gates, and prepare a pull request without silently publishing unrelated files.
 
 ## Resource posture
@@ -89,6 +87,6 @@ No task-owned process remains active at this checkpoint.
 
 ## Decision
 
-The reviewed source checkpoint accepts all 23 redesign slices and is ready for the outer publication gates.
+The reviewed source checkpoint is ready for the outer publication gates under the slice status recorded in the canonical acceptance matrix.
 
 The deployment owner retains the Vercel and Neon cold-invocation trace as the first production operational check.

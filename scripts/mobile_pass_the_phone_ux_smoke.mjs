@@ -31,6 +31,8 @@ async function main() {
   const checkTonightIntent = process.env.MOBILE_UX_SMOKE_TONIGHT_INTENT === "1";
   const expectedRecommendationSource =
     process.env.MOBILE_UX_SMOKE_EXPECT_RECOMMENDATION_SOURCE;
+  const checkRecoveryReload =
+    process.env.MOBILE_UX_SMOKE_RECOVERY_RELOAD === "1";
   const useBackendMode =
     process.env.MOBILE_UX_SMOKE_EXPECT_API === "1" || checkTonightIntent;
   const skipWatchlistChecks = process.env.MOBILE_UX_SMOKE_SKIP_WATCHLIST === "1";
@@ -42,12 +44,14 @@ async function main() {
     await seedBackendOnboarding(startedApi.apiUrl);
   }
   const webUrl = targetUrl || (await startWebServer(startedApi?.apiUrl));
-  const reviewUrl =
-    process.env.MOBILE_UX_SMOKE_REVIEW === "1" ||
-    process.env.MOBILE_UX_SMOKE_EXPECT_V2_EXPLANATION === "1" ||
-    useBackendMode
-      ? withReviewMode(webUrl)
-      : webUrl;
+  const reviewMode =
+    process.env.MOBILE_UX_SMOKE_NO_REVIEW !== "1"
+    && (
+      process.env.MOBILE_UX_SMOKE_REVIEW === "1"
+      || process.env.MOBILE_UX_SMOKE_EXPECT_V2_EXPLANATION === "1"
+      || useBackendMode
+    );
+  const reviewUrl = reviewMode ? withReviewMode(webUrl) : webUrl;
   const chrome = process.env.MOBILE_UX_SMOKE_DEBUGGING_URL
     ? {
         debuggingUrl: process.env.MOBILE_UX_SMOKE_DEBUGGING_URL,
@@ -105,6 +109,20 @@ async function main() {
     await waitForElement(tab, "[data-private-handoff]", "handoff entrance");
     await delay(650);
     await assertNoHorizontalOverflow(tab, "handoff screen");
+    await captureScreenshot(tab, screenshotDir, "02-handoff-before-reload");
+    if (checkRecoveryReload) {
+      await tab.send("Page.reload", { ignoreCache: true });
+      await waitForReadyState(tab);
+      await waitForText(tab, "Ready for Husband", "recovered handoff screen", 60_000);
+      await waitForCinematicScreen(
+        tab,
+        "[data-private-handoff]",
+        "recovered handoff entrance",
+      );
+      await assertNoHorizontalOverflow(tab, "recovered handoff screen");
+      await captureScreenshot(tab, screenshotDir, "02-handoff-after-reload");
+      console.log("Private handoff reload recovery passed.");
+    }
     await clickButton(tab, "Begin Husband's picks");
     await waitForText(tab, "1 of 5", "second pass");
     await waitForCinematicScreen(tab, "[data-reaction-stage]", "second pass entrance");
@@ -119,18 +137,21 @@ async function main() {
       await waitForCinematicScreen(tab, ".goldenResultsStage", "results entrance");
       await waitForRankedShortlist(tab);
       const winnerTitle = await currentResultTitle(tab);
+      await captureScreenshot(tab, screenshotDir, "03-ranked-result");
       if (useBackendMode) {
         await clickButtonByAriaLabel(tab, "More result options");
         await waitForText(tab, "Keep the night moving", "result options");
-        await clickSummary(tab, "Session evidence");
-        await waitForText(tab, "Current signals", "results evidence panel");
-        await waitForText(tab, "Alex - tester: 1 signals", "tester Taste Lab evidence");
-        await waitForText(tab, "Why it moved", "recommendation trust movement evidence");
-        await waitForText(tab, "Held back", "recommendation trust penalty evidence");
-        if (expectedRecommendationSource === "live_tmdb") {
-          await waitForText(tab, "Live TMDb", "recommendation source");
-        } else if (expectedRecommendationSource === "demo") {
-          await waitForText(tab, "Demo catalog", "recommendation source");
+        if (reviewMode) {
+          await clickSummary(tab, "Session evidence");
+          await waitForText(tab, "Current signals", "results evidence panel");
+          await waitForText(tab, "Alex - tester: 1 signals", "tester Taste Lab evidence");
+          await waitForText(tab, "Why it moved", "recommendation trust movement evidence");
+          await waitForText(tab, "Held back", "recommendation trust penalty evidence");
+          if (expectedRecommendationSource === "live_tmdb") {
+            await waitForText(tab, "Live TMDb", "recommendation source");
+          } else if (expectedRecommendationSource === "demo") {
+            await waitForText(tab, "Demo catalog", "recommendation source");
+          }
         }
       }
       if (process.env.MOBILE_UX_SMOKE_EXPECT_V2_EXPLANATION === "1") {
