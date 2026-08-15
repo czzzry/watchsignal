@@ -265,8 +265,10 @@ The old process-local route is absent from the production manifest.
 
 The local journey covers both private passes, durable handoff and matching, ranked result, evidence, watchlist, watched outcome, profile feedback, taste memory, recent-night history, and restart.
 
-Two release actions remain outside local implementation.
+The founder-approved redesign checkpoint was published and merged through GitHub CI.
 
-The configured Vercel and Neon pilot must prove recovery across separate cold function invocations.
+The configured Vercel and Neon pilot sealed a fresh private handoff, deployed a fresh production web and API build, resumed the same opaque checkpoint with `200`, completed the second pass and matching, mounted the ranked result, consumed recovery with `204`, and removed the browser checkpoint.
 
-The founder must approve an intentional Git checkpoint and publication of the large redesign worktree.
+The final independent deployed-recovery critic returned ACCEPT with architecture fidelity, privacy, cross-deployment durability, lifecycle correctness, and result continuity at 5 of 5.
+
+No release action remains open in R5.

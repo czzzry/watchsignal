@@ -54,10 +54,35 @@ The app reached `Ready for Husband` with no first-pass title or reaction visible
 
 Session storage again contained only a 101-byte `watchsignal.private-transition.v1` checkpoint with exactly `expiresAt`, `recoveryToken`, and `version`.
 
-This fresh checkpoint is intentionally parked at the safe handoff while one more production deployment is created.
+This fresh checkpoint was intentionally parked at the safe handoff while one more production deployment was created.
 
-The final cold-deployment reload and resume remain pending that deployment.
+The production web and API deployments completed successfully for merge commit `4659dd4e41e2873046b09ae5610cba8a0407ae32`.
+
+Reloading the same parked 390 by 844 browser tab issued `POST /api/private-transition-recovery/resume`, which returned `200` from the fresh deployment.
+
+The restored screen was exactly `Ready for Husband` and exposed no first-pass movie title or reaction.
+
+Selecting `Begin Husband's picks` opened a clean second private pass at movie 1 of 5.
+
+All five second-pass reactions completed and the app advanced through `Saving your picks` to the ranked five-title result.
+
+The result mounted with `Disclosure Day` ranked first at match score 83, while the recovery network sequence completed with a `204` response from `DELETE /api/private-transition-recovery/consume`.
+
+After result mount, session storage no longer contained `watchsignal.private-transition.v1`; only the non-sensitive launch-sting marker remained.
+
+The deployed result also passed these interaction checks:
+
+- Details opened as a modal and Escape returned focus to the exact `Details` button.
+- Selecting the second ranked title changed the active result to `Masters of the Universe`.
+- Find five more opened the continuation modal and Escape returned focus to the exact invoking control.
+- Result options opened the existing shared watchlist and After tonight utility surfaces.
+
+The browser screenshot command reported a path but did not leave a file on disk, so this evidence does not claim a new retained PNG.
+
+The live accessibility snapshots and sanitized network/status observations are the retained deployed proof for this round.
 
 ## Decision
 
-Hold S23 until the post-redeployment resume, second pass, final matching, result, and consume checks pass.
+Promote the deployed recovery gate for independent review.
+
+The required cross-deployment resume, second pass, matching, result mount, and consume checks passed on the production Vercel and Neon boundary.
