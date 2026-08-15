@@ -41,7 +41,7 @@ Choosing a movie together is rarely a search problem.
 It is a small negotiation shaped by different tastes, tiredness, streaming availability, and the fear that one person's enthusiasm will sway the other.
 
 WatchSignal makes that negotiation quieter.
-It gathers each person's honest reaction first, removes deal-breakers, then shows the strongest shared option with a reason that can be checked.
+It gathers each person's honest reaction first, weighs both sets of choices, then shows the strongest shared option with a reason that can be checked.
 
 The goal is not an endless feed.
 The goal is to reach a decision and start the movie.
@@ -52,7 +52,7 @@ The goal is to reach a decision and start the movie.
 2. Add a few Loved, Ok, and No seeds when a profile still needs a starting point.
 3. React privately to five movies.
 4. Seal the first pass before handing over the phone.
-5. Remove hard no choices and rank the remaining overlap.
+5. Weigh both viewers' reactions and rank the shared shortlist.
 6. Show the clearest shared pick, provider guidance, and a short explanation.
 7. Keep watchlist actions, seen-before memory, and post-watch feedback for future rounds.
 
@@ -74,10 +74,10 @@ The flow supports compromise, person-first, and safe-pick modes without turning 
 One viewer never sees the other's reactions during the handoff.
 For API-backed couple rounds, the browser stores only an opaque recovery token while the private state stays behind the API boundary.
 
-### A hard no stays a no
+### A no counts clearly
 
-WatchSignal filters deal-breakers before it ranks the shared options.
-The scorer cannot turn a strong preference from one person into pressure on the other.
+WatchSignal gives every No reaction a negative weight before it ranks the shared options.
+In the current prototype, No is a strong ranking signal rather than a hard veto, so a high-scoring title can still remain in the results.
 
 ### Explanations stay readable
 
