@@ -44,7 +44,19 @@ The missing requirement was the non-secret `WATCHSIGNAL_HOUSEHOLD_ID` deployment
 
 The follow-up deployment config sets `default-household` in the version-controlled Vercel function environment and adds a normalized configuration regression.
 
-The final cross-deployment resume remains pending that corrected production deployment.
+The corrected production deployment completed successfully for merge commit `45dc336`.
+
+A new signed-in 390 by 844 journey then completed all five first-pass reactions on that corrected deployment.
+
+The production seal request returned `200` and the production resume reconciliation request returned `200`.
+
+The app reached `Ready for Husband` with no first-pass title or reaction visible.
+
+Session storage again contained only a 101-byte `watchsignal.private-transition.v1` checkpoint with exactly `expiresAt`, `recoveryToken`, and `version`.
+
+This fresh checkpoint is intentionally parked at the safe handoff while one more production deployment is created.
+
+The final cold-deployment reload and resume remain pending that deployment.
 
 ## Decision
 
