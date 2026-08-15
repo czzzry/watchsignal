@@ -56,7 +56,7 @@ The goal is to reach a decision and start the movie.
 6. Show the clearest shared pick, provider guidance, and a short explanation.
 7. Keep watchlist actions, seen-before memory, and post-watch feedback for future rounds.
 
-The flow supports compromise, person-first, and safe-pick modes without turning the couch experience into a settings panel.
+The flow supports compromise and person-first weighting, with Safe Pick rules protecting the main shortlist without turning the couch experience into a settings panel.
 
 ## What is working
 
@@ -105,7 +105,7 @@ Fast ratings add evidence to one profile without overwriting movie-night reactio
 </p>
 
 WatchSignal can also learn from watch history, shortlist reactions, and post-watch feedback.
-That evidence improves later candidates while tonight's explicit choices remain in control.
+That evidence informs later candidate scoring while tonight's explicit choices remain in control.
 
 ## Recommendation work, kept in its place
 
@@ -198,8 +198,8 @@ pnpm build:web
 The main check covers tooling tests, the Python suite, compile checks, and web state tests.
 Continuous integration also builds both demo containers and probes the web and API health endpoints.
 
-The repository does not publish raw household data, downloaded MovieLens files, or generated user-level research artifacts.
-Committed protocols and checksums keep the evaluation inspectable without pretending the data is ours to redistribute.
+The repository does not publish raw household data, downloaded MovieLens files, or detailed identifier-bearing user-level research artifacts.
+Pseudonymized evaluation summaries, committed protocols, and checksums keep the work inspectable without redistributing source ratings or private data.
 
 ## Key documents
 
