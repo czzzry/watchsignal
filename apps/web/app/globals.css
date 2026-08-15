@@ -44,9 +44,23 @@ body {
   width: min(100%, 430px);
   margin: 0 auto;
   padding: 0 18px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0 2px;
   color: var(--muted);
   font-size: 0.78rem;
   text-align: center;
+}
+
+.siteCreditsLink a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  padding: 0 8px;
 }
 
 .siteCreditsLink a,
@@ -56,9 +70,10 @@ body {
 }
 
 .footerAction {
-  min-height: 0;
-  margin-left: 10px;
-  padding: 0;
+  min-height: 44px;
+  margin-left: 2px;
+  border-radius: 12px;
+  padding: 0 8px;
   background: transparent;
   color: inherit;
   font: inherit;
@@ -69,6 +84,21 @@ body {
 
 .footerAction:hover:enabled {
   transform: none;
+}
+
+.siteCreditsLink a:focus-visible,
+.footerAction:focus-visible {
+  outline: 2px solid var(--ws-focus, #78e8f5);
+  outline-offset: 2px;
+}
+
+@media (forced-colors: active) {
+  .siteCreditsLink a,
+  .footerAction {
+    border: 1px solid ButtonText;
+    color: LinkText;
+    forced-color-adjust: auto;
+  }
 }
 
 .creditsPage {
@@ -371,7 +401,7 @@ summary:focus-visible {
   display: grid;
   place-items: center;
   background: #02040a;
-  animation: launchFade 2.2s ease forwards;
+  animation: launchFade 900ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
   pointer-events: none;
 }
 
@@ -383,75 +413,92 @@ summary:focus-visible {
   border-radius: 42px;
   box-shadow: 0 30px 90px rgba(0, 0, 0, 0.72);
   background:
-    radial-gradient(circle at 50% 42%, rgba(120, 240, 255, 0.16), transparent 26%),
-    radial-gradient(circle at 72% 42%, rgba(191, 143, 255, 0.14), transparent 28%),
+    radial-gradient(circle at 50% 41%, rgba(120, 232, 245, 0.18), transparent 20%),
+    radial-gradient(circle at 62% 43%, rgba(185, 134, 255, 0.18), transparent 28%),
     linear-gradient(180deg, #02040a 0%, #060a12 52%, #02040a 100%);
 }
 
-.launchReferenceImage {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: cover;
-  user-select: none;
+.launchStingCard::before {
+  content: "";
+  position: absolute;
+  inset: 19% -28% 31%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(213, 189, 255, 0.09), transparent 66%);
+  filter: blur(12px);
 }
 
-.launchOrbArt {
+.launchSignal {
   position: absolute;
+  top: 36%;
   left: 50%;
-  top: 64px;
-  width: 88%;
-  transform: translateX(-50%);
-  display: block;
-  opacity: 0.98;
-  filter:
-    drop-shadow(0 0 28px rgba(120, 240, 255, 0.18))
-    drop-shadow(0 0 58px rgba(191, 143, 255, 0.18));
-  -webkit-mask-image:
-    linear-gradient(180deg, transparent 0%, #000 15%, #000 73%, transparent 100%),
-    linear-gradient(90deg, transparent 0%, #000 13%, #000 87%, transparent 100%);
-  -webkit-mask-composite: source-in;
-  mask-image:
-    linear-gradient(180deg, transparent 0%, #000 15%, #000 73%, transparent 100%),
-    linear-gradient(90deg, transparent 0%, #000 13%, #000 87%, transparent 100%);
-  mask-composite: intersect;
+  width: 96px;
+  height: 96px;
+  display: grid;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(213, 189, 255, 0.44);
+  border-radius: 50%;
+  background: #0d0814;
+  box-shadow:
+    0 0 0 12px rgba(185, 134, 255, 0.06),
+    0 0 52px rgba(120, 232, 245, 0.2),
+    0 0 74px rgba(185, 134, 255, 0.22);
+  animation: launchSignalIn 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.launchSignal::before,
+.launchSignal::after {
+  content: "";
+  position: absolute;
+  inset: -19px;
+  border: 1px solid rgba(120, 232, 245, 0.18);
+  border-radius: 50%;
+}
+
+.launchSignal::after {
+  inset: -38px;
+  border-color: rgba(185, 134, 255, 0.11);
+}
+
+.launchSignal i {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ws-cyan-500);
+  box-shadow: 0 0 16px rgba(120, 232, 245, 0.72);
+}
+
+.launchSignal i:first-child { top: -23px; left: 13px; }
+.launchSignal i:nth-child(2) { right: -28px; bottom: 12px; background: var(--ws-signal-500); }
+
+.launchSignal span {
+  color: var(--ws-paper-50);
+  font: 850 2.25rem/1 var(--ws-font-ui);
+  letter-spacing: -0.04em;
 }
 
 .launchStingCopy {
   position: absolute;
   left: 30px;
   right: 30px;
-  bottom: 178px;
+  bottom: 28%;
   display: grid;
   justify-items: center;
+  gap: 10px;
   text-align: center;
-  gap: 2px;
 }
 
-.launchStingCopy p,
-.launchStingCopy h2,
+.launchStingCopy strong,
 .launchStingCopy span,
-.launchStingMark span {
+.launchSignal span {
   margin: 0;
 }
 
-.launchStingCopy p {
-  color: rgba(255, 255, 255, 0.82);
-  font-family: "New York", "Iowan Old Style", Georgia, "Times New Roman", serif;
-  font-size: 2.1rem;
-  font-weight: 700;
-  line-height: 0.96;
-}
-
-.launchStingCopy h2 {
-  background: linear-gradient(90deg, #d2e3ff, #a86dff 72%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  font-family: "New York", "Iowan Old Style", Georgia, "Times New Roman", serif;
-  font-size: 2.72rem;
-  font-weight: 700;
-  line-height: 0.96;
+.launchStingCopy strong {
+  color: var(--ws-paper-50);
+  font: 780 1.18rem/1 var(--ws-font-ui);
+  letter-spacing: -0.02em;
 }
 
 /* Taste Lab */
@@ -733,43 +780,18 @@ summary:focus-visible {
 }
 
 .launchStingCopy span {
-  margin-top: 12px;
-  color: rgba(236, 241, 248, 0.76);
-  font-size: 0.86rem;
+  color: var(--ws-text-muted);
+  font-size: 0.82rem;
   line-height: 1.3;
-}
-
-.launchStingMark {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 74px;
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-}
-
-.launchStingMark img {
-  width: 34px;
-  height: 34px;
-  display: block;
-  border-radius: 999px;
-  object-fit: cover;
-  object-position: 50% 43%;
-  box-shadow:
-    0 0 18px rgba(120, 240, 255, 0.24),
-    0 0 28px rgba(191, 143, 255, 0.16);
-}
-
-.launchStingMark span {
-  color: rgba(255, 255, 255, 0.68);
-  font-size: 0.72rem;
-  font-weight: 700;
 }
 
 @keyframes launchFade {
   0%, 88% { opacity: 1; }
   100% { opacity: 0; visibility: hidden; }
+}
+
+@keyframes launchSignalIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.72); }
 }
 
 .syncStrip {
@@ -1219,10 +1241,7 @@ summary:focus-visible {
 
 .startupDisplayTitle em {
   font-style: normal;
-  background: linear-gradient(90deg, #d2e3ff, #a86dff 72%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--ws-signal-300);
 }
 
 .startupHeroScene {
@@ -1376,7 +1395,7 @@ summary:focus-visible {
 
 .startupRowSummaryButton,
 .startupRowSummaryStatic {
-  min-height: 42px;
+  min-height: 44px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -1465,7 +1484,7 @@ summary:focus-visible {
 
 .startupControlValue {
   color: var(--ink);
-  font-size: 0.74rem;
+  font-size: 0.75rem;
   line-height: 1.16;
   min-width: 0;
   text-align: left;
@@ -1476,8 +1495,48 @@ summary:focus-visible {
 
 .startupControlValueLong {
   max-width: none;
-  font-size: 0.74rem;
+  font-size: 0.75rem;
   line-height: 1.16;
+}
+
+.setupUtilityLinks {
+  width: min(100%, 300px);
+  justify-self: center;
+  display: grid;
+  margin-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.setupUtilityLinks > button,
+.setupUtilityLinks > a {
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0;
+  padding: 6px 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  text-decoration: none;
+  box-shadow: none;
+}
+
+.setupUtilityLinks > button:hover:enabled { transform: none; }
+.setupUtilityLinks > a:hover { color: var(--ink); }
+.setupUtilityLinks > :is(button, a) > svg { width: 18px; height: 18px; color: rgba(191, 143, 255, 0.9); }
+.setupUtilityLinks > :is(button, a) > svg:last-child { width: 16px; height: 16px; justify-self: end; color: rgba(255, 255, 255, 0.5); }
+.setupUtilityLinks > :is(button, a) > span { min-width: 0; display: grid; gap: 2px; }
+.setupUtilityLinks strong { font-size: 0.82rem; }
+.setupUtilityLinks small { color: var(--muted); font-size: 0.75rem; line-height: 1.3; }
+
+@media (forced-colors: active) {
+  .setupUtilityLinks > :is(button, a) {
+    border-bottom-color: CanvasText;
+  }
 }
 
 .startupControlRowStatic {
@@ -1595,7 +1654,9 @@ summary:focus-visible {
 }
 
 .startupMicroProgressTrack {
-  width: 192px;
+  width: 100%;
+  max-width: 192px;
+  min-width: 0;
   height: 3px;
   justify-self: center;
   border-radius: 999px;
@@ -1616,7 +1677,7 @@ summary:focus-visible {
   color: rgba(255,255,255,0.7);
   text-align: center;
   line-height: 1.1;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 560;
 }
 
@@ -1688,6 +1749,60 @@ summary:focus-visible {
   font-size: 1.24rem;
   line-height: 1;
   opacity: 1;
+}
+
+/* 200% text zoom can produce an effective viewport below 240px wide. */
+@media (max-width: 239px) {
+  .appShell:has(.cinematicHeroPanel) {
+    padding-inline: 12px;
+  }
+
+  .cinematicHeroPanel,
+  .startupStage,
+  .startupHeroScene,
+  .startupOrbWrap,
+  .startupOrbWrap.heroVisual,
+  .startupOrbWrap.heroVisualReady,
+  .heroSignalReady,
+  .startupConceptHero,
+  .startupBoardShell,
+  .startupControlBoard,
+  .startupBoardFooterStandalone,
+  .startupMicroProgress,
+  .startupMicroProgressTrack,
+  .startupPrimaryButton,
+  .setupUtilityLinks {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .startupCinematicHeader {
+    padding-inline: 20px;
+  }
+
+  .startupDisplayTitle {
+    font-size: 1.68rem;
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
+  }
+
+  .startupDisplayTitle em {
+    white-space: nowrap;
+  }
+
+  .startupOrbWrap,
+  .startupOrbWrap.heroVisual,
+  .startupOrbWrap.heroVisualReady,
+  .heroSignalReady,
+  .startupConceptHero {
+    overflow: hidden;
+  }
+
+  .startupConceptHero {
+    animation: none;
+  }
 }
 
 .disclosurePanel.startupDisclosure {
@@ -2853,7 +2968,6 @@ summary:focus-visible {
   border-radius: 28px;
   background:
     linear-gradient(180deg, rgba(3, 6, 11, 0.08) 0%, rgba(3, 6, 11, 0.26) 72%, rgba(3, 6, 11, 0.64) 100%),
-    url("/concept-startup-hero-scene-v2.png") center 42% / 78% auto no-repeat,
     radial-gradient(circle at 36% 45%, rgba(120, 240, 255, 0.16), transparent 24%),
     radial-gradient(circle at 67% 45%, rgba(191, 143, 255, 0.16), transparent 28%),
     #090d13;
@@ -6077,7 +6191,7 @@ button.cinematicActionPending {
 
 button.cinematicActionPending small {
   color: rgba(255, 255, 255, 0.62);
-  font-size: 0.58rem;
+  font-size: 0.75rem;
   font-weight: 760;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -6242,6 +6356,10 @@ button.cinematicActionPending small {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .launchSting {
+    animation-duration: 1ms !important;
+  }
+
   .cinematicWaitOverlay,
   .cinematicWaitDeck img,
   .cinematicWaitDeck > span,

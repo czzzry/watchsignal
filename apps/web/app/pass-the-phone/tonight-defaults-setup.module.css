@@ -1,0 +1,107 @@
+.layer {
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+  display: grid;
+  justify-items: center;
+  background: var(--ws-night-950);
+}
+.backdrop { position: fixed; inset: 0; background: var(--ws-night-950); }
+.dialog {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 430px);
+  min-height: 100svh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  background: var(--ws-night-900);
+  color: var(--ws-text);
+  font-family: var(--ws-font-ui);
+}
+.header {
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: max(12px, var(--ws-safe-top)) max(var(--ws-page-gutter), var(--ws-safe-right)) 12px max(var(--ws-page-gutter), var(--ws-safe-left));
+  border-bottom: 1px solid var(--ws-border);
+}
+.header > div { display: grid; gap: 2px; }
+.header span { color: var(--ws-text-muted); font-size: 12px; }
+.header h2 { margin: 0; font-size: 22px; line-height: 1.1; letter-spacing: -0.025em; }
+.header button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: var(--ws-surface);
+  color: var(--ws-text);
+}
+.header svg { width: 20px; height: 20px; }
+.scroll {
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  gap: 24px;
+  padding: 20px max(var(--ws-page-gutter), var(--ws-safe-right));
+}
+.choiceGroup { display: grid; gap: 8px; }
+.choiceGroup h3, .soloRule h3 { margin: 0; font-size: 14px; }
+.choiceGroup > div { display: grid; gap: 6px; }
+.choiceGroup button {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 0;
+  border-radius: var(--ws-radius-md);
+  padding: 8px 12px;
+  background: var(--ws-surface);
+  color: var(--ws-text);
+  text-align: left;
+}
+.choiceGroup button[data-selected="true"] { background: var(--ws-accent-soft); }
+.choiceGroup button > span { min-width: 0; display: grid; gap: 2px; }
+.choiceGroup strong { font-size: 14px; }
+.choiceGroup small { color: var(--ws-text-muted); font-size: 12px; line-height: 1.35; }
+.choiceGroup button > svg { width: 18px; height: 18px; flex: none; opacity: 0; }
+.choiceGroup button[data-selected="true"] > svg { opacity: 1; color: var(--ws-signal-300); }
+.soloRule { display: grid; gap: 6px; padding: 12px 0; }
+.soloRule p { margin: 0; color: var(--ws-text-muted); font-size: 13px; line-height: 1.5; }
+.footer {
+  display: grid;
+  gap: 8px;
+  padding: 12px max(var(--ws-page-gutter), var(--ws-safe-right)) max(12px, var(--ws-safe-bottom));
+  border-top: 1px solid var(--ws-border);
+  background: var(--ws-night-900);
+}
+.footer p { min-height: 18px; margin: 0; color: var(--ws-text-muted); font-size: 12px; line-height: 1.5; text-align: center; }
+.footer p[data-error="true"] { color: var(--ws-danger-400); }
+.footer button {
+  min-height: 54px;
+  border: 0;
+  border-radius: var(--ws-radius-md);
+  background: var(--ws-action);
+  color: var(--ws-action-ink);
+  font: 750 14px/1 var(--ws-font-ui);
+}
+@media (max-height: 568px) {
+  .header { min-height: 64px; }
+  .scroll { gap: 16px; padding-top: 12px; padding-bottom: 12px; }
+  .choiceGroup button { min-height: 52px; }
+}
+@media (prefers-reduced-motion: reduce) { .dialog { animation: none; } }
+@media (prefers-reduced-transparency: reduce) {
+  .choiceGroup button { background: var(--ws-night-850); }
+}
+@media (forced-colors: active) {
+  .choiceGroup button, .footer button { border: 1px solid CanvasText; }
+  .choiceGroup button[data-selected="true"] { outline: 2px solid Highlight; outline-offset: -4px; }
+}

@@ -1,0 +1,168 @@
+.layer {
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+  display: grid;
+  justify-items: center;
+  background: var(--ws-night-950);
+}
+
+.backdrop { position: fixed; inset: 0; background: var(--ws-night-950); }
+
+.dialog {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 430px);
+  min-height: 100svh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  background: var(--ws-night-900);
+  color: var(--ws-text);
+  font-family: var(--ws-font-ui);
+}
+
+.header {
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: max(12px, var(--ws-safe-top)) max(var(--ws-page-gutter), var(--ws-safe-right)) 12px max(var(--ws-page-gutter), var(--ws-safe-left));
+  border-bottom: 1px solid var(--ws-border);
+}
+
+.header > div { display: grid; gap: 2px; }
+.header span { color: var(--ws-text-muted); font-size: 12px; }
+.header h2 { margin: 0; font-size: 22px; line-height: 1.1; letter-spacing: -0.025em; }
+.header button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: var(--ws-surface);
+  color: var(--ws-text);
+}
+.header svg { width: 20px; height: 20px; }
+
+.scroll {
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  gap: 24px;
+  padding: 20px max(var(--ws-page-gutter), var(--ws-safe-right));
+}
+
+.modeList { display: grid; gap: 8px; }
+.modeList > button {
+  min-height: 64px;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 20px;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 12px;
+  border: 0;
+  border-radius: var(--ws-radius-md);
+  padding: 10px 12px;
+  background: var(--ws-surface);
+  color: var(--ws-text);
+  text-align: left;
+}
+.modeList > button[data-selected="true"] { background: var(--ws-accent-soft); }
+.modeList > button > span {
+  grid-row: 1 / 3;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modeList > button > span i {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--ws-cyan-500);
+}
+.modeList > button > span i + i { margin-left: -7px; background: var(--ws-signal-400); }
+.modeList strong { align-self: end; font-size: 14px; }
+.modeList small { align-self: start; color: var(--ws-text-muted); font-size: 12px; }
+.modeList > button > svg { grid-column: 3; grid-row: 1 / 3; width: 18px; height: 18px; opacity: 0; }
+.modeList > button[data-selected="true"] > svg { opacity: 1; color: var(--ws-signal-300); }
+
+.identitySection { display: grid; gap: 12px; }
+.sectionHeading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.sectionHeading h3 { margin: 0; font-size: 14px; }
+.sectionHeading span { color: var(--ws-text-muted); font-size: 12px; }
+.profileSelect { display: grid; gap: 6px; }
+.profileSelect > span, .createProfile > label { color: var(--ws-text-muted); font-size: 12px; }
+.profileSelect select,
+.createProfile input {
+  width: 100%;
+  min-height: 48px;
+  border: 0;
+  border-radius: var(--ws-radius-md);
+  padding: 0 12px;
+  background: var(--ws-surface);
+  color: var(--ws-text);
+  font: 600 14px/1 var(--ws-font-ui);
+}
+
+.createProfile { display: grid; gap: 6px; }
+.createProfile > div { display: grid; grid-template-columns: minmax(0, 1fr) 72px; gap: 8px; }
+.createProfile button {
+  min-height: 48px;
+  border: 0;
+  border-radius: var(--ws-radius-md);
+  background: var(--ws-surface-strong);
+  color: var(--ws-text);
+  font: 700 14px/1 var(--ws-font-ui);
+}
+.createProfile p { min-height: 18px; margin: 0; color: var(--ws-text-muted); font-size: 12px; line-height: 1.5; }
+.createProfile p[data-error="true"] { color: var(--ws-danger-400); }
+
+.footer {
+  display: grid;
+  gap: 8px;
+  padding: 12px max(var(--ws-page-gutter), var(--ws-safe-right)) max(12px, var(--ws-safe-bottom));
+  border-top: 1px solid var(--ws-border);
+  background: var(--ws-night-900);
+}
+.footer p { margin: 0; color: var(--ws-danger-400); font-size: 12px; text-align: center; }
+.footer button {
+  min-height: 54px;
+  border: 0;
+  border-radius: var(--ws-radius-md);
+  background: var(--ws-action);
+  color: var(--ws-action-ink);
+  font: 750 14px/1 var(--ws-font-ui);
+}
+
+@media (max-height: 568px) {
+  .header { min-height: 64px; }
+  .scroll { gap: 16px; padding-top: 12px; padding-bottom: 12px; }
+  .modeList > button { min-height: 56px; padding-block: 6px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog { animation: none; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .modeList > button,
+  .profileSelect select,
+  .createProfile input,
+  .createProfile button { background: var(--ws-night-850); }
+}
+
+@media (forced-colors: active) {
+  .modeList > button,
+  .profileSelect select,
+  .createProfile input,
+  .createProfile button,
+  .footer button { border: 1px solid CanvasText; }
+  .modeList > button[data-selected="true"] { outline: 2px solid Highlight; outline-offset: -4px; }
+}

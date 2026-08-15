@@ -18,6 +18,15 @@ class ApiContractExportTest(unittest.TestCase):
         self.assertIn("export type RecommendationShortlistItemPayload = {", contract)
         self.assertIn("export type TonightIntentInterpretRequestPayload = {", contract)
         self.assertIn("export type TonightIntentInterpretationPayload = {", contract)
+        self.assertIn(
+            "export type PrivateTransitionSealCommandPayload = SealFounderBallotPayload | OpenSecondPassPayload | SealFinalBallotPayload | UseLocalResultPayload;",
+            contract,
+        )
+        self.assertIn(
+            "export type PrivateTransitionResumeProjectionPayload = HandoffPendingPayload | HandoffReadyPayload | SecondPassReadyPayload | MatchingPendingPayload | MatchingFailedPayload | ResultReadyPayload;",
+            contract,
+        )
+        self.assertIn("export type PrivateTransitionRecoveryPurgePayload = {", contract)
 
 
 if __name__ == "__main__":

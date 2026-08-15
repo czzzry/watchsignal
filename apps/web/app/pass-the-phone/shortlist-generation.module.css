@@ -1,0 +1,23 @@
+.layer { position: fixed; z-index: 80; inset: 0; display: grid; justify-items: center; background: var(--ws-night-950); }
+.backdrop { position: fixed; inset: 0; background: var(--ws-night-950); }
+.dialog { position: relative; z-index: 1; width: min(100%, 430px); min-height: 100svh; display: grid; grid-template-rows: auto 1fr auto; overflow: hidden; padding: max(16px, var(--ws-safe-top)) max(var(--ws-page-gutter), var(--ws-safe-right)) max(16px, var(--ws-safe-bottom)) max(var(--ws-page-gutter), var(--ws-safe-left)); background: radial-gradient(circle at 50% 38%, #241232 0, var(--ws-night-900) 43%, var(--ws-night-950) 76%); color: var(--ws-text); font-family: var(--ws-font-ui); }
+.header { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.header > span { color: var(--ws-text-muted); font-size: 12px; }
+.body { display: grid; align-content: center; gap: 32px; }
+.lineup { height: 168px; display: flex; align-items: center; justify-content: center; gap: 7px; perspective: 500px; }
+.lineup i { width: 48px; height: 74px; flex: none; border-radius: 8px; background: linear-gradient(155deg, var(--ws-plum-700), var(--ws-surface)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); animation: shortlistSignal 1.1s var(--ws-ease-out) infinite alternate; }
+.lineup i:nth-child(1), .lineup i:nth-child(5) { transform: translateY(14px) scale(.84); opacity: .48; }
+.lineup i:nth-child(2), .lineup i:nth-child(4) { transform: translateY(5px) scale(.94); opacity: .72; animation-delay: 110ms; }
+.lineup i:nth-child(3) { width: 58px; height: 88px; background: linear-gradient(155deg, var(--ws-signal-400), var(--ws-plum-700)); animation-delay: 220ms; }
+.lineup[data-failed="true"] i { animation: none; opacity: .34; }
+.copy { display: grid; justify-items: center; gap: 10px; text-align: center; }
+.copy h1 { max-width: 310px; margin: 0; font-family: var(--ws-font-display); font-size: 34px; font-weight: 600; line-height: 1; letter-spacing: -.035em; text-wrap: balance; }
+.copy p { max-width: 320px; margin: 0; color: var(--ws-text-muted); font-size: 14px; line-height: 1.5; text-wrap: pretty; }
+.waitNote { margin: 0; color: var(--ws-text-muted); font-size: 12px; line-height: 1.5; text-align: center; }
+.actions { display: grid; gap: 8px; }
+.actions > button:last-child { min-height: 48px; border: 0; border-radius: var(--ws-radius-md); background: transparent; color: var(--ws-text-muted); font: 700 14px/1 var(--ws-font-ui); }
+@keyframes shortlistSignal { from { filter: brightness(.86); } to { filter: brightness(1.18); } }
+@media (max-height: 568px) { .body { gap: 18px; } .lineup { height: 112px; } .copy h1 { font-size: 29px; } }
+@media (prefers-reduced-motion: reduce) { .lineup i { animation: none; } }
+@media (prefers-reduced-transparency: reduce) { .dialog { background: var(--ws-night-900); } }
+@media (forced-colors: active) { .dialog { background: Canvas; color: CanvasText; } .lineup i, .actions button { border: 1px solid CanvasText; } .lineup i:nth-child(3) { outline: 2px solid Highlight; } }

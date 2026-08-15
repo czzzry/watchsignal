@@ -68,7 +68,7 @@ jobs:
         run: docker compose up --build --detach --wait
 
       - name: Check the public product page
-        run: curl --fail --show-error http://127.0.0.1:3000/showcase > /dev/null
+        run: curl --fail --show-error http://127.0.0.1:3000/ > /dev/null
 
       - name: Check the API
         run: curl --fail --show-error http://127.0.0.1:8000/health > /dev/null

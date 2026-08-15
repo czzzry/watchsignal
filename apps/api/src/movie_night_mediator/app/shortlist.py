@@ -42,6 +42,13 @@ class OfflineShortlistProviderAvailability:
 
 
 @dataclass(frozen=True)
+class OfflineShortlistCastMember:
+    name: str
+    character: str | None
+    profile_url: str | None
+
+
+@dataclass(frozen=True)
 class OfflineShortlistItem:
     source_movie_id: str
     title: str
@@ -55,8 +62,10 @@ class OfflineShortlistItem:
     provider_names: tuple[str, ...]
     provider_availability: tuple[OfflineShortlistProviderAvailability, ...]
     poster_url: str | None
+    backdrop_url: str | None
     overview: str
     top_cast: tuple[str, ...]
+    cast_details: tuple[OfflineShortlistCastMember, ...]
     matched_person_names: tuple[str, ...]
     safe_pick_status: str
     availability: str
@@ -170,8 +179,17 @@ def get_offline_demo_shortlist(
                     for availability in fixture.provider_availability
                 ),
                 poster_url=fixture.poster_url,
+                backdrop_url=None,
                 overview=fixture.overview,
                 top_cast=fixture.top_cast,
+                cast_details=tuple(
+                    OfflineShortlistCastMember(
+                        name=member.name,
+                        character=member.character,
+                        profile_url=member.profile_url,
+                    )
+                    for member in domain_candidate.cast_details
+                ),
                 matched_person_names=domain_candidate.matched_person_names,
                 safe_pick_status=_safe_pick_status_label(
                     domain_candidate.safety_status
@@ -387,8 +405,17 @@ def _candidate_source_shortlist_item(
             for availability in candidate.provider_availability
         ),
         poster_url=candidate.poster_url,
+        backdrop_url=candidate.backdrop_url,
         overview=candidate.overview,
         top_cast=candidate.top_cast,
+        cast_details=tuple(
+            OfflineShortlistCastMember(
+                name=member.name,
+                character=member.character,
+                profile_url=member.profile_url,
+            )
+            for member in candidate.cast_details
+        ),
         matched_person_names=candidate.matched_person_names,
         safe_pick_status=_safe_pick_status_label(candidate.safety_status),
         availability=_availability_summary(candidate.provider_availability),

@@ -131,7 +131,7 @@ class OnboardingApiTest(unittest.TestCase):
             )
             self.assertEqual(complete_completion.incompleteProfileIds, [])
 
-    def test_completion_api_counts_meaningful_taste_lab_calibration_as_ready(
+    def test_taste_lab_ratings_never_replace_required_onboarding_buckets(
         self,
     ) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -146,19 +146,26 @@ class OnboardingApiTest(unittest.TestCase):
             )
             taste_lab_store = SQLiteTasteLabStore(database_path=database_path)
             taste_lab_store.save_ratings(
-                ratings=(
-                    taste_lab_rating("profile-a", "Action Seed", TasteLabRatingLabel.LOVED),
-                    taste_lab_rating("profile-a", "Comedy Seed", TasteLabRatingLabel.LIKED),
-                    taste_lab_rating("profile-a", "Drama Seed", TasteLabRatingLabel.HATED),
+                ratings=tuple(
+                    taste_lab_rating(
+                        "profile-a",
+                        f"Taste Lab Seed {index}",
+                        (
+                            TasteLabRatingLabel.LOVED,
+                            TasteLabRatingLabel.LIKED,
+                            TasteLabRatingLabel.HATED,
+                        )[index % 3],
+                    )
+                    for index in range(12)
                 )
             )
 
             completion = get_completion(["profile-a"])
 
-            self.assertFalse(completion.sharedRecommendationLocked)
-            self.assertTrue(completion.sharedRecommendationUnlocked)
-            self.assertEqual(completion.completedProfileIds, ["profile-a"])
-            self.assertEqual(completion.incompleteProfileIds, [])
+            self.assertTrue(completion.sharedRecommendationLocked)
+            self.assertFalse(completion.sharedRecommendationUnlocked)
+            self.assertEqual(completion.completedProfileIds, [])
+            self.assertEqual(completion.incompleteProfileIds, ["profile-a"])
 
     def test_path_profile_id_must_match_payload_profile_id(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -1,0 +1,459 @@
+[
+  {
+    "state": "populated",
+    "name": "populated-320x844",
+    "geom": {
+      "iw": 320,
+      "ih": 844,
+      "sw": 320,
+      "sh": 1114
+    },
+    "targets": [
+      {
+        "name": "Close taste memory",
+        "w": 34,
+        "h": 52
+      },
+      {
+        "name": "Done",
+        "w": 288,
+        "h": 54
+      }
+    ],
+    "returned": "Demo recommendationsThis server is configured to use the seeded demo catalog for",
+    "text": "Taste memory\nWhat WatchSignal remembers\n\nHousehold\nDistinct signals so far\n\nC\nCezary - tester\n\nLeaning toward Drama and Adventure\n\nPossible avoids: Action and Adventure.\n\nWhy this?\nH\nHusband\n\nStill taking shape\n\nNo reliable avoid yet.\n\nWhy this?\n\nOnly household profiles use this memory.\n\nDone"
+  },
+  {
+    "state": "populated",
+    "name": "populated-390x844",
+    "geom": {
+      "iw": 390,
+      "ih": 844,
+      "sw": 390,
+      "sh": 1090
+    },
+    "targets": [
+      {
+        "name": "Close taste memory",
+        "w": 43,
+        "h": 52
+      },
+      {
+        "name": "Done",
+        "w": 358,
+        "h": 54
+      }
+    ],
+    "returned": "Demo recommendationsThis server is configured to use the seeded demo catalog for",
+    "text": "Taste memory\nWhat WatchSignal remembers\n\nHousehold\nDistinct signals so far\n\nC\nCezary - tester\n\nLeaning toward Drama and Adventure\n\nPossible avoids: Action and Adventure.\n\nWhy this?\n\n90 signals considered\n\nSaved\n3\nReactions\n20\nWatched\n0\nRated\n0\nGame, The\nLiked\nArrival\nSaved for later\nThe Dark Knight\nSaved for later\nH\nHusband\n\nStill taking shape\n\nNo reliable avoid yet.\n\nWhy this?\n\nOnly household profiles use this memory.\n\nDone"
+  },
+  {
+    "state": "populated",
+    "name": "populated-430x844",
+    "geom": {
+      "iw": 430,
+      "ih": 844,
+      "sw": 430,
+      "sh": 1090
+    },
+    "targets": [
+      {
+        "name": "Close taste memory",
+        "w": 44,
+        "h": 52
+      },
+      {
+        "name": "Done",
+        "w": 390,
+        "h": 54
+      }
+    ],
+    "returned": "Demo recommendationsThis server is configured to use the seeded demo catalog for",
+    "text": "Taste memory\nWhat WatchSignal remembers\n\nHousehold\nDistinct signals so far\n\nC\nCezary - tester\n\nLeaning toward Drama and Adventure\n\nPossible avoids: Action and Adventure.\n\nWhy this?\n\n90 signals considered\n\nSaved\n3\nReactions\n20\nWatched\n0\nRated\n0\nGame, The\nLiked\nArrival\nSaved for later\nThe Dark Knight\nSaved for later\nH\nHusband\n\nStill taking shape\n\nNo reliable avoid yet.\n\nWhy this?\n\nOnly household profiles use this memory.\n\nDone"
+  },
+  {
+    "state": "populated",
+    "name": "populated-390x568",
+    "geom": {
+      "iw": 390,
+      "ih": 568,
+      "sw": 390,
+      "sh": 1012
+    },
+    "targets": [
+      {
+        "name": "Close taste memory",
+        "w": 43,
+        "h": 52
+      },
+      {
+        "name": "Done",
+        "w": 358,
+        "h": 54
+      }
+    ],
+    "returned": "Demo recommendationsThis server is configured to use the seeded demo catalog for",
+    "text": "Taste memory\nWhat WatchSignal remembers\n\nHousehold\nDistinct signals so far\n\nC\nCezary - tester\n\nLeaning toward Drama and Adventure\n\nPossible avoids: Action and Adventure.\n\nWhy this?\n\n90 signals considered\n\nSaved\n3\nReactions\n20\nWatched\n0\nRated\n0\nGame, The\nLiked\nArrival\nSaved for later\nThe Dark Knight\nSaved for later\nH\nHusband\n\nStill taking shape\n\nNo reliable avoid yet.\n\nWhy this?\n\nOnly household profiles use this memory.\n\nDone"
+  },
+  {
+    "state": "populated",
+    "name": "populated-200-percent",
+    "geom": {
+      "iw": 195,
+      "ih": 422,
+      "sw": 195,
+      "sh": 1279
+    },
+    "targets": [
+      {
+        "name": "Close taste memory",
+        "w": 21,
+        "h": 52
+      },
+      {
+        "name": "Done",
+        "w": 187,
+        "h": 54
+      }
+    ],
+    "returned": "Movie NightMediatorTonight, we pick together.Pass the phoneDemo recommendationsT",
+    "text": "Taste memory\nWhat WatchSignal remembers\n\nHousehold\nDistinct signals so far\n\nC\nCezary - tester\n\nLeaning toward Drama and Adventure\n\nPossible avoids: Action and Adventure.\n\nWhy this?\n\n90 signals considered\n\nSaved\n3\nReactions\n20\nWatched\n0\nRated\n0\nGame, The\nLiked\nArrival\nSaved for later\nThe Dark Knight\nSaved for later\nH\nHusband\n\nStill taking shape\n\nNo reliable avoid yet.\n\nWhy this?\n\nOnly household profiles use this memory.\n\nDone"
+  },
+  {
+    "state": "learning",
+    "name": "learning-320x844",
+    "geom": {
+      "iw": 320,
+      "ih": 844,
+      "sw": 320,
+      "sh": 1114
+    },
+    "targets": [
+      {
+        "name": "Close taste memory",
+        "w": 34,
+        "h": 52
+      },
+      {
+        "name": "Done",
+        "w": 288,
+        "h": 54
+      }
+    ],
+    "returned": "Demo recommendationsThis server is configured to use the seeded demo catalog for",
+    "text": "Taste memory\nWhat WatchSignal remembers\n\nHousehold\nStill learning your shared taste\n\nC\nCezary - tester\n\nStill learning\n\nA few more choices will make this clearer.\n\nWhy this?\nH\nHusband\n\nStill learning\n\nA few more choices will make this clearer.\n\nWhy this?\n\nOnly household profiles use this memory.\n\nDone"
+  },
+  {
+    "state": "learning",
+    "name": "learning-390x844",
+    "geom": {
+      "iw": 390,
+      "ih": 844,
+      "sw": 390,
+      "sh": 1090
+    },
+    "targets": [
+      {
+        "name": "Close taste memory",
+        "w": 43,
+        "h": 52
+      },
+      {
+        "name": "Done",
+        "w": 358,
+        "h": 54
+      }
+    ],
+    "returned": "Demo recommendationsThis server is configured to use the seeded demo catalog for",
+    "text": "Taste memory\nWhat WatchSignal remembers\n\nHousehold\nStill learning your shared taste\n\nC\nCezary - tester\n\nStill learning\n\nA few more choices will make this clearer.\n\nWhy this?\nH\nHusband\n\nStill learning\n\nA few more choices will make this clearer.\n\nWhy this?\n\nOnly household profiles use this memory.\n\nDone"
+  },
+  {
+    "state": "learning",
+    "name": "learning-430x844",
+    "geom": {
+      "iw": 430,
+      "ih": 844,
+      "sw": 430,
+      "sh": 1090
+    },
+    "targets": [
+      {
+        "name": "Close taste memory",
+        "w": 44,
+        "h": 52
+      },
+      {
+        "name": "Done",
+        "w": 390,
+        "h": 54
+      }
+    ],
+    "returned": "Demo recommendationsThis server is configured to use the seeded demo catalog for",
+    "text": "Taste memory\nWhat WatchSignal remembers\n\nHousehold\nStill learning your shared taste\n\nC\nCezary - tester\n\nStill learning\n\nA few more choices will make this clearer.\n\nWhy this?\nH\nHusband\n\nStill learning\n\nA few more choices will make this clearer.\n\nWhy this?\n\nOnly household profiles use this memory.\n\nDone"
+  },
+  {
+    "state": "learning",
+    "name": "learning-390x568",
+    "geom": {
+      "iw": 390,
+      "ih": 568,
+      "sw": 390,
+      "sh": 1012
+    },
+    "targets": [
+      {
+        "name": "Close taste memory",
+        "w": 43,
+        "h": 52
+      },
+      {
+        "name": "Done",
+        "w": 358,
+        "h": 54
+      }
+    ],
+    "returned": "Movie NightMediatorTonight, we pick together.Pass the phoneDemo recommendationsT",
+    "text": "Taste memory\nWhat WatchSignal remembers\n\nHousehold\nStill learning your shared taste\n\nC\nCezary - tester\n\nStill learning\n\nA few more choices will make this clearer.\n\nWhy this?\nH\nHusband\n\nStill learning\n\nA few more choices will make this clearer.\n\nWhy this?\n\nOnly household profiles use this memory.\n\nDone"
+  },
+  {
+    "state": "learning",
+    "name": "learning-200-percent",
+    "geom": {
+      "iw": 195,
+      "ih": 422,
+      "sw": 195,
+      "sh": 1279
+    },
+    "targets": [
+      {
+        "name": "Close taste memory",
+        "w": 21,
+        "h": 52
+      },
+      {
+        "name": "Done",
+        "w": 187,
+        "h": 54
+      }
+    ],
+    "returned": "Demo recommendationsThis server is configured to use the seeded demo catalog for",
+    "text": "Taste memory\nWhat WatchSignal remembers\n\nHousehold\nStill learning your shared taste\n\nC\nCezary - tester\n\nStill learning\n\nA few more choices will make this clearer.\n\nWhy this?\nH\nHusband\n\nStill learning\n\nA few more choices will make this clearer.\n\nWhy this?\n\nOnly household profiles use this memory.\n\nDone"
+  },
+  {
+    "state": "error",
+    "name": "error-320x844",
+    "geom": {
+      "iw": 320,
+      "ih": 844,
+      "sw": 320,
+      "sh": 1114
+    },
+    "targets": [
+      {
+        "name": "Close taste memory",
+        "w": 34,
+        "h": 52
+      },
+      {
+        "name": "Try again",
+        "w": 100,
+        "h": 48
+      },
+      {
+        "name": "Done",
+        "w": 288,
+        "h": 54
+      }
+    ],
+    "returned": "Demo recommendationsThis server is configured to use the seeded demo catalog for",
+    "text": "Taste memory\nWhat WatchSignal remembers\nTaste memory is taking a break\n\nCouldn’t load taste memory. Your profiles are unchanged.\n\nTry again\n\nOnly household profiles use this memory.\n\nDone"
+  },
+  {
+    "state": "error",
+    "name": "error-390x844",
+    "geom": {
+      "iw": 390,
+      "ih": 844,
+      "sw": 390,
+      "sh": 1090
+    },
+    "targets": [
+      {
+        "name": "Close taste memory",
+        "w": 43,
+        "h": 52
+      },
+      {
+        "name": "Try again",
+        "w": 100,
+        "h": 48
+      },
+      {
+        "name": "Done",
+        "w": 358,
+        "h": 54
+      }
+    ],
+    "returned": "Demo recommendationsThis server is configured to use the seeded demo catalog for",
+    "text": "Taste memory\nWhat WatchSignal remembers\nTaste memory is taking a break\n\nCouldn’t load taste memory. Your profiles are unchanged.\n\nTry again\n\nOnly household profiles use this memory.\n\nDone"
+  },
+  {
+    "state": "error",
+    "name": "error-430x844",
+    "geom": {
+      "iw": 430,
+      "ih": 844,
+      "sw": 430,
+      "sh": 1090
+    },
+    "targets": [
+      {
+        "name": "Close taste memory",
+        "w": 44,
+        "h": 52
+      },
+      {
+        "name": "Try again",
+        "w": 100,
+        "h": 48
+      },
+      {
+        "name": "Done",
+        "w": 390,
+        "h": 54
+      }
+    ],
+    "returned": "Demo recommendationsThis server is configured to use the seeded demo catalog for",
+    "text": "Taste memory\nWhat WatchSignal remembers\nTaste memory is taking a break\n\nCouldn’t load taste memory. Your profiles are unchanged.\n\nTry again\n\nOnly household profiles use this memory.\n\nDone"
+  },
+  {
+    "state": "error",
+    "name": "error-390x568",
+    "geom": {
+      "iw": 390,
+      "ih": 568,
+      "sw": 390,
+      "sh": 1012
+    },
+    "targets": [
+      {
+        "name": "Close taste memory",
+        "w": 43,
+        "h": 52
+      },
+      {
+        "name": "Try again",
+        "w": 100,
+        "h": 48
+      },
+      {
+        "name": "Done",
+        "w": 358,
+        "h": 54
+      }
+    ],
+    "returned": "Demo recommendationsThis server is configured to use the seeded demo catalog for",
+    "text": "Taste memory\nWhat WatchSignal remembers\nTaste memory is taking a break\n\nCouldn’t load taste memory. Your profiles are unchanged.\n\nTry again\n\nOnly household profiles use this memory.\n\nDone"
+  },
+  {
+    "state": "error",
+    "name": "error-200-percent",
+    "geom": {
+      "iw": 195,
+      "ih": 422,
+      "sw": 195,
+      "sh": 1279
+    },
+    "targets": [
+      {
+        "name": "Close taste memory",
+        "w": 21,
+        "h": 52
+      },
+      {
+        "name": "Try again",
+        "w": 100,
+        "h": 48
+      },
+      {
+        "name": "Done",
+        "w": 187,
+        "h": 54
+      }
+    ],
+    "returned": "Taste memoryWhat WatchSignal has learned",
+    "text": "Taste memory\nWhat WatchSignal remembers\nTaste memory is taking a break\n\nCouldn’t load taste memory. Your profiles are unchanged.\n\nTry again\n\nOnly household profiles use this memory.\n\nDone"
+  },
+  {
+    "state": "populated",
+    "name": "reduced-motion",
+    "geom": {
+      "iw": 390,
+      "ih": 844,
+      "sw": 390,
+      "sh": 1090
+    },
+    "targets": [
+      {
+        "name": "Close taste memory",
+        "w": 43,
+        "h": 52
+      },
+      {
+        "name": "Done",
+        "w": 358,
+        "h": 54
+      }
+    ],
+    "returned": "Taste memoryWhat WatchSignal has learned",
+    "text": "Taste memory\nWhat WatchSignal remembers\n\nHousehold\nDistinct signals so far\n\nC\nCezary - tester\n\nLeaning toward Drama and Adventure\n\nPossible avoids: Action and Adventure.\n\nWhy this?\n\n90 signals considered\n\nSaved\n3\nReactions\n20\nWatched\n0\nRated\n0\nGame, The\nLiked\nArrival\nSaved for later\nThe Dark Knight\nSaved for later\nH\nHusband\n\nStill taking shape\n\nNo reliable avoid yet.\n\nWhy this?\n\nOnly household profiles use this memory.\n\nDone"
+  },
+  {
+    "state": "populated",
+    "name": "reduced-transparency",
+    "geom": {
+      "iw": 390,
+      "ih": 844,
+      "sw": 390,
+      "sh": 1090
+    },
+    "targets": [
+      {
+        "name": "Close taste memory",
+        "w": 43,
+        "h": 52
+      },
+      {
+        "name": "Done",
+        "w": 358,
+        "h": 54
+      }
+    ],
+    "returned": "Demo recommendationsThis server is configured to use the seeded demo catalog for",
+    "text": "Taste memory\nWhat WatchSignal remembers\n\nHousehold\nDistinct signals so far\n\nC\nCezary - tester\n\nLeaning toward Drama and Adventure\n\nPossible avoids: Action and Adventure.\n\nWhy this?\n\n90 signals considered\n\nSaved\n3\nReactions\n20\nWatched\n0\nRated\n0\nGame, The\nLiked\nArrival\nSaved for later\nThe Dark Knight\nSaved for later\nH\nHusband\n\nStill taking shape\n\nNo reliable avoid yet.\n\nWhy this?\n\nOnly household profiles use this memory.\n\nDone"
+  },
+  {
+    "state": "populated",
+    "name": "forced-colors",
+    "geom": {
+      "iw": 390,
+      "ih": 844,
+      "sw": 390,
+      "sh": 1090
+    },
+    "targets": [
+      {
+        "name": "Close taste memory",
+        "w": 43,
+        "h": 52
+      },
+      {
+        "name": "Done",
+        "w": 358,
+        "h": 54
+      }
+    ],
+    "returned": "Taste memoryWhat WatchSignal has learned",
+    "text": "Taste memory\nWhat WatchSignal remembers\n\nHousehold\nDistinct signals so far\n\nC\nCezary - tester\n\nLeaning toward Drama and Adventure\n\nPossible avoids: Action and Adventure.\n\nWhy this?\n\n90 signals considered\n\nSaved\n3\nReactions\n20\nWatched\n0\nRated\n0\nGame, The\nLiked\nArrival\nSaved for later\nThe Dark Knight\nSaved for later\nH\nHusband\n\nStill taking shape\n\nNo reliable avoid yet.\n\nWhy this?\n\nOnly household profiles use this memory.\n\nDone"
+  }
+]

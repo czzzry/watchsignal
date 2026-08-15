@@ -4,10 +4,12 @@ import type {
   ParticipantOnboardingPayload,
   ShortlistCandidatePayload,
 } from "./session-client";
+import type { RecoveryMovieDisplayPayload } from "./api-contract.generated";
 import { demoCandidates, type DemoCandidate, type ReactionValue, type SessionMode } from "./session-fixtures.ts";
 import type {
   CandidateProvenance,
   CandidateViewModel,
+  MatchIndexBreakdown,
   OnboardingDraft,
   PeopleMode,
   RankedCandidate,
@@ -115,20 +117,24 @@ export function rankCandidates({
 }): RankedCandidate[] {
   const ranked = candidates
     .map((candidate) => {
-      const rawScore = rawProfileAndReactionScore({
+      const modelScore = modelScoreForCandidate({
         candidate,
         peopleMode,
         sessionMode,
+      });
+      const matchIndex = calculateMatchIndex({
+        modelScore,
+        peopleMode,
         founderReaction: founderReactions[candidate.id],
         wifeReaction: wifeReactions[candidate.id],
       });
-      const rawProfileScore = clampUnitScore(candidate.groupScore ?? 0.72);
 
       return {
         ...candidate,
-        profileScore: displayScoreFromUnitScore(rawProfileScore),
-        score: displayScoreFromUnitScore(rawScore),
-        sortScore: rawScore,
+        profileScore: roundMatchIndexScore(modelScore * 100),
+        score: matchIndex.score,
+        matchIndex,
+        sortScore: matchIndex.combinedRaw,
       };
     })
     .sort((first, second) => {
@@ -150,61 +156,105 @@ export function rankCandidates({
     })
     .map(({ sortScore: _sortScore, ...candidate }) => candidate);
 
+  if (process.env.NODE_ENV !== "production" && rerankedSourceMovieIds.length > 0) {
+    for (let index = 1; index < ranked.length; index += 1) {
+      if (ranked[index].matchIndex.combinedRaw > ranked[index - 1].matchIndex.combinedRaw) {
+        console.warn(
+          "WatchSignal Match Index diagnostic: API order contradicts the local combined signal.",
+          {
+            higherRankedId: ranked[index - 1].id,
+            lowerRankedId: ranked[index].id,
+          },
+        );
+      }
+    }
+  }
+
   return ranked;
 }
 
-export function toMatchTier(score: number): "Epic" | "Strong" | "Warm" {
-  if (score >= 95) {
-    return "Epic";
-  }
+export const SCORE_ROUNDING_EPSILON = 1e-10;
 
-  if (score >= 85) {
-    return "Strong";
-  }
+export function calculateMatchIndex({
+  modelScore,
+  peopleMode,
+  founderReaction,
+  wifeReaction,
+}: {
+  modelScore: number;
+  peopleMode: PeopleMode;
+  founderReaction: ReactionValue | undefined;
+  wifeReaction: ReactionValue | undefined;
+}): MatchIndexBreakdown {
+  const baseSignal = clampModelScore(modelScore);
+  const reactionDeltaRaw =
+    peopleMode === "couple"
+      ? reactionConfidenceDelta(founderReaction) +
+        reactionConfidenceDelta(wifeReaction)
+      : peopleMode === "founder"
+        ? reactionConfidenceDelta(founderReaction)
+        : reactionConfidenceDelta(wifeReaction);
+  const combinedRaw = baseSignal + reactionDeltaRaw;
+  const rawMinimum = peopleMode === "couple" ? -0.36 : -0.18;
+  const rawMaximum = peopleMode === "couple" ? 1.24 : 1.12;
+  const transformed =
+    ((combinedRaw - rawMinimum) / (rawMaximum - rawMinimum)) * 100;
+  const exactScore = Math.min(100, Math.max(0, transformed));
 
-  return "Warm";
+  return {
+    scoreKind: "match_index_v1",
+    score: roundMatchIndexScore(exactScore),
+    exactScore,
+    baseSignal,
+    reactionDeltaRaw,
+    combinedRaw,
+    rawMinimum,
+    rawMaximum,
+  };
 }
 
-function rawProfileAndReactionScore({
+export function roundMatchIndexScore(exactScore: number): number {
+  return Math.floor(exactScore + 0.5 + SCORE_ROUNDING_EPSILON);
+}
+
+export function modelScoreForCandidate({
   candidate,
   peopleMode,
   sessionMode,
-  founderReaction,
-  wifeReaction,
 }: {
   candidate: CandidateViewModel;
   peopleMode: PeopleMode;
   sessionMode: SessionMode;
-  founderReaction: ReactionValue | undefined;
-  wifeReaction: ReactionValue | undefined;
 }): number {
-  const baseProfileScore = candidate.groupScore ?? 0.72;
+  if (candidate.groupScore !== undefined) {
+    return clampModelScore(candidate.groupScore);
+  }
 
+  const founder = clampModelScore(candidate.taste.founder / 100);
+  const wife = clampModelScore(candidate.taste.wife / 100);
   if (peopleMode === "founder") {
-    return clampUnitScore(baseProfileScore + reactionConfidenceDelta(founderReaction));
+    return founder;
   }
-
   if (peopleMode === "wife") {
-    return clampUnitScore(baseProfileScore + reactionConfidenceDelta(wifeReaction));
+    return wife;
+  }
+  if (sessionMode === "founder-first") {
+    return founder * 0.7 + wife * 0.3;
+  }
+  if (sessionMode === "wife-first") {
+    return founder * 0.3 + wife * 0.7;
   }
 
-  const reactionDelta =
-    sessionMode === "founder-first"
-      ? reactionConfidenceDelta(founderReaction) * 0.7 +
-        reactionConfidenceDelta(wifeReaction) * 0.3
-      : sessionMode === "wife-first"
-        ? reactionConfidenceDelta(founderReaction) * 0.3 +
-          reactionConfidenceDelta(wifeReaction) * 0.7
-        : reactionConfidenceDelta(founderReaction) + reactionConfidenceDelta(wifeReaction);
-
-  return clampUnitScore(baseProfileScore + reactionDelta);
+  const leastMiseryFloor = Math.min(founder, wife);
+  const average = (founder + wife) / 2;
+  const compromise = leastMiseryFloor * 0.6 + average * 0.4;
+  return leastMiseryFloor <= 0.35 ? compromise * 0.75 : compromise;
 }
 
-function displayScoreFromUnitScore(score: number): number {
-  return Math.min(99, Math.max(0, Math.round(score * 100)));
-}
-
-function clampUnitScore(score: number): number {
+function clampModelScore(score: number): number {
+  if (Number.isNaN(score)) {
+    return 0;
+  }
   return Math.min(1, Math.max(0, score));
 }
 
@@ -239,27 +289,110 @@ export function describeSharedWhy({
   founderLabel: string;
   wifeLabel: string;
 }): string {
-  if (peopleMode !== "couple") {
-    if (candidate.whyNow) {
-      return candidate.whyNow;
-    }
+  const evidence = resultEvidenceClause(candidate);
 
-    return candidate.reason || `${candidate.title} looks like a strong fit for this profile tonight.`;
+  if (peopleMode !== "couple") {
+    const reaction = peopleMode === "founder" ? founderReaction : wifeReaction;
+    const lead = reaction
+      ? `${candidate.title} leads because you marked it ${reactionLabel(reaction)}`
+      : `${candidate.title} leads this shortlist`;
+    return `${lead}; ${evidence}.`;
   }
 
   if (founderReaction === "interested" && wifeReaction === "interested") {
-    return `${founderLabel} and ${wifeLabel} both pushed this up, and the ${candidate.tone.toLowerCase()} energy makes it easy to start right now.`;
+    return `${candidate.title} leads because both marked it Interested; ${evidence}.`;
   }
 
-  if (founderReaction === "interested" || wifeReaction === "interested") {
-    return `One of you really wanted this, the other didn’t block it, and ${candidate.title} still looks like a strong shared bet for tonight.`;
+  if (founderReaction && wifeReaction && founderReaction !== wifeReaction) {
+    return `${candidate.title} stays high: ${founderLabel} chose ${reactionLabel(founderReaction)}, ${wifeLabel} chose ${reactionLabel(wifeReaction)}; ${evidence}.`;
   }
 
-  if (candidate.criticScore && candidate.criticScore >= 94) {
-    return `Neither of you spiked hard on it, but the trust signal is high and ${candidate.title} still looks like the cleanest overlap.`;
+  if (founderReaction === "no" && wifeReaction === "no") {
+    return `${candidate.title} ranks lower because both marked it No; ${evidence}.`;
   }
 
-  return `This one balances tonight’s overlap best: approachable pace, strong payoff, and fewer reasons for either of you to bounce off.`;
+  if (founderReaction === "maybe" && wifeReaction === "maybe") {
+    return `${candidate.title} stays in contention because both marked it Maybe; ${evidence}.`;
+  }
+
+  return `${candidate.title} is in tonight's five; ${evidence}.`;
+}
+
+function reactionLabel(reaction: ReactionValue): "Interested" | "Maybe" | "No" {
+  return reaction === "interested"
+    ? "Interested"
+    : reaction === "maybe"
+      ? "Maybe"
+      : "No";
+}
+
+function resultEvidenceClause(candidate: RankedCandidate): string {
+  const evidence = candidate.dominantPositiveEvidence ?? [];
+  const requestedPerson = candidate.matchedPersonNames?.find((name) =>
+    evidence.some(
+      (item) => item.toLowerCase() === `nudge_person:${name}`.toLowerCase(),
+    ),
+  );
+  if (requestedPerson) {
+    return `${requestedPerson} matched tonight's request`;
+  }
+
+  const tonightMatch = evidence
+    .map((item) => evidenceValue(item, ["nudge_signal:include:", "tonight_intent:"]))
+    .find((value): value is string => Boolean(value));
+  if (tonightMatch) {
+    return `${humanizeEvidenceValue(tonightMatch)} matched tonight's request`;
+  }
+
+  const savedGenre = evidence
+    .map((item) => evidenceValue(item, ["profile_concept:likes:"]))
+    .find((value): value is string => Boolean(value));
+  if (savedGenre) {
+    return `saved ${humanizeEvidenceValue(savedGenre)} taste evidence also supported it`;
+  }
+
+  if (evidence.some((item) => item.startsWith("learned_taste:"))) {
+    return "saved movie history also supported it";
+  }
+
+  if (evidence.some((item) => item.startsWith("title_similarity:"))) {
+    return "similarity to a saved title also supported it";
+  }
+
+  if (
+    evidence.some(
+      (item) =>
+        item === "shared:overlap_strength" || item === "shared:bridge_value",
+    )
+  ) {
+    return "both taste profiles also supported it";
+  }
+
+  const genres = candidate.genres.filter(Boolean).slice(0, 2);
+  if (genres.length === 2) {
+    return `it's the ${genres[0]} and ${genres[1]} option in this five`;
+  }
+  if (genres.length === 1) {
+    return `it's the ${genres[0]} option in this five`;
+  }
+  return "it remains one of tonight's five";
+}
+
+function evidenceValue(value: string, prefixes: string[]): string | null {
+  const prefix = prefixes.find((candidate) => value.startsWith(candidate));
+  if (!prefix) {
+    return null;
+  }
+  const result = value.slice(prefix.length).trim();
+  return result && !result.startsWith("avoid ") ? result : null;
+}
+
+function humanizeEvidenceValue(value: string): string {
+  return value
+    .replaceAll("_", " ")
+    .replaceAll("/", " and ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function reactionScore(reaction: ReactionValue | undefined) {
@@ -294,19 +427,21 @@ export function countSeenMemories(seenMemories: SeenMemoryState): number {
 export function mergeSeenMemoryIntoOnboarding(
   onboarding: ParticipantOnboardingPayload,
   candidate: DemoCandidate,
-  memory: Exclude<SeenMemoryValue, "forget">,
+  memory: SeenMemoryValue,
 ): ParticipantOnboardingPayload {
   const nextLoved = removeTitleEntry(onboarding.lovedTitleEntries, candidate.id);
   const nextFine = removeTitleEntry(onboarding.fineTitleEntries, candidate.id);
   const nextNo = removeTitleEntry(onboarding.noTitleEntries, candidate.id);
-  const entry = toResolvedTitleEntry(candidate);
 
-  if (memory === "loved") {
-    nextLoved.unshift(entry);
-  } else if (memory === "fine") {
-    nextFine.unshift(entry);
-  } else {
-    nextNo.unshift(entry);
+  if (memory !== "forget") {
+    const entry = toResolvedTitleEntry(candidate);
+    if (memory === "loved") {
+      nextLoved.unshift(entry);
+    } else if (memory === "fine") {
+      nextFine.unshift(entry);
+    } else {
+      nextNo.unshift(entry);
+    }
   }
 
   return {
@@ -484,10 +619,19 @@ export function toSessionCandidate(
       new Date().getFullYear(),
     runtime: runtime ?? fixture?.runtime ?? "Runtime check needed",
     posterUrl: candidate.posterUrl ?? fixture?.posterUrl ?? fallbackPosterUrl,
+    backdropUrl: candidate.backdropUrl ?? fixture?.backdropUrl,
+    providerUrl: candidate.providerUrl ?? fixture?.providerUrl,
     topCast:
       candidate.topCast?.slice(0, 3) ??
       fixture?.topCast ??
       [],
+    castDetails:
+      candidate.castDetails?.slice(0, 3).map((member) => ({
+        name: member.name,
+        character: member.character ?? undefined,
+        profileUrl: member.profileUrl ?? undefined,
+      })) ??
+      fixture?.castDetails?.slice(0, 3),
     matchedPersonNames:
       candidate.matchedPersonNames?.slice(0, 3) ??
       fixture?.matchedPersonNames,
@@ -495,6 +639,10 @@ export function toSessionCandidate(
     criticScore: fixture?.criticScore,
     safePickStatus: toSafePickStatus(candidate.safePickStatus),
     availability: availability ?? fixture?.availability ?? "Availability check needed",
+    providerAvailability:
+      candidate.providerAvailability?.length > 0
+        ? candidate.providerAvailability
+        : fixture?.providerAvailability,
     languageAccess:
       candidate.languageAccess ??
       fixture?.languageAccess ??
@@ -513,12 +661,58 @@ export function toSessionCandidate(
     hook: fixture?.hook,
     whyNow: fixture?.whyNow,
     groupScore: candidate.groupScore ?? undefined,
+    dominantPositiveEvidence:
+      candidate.dominantPositiveEvidence ?? fixture?.dominantPositiveEvidence,
+    dominantPenalties:
+      candidate.dominantPenalties ?? fixture?.dominantPenalties,
     baseRank: rank,
     taste: {
       founder: candidate.founderScore ?? fixture?.taste.founder ?? groupScore,
       wife: candidate.wifeScore ?? fixture?.taste.wife ?? groupScore,
     },
     provenance,
+  };
+}
+
+export function toRecoverySessionCandidate(
+  candidate: RecoveryMovieDisplayPayload,
+  index: number,
+): CandidateViewModel {
+  return {
+    id: candidate.sourceMovieId,
+    title: candidate.title,
+    year: candidate.year ?? new Date().getFullYear(),
+    runtime: candidate.runtimeLabel ?? "Runtime check needed",
+    posterUrl: candidate.posterUrl ?? fallbackPosterUrl,
+    backdropUrl: candidate.backdropUrl ?? undefined,
+    providerUrl: candidate.providerUrl ?? undefined,
+    topCast: (candidate.cast ?? []).map((member) => member.name),
+    castDetails: (candidate.cast ?? []).map((member) => ({
+      name: member.name,
+      character: member.character ?? undefined,
+      profileUrl: member.profileUrl ?? undefined,
+    })),
+    providerAvailability: candidate.providers ?? [],
+    matchedPersonNames: candidate.matchedPersonNames ?? [],
+    genres: candidate.genres ?? [],
+    safePickStatus: candidate.safePickStatus ?? "Safe Pick",
+    availability: candidate.availability ?? "Availability check needed",
+    languageAccess:
+      candidate.languageAccess
+      ?? "Audio and subtitle details need a quick check",
+    tone: candidate.tone ?? "Balanced pick",
+    reason: "Recovered from tonight’s private shortlist.",
+    overview: candidate.synopsis || undefined,
+    groupScore: 0.72,
+    dominantPositiveEvidence: candidate.positiveEvidence,
+    dominantPenalties: candidate.penalties,
+    baseRank: index + 1,
+    taste: { founder: 72, wife: 72 },
+    provenance: {
+      poster: candidate.posterUrl ? "api-payload" : "fallback-placeholder",
+      criticScore: "not-provided",
+      descriptiveCopy: candidate.synopsis ? "api-payload" : "generic-fallback",
+    },
   };
 }
 
@@ -559,42 +753,6 @@ export function titleForSourceMovieId(
     shortlist.find((candidate) => candidate.sourceMovieId === sourceMovieId)?.title ??
     null
   );
-}
-
-export function toErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return `${error.message} Continuing in demo mode.`;
-  }
-
-  return "Session API failed. Continuing in demo mode.";
-}
-
-export function toSessionCreationErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    if (error.message.includes("completed onboarding")) {
-      return "Shared profile setup is not wired into the phone flow yet, so this round is using the same shortlist in local mode.";
-    }
-
-    return error.message;
-  }
-
-  return "Session setup could not be saved to the API.";
-}
-
-export function toSeenMemoryErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return "Seen-memory save failed.";
-}
-
-export function toOnboardingErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return "Onboarding could not be loaded.";
 }
 
 export function toDebugHistoryErrorMessage(error: unknown): string {

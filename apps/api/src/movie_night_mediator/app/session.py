@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hashlib
+import json
+import re
 from typing import Protocol
 from uuid import uuid4
 
@@ -12,8 +15,10 @@ from movie_night_mediator.domain import (
     SessionShortlistItem,
     SharedMovieNightSession,
     SharedSessionState,
+    TasteMemoryEvent,
 )
 from movie_night_mediator.storage import SQLiteSessionStore
+from movie_night_mediator.storage.session import SharedSessionCommandConflict
 
 
 class SessionTransitionError(ValueError):
@@ -31,6 +36,18 @@ class SessionMemorySink(Protocol):
         title: str,
         reaction_label: SessionReactionLabel,
     ) -> object | None:
+        raise NotImplementedError
+
+    def build_session_reaction_event(
+        self,
+        *,
+        household_id: str,
+        profile_id: str,
+        session_id: str,
+        source_movie_id: str,
+        title: str,
+        reaction_label: SessionReactionLabel,
+    ) -> TasteMemoryEvent | None:
         raise NotImplementedError
 
 
@@ -148,52 +165,95 @@ class SharedSessionService:
         session_id: str,
         participant_id: str,
         reactions: tuple[SessionReaction, ...],
+        *,
+        command_id: str | None = None,
     ) -> SharedMovieNightSession:
         session = self._require_session(session_id)
+        self._validate_reactions(session, participant_id, reactions)
+
+        if command_id is not None:
+            _validate_command_id(command_id)
+            command_kind = (
+                "submit_founder_reactions"
+                if participant_id == session.founder_participant_id
+                else "submit_wife_reactions"
+            )
+            fingerprint = _reaction_command_fingerprint(
+                command_kind=command_kind,
+                session=session,
+                participant_id=participant_id,
+                reactions=reactions,
+            )
+            try:
+                return self.session_store.apply_idempotent_transition(
+                    session_id=session_id,
+                    command_id=command_id,
+                    command_kind=command_kind,
+                    request_fingerprint=fingerprint,
+                    transition=lambda current: (
+                        self._next_reaction_session(
+                            current,
+                            participant_id,
+                            reactions,
+                        ),
+                        self._memory_events(current, participant_id, reactions),
+                    ),
+                )
+            except SharedSessionCommandConflict as error:
+                raise SessionTransitionError(str(error)) from None
+
+        next_session = self._next_reaction_session(
+            session,
+            participant_id,
+            reactions,
+        )
+        self._record_memory_reactions(session, participant_id, reactions)
+        return self.session_store.save_session(next_session)
+
+    def _next_reaction_session(
+        self,
+        session: SharedMovieNightSession,
+        participant_id: str,
+        reactions: tuple[SessionReaction, ...],
+    ) -> SharedMovieNightSession:
         self._validate_reactions(session, participant_id, reactions)
 
         if session.state == SharedSessionState.FOUNDER_REACTING:
             if participant_id != session.founder_participant_id:
                 raise SessionTransitionError("Founder reaction pass is active.")
 
-            self._record_memory_reactions(session, participant_id, reactions)
-            return self.session_store.save_session(
-                SharedMovieNightSession(
-                    session_id=session.session_id,
-                    household_id=session.household_id,
-                    active_mode=session.active_mode,
-                    participant_ids=session.participant_ids,
-                    state=SharedSessionState.HANDOFF,
-                    shortlist=session.shortlist,
-                    founder_reactions=reactions,
-                    wife_reactions=session.wife_reactions,
-                    previous_shortlist=session.previous_shortlist,
-                    previous_founder_reactions=session.previous_founder_reactions,
-                    previous_wife_reactions=session.previous_wife_reactions,
-                )
+            return SharedMovieNightSession(
+                session_id=session.session_id,
+                household_id=session.household_id,
+                active_mode=session.active_mode,
+                participant_ids=session.participant_ids,
+                state=SharedSessionState.HANDOFF,
+                shortlist=session.shortlist,
+                founder_reactions=reactions,
+                wife_reactions=session.wife_reactions,
+                previous_shortlist=session.previous_shortlist,
+                previous_founder_reactions=session.previous_founder_reactions,
+                previous_wife_reactions=session.previous_wife_reactions,
             )
 
         if session.state == SharedSessionState.WIFE_REACTING:
             if participant_id != session.wife_participant_id:
                 raise SessionTransitionError("Wife reaction pass is active.")
 
-            self._record_memory_reactions(session, participant_id, reactions)
             reranked_ids = self._rerank(session, reactions)
-            return self.session_store.save_session(
-                SharedMovieNightSession(
-                    session_id=session.session_id,
-                    household_id=session.household_id,
-                    active_mode=session.active_mode,
-                    participant_ids=session.participant_ids,
-                    state=SharedSessionState.RERANKED,
-                    shortlist=session.shortlist,
-                    founder_reactions=session.founder_reactions,
-                    wife_reactions=reactions,
-                    reranked_source_movie_ids=reranked_ids,
-                    previous_shortlist=session.previous_shortlist,
-                    previous_founder_reactions=session.previous_founder_reactions,
-                    previous_wife_reactions=session.previous_wife_reactions,
-                )
+            return SharedMovieNightSession(
+                session_id=session.session_id,
+                household_id=session.household_id,
+                active_mode=session.active_mode,
+                participant_ids=session.participant_ids,
+                state=SharedSessionState.RERANKED,
+                shortlist=session.shortlist,
+                founder_reactions=session.founder_reactions,
+                wife_reactions=reactions,
+                reranked_source_movie_ids=reranked_ids,
+                previous_shortlist=session.previous_shortlist,
+                previous_founder_reactions=session.previous_founder_reactions,
+                previous_wife_reactions=session.previous_wife_reactions,
             )
 
         raise SessionTransitionError("Session is not accepting reactions right now.")
@@ -221,13 +281,65 @@ class SharedSessionService:
                 reaction_label=reaction.reaction_label,
             )
 
-    def advance_handoff(self, session_id: str) -> SharedMovieNightSession:
+    def _memory_events(
+        self,
+        session: SharedMovieNightSession,
+        participant_id: str,
+        reactions: tuple[SessionReaction, ...],
+    ) -> tuple[TasteMemoryEvent, ...]:
+        if self.memory_sink is None:
+            return ()
+        titles_by_source_movie_id = {
+            item.source_movie_id: item.title for item in session.shortlist
+        }
+        return tuple(
+            event
+            for reaction in reactions
+            if (
+                event := self.memory_sink.build_session_reaction_event(
+                    household_id=session.household_id,
+                    profile_id=participant_id,
+                    session_id=session.session_id,
+                    source_movie_id=reaction.source_movie_id,
+                    title=titles_by_source_movie_id[reaction.source_movie_id],
+                    reaction_label=reaction.reaction_label,
+                )
+            )
+            is not None
+        )
+
+    def advance_handoff(
+        self,
+        session_id: str,
+        *,
+        command_id: str | None = None,
+    ) -> SharedMovieNightSession:
         session = self._require_session(session_id)
+        if command_id is not None:
+            _validate_command_id(command_id)
+            fingerprint = _handoff_command_fingerprint(session_id)
+            try:
+                return self.session_store.apply_idempotent_transition(
+                    session_id=session_id,
+                    command_id=command_id,
+                    command_kind="advance_handoff",
+                    request_fingerprint=fingerprint,
+                    transition=lambda current: (
+                        self._next_handoff_session(current),
+                        (),
+                    ),
+                )
+            except SharedSessionCommandConflict as error:
+                raise SessionTransitionError(str(error)) from None
+        return self.session_store.save_session(self._next_handoff_session(session))
+
+    def _next_handoff_session(
+        self,
+        session: SharedMovieNightSession,
+    ) -> SharedMovieNightSession:
         if session.state != SharedSessionState.HANDOFF:
             raise SessionTransitionError("Only handoff sessions can advance to wife reactions.")
-
-        return self.session_store.save_session(
-            SharedMovieNightSession(
+        return SharedMovieNightSession(
                 session_id=session.session_id,
                 household_id=session.household_id,
                 active_mode=session.active_mode,
@@ -240,7 +352,6 @@ class SharedSessionService:
                 previous_founder_reactions=session.previous_founder_reactions,
                 previous_wife_reactions=session.previous_wife_reactions,
             )
-        )
 
     def _require_session(self, session_id: str) -> SharedMovieNightSession:
         session = self.session_store.load_session(session_id)
@@ -296,6 +407,46 @@ def _reaction_bonus_by_source_movie_id(
         reaction.source_movie_id: _reaction_bonus(reaction.reaction_label)
         for reaction in reactions
     }
+
+
+def _validate_command_id(command_id: str) -> None:
+    if not isinstance(command_id, str) or re.fullmatch(r"[0-9a-f]{64}", command_id) is None:
+        raise ValueError("Session command ids must be lowercase 64-character hex.")
+
+
+def _reaction_command_fingerprint(
+    *,
+    command_kind: str,
+    session: SharedMovieNightSession,
+    participant_id: str,
+    reactions: tuple[SessionReaction, ...],
+) -> str:
+    reactions_by_id = {reaction.source_movie_id: reaction for reaction in reactions}
+    payload = {
+        "kind": command_kind,
+        "sessionId": session.session_id,
+        "participantId": participant_id,
+        "reactions": [
+            {
+                "sourceMovieId": item.source_movie_id,
+                "reaction": reactions_by_id[item.source_movie_id].reaction_label.value,
+            }
+            for item in session.shortlist
+        ],
+    }
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def _handoff_command_fingerprint(session_id: str) -> str:
+    return hashlib.sha256(
+        json.dumps(
+            {"kind": "advance_handoff", "sessionId": session_id},
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
 
 
 def _reaction_bonus(reaction_label: SessionReactionLabel) -> float:

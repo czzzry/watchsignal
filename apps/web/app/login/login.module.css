@@ -1,0 +1,269 @@
+.loginShell {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--ws-night-950);
+  color: var(--ws-text);
+  font-family: var(--ws-font-ui);
+}
+
+.loginSurface {
+  position: relative;
+  width: min(100%, 430px);
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 50% -12rem, rgba(185, 134, 255, 0.18), transparent 29rem),
+    var(--ws-night-950);
+}
+
+.loginSurface::before {
+  position: absolute;
+  z-index: -1;
+  right: -7rem;
+  bottom: -10rem;
+  width: 20rem;
+  height: 20rem;
+  border: 1px solid rgba(120, 232, 245, 0.08);
+  border-radius: 50%;
+  content: "";
+}
+
+.loginHeader {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  padding:
+    max(12px, var(--ws-safe-top))
+    max(var(--ws-page-gutter), var(--ws-safe-right))
+    8px
+    max(var(--ws-page-gutter), var(--ws-safe-left));
+}
+
+.loginForm {
+  width: 100%;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  padding:
+    24px
+    max(var(--ws-page-gutter), var(--ws-safe-right))
+    max(32px, var(--ws-safe-bottom))
+    max(var(--ws-page-gutter), var(--ws-safe-left));
+}
+
+.loginIntro {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 40px;
+}
+
+.householdGlyph {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 12px;
+  border-radius: var(--ws-radius-md);
+  background: rgba(185, 134, 255, 0.14);
+  color: var(--ws-signal-300);
+}
+
+.householdGlyph svg {
+  width: 21px;
+  height: 21px;
+}
+
+.loginIntro h1,
+.loginIntro p,
+.feedback,
+.sessionNote {
+  margin: 0;
+}
+
+.loginIntro h1 {
+  font-size: 2rem;
+  font-weight: 680;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.loginIntro p {
+  color: var(--ws-text-muted);
+  font-size: var(--ws-type-sm);
+  line-height: 1.5;
+}
+
+.fieldGroup {
+  display: grid;
+  gap: 9px;
+}
+
+.fieldGroup > label {
+  font-size: var(--ws-type-sm);
+  font-weight: 700;
+  letter-spacing: var(--ws-tracking-ui);
+}
+
+.passwordField {
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(250, 248, 252, 0.22);
+  border-radius: var(--ws-radius-md);
+  padding: 0 5px 0 16px;
+  background: var(--ws-night-850);
+  transition:
+    border-color var(--ws-duration-fast) var(--ws-ease-standard),
+    background-color var(--ws-duration-fast) var(--ws-ease-standard);
+}
+
+.passwordField:focus-within {
+  border-color: var(--ws-signal-400);
+  outline: 2px solid var(--ws-focus);
+  outline-offset: 2px;
+  background: var(--ws-plum-800);
+}
+
+.passwordField[data-invalid="true"] {
+  border-color: var(--ws-danger-400);
+}
+
+.fieldIcon {
+  width: 19px;
+  height: 19px;
+  color: var(--ws-text-muted);
+}
+
+.passwordField input {
+  width: 100%;
+  min-width: 0;
+  min-height: 54px;
+  border: 0;
+  padding: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ws-text);
+  caret-color: var(--ws-cyan-500);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.loginShell .passwordField input:focus-visible {
+  outline: 0;
+}
+
+.passwordField input:disabled {
+  cursor: wait;
+}
+
+.passwordToggle {
+  width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--ws-radius-sm);
+  padding: 0;
+  background: transparent;
+  color: var(--ws-text-muted);
+}
+
+.passwordToggle svg {
+  width: 20px;
+  height: 20px;
+}
+
+.passwordToggle:hover:enabled {
+  background: var(--ws-surface);
+  color: var(--ws-text);
+  transform: none;
+}
+
+.feedback {
+  min-height: 21px;
+  color: var(--ws-text-muted);
+  font-size: var(--ws-type-xs);
+  line-height: 1.5;
+}
+
+.feedback[data-state="error"] {
+  color: #ffb6bf;
+}
+
+.feedback[data-state="success"] {
+  color: var(--ws-success-400);
+}
+
+.continueButton {
+  width: 100%;
+  margin-top: 20px;
+}
+
+.sessionNote {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: var(--ws-text-muted);
+  font-size: var(--ws-type-xs);
+  line-height: 1.45;
+  text-align: center;
+}
+
+.sessionNote svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
+@media (max-height: 650px) {
+  .loginForm {
+    justify-content: flex-start;
+    padding-top: 16px;
+  }
+
+  .loginIntro {
+    margin-bottom: 24px;
+  }
+
+  .householdGlyph {
+    margin-bottom: 4px;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .loginSurface {
+    background: var(--ws-night-950);
+  }
+
+  .passwordField {
+    background: var(--ws-night-850);
+  }
+}
+
+@media (forced-colors: active) {
+  .passwordField,
+  .passwordField:focus-within,
+  .passwordField[data-invalid="true"] {
+    border-color: CanvasText;
+  }
+
+  .passwordField:focus-within {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+}
+
+:global(body:has([data-watchsignal-login]) > .siteCreditsLink) {
+  display: none;
+}

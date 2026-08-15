@@ -2,6 +2,10 @@
 // Do not edit by hand. Regenerate with:
 // node scripts/run_api_uv.mjs run python -m movie_night_mediator.api.generate_typescript_contract
 
+export type AdvanceSharedSessionHandoffPayload = {
+  commandId?: string | null;
+};
+
 export type AppOwnedMovieRatingPayload = {
   profileId: string;
   tasteLabel: SeedPreferenceLabel;
@@ -47,6 +51,7 @@ export type DebugHistoryCandidateInputPayload = {
   genres: string[];
   isInterestingSafePick: boolean;
   matchedEnrichmentSourceMovieId?: string | null;
+  metadataKeywords?: string[];
   providerAccess: string[];
   providers: string[];
   safetyStatus: string;
@@ -163,7 +168,53 @@ export type HTTPValidationError = {
   detail?: ValidationError[];
 };
 
+export type HandoffPendingPayload = {
+  canBegin: false;
+  kind: "handoff_pending";
+  recipientLabel: string;
+};
+
+export type HandoffReadyPayload = {
+  canBegin: true;
+  kind: "handoff_ready";
+  recipientLabel: string;
+};
+
+export type HouseholdHistoryDetailPayload = {
+  alternatives: HouseholdHistoryMoviePayload[];
+  feedbackLabels: string[];
+  occurredAt?: string | null;
+  outcomeLabel: string;
+  posterUrl?: string | null;
+  title: string;
+};
+
+export type HouseholdHistoryMoviePayload = {
+  posterUrl?: string | null;
+  title: string;
+};
+
+export type HouseholdHistorySummaryPayload = {
+  historyHandle: string;
+  occurredAt?: string | null;
+  outcomeLabel: string;
+  posterUrl?: string | null;
+  title: string;
+};
+
 export type IntentInterpretationStatus = "confirmation_required" | "clarification_required";
+
+export type MatchingFailedPayload = {
+  canRetry: true;
+  canUseLocal: true;
+  kind: "matching_failed";
+  recipientLabel: string;
+};
+
+export type MatchingPendingPayload = {
+  kind: "matching_pending";
+  recipientLabel: string;
+};
 
 export type MediaType = "movie" | "tv";
 
@@ -178,6 +229,14 @@ export type OnboardingCompletionPayload = {
 export type OnboardingConstraintsPayload = {
   horrorExclusion?: boolean;
   subtitleIntolerance?: boolean;
+};
+
+export type OpenSecondPassPayload = {
+  canonicalSessionId?: string | null;
+  commandId: string;
+  kind: "open_second_pass";
+  payloadVersion?: 1;
+  workflowVersion?: 1;
 };
 
 export type OutcomeSelectionOrigin = "pick_for_us" | "reranked_shortlist" | "manual_other_choice";
@@ -208,9 +267,37 @@ export type PostWatchFeedbackResponsePayload = {
   userId: string;
 };
 
+export type PrivateTransitionConsumeRequestPayload = {
+  deploymentTenant: string;
+  token: string;
+};
+
+export type PrivateTransitionRecoveryHandlePayload = {
+  expiresAtMs: number;
+  version: number;
+};
+
+export type PrivateTransitionRecoveryPurgePayload = {
+  deleted: number;
+};
+
+export type PrivateTransitionResumeRequestPayload = {
+  deploymentTenant: string;
+  token: string;
+};
+
+export type PrivateTransitionSealRequestPayload = {
+  command: SealFounderBallotPayload | OpenSecondPassPayload | SealFinalBallotPayload | UseLocalResultPayload;
+  deploymentTenant: string;
+  token: string;
+};
+
 export type ProfileMemorySignalPayload = {
   count: number;
   label: string;
+  negativeCount?: number;
+  neutralCount?: number;
+  positiveCount?: number;
   source: string;
 };
 
@@ -227,21 +314,10 @@ export type ProfileMemorySummaryPayload = {
   watchedCount: number;
 };
 
-export type RecentSessionFeedbackPayload = {
-  feedbackLabel: string;
-  userId: string;
-};
-
-export type RecentSessionSummaryPayload = {
-  activeMode: string;
-  bestPickSourceMovieId?: string | null;
-  bestPickTitle?: string | null;
-  feedback: RecentSessionFeedbackPayload[];
-  outcomeTitle?: string | null;
-  outcomeType?: string | null;
-  participantIds: string[];
-  sessionId: string;
-  state: string;
+export type RecommendationCastMemberPayload = {
+  character?: string | null;
+  name: string;
+  profileUrl?: string | null;
 };
 
 export type RecommendationProviderAvailabilityPayload = {
@@ -252,7 +328,9 @@ export type RecommendationProviderAvailabilityPayload = {
 
 export type RecommendationShortlistItemPayload = {
   availability: string;
+  backdropUrl?: string | null;
   candidateRank: number;
+  castDetails?: RecommendationCastMemberPayload[];
   dominantPenalties?: string[];
   dominantPositiveEvidence?: string[];
   englishSubtitlesVerified: boolean;
@@ -304,6 +382,53 @@ export type RecommendationShortlistRequestPayload = {
   })[];
 };
 
+export type RecoveryCastMemberPayload = {
+  character?: string | null;
+  name: string;
+  profileUrl?: string | null;
+};
+
+export type RecoveryMovieDisplayPayload = {
+  availability?: string;
+  backdropUrl?: string | null;
+  cast?: RecoveryCastMemberPayload[];
+  genres?: string[];
+  languageAccess?: string;
+  matchedPersonNames?: string[];
+  penalties?: string[];
+  positiveEvidence?: string[];
+  posterUrl?: string | null;
+  providerUrl?: string | null;
+  providers?: RecoveryProviderAvailabilityPayload[];
+  runtimeLabel?: string;
+  safePickStatus?: "Safe Pick" | "Needs Quick Check";
+  sourceMovieId: string;
+  synopsis?: string;
+  title: string;
+  tone?: string;
+  year?: number | null;
+};
+
+export type RecoveryProviderAvailabilityPayload = {
+  accessType: string;
+  providerName: string;
+  region: string;
+};
+
+export type RecoveryReactionPayload = {
+  reaction: SessionReactionLabel;
+  sourceMovieId: string;
+};
+
+export type ResultReadyPayload = {
+  canonicalSessionId: string;
+  displaySnapshot: RecoveryMovieDisplayPayload[];
+  finalReactions: RecoveryReactionPayload[];
+  kind: "result_ready";
+  recipientLabel: string;
+  resultSource: "shared" | "local";
+};
+
 export type SaveSessionOutcomePayload = {
   householdId?: string;
   notes?: string | null;
@@ -329,6 +454,32 @@ export type ScoringSessionReactionPayload = {
   reactionLabel: string;
   sourceMovieId: string;
   title?: string | null;
+};
+
+export type SealFinalBallotPayload = {
+  ballot: RecoveryReactionPayload[];
+  canonicalSessionId?: string | null;
+  commandId: string;
+  displaySnapshot: RecoveryMovieDisplayPayload[];
+  kind: "seal_final_ballot";
+  payloadVersion?: 1;
+  workflowVersion?: 1;
+};
+
+export type SealFounderBallotPayload = {
+  ballot: RecoveryReactionPayload[];
+  canonicalSessionId: string;
+  commandId: string;
+  displaySnapshot: RecoveryMovieDisplayPayload[];
+  kind: "seal_founder_ballot";
+  payloadVersion?: 1;
+  workflowVersion?: 1;
+};
+
+export type SecondPassReadyPayload = {
+  displaySnapshot: RecoveryMovieDisplayPayload[];
+  kind: "second_pass_ready";
+  recipientLabel: string;
 };
 
 export type SeedPreferenceLabel = "loved" | "fine" | "no";
@@ -415,6 +566,7 @@ export type SharedSessionPayload = {
 export type SharedSessionState = "founder_reacting" | "handoff" | "wife_reacting" | "reranked";
 
 export type SubmitSessionReactionsPayload = {
+  commandId?: string | null;
   participantId: string;
   reactions: SessionReactionPayload[];
 };
@@ -568,6 +720,13 @@ export type UpdateSharedSessionPayload = {
   activeMode: SessionMode;
 };
 
+export type UseLocalResultPayload = {
+  commandId: string;
+  kind: "use_local_result";
+  payloadVersion?: 1;
+  workflowVersion?: 1;
+};
+
 export type ValidationError = {
   ctx?: Record<string, unknown>;
   input?: unknown;
@@ -604,3 +763,7 @@ export type WatchlistEntryPayload = {
   sourceMovieId: string;
   title: string;
 };
+
+export type PrivateTransitionSealCommandPayload = SealFounderBallotPayload | OpenSecondPassPayload | SealFinalBallotPayload | UseLocalResultPayload;
+
+export type PrivateTransitionResumeProjectionPayload = HandoffPendingPayload | HandoffReadyPayload | SecondPassReadyPayload | MatchingPendingPayload | MatchingFailedPayload | ResultReadyPayload;

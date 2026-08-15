@@ -4,8 +4,13 @@ import {
   verifySessionToken,
 } from "./app/auth/session";
 import { isPublicAppPath } from "./app/auth/public-paths";
+import { shouldHideReviewOnlyRoute } from "./app/review-route-policy";
 
 export async function proxy(request: NextRequest): Promise<NextResponse> {
+  if (shouldHideReviewOnlyRoute(request.nextUrl.pathname, process.env.NODE_ENV)) {
+    return new NextResponse(null, { status: 404 });
+  }
+
   const password = process.env.HOUSEHOLD_ACCESS_PASSWORD;
   const sessionSecret = process.env.HOUSEHOLD_SESSION_SECRET;
   const hosted = Boolean(process.env.VERCEL_ENV);
@@ -39,5 +44,5 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 }
 
 export const config = {
-  matcher: ["/((?!.*\\..*).*)", "/"],
+  matcher: ["/redesign-gauntlet-status.json", "/((?!.*\\..*).*)", "/"],
 };

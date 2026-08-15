@@ -696,6 +696,7 @@ class SharedMovieNightSession:
     previous_shortlist: tuple[SessionShortlistItem, ...] = ()
     previous_founder_reactions: tuple[SessionReaction, ...] = ()
     previous_wife_reactions: tuple[SessionReaction, ...] = ()
+    updated_at: str | None = None
 
     @property
     def founder_participant_id(self) -> str:
@@ -763,6 +764,13 @@ class ProviderAvailability:
 
 
 @dataclass(frozen=True)
+class CandidateCastMember:
+    name: str
+    character: str | None = None
+    profile_url: str | None = None
+
+
+@dataclass(frozen=True)
 class ManualWatchabilityCorrection:
     source_movie_id: str
     verified_watchable: bool | None = None
@@ -778,9 +786,12 @@ class Candidate:
     release_year: int | None = None
     runtime_min: int | None = None
     poster_url: str | None = None
+    backdrop_url: str | None = None
     genres: tuple[str, ...] = ()
+    metadata_keywords: tuple[str, ...] = ()
     overview: str = ""
     top_cast: tuple[str, ...] = ()
+    cast_details: tuple[CandidateCastMember, ...] = ()
     providers: tuple[str, ...] = ()
     provider_availability: tuple[ProviderAvailability, ...] = ()
     original_language: str = "en"
@@ -803,8 +814,24 @@ class Candidate:
         )
         object.__setattr__(
             self,
+            "metadata_keywords",
+            tuple(
+                dict.fromkeys(
+                    keyword.strip()
+                    for keyword in self.metadata_keywords
+                    if keyword.strip()
+                )
+            ),
+        )
+        object.__setattr__(
+            self,
             "top_cast",
             tuple(name.strip() for name in self.top_cast if name.strip()),
+        )
+        object.__setattr__(
+            self,
+            "cast_details",
+            tuple(member for member in self.cast_details if member.name.strip()),
         )
         object.__setattr__(
             self,
@@ -901,6 +928,7 @@ class RecommendationSnapshotCandidateInput:
     source_movie_id: str
     title: str
     genres: tuple[str, ...] = ()
+    metadata_keywords: tuple[str, ...] = ()
     providers: tuple[str, ...] = ()
     provider_access: tuple[str, ...] = ()
     safety_status: str = CandidateSafety.SAFE_PICK.value
@@ -916,6 +944,13 @@ class RecommendationSnapshotCandidateInput:
         normalized_title = self.title.strip()
         normalized_provider_access = tuple(
             access.strip() for access in self.provider_access if access.strip()
+        )
+        normalized_metadata_keywords = tuple(
+            dict.fromkeys(
+                keyword.strip()
+                for keyword in self.metadata_keywords
+                if keyword.strip()
+            )
         )
         normalized_safety_status = self.safety_status.strip()
         normalized_enrichment_status = self.enrichment_status.strip()
@@ -960,6 +995,7 @@ class RecommendationSnapshotCandidateInput:
 
         object.__setattr__(self, "source_movie_id", normalized_source_movie_id)
         object.__setattr__(self, "title", normalized_title)
+        object.__setattr__(self, "metadata_keywords", normalized_metadata_keywords)
         object.__setattr__(self, "provider_access", normalized_provider_access)
         object.__setattr__(self, "safety_status", normalized_safety_status)
         object.__setattr__(self, "enrichment_status", normalized_enrichment_status)

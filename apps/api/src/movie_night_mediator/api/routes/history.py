@@ -51,6 +51,7 @@ class DebugHistoryCandidateInputPayload(BaseModel):
     sourceMovieId: str
     title: str
     genres: list[str]
+    metadataKeywords: list[str] = Field(default_factory=list)
     providers: list[str]
     providerAccess: list[str]
     safetyStatus: str
@@ -135,21 +136,26 @@ class DebugHistorySessionPayload(BaseModel):
     unavailableEvidence: list[str]
 
 
-class RecentSessionFeedbackPayload(BaseModel):
-    userId: str
-    feedbackLabel: str
+class HouseholdHistorySummaryPayload(BaseModel):
+    historyHandle: str
+    occurredAt: str | None = None
+    title: str
+    outcomeLabel: str
+    posterUrl: str | None = None
 
 
-class RecentSessionSummaryPayload(BaseModel):
-    sessionId: str
-    activeMode: str
-    state: str
-    participantIds: list[str]
-    bestPickSourceMovieId: str | None = None
-    bestPickTitle: str | None = None
-    outcomeType: str | None = None
-    outcomeTitle: str | None = None
-    feedback: list[RecentSessionFeedbackPayload]
+class HouseholdHistoryMoviePayload(BaseModel):
+    title: str
+    posterUrl: str | None = None
+
+
+class HouseholdHistoryDetailPayload(BaseModel):
+    occurredAt: str | None = None
+    title: str
+    posterUrl: str | None = None
+    alternatives: list[HouseholdHistoryMoviePayload]
+    outcomeLabel: str
+    feedbackLabels: list[str]
 
 
 def register_history_routes(
@@ -159,20 +165,53 @@ def register_history_routes(
 ) -> None:
     @app.get(
         "/history/sessions",
-        response_model=list[RecentSessionSummaryPayload],
+        response_model=list[HouseholdHistorySummaryPayload],
         tags=["history"],
     )
     def get_recent_sessions(
         householdId: str = DEFAULT_HOUSEHOLD_ID,
         limit: int = Query(default=6, ge=1, le=20),
-    ) -> list[RecentSessionSummaryPayload]:
+    ) -> list[HouseholdHistorySummaryPayload]:
         return [
-            _recent_session_summary_to_payload(summary)
-            for summary in history_service.list_recent_sessions(
+            HouseholdHistorySummaryPayload(
+                historyHandle=summary.history_handle,
+                occurredAt=summary.occurred_at,
+                title=summary.title,
+                outcomeLabel=summary.outcome_label,
+                posterUrl=summary.poster_url,
+            )
+            for summary in history_service.list_household_history(
                 household_id=householdId,
                 limit=limit,
             )
         ]
+
+    @app.get(
+        "/history/sessions/{history_handle}",
+        response_model=HouseholdHistoryDetailPayload,
+        tags=["history"],
+    )
+    def get_household_history_detail(
+        history_handle: str,
+        householdId: str = DEFAULT_HOUSEHOLD_ID,
+    ) -> HouseholdHistoryDetailPayload:
+        detail = history_service.get_household_history_detail_by_handle(
+            household_id=householdId,
+            history_handle=history_handle,
+        )
+        if detail is None:
+            raise HTTPException(status_code=404, detail="Movie night not found.")
+        return HouseholdHistoryDetailPayload(
+            occurredAt=detail.occurred_at,
+            title=detail.title,
+            posterUrl=detail.poster_url,
+            alternatives=[
+                HouseholdHistoryMoviePayload(title=title, posterUrl=poster_url)
+                for title, poster_url in detail.alternatives
+            ],
+            outcomeLabel=detail.outcome_label,
+            feedbackLabels=list(detail.feedback_labels),
+        )
 
 
 def register_debug_history_routes(
@@ -211,26 +250,6 @@ def register_debug_history_routes(
             recommendation_snapshot=recommendation_snapshot,
         )
         return _debug_history_session_to_payload(evidence)
-
-
-def _recent_session_summary_to_payload(summary) -> RecentSessionSummaryPayload:
-    return RecentSessionSummaryPayload(
-        sessionId=summary.session_id,
-        activeMode=summary.active_mode,
-        state=summary.state,
-        participantIds=list(summary.participant_ids),
-        bestPickSourceMovieId=summary.best_pick_source_movie_id,
-        bestPickTitle=summary.best_pick_title,
-        outcomeType=summary.outcome.outcome_type.value if summary.outcome is not None else None,
-        outcomeTitle=summary.outcome.selected_title if summary.outcome is not None else None,
-        feedback=[
-            RecentSessionFeedbackPayload(
-                userId=feedback.user_id,
-                feedbackLabel=feedback.feedback_label,
-            )
-            for feedback in summary.feedback
-        ],
-    )
 
 
 def _debug_history_session_to_payload(
@@ -339,6 +358,7 @@ def _recommendation_snapshot_to_payload(
                 sourceMovieId=candidate.source_movie_id,
                 title=candidate.title,
                 genres=list(candidate.genres),
+                metadataKeywords=list(candidate.metadata_keywords),
                 providers=list(candidate.providers),
                 providerAccess=list(candidate.provider_access),
                 safetyStatus=candidate.safety_status,

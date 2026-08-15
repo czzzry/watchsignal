@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "seed": "S12-R3-20260813-01",
+  "candidateOrder": ["candidate-01.png", "candidate-02.png"],
+  "labelsMasked": true,
+  "unblindAfterVerdict": {
+    "candidate-01.png": "no-live-no-local recovery",
+    "candidate-02.png": "live movies with local-only persistence"
+  }
+}

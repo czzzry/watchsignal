@@ -1,0 +1,31 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - region [ref=e115]:
+      - generic [ref=e116]:
+        - generic [ref=e117]:
+          - button "Back" [ref=e118] [cursor=pointer]
+          - generic [ref=e121]:
+            - generic [ref=e122]: C
+            - generic [ref=e123]:
+              - strong [ref=e124]: Cezary Recovery Test
+              - generic [ref=e125]: Private pick
+          - generic "Movie 1 of 5" [ref=e126]:
+            - strong [ref=e127]: "1"
+            - generic [ref=e128]: of 5
+        - main [ref=e131]:
+          - article [ref=e132]:
+            - generic [ref=e134]:
+              - heading "Arrival" [level=1] [ref=e135]
+              - paragraph [ref=e136]: 2016 · 1h 56m · Sci-fi · Drama · Mystery
+              - paragraph [ref=e137]: A Sci-fi and Drama option for your private pick tonight.
+              - generic [ref=e138]:
+                - button "Details" [ref=e139] [cursor=pointer]
+                - button "Seen before" [ref=e142] [cursor=pointer]
+        - generic [ref=e146]:
+          - paragraph [ref=e147]: Would you watch this tonight?
+          - group "Private reaction for Arrival" [ref=e148]:
+            - button "Interested" [ref=e149] [cursor=pointer]
+            - button "Maybe" [ref=e153] [cursor=pointer]
+            - button "No" [ref=e158] [cursor=pointer]
+          - status [ref=e163]: Using five built-in picks. Your private reactions will still be saved.
+  - alert [ref=e106]

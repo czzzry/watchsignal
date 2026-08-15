@@ -1,0 +1,239 @@
+.transition {
+  position: fixed;
+  z-index: 55;
+  inset: 0;
+  width: min(100%, 430px);
+  min-height: 100svh;
+  margin-inline: auto;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 32px;
+  overflow: auto;
+  padding:
+    max(24px, var(--ws-safe-top))
+    max(var(--ws-page-gutter), var(--ws-safe-right))
+    max(24px, var(--ws-safe-bottom))
+    max(var(--ws-page-gutter), var(--ws-safe-left));
+  background:
+    radial-gradient(circle at 50% 42%, rgba(120, 232, 245, 0.11), transparent 14rem),
+    radial-gradient(circle at 56% 48%, rgba(185, 134, 255, 0.13), transparent 19rem),
+    var(--ws-night-950);
+  color: var(--ws-text);
+  font-family: var(--ws-font-ui);
+}
+
+.transition:focus {
+  outline: none;
+}
+
+.convergence {
+  position: relative;
+  width: 184px;
+  height: 112px;
+}
+
+.leftSignal,
+.rightSignal,
+.matchMark,
+.convergence b {
+  position: absolute;
+}
+
+.leftSignal,
+.rightSignal {
+  top: 36px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.leftSignal {
+  left: 10px;
+  background: var(--ws-cyan-500);
+}
+
+.rightSignal {
+  right: 10px;
+  background: var(--ws-signal-400);
+}
+
+.matchMark {
+  z-index: 2;
+  inset: 24px 56px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: var(--ws-paper-50);
+  color: var(--ws-ink-900);
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.matchMark svg {
+  width: 22px;
+  height: 22px;
+}
+
+.convergence b {
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  overflow: hidden;
+  border-radius: var(--ws-radius-pill);
+  background: rgba(250, 248, 252, 0.1);
+}
+
+.convergence b::after {
+  width: 42%;
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--ws-cyan-500), var(--ws-signal-400));
+  content: "";
+}
+
+.convergence[data-phase="saving"] b::after {
+  animation: savingSignal 940ms var(--ws-ease-standard) infinite alternate;
+}
+
+.convergence[data-phase="matching"] {
+  animation: convergenceReady 480ms var(--ws-ease-out) both;
+}
+
+.convergence[data-phase="matching"] .leftSignal {
+  animation: convergeLeft 480ms var(--ws-ease-out) both;
+}
+
+.convergence[data-phase="matching"] .rightSignal {
+  animation: convergeRight 480ms var(--ws-ease-out) both;
+}
+
+.transition[data-mode="solo"] .leftSignal {
+  left: 72px;
+}
+
+.transition[data-mode="solo"] .matchMark {
+  opacity: 0.22;
+}
+
+.transition[data-mode="solo"] .convergence[data-phase="matching"] .matchMark {
+  opacity: 1;
+}
+
+.convergence[data-phase="failed"] .leftSignal,
+.convergence[data-phase="failed"] .rightSignal {
+  background: var(--ws-surface-strong);
+}
+
+.copy {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.copy h1,
+.copy p {
+  margin: 0;
+}
+
+.copy h1 {
+  font-family: var(--ws-font-display);
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.copy p {
+  max-width: 30ch;
+  color: var(--ws-text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.recoveryActions {
+  width: min(100%, 358px);
+  display: grid;
+  gap: 8px;
+}
+
+.recoveryActions button {
+  min-height: 48px;
+  border: 0;
+  border-radius: var(--ws-radius-md);
+  padding: 0 16px;
+  font: 700 14px/1 var(--ws-font-ui);
+}
+
+.recoveryActions button:first-child {
+  min-height: 54px;
+  background: var(--ws-action);
+  color: var(--ws-action-ink);
+}
+
+.recoveryActions button:last-child {
+  background: var(--ws-surface);
+  color: var(--ws-text);
+}
+
+@keyframes savingSignal {
+  from { transform: translateX(0); opacity: 0.5; }
+  to { transform: translateX(138%); opacity: 1; }
+}
+
+@keyframes convergenceReady {
+  from { transform: scale(1.03); }
+  to { transform: scale(1); }
+}
+
+@keyframes convergeLeft {
+  to { transform: translateX(62px) scale(0.55); opacity: 0.28; }
+}
+
+@keyframes convergeRight {
+  to { transform: translateX(-62px) scale(0.55); opacity: 0.28; }
+}
+
+@media (max-height: 568px) {
+  .transition {
+    gap: 20px;
+    padding-top: max(12px, var(--ws-safe-top));
+    padding-bottom: max(12px, var(--ws-safe-bottom));
+  }
+  .convergence { height: 96px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .convergence,
+  .leftSignal,
+  .rightSignal,
+  .convergence b::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .transition {
+    background: var(--ws-night-950);
+  }
+  .recoveryActions button:last-child {
+    background: var(--ws-night-850);
+  }
+}
+
+@media (forced-colors: active) {
+  .matchMark,
+  .leftSignal,
+  .rightSignal,
+  .recoveryActions button {
+    border: 1px solid CanvasText;
+  }
+  .convergence b::after {
+    background: Highlight;
+  }
+}

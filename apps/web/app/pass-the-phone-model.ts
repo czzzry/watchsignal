@@ -44,11 +44,6 @@ export type ReviewNote = {
   createdAt: string;
 };
 
-export type SeenMemoryPromptState = {
-  actor: "founder" | "wife";
-  candidate: DemoCandidate;
-} | null;
-
 export type OnboardingPromptState = {
   profileId: string;
   profileLabel: string;
@@ -64,9 +59,21 @@ export type CandidateViewModel = DemoCandidate & {
   provenance: CandidateProvenance;
 };
 
+export type MatchIndexBreakdown = {
+  scoreKind: "match_index_v1";
+  score: number;
+  exactScore: number;
+  baseSignal: number;
+  reactionDeltaRaw: number;
+  combinedRaw: number;
+  rawMinimum: -0.36 | -0.18;
+  rawMaximum: 1.24 | 1.12;
+};
+
 export type RankedCandidate = CandidateViewModel & {
   score: number;
   profileScore: number;
+  matchIndex: MatchIndexBreakdown;
 };
 
 export type TitleResolutionEntry =

@@ -35,6 +35,7 @@ class RecommendationSnapshotTest(unittest.TestCase):
         self.assertFalse(snapshot.is_uncertain)
         self.assertEqual(len(snapshot.candidate_inputs), 2)
         self.assertEqual(snapshot.candidate_inputs[0].source_movie_id, "tmdb:1")
+        self.assertEqual(snapshot.candidate_inputs[0].metadata_keywords, ("space opera",))
         self.assertEqual(snapshot.candidate_inputs[0].providers, ("Prime Video",))
         self.assertEqual(
             snapshot.candidate_inputs[0].provider_access,
@@ -82,6 +83,10 @@ class RecommendationSnapshotTest(unittest.TestCase):
             self.assertEqual(
                 loaded_snapshot.candidate_inputs[0].source_movie_id,
                 "tmdb:1",
+            )
+            self.assertEqual(
+                loaded_snapshot.candidate_inputs[0].metadata_keywords,
+                ("space opera",),
             )
             self.assertEqual(
                 loaded_snapshot.candidate_inputs[0].provider_access,
@@ -203,6 +208,7 @@ def scoring_request(session_id: str) -> ScoringRequest:
                 title="Shared Sci-Fi",
                 media_type=MediaType.MOVIE,
                 genres=("Sci-Fi",),
+                metadata_keywords=("space opera",),
                 providers=("Prime Video",),
                 enrichment_status="enriched",
                 enrichment_provider="movielens-tag-genome-fixture",

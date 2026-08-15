@@ -201,6 +201,37 @@ def _event_to_parameters(event: TasteMemoryEvent):
     )
 
 
+def insert_taste_memory_events(
+    connection: DatabaseConnection,
+    events: tuple[TasteMemoryEvent, ...],
+) -> None:
+    if not events:
+        return
+    connection.executemany(
+        """
+        INSERT INTO taste_memory_events (
+            event_id,
+            household_id,
+            profile_id,
+            event_type,
+            source,
+            source_movie_id,
+            title,
+            genres_json,
+            sentiment_label,
+            preference_value,
+            familiarity,
+            effect_label,
+            status,
+            occurred_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(event_id) DO NOTHING
+        """,
+        [_event_to_parameters(event) for event in events],
+    )
+
+
 def _row_to_event(row: sqlite3.Row) -> TasteMemoryEvent:
     return TasteMemoryEvent(
         event_id=row["event_id"],

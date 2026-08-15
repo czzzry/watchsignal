@@ -7,7 +7,6 @@ from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from movie_night_mediator.app.onboarding import SQLiteOnboardingStore
-from movie_night_mediator.taste_lab import TasteLabService
 from movie_night_mediator.domain import (
     DEFAULT_HOUSEHOLD_ID,
     BackfillTasteLabel,
@@ -72,14 +71,10 @@ class BackfillWatchedTitlePayload(BaseModel):
     entry: TitleResolutionEntryPayload
 
 
-ONBOARDING_TASTE_LAB_UNLOCK_THRESHOLD = 3
-
-
 def register_onboarding_routes(
     app: FastAPI,
     *,
     onboarding_store: SQLiteOnboardingStore,
-    taste_lab_service: TasteLabService,
 ) -> None:
     @app.get(
         "/onboarding/completion",
@@ -90,36 +85,12 @@ def register_onboarding_routes(
         requiredProfileIds: Annotated[list[str], Query(min_length=1)],
     ) -> OnboardingCompletionPayload:
         completion = onboarding_store.load_completion(tuple(requiredProfileIds))
-        completed_profile_ids = set(completion.completed_profile_ids)
-        for profile_id in requiredProfileIds:
-            if profile_id in completed_profile_ids:
-                continue
-            summary = taste_lab_service.taste_profile_summary(
-                household_id=DEFAULT_HOUSEHOLD_ID,
-                profile_id=profile_id,
-            )
-            if (
-                summary.preference_evidence_count
-                >= ONBOARDING_TASTE_LAB_UNLOCK_THRESHOLD
-            ):
-                completed_profile_ids.add(profile_id)
-
-        ordered_completed_profile_ids = [
-            profile_id
-            for profile_id in completion.required_profile_ids
-            if profile_id in completed_profile_ids
-        ]
-        incomplete_profile_ids = [
-            profile_id
-            for profile_id in completion.required_profile_ids
-            if profile_id not in completed_profile_ids
-        ]
         return OnboardingCompletionPayload(
             requiredProfileIds=list(completion.required_profile_ids),
-            completedProfileIds=ordered_completed_profile_ids,
-            incompleteProfileIds=incomplete_profile_ids,
-            sharedRecommendationLocked=bool(incomplete_profile_ids),
-            sharedRecommendationUnlocked=not incomplete_profile_ids,
+            completedProfileIds=list(completion.completed_profile_ids),
+            incompleteProfileIds=list(completion.incomplete_profile_ids),
+            sharedRecommendationLocked=completion.shared_recommendation_locked,
+            sharedRecommendationUnlocked=completion.shared_recommendation_unlocked,
         )
 
     @app.get(

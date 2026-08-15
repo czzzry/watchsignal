@@ -69,6 +69,11 @@ class UpdateSharedSessionPayload(BaseModel):
 class SubmitSessionReactionsPayload(BaseModel):
     participantId: str = Field(min_length=1)
     reactions: list[SessionReactionPayload] = Field(min_length=1)
+    commandId: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+
+
+class AdvanceSharedSessionHandoffPayload(BaseModel):
+    commandId: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
 
 
 class SharedSessionPayload(BaseModel):
@@ -222,6 +227,7 @@ def register_session_routes(
                     )
                     for reaction in payload.reactions
                 ),
+                command_id=payload.commandId,
             )
         except LookupError as error:
             raise HTTPException(status_code=404, detail=str(error)) from error
@@ -237,9 +243,15 @@ def register_session_routes(
         response_model=SharedSessionPayload,
         tags=["sessions"],
     )
-    def post_shared_session_handoff(session_id: str) -> SharedSessionPayload:
+    def post_shared_session_handoff(
+        session_id: str,
+        payload: AdvanceSharedSessionHandoffPayload | None = None,
+    ) -> SharedSessionPayload:
         try:
-            session = session_service.advance_handoff(session_id)
+            session = session_service.advance_handoff(
+                session_id,
+                command_id=payload.commandId if payload is not None else None,
+            )
         except LookupError as error:
             raise HTTPException(status_code=404, detail=str(error)) from error
         except SessionTransitionError as error:

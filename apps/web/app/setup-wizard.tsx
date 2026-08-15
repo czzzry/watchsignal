@@ -1,24 +1,36 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import {
   saveSetupState,
   type SetupLoadResult,
   type SetupProfile,
+  type SetupState,
 } from "./setup-api";
+import {
+  clearSetupFromPhone,
+  keepSetupOnPhone,
+  loadStoredSetupFromPhone,
+  normalizeSetup,
+  setupStatesMatch,
+  updateSetupProfile,
+} from "./setup-local-state";
+import { WatchSignalIcon } from "./ui/watchsignal-icons";
+import { WatchSignalBrand } from "./ui/primitives";
+import styles from "./setup-wizard.module.css";
 
-type ApiHealth = {
-  connected: boolean;
-  label: "Connected" | "Disconnected";
-  detail: string;
-};
+type SetupSaveStatus =
+  | "clean"
+  | "unsaved"
+  | "saving"
+  | "saved"
+  | "failed"
+  | "local-only";
 
 type SetupWizardProps = {
-  apiHealth: ApiHealth;
   setupLoad: SetupLoadResult;
 };
 
-const profileStepLabels = ["Profiles", "Defaults", "Ready"];
 const avatarOptions = [
   { key: "spark", label: "Spark", symbol: "S" },
   { key: "moon", label: "Moon", symbol: "M" },
@@ -32,338 +44,265 @@ const colorOptions = [
   { key: "violet", label: "Violet" },
 ];
 
-export function SetupWizard({ apiHealth, setupLoad }: SetupWizardProps) {
-  const [activeStep, setActiveStep] = useState(0);
-  const [profiles, setProfiles] = useState(setupLoad.setup.profiles);
-  const [savedSnapshot, setSavedSnapshot] = useState(profiles);
-  const [saveMessage, setSaveMessage] = useState(setupLoad.detail);
-  const [isSaving, setIsSaving] = useState(false);
+export function SetupWizard({ setupLoad }: SetupWizardProps) {
+  const [setup, setSetup] = useState(setupLoad.setup);
+  const [savedSnapshot, setSavedSnapshot] = useState(setupLoad.setup);
+  const [saveStatus, setSaveStatus] = useState<SetupSaveStatus>(
+    setupLoad.canPersist ? "clean" : "local-only",
+  );
+  const [saveMessage, setSaveMessage] = useState(
+    setupLoad.canPersist
+      ? "Everything is up to date."
+      : "You’re offline. Changes can stay on this phone.",
+  );
+  const [localSnapshotKept, setLocalSnapshotKept] = useState(false);
 
-  const hasLocalChanges = useMemo(
-    () =>
-      profiles.some((profile) => {
-        const savedProfile = savedSnapshot.find((item) => item.id === profile.id);
-        return (
-          savedProfile?.label !== profile.label ||
-          savedProfile?.avatarKey !== profile.avatarKey ||
-          savedProfile?.colorKey !== profile.colorKey
-        );
-      }),
-    [profiles, savedSnapshot],
+  const hasUnsavedChanges = useMemo(
+    () => !setupStatesMatch(setup, savedSnapshot),
+    [setup, savedSnapshot],
+  );
+  const sortedProfiles = useMemo(
+    () => [...setup.profiles].sort((first, second) => first.order - second.order),
+    [setup.profiles],
   );
 
-  function updateProfileLabel(profileId: string, label: string) {
-    setProfiles((currentProfiles) =>
-      currentProfiles.map((profile) =>
-        profile.id === profileId ? { ...profile, label } : profile,
-      ),
+  useEffect(() => {
+    const stored = loadStoredSetupFromPhone(window.localStorage);
+    if (!stored) return;
+    setSetup(stored.setup);
+    setSavedSnapshot(stored.setup);
+    setLocalSnapshotKept(true);
+    setSaveStatus("local-only");
+    setSaveMessage(
+      setupLoad.canPersist
+        ? "Kept on this phone. Save to share these changes."
+        : "Kept on this phone.",
     );
+  }, [setupLoad.canPersist]);
+
+  useEffect(() => {
+    function warnBeforeUnload(event: BeforeUnloadEvent) {
+      if (!hasUnsavedChanges) return;
+      event.preventDefault();
+    }
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  function updateProfile(profileId: string, change: Partial<SetupProfile>) {
+    setSetup((current) => updateSetupProfile(current, profileId, change));
+    setSaveStatus("unsaved");
+    setSaveMessage("Changes not saved yet.");
   }
 
-  function updateProfileAvatar(profileId: string, avatarKey: string) {
-    setProfiles((currentProfiles) =>
-      currentProfiles.map((profile) =>
-        profile.id === profileId ? { ...profile, avatarKey } : profile,
-      ),
-    );
+  function normalizedSetup(): SetupState {
+    return normalizeSetup(setup);
   }
 
-  function updateProfileColor(profileId: string, colorKey: string) {
-    setProfiles((currentProfiles) =>
-      currentProfiles.map((profile) =>
-        profile.id === profileId ? { ...profile, colorKey } : profile,
-      ),
-    );
+  async function saveSetup(): Promise<void> {
+    if (!setupLoad.canPersist) {
+      keepOnPhone();
+      return;
+    }
+
+    const nextSetup = normalizedSetup();
+    setSetup(nextSetup);
+    setSaveStatus("saving");
+    setSaveMessage("Saving…");
+    const result = await saveSetupState(nextSetup);
+    if (!result.canPersist) {
+      setSaveStatus("failed");
+      setSaveMessage("Couldn’t save. Your changes are still here.");
+      return;
+    }
+
+    setSetup(result.setup);
+    setSavedSnapshot(result.setup);
+    clearSetupFromPhone(window.localStorage);
+    setLocalSnapshotKept(false);
+    setSaveStatus("saved");
+    setSaveMessage("Saved for your household.");
   }
 
-  async function saveSetup() {
-    const nextProfiles = profiles.map((profile) => ({
-      ...profile,
-      label: profile.label.trim() || `Profile ${profile.order}`,
-    }));
-    setProfiles(nextProfiles);
-    setIsSaving(true);
-    const result = setupLoad.canPersist
-      ? await saveSetupState({
-          ...setupLoad.setup,
-          profiles: nextProfiles,
-        })
-      : {
-          setup: {
-            ...setupLoad.setup,
-            profiles: nextProfiles,
-          },
-          detail: "Setup API is unavailable. Edits are kept for this screen.",
-        };
-
-    setSavedSnapshot(result.setup.profiles);
-    setSaveMessage(result.detail);
-    setIsSaving(false);
-    setActiveStep(2);
+  function keepOnPhone(): void {
+    const nextSetup = normalizedSetup();
+    setSetup(nextSetup);
+    try {
+      const keptSetup = keepSetupOnPhone(window.localStorage, nextSetup);
+      setSetup(keptSetup);
+      setSavedSnapshot(keptSetup);
+      setLocalSnapshotKept(true);
+      setSaveStatus("local-only");
+      setSaveMessage("Kept on this phone.");
+    } catch {
+      setSaveStatus("failed");
+      setSaveMessage("Couldn’t keep this on your phone. Your changes are still here.");
+    }
   }
 
-  function resetDefaults() {
-    setProfiles(setupLoad.setup.profiles);
-    setSavedSnapshot(setupLoad.setup.profiles);
-    setActiveStep(0);
+  function leaveSetup(event: MouseEvent<HTMLAnchorElement>): void {
+    if (!hasUnsavedChanges) return;
+    if (!window.confirm("Leave without saving these changes?")) event.preventDefault();
   }
+
+  const actionDisabled =
+    saveStatus === "saving" ||
+    (setupLoad.canPersist && !hasUnsavedChanges && !localSnapshotKept && saveStatus !== "failed") ||
+    (!setupLoad.canPersist && localSnapshotKept && !hasUnsavedChanges);
 
   return (
-    <main className="appShell">
-      <header className="topBar">
-        <div>
-          <p className="eyebrow">WatchSignal</p>
-          <h1>Setup</h1>
-        </div>
-        <div
-          className={
-            apiHealth.connected
-              ? "connectionPill connectionPillConnected"
-              : "connectionPill connectionPillDisconnected"
-          }
-          role="status"
-          aria-label={`FastAPI health ${apiHealth.label}`}
-          title={apiHealth.detail}
-        >
-          <span aria-hidden="true" />
-          <strong>{apiHealth.label}</strong>
-        </div>
+    <main className={styles.shell} data-save-state={saveStatus}>
+      <header className={styles.header}>
+        <a href="/" aria-label="Back to WatchSignal" onClick={leaveSetup}>
+          <WatchSignalBrand />
+        </a>
+        <span>Setup</span>
       </header>
 
-      <section className="setupStatus" aria-label="Setup API status">
-        <div>
-          <p>{setupLoad.source === "backend" ? "Backend setup" : "Local defaults"}</p>
-          <small>{setupLoad.detail}</small>
-        </div>
+      <section className={styles.intro} aria-labelledby="setup-title">
+        <span>Household</span>
+        <h1 id="setup-title">Make it yours</h1>
+        <p>Names and tonight’s usual starting point.</p>
       </section>
 
-      <nav className="stepTabs" aria-label="Setup steps">
-        {profileStepLabels.map((label, index) => (
-          <button
-            key={label}
-            type="button"
-            className={activeStep === index ? "stepTab stepTabActive" : "stepTab"}
-            onClick={() => setActiveStep(index)}
-          >
-            <span>{index + 1}</span>
-            {label}
-          </button>
-        ))}
-      </nav>
-
-      {activeStep === 0 ? (
-        <ProfilesStep
-          profiles={profiles}
-          onProfileLabelChange={updateProfileLabel}
-          onProfileAvatarChange={updateProfileAvatar}
-          onProfileColorChange={updateProfileColor}
-        />
-      ) : null}
-
-      {activeStep === 1 ? (
-        <DefaultsStep setupLoad={setupLoad} profiles={profiles} />
-      ) : null}
-
-      {activeStep === 2 ? (
-        <ReadyStep
-          profiles={profiles}
-          canPersist={setupLoad.canPersist}
-          hasLocalChanges={hasLocalChanges}
-          saveMessage={saveMessage}
-        />
-      ) : null}
-
-      <footer className="bottomActions">
-        <button
-          type="button"
-          className="secondaryButton"
-          onClick={activeStep === 0 ? resetDefaults : () => setActiveStep(activeStep - 1)}
-        >
-          {activeStep === 0 ? "Reset" : "Back"}
-        </button>
-        {activeStep < 2 ? (
-          <button type="button" onClick={() => setActiveStep(activeStep + 1)}>
-            Continue
-          </button>
-        ) : (
-          <button type="button" onClick={saveSetup} disabled={isSaving}>
-            {isSaving
-              ? "Saving..."
-              : setupLoad.canPersist
-                ? "Save setup"
-                : "Keep local review"}
-          </button>
-        )}
-      </footer>
-    </main>
-  );
-}
-
-function ProfilesStep({
-  profiles,
-  onProfileLabelChange,
-  onProfileAvatarChange,
-  onProfileColorChange,
-}: {
-  profiles: SetupProfile[];
-  onProfileLabelChange: (profileId: string, label: string) => void;
-  onProfileAvatarChange: (profileId: string, avatarKey: string) => void;
-  onProfileColorChange: (profileId: string, colorKey: string) => void;
-}) {
-  return (
-    <section className="wizardPanel" aria-labelledby="profiles-heading">
-      <div className="sectionHeading">
-        <p className="eyebrow">Household profiles</p>
-        <h2 id="profiles-heading">Who is taking turns?</h2>
-      </div>
-      <div className="profileList">
-        {profiles
-          .slice()
-          .sort((first, second) => first.order - second.order)
-          .map((profile) => (
-            <article key={profile.id} className="profileIdentityCard">
-              <label className="profileField">
+      <section className={styles.section} aria-labelledby="profiles-title">
+        <div className={styles.sectionHeading}>
+          <h2 id="profiles-title">Who’s watching?</h2>
+          <span>{sortedProfiles.length} profiles</span>
+        </div>
+        <div className={styles.profileList}>
+          {sortedProfiles.map((profile) => (
+            <article className={styles.profile} key={profile.id}>
+              <span
+                className={`${styles.avatar} ${styles[`avatar${profile.colorKey}`] ?? ""}`}
+                aria-hidden="true"
+              >
+                {avatarSymbol(profile.avatarKey)}
+              </span>
+              <label className={styles.nameField}>
                 <span>Profile {profile.order}</span>
                 <input
                   value={profile.label}
-                  onChange={(event) =>
-                    onProfileLabelChange(profile.id, event.target.value)
-                  }
+                  onChange={(event) => updateProfile(profile.id, { label: event.target.value })}
                   autoComplete="off"
                   maxLength={28}
                 />
               </label>
-              <div className="profileIdentityControls">
-                <div className="profileChoiceGroup">
-                  <span>Avatar</span>
-                  <div className="profileAvatarChoices" role="group" aria-label={`Avatar for ${profile.label}`}>
+              <div className={styles.identityChoices}>
+                <label>
+                  <span>Icon</span>
+                  <select
+                    aria-label={`Icon for ${profile.label}`}
+                    value={profile.avatarKey}
+                    onChange={(event) => updateProfile(profile.id, { avatarKey: event.target.value })}
+                  >
                     {avatarOptions.map((option) => (
-                      <button
-                        key={option.key}
-                        type="button"
-                        className={
-                          profile.avatarKey === option.key
-                            ? "profileAvatarChoice profileAvatarChoiceActive"
-                            : "profileAvatarChoice"
-                        }
-                        onClick={() => onProfileAvatarChange(profile.id, option.key)}
-                        title={option.label}
-                      >
-                        {option.symbol}
-                      </button>
+                      <option key={option.key} value={option.key}>{option.label}</option>
                     ))}
-                  </div>
-                </div>
-                <div className="profileChoiceGroup">
+                  </select>
+                </label>
+                <label>
                   <span>Color</span>
-                  <div className="profileColorChoices" role="group" aria-label={`Color for ${profile.label}`}>
+                  <select
+                    aria-label={`Color for ${profile.label}`}
+                    value={profile.colorKey}
+                    onChange={(event) => updateProfile(profile.id, { colorKey: event.target.value })}
+                  >
                     {colorOptions.map((option) => (
-                      <button
-                        key={option.key}
-                        type="button"
-                        className={
-                          profile.colorKey === option.key
-                            ? `profileColorChoice profileColorChoiceActive profileColorChoice${option.key}`
-                            : `profileColorChoice profileColorChoice${option.key}`
-                        }
-                        onClick={() => onProfileColorChange(profile.id, option.key)}
-                        title={option.label}
-                      >
-                        <span />
-                      </button>
+                      <option key={option.key} value={option.key}>{option.label}</option>
                     ))}
-                  </div>
-                </div>
+                  </select>
+                </label>
               </div>
             </article>
           ))}
+        </div>
+      </section>
+
+      <DefaultsReview setup={setup} />
+
+      <section className={styles.actionArea} aria-label="Save setup">
+        <p
+          className={saveStatus === "failed" ? styles.error : undefined}
+          role={saveStatus === "failed" ? "alert" : "status"}
+          aria-live="polite"
+        >
+          {saveMessage}
+        </p>
+        {saveStatus === "failed" && setupLoad.canPersist ? (
+          <div className={styles.recoveryActions}>
+            <button type="button" className={styles.secondary} onClick={keepOnPhone}>
+              Keep on this phone
+            </button>
+            <button type="button" className={styles.primary} onClick={() => void saveSetup()}>
+              Try again
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className={styles.primary}
+            onClick={() => void saveSetup()}
+            disabled={actionDisabled}
+          >
+            {saveStatus === "saving"
+              ? "Saving…"
+              : setupLoad.canPersist
+                ? actionDisabled && !localSnapshotKept
+                  ? "Saved"
+                  : "Save setup"
+                : localSnapshotKept && !hasUnsavedChanges
+                  ? "Kept on this phone"
+                  : "Keep on this phone"}
+            {saveStatus !== "saving" && !actionDisabled ? <WatchSignalIcon name="chevron-right" /> : null}
+          </button>
+        )}
+        <a className={styles.back} href="/" onClick={leaveSetup}>
+          <WatchSignalIcon name="arrow-left" />
+          Back to WatchSignal
+        </a>
+      </section>
+    </main>
+  );
+}
+
+function DefaultsReview({ setup }: { setup: SetupState }) {
+  const activeLabel = profileLabel(setup.activeProfileId, setup.profiles);
+  const partnerLabel = profileLabel(setup.partnerProfileId, setup.profiles);
+  const defaults = setup.defaults;
+  const rows = [
+    ["Watching", `${activeLabel} + ${partnerLabel}`],
+    ["Language", defaults.languageAccess],
+    ["Available on", defaults.availabilityRegion],
+    ["How it works", `${defaults.sessionType} · ${defaults.inputMode}`],
+    [
+      "Shortlist",
+      `${defaults.shortlistSize} movies · Watched titles ${defaults.avoidAlreadyWatched ? "hidden" : "included"}`,
+    ],
+  ];
+
+  return (
+    <section className={styles.section} aria-labelledby="defaults-title">
+      <div className={styles.sectionHeading}>
+        <h2 id="defaults-title">Tonight starts here</h2>
+        <span>Review</span>
       </div>
+      <dl className={styles.defaults}>
+        {rows.map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
     </section>
   );
 }
 
-function DefaultsStep({
-  setupLoad,
-  profiles,
-}: {
-  setupLoad: SetupLoadResult;
-  profiles: SetupProfile[];
-}) {
-  const defaults = setupLoad.setup.defaults;
-  const firstProfile = profiles[0]?.label || "Profile 1";
-  const secondProfile = profiles[1]?.label || "Profile 2";
-
-  return (
-    <section className="wizardPanel" aria-labelledby="defaults-heading">
-      <div className="sectionHeading">
-        <p className="eyebrow">Household defaults</p>
-        <h2 id="defaults-heading">Tonight starts from here</h2>
-      </div>
-      <div className="defaultGrid">
-        <DefaultItem label="Session" value={defaults.sessionType} />
-        <DefaultItem label="Input" value={defaults.inputMode} />
-        <DefaultItem label="Profiles" value={`${firstProfile} then ${secondProfile}`} />
-        <DefaultItem label="Availability" value={defaults.availabilityRegion} />
-        <DefaultItem label="Language" value={defaults.languageAccess} />
-        <DefaultItem
-          label="Shortlist"
-          value={`${defaults.shortlistSize} titles, already watched hidden`}
-        />
-      </div>
-    </section>
-  );
-}
-
-function ReadyStep({
-  profiles,
-  canPersist,
-  hasLocalChanges,
-  saveMessage,
-}: {
-  profiles: SetupProfile[];
-  canPersist: boolean;
-  hasLocalChanges: boolean;
-  saveMessage: string;
-}) {
-  return (
-    <section className="wizardPanel" aria-labelledby="ready-heading">
-      <div className="sectionHeading">
-        <p className="eyebrow">Ready check</p>
-        <h2 id="ready-heading">Setup is reviewable</h2>
-      </div>
-      <div className="handoffPreview">
-        {profiles
-          .slice()
-          .sort((first, second) => first.order - second.order)
-          .map((profile) => (
-            <div key={profile.id} className={`identityPreview identityPreview${profile.colorKey}`}>
-              <span>{avatarSymbol(profile.avatarKey)}</span>
-              <p>{profile.label}</p>
-            </div>
-          ))}
-      </div>
-      <p className="readyNote">
-        {saveMessage ||
-          (canPersist
-            ? "Backend setup persistence is available for this review."
-            : "Backend setup persistence is unavailable. Edits stay on this screen.")}
-      </p>
-      <p className={hasLocalChanges ? "changeNote changeNoteActive" : "changeNote"}>
-        {hasLocalChanges ? "Unsaved local label changes" : "Labels match the current review"}
-      </p>
-    </section>
-  );
+function profileLabel(profileId: string, profiles: SetupProfile[]): string {
+  return profiles.find((profile) => profile.id === profileId)?.label || "Profile";
 }
 
 function avatarSymbol(avatarKey: string): string {
   return avatarOptions.find((option) => option.key === avatarKey)?.symbol ?? "P";
-}
-
-function DefaultItem({ label, value }: { label: string; value: string }) {
-  return (
-    <article className="defaultItem">
-      <span>{label}</span>
-      <p>{value}</p>
-    </article>
-  );
 }

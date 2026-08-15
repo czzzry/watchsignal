@@ -10,6 +10,10 @@ import { ensureUvExecutable, uvEnvironment } from "./run_api_uv.mjs";
 
 const repoRoot = new URL("..", import.meta.url).pathname;
 const browserCandidates = getBrowserCandidates();
+const SMOKE_ACCESS_PASSWORD = "watchsignal-mobile-smoke-access";
+const SMOKE_SESSION_SECRET = "watchsignal-mobile-smoke-session-secret";
+const SMOKE_BACKEND_SERVICE_TOKEN = "watchsignal-mobile-smoke-backend-token";
+const SMOKE_HOUSEHOLD_ID = "default-household";
 
 const startedProcesses = [];
 let chromeProfileDir = null;
@@ -27,6 +31,8 @@ async function main() {
   const checkTonightIntent = process.env.MOBILE_UX_SMOKE_TONIGHT_INTENT === "1";
   const expectedRecommendationSource =
     process.env.MOBILE_UX_SMOKE_EXPECT_RECOMMENDATION_SOURCE;
+  const checkRecoveryReload =
+    process.env.MOBILE_UX_SMOKE_RECOVERY_RELOAD === "1";
   const useBackendMode =
     process.env.MOBILE_UX_SMOKE_EXPECT_API === "1" || checkTonightIntent;
   const skipWatchlistChecks = process.env.MOBILE_UX_SMOKE_SKIP_WATCHLIST === "1";
@@ -38,12 +44,14 @@ async function main() {
     await seedBackendOnboarding(startedApi.apiUrl);
   }
   const webUrl = targetUrl || (await startWebServer(startedApi?.apiUrl));
-  const reviewUrl =
-    process.env.MOBILE_UX_SMOKE_REVIEW === "1" ||
-    process.env.MOBILE_UX_SMOKE_EXPECT_V2_EXPLANATION === "1" ||
-    useBackendMode
-      ? withReviewMode(webUrl)
-      : webUrl;
+  const reviewMode =
+    process.env.MOBILE_UX_SMOKE_NO_REVIEW !== "1"
+    && (
+      process.env.MOBILE_UX_SMOKE_REVIEW === "1"
+      || process.env.MOBILE_UX_SMOKE_EXPECT_V2_EXPLANATION === "1"
+      || useBackendMode
+    );
+  const reviewUrl = reviewMode ? withReviewMode(webUrl) : webUrl;
   const chrome = process.env.MOBILE_UX_SMOKE_DEBUGGING_URL
     ? {
         debuggingUrl: process.env.MOBILE_UX_SMOKE_DEBUGGING_URL,
@@ -52,6 +60,9 @@ async function main() {
     : await startChrome();
   const browser = await connectToChrome(chrome.debuggingUrl);
   const tab = await createMobileTab(browser, reviewUrl);
+  if (startedApi) {
+    await authenticateSmokeBrowser(tab, reviewUrl);
+  }
 
   try {
     await waitForText(tab, "Start first pass", "setup screen");
@@ -65,29 +76,27 @@ async function main() {
     await assertNoHorizontalOverflow(tab, "setup screen");
     await captureScreenshot(tab, screenshotDir, "01-setup");
     if (useBackendMode) {
-      await clickButton(tab, "Availability");
-      await clickButton(tab, "Any streaming");
-      await waitForText(tab, "Any streaming", "editable availability setting");
       if (expectedRecommendationSource === "live_tmdb") {
-        await clickButton(tab, "Prime Video");
-        await waitForText(tab, "Prime Video", "live availability setting");
+        await waitForText(tab, "Prime Video", "live availability summary");
       }
-      await assertNoHorizontalOverflow(tab, "availability setting");
+      await assertNoHorizontalOverflow(tab, "combined tonight summary");
     }
     if (checkTonightIntent) {
       await verifyTonightIntentSetup(tab);
       await captureScreenshot(tab, screenshotDir, "01-tonight-intent");
     }
     await clickButton(tab, "Start first pass");
-    await waitForText(tab, "1 of 5", "first pass");
-    await waitForCinematicScreen(tab, ".cinematicReactionPanel", "first pass entrance");
+    await waitForText(tab, "1 of 5", "first pass", 60_000);
+    await waitForCinematicScreen(tab, "[data-reaction-stage]", "first pass entrance");
     await waitForPosterImage(tab);
     await captureScreenshot(tab, screenshotDir, "02-reaction-first");
 
     await clickButton(tab, "Seen before");
-    await waitForText(tab, "Save what", "seen memory dialog");
-    await clickButton(tab, "Loved it");
-    await waitForText(tab, "Already seen:", "seen memory confirmation");
+    await waitForText(tab, "What did", "seen memory dialog");
+    await waitForCinematicScreen(tab, '[role="dialog"]', "seen memory entrance");
+    await clickButton(tab, "Loved");
+    await clickButton(tab, "Save memory");
+    await waitForText(tab, "Seen saved", "seen memory confirmation");
     await clickButton(tab, "Interested");
     await waitForPassProgress(tab, 1, "first pass");
 
@@ -96,12 +105,27 @@ async function main() {
       await waitForPassProgress(tab, index + 2, "first pass");
     }
 
-    await waitForText(tab, "Pass the phone to", "handoff screen");
-    await waitForCinematicScreen(tab, ".cinematicHandoffPanel", "handoff entrance");
+    await waitForText(tab, "Ready for Husband", "handoff screen");
+    await waitForElement(tab, "[data-private-handoff]", "handoff entrance");
+    await delay(650);
     await assertNoHorizontalOverflow(tab, "handoff screen");
-    await clickButton(tab, "begin");
+    await captureScreenshot(tab, screenshotDir, "02-handoff-before-reload");
+    if (checkRecoveryReload) {
+      await tab.send("Page.reload", { ignoreCache: true });
+      await waitForReadyState(tab);
+      await waitForText(tab, "Ready for Husband", "recovered handoff screen", 60_000);
+      await waitForCinematicScreen(
+        tab,
+        "[data-private-handoff]",
+        "recovered handoff entrance",
+      );
+      await assertNoHorizontalOverflow(tab, "recovered handoff screen");
+      await captureScreenshot(tab, screenshotDir, "02-handoff-after-reload");
+      console.log("Private handoff reload recovery passed.");
+    }
+    await clickButton(tab, "Begin Husband's picks");
     await waitForText(tab, "1 of 5", "second pass");
-    await waitForCinematicScreen(tab, ".cinematicReactionPanel", "second pass entrance");
+    await waitForCinematicScreen(tab, "[data-reaction-stage]", "second pass entrance");
 
     for (const [index, reaction] of ["Maybe", "Interested", "Interested", "Maybe", "No"].entries()) {
       await clickButton(tab, reaction);
@@ -109,21 +133,27 @@ async function main() {
     }
 
     try {
-      await waitForText(tab, "Tonight", "results screen");
-      await waitForCinematicScreen(tab, ".cinematicResultsPanel", "results entrance");
-      await waitForText(tab, "Backups we also liked", "results backups");
+      await waitForText(tab, "Tonight’s strongest match", "results screen");
+      await waitForCinematicScreen(tab, ".goldenResultsStage", "results entrance");
+      await waitForRankedShortlist(tab);
+      const winnerTitle = await currentResultTitle(tab);
+      await captureScreenshot(tab, screenshotDir, "03-ranked-result");
       if (useBackendMode) {
-        await waitForText(tab, "Current signals", "results evidence panel");
-        await waitForText(tab, "Alex - tester: 1 signals", "tester Taste Lab evidence");
-        await waitForText(tab, "Why it moved", "recommendation trust movement evidence");
-        await waitForText(tab, "Held back", "recommendation trust penalty evidence");
-        if (expectedRecommendationSource === "live_tmdb") {
-          await waitForText(tab, "Live TMDb", "recommendation source");
-        } else if (expectedRecommendationSource === "demo") {
-          await waitForText(tab, "Demo catalog", "recommendation source");
+        await clickButtonByAriaLabel(tab, "More result options");
+        await waitForText(tab, "Keep the night moving", "result options");
+        if (reviewMode) {
+          await clickSummary(tab, "Session evidence");
+          await waitForText(tab, "Current signals", "results evidence panel");
+          await waitForText(tab, "Alex - tester: 1 signals", "tester Taste Lab evidence");
+          await waitForText(tab, "Why it moved", "recommendation trust movement evidence");
+          await waitForText(tab, "Held back", "recommendation trust penalty evidence");
+          if (expectedRecommendationSource === "live_tmdb") {
+            await waitForText(tab, "Live TMDb", "recommendation source");
+          } else if (expectedRecommendationSource === "demo") {
+            await waitForText(tab, "Demo catalog", "recommendation source");
+          }
         }
       }
-      await waitForRankedShortlist(tab);
       if (process.env.MOBILE_UX_SMOKE_EXPECT_V2_EXPLANATION === "1") {
         await waitForText(tab, "profile memory: concept fit", "V2 profile explanation chip");
         await waitForText(tab, "candidate metadata: theme depth", "V2 candidate explanation chip");
@@ -131,69 +161,70 @@ async function main() {
       }
       await assertNoHorizontalOverflow(tab, "results screen");
       await captureScreenshot(tab, screenshotDir, "03-results");
-      if (useBackendMode && !skipWatchlistChecks) {
-        await clickButton(tab, "Add to watchlist");
-        await waitForText(tab, "saved to your watchlist", "watchlist add");
-        await clickButtonInContainer(tab, ".watchlistPanel", "Watched");
-        await waitForText(tab, "marked watched", "watchlist watched action");
-        await clickButtonInContainer(tab, ".watchlistPanel", "Remove");
-        if (!(await hasTextSoon(tab, "Removed from your watchlist", 3000))) {
-          await clickButtonInContainer(tab, ".watchlistPanel", "Remove");
+      if (useBackendMode) {
+        if (process.env.MOBILE_UX_SMOKE_STEER_NEXT === "1") {
+          await clickButtonByAriaLabel(tab, "Close");
+          await clickButtonByAriaLabel(tab, "Find five more movies");
+          await waitForText(tab, "Another five", "continuation chooser");
+          await fillInput(tab, "#continuation-steer", "actually more action");
+          await clickButton(tab, "Review");
+          await waitForText(tab, "Use for the next five?", "steer next confirmation");
+          await clickButton(tab, "Use this and find five");
+          await waitForText(tab, "1 of 5", "steered next first pass");
+          await assertNoHorizontalOverflow(tab, "steered next first pass");
+          console.log("Steer next 5 smoke path passed.");
+          return;
         }
-        await waitForText(tab, "Removed from your watchlist", "watchlist remove");
+
+        if (process.env.MOBILE_UX_SMOKE_SHOW_MORE === "1") {
+          await clickButtonByAriaLabel(tab, "Close");
+          await clickButtonByAriaLabel(tab, "Find five more movies");
+          await waitForText(tab, "Another five", "continuation chooser");
+          await clickButton(tab, "Same direction");
+          await waitForText(tab, "1 of 5", "show five more first pass");
+          await assertNoHorizontalOverflow(tab, "show five more first pass");
+          console.log("Show 5 more smoke path passed.");
+          return;
+        }
+
+        if (!skipWatchlistChecks) {
+          await clickButton(tab, `Save ${winnerTitle}`);
+          await waitForButtonText(tab, "SavedTap to undo", "watchlist add");
+          await clickButton(tab, "Watchlist");
+          await waitForText(tab, "Watchlist", "watchlist utility");
+          await clickButton(tab, "Mark watched");
+          await waitForButtonText(tab, "Watched saved", "watchlist watched action");
+          await clickButtonByAriaLabel(tab, "Back to result options");
+        }
+
+        await clickButton(tab, "After tonight");
+      if (outcomeMode === "other") {
+          await clickButton(tab, "Watched another");
+          await clickFirstPressedChoiceCandidate(tab);
+      } else {
+          await clickButton(tab, `Watched ${winnerTitle}`);
+      }
+        await clickButton(tab, "Save and rate");
+      await clickButtonInSection(tab, "Alex - tester", "Loved");
+      await clickButtonInSection(tab, "Husband", "Fine");
+        await clickButton(tab, "Save ratings");
+        await waitForButtonText(tab, "Ratings saved", "post-watch feedback");
+        await clickButtonByAriaLabel(tab, "Back to result options");
+      await clickButton(tab, "Start new night");
+        await waitForText(tab, "Start first pass", "new night setup");
+        await clickButton(tab, "Taste memory");
+        await waitForText(tab, "What WatchSignal remembers", "profile taste memory");
+        await clickSummary(tab, "Why this?");
+        await waitForText(tab, "After watching", "profile taste memory event");
+        await clickButton(tab, "Done");
+        await clickButton(tab, "Recent nights");
+        await waitForText(tab, winnerTitle, "recent nights list");
+        await clickButton(tab, winnerTitle);
+        await waitForText(tab, "Night details", "recent night detail");
       }
     } catch (error) {
       await reportVisiblePageState(tab, "results timeout");
       throw error;
-    }
-
-    if (process.env.MOBILE_UX_SMOKE_STEER_NEXT === "1") {
-      await clickButton(tab, "Show 5 more");
-      await waitForText(tab, "Keep going or steer first?", "continuation chooser");
-      await fillInput(tab, "#steer-next-input", "actually more action");
-      await clickButton(tab, "Review");
-      await waitForText(tab, "Add and find 5", "steer next confirmation");
-      await clickButton(tab, "Add and find 5");
-      await waitForText(tab, "1 of 5", "steered next first pass");
-      await assertNoHorizontalOverflow(tab, "steered next first pass");
-      console.log("Steer next 5 smoke path passed.");
-      return;
-    }
-
-    if (process.env.MOBILE_UX_SMOKE_SHOW_MORE === "1") {
-      await clickButton(tab, "Show 5 more");
-      await waitForText(tab, "Keep going or steer first?", "continuation chooser");
-      await clickButton(tab, "Find 5 in the same direction");
-      await waitForText(tab, "1 of 5", "show five more first pass");
-      await assertNoHorizontalOverflow(tab, "show five more first pass");
-      console.log("Show 5 more smoke path passed.");
-      return;
-    }
-
-    if (useBackendMode) {
-      await clickSummary(tab, "Save what happened after");
-      if (outcomeMode === "other") {
-        await clickButton(tab, "Watched another shortlist title");
-        await clickFirstButtonInContainer(tab, ".outcomeChoiceList");
-      } else {
-        await clickButton(tab, "Watched best pick");
-      }
-      await clickButton(tab, "Save outcome");
-      await clickButtonInSection(tab, "Alex - tester", "Loved");
-      await clickButtonInSection(tab, "Husband", "Fine");
-      await clickButton(tab, "Save feedback");
-      await clickButton(tab, "Start new night");
-      await waitForText(tab, "Taste snapshot", "profile taste snapshot");
-      await waitForText(tab, "Profile ledger", "profile taste ledger");
-      await waitForText(tab, "Post-watch", "profile taste ledger event");
-      await clickSummary(tab, "Recent nights");
-      await waitForText(tab, "Household history", "setup history panel");
-      await clickButton(tab, "Load");
-      await waitForText(tab, "View details", "recent sessions history card");
-      await clickButton(tab, "View details");
-      await waitForText(tab, "Session outcome", "recent session detail");
-      await waitForText(tab, "Post-watch feedback", "recent session detail");
-      await waitForText(tab, "Founder reactions", "recent session evidence");
     }
 
     console.log("Mobile pass-the-phone UX smoke passed.");
@@ -227,26 +258,27 @@ async function main() {
 }
 
 async function verifyTonightIntentSetup(tab) {
-  await waitForText(tab, "Steer this movie night", "tonight intent setup");
+  await clickButton(tab, "Mood");
+  await waitForText(tab, "What are you in the mood for?", "tonight intent setup");
   await fillInput(tab, "#tonight-intent-input", "something funny from the 90s that we have not seen");
-  await clickButton(tab, "Review");
+  await clickButton(tab, "Read my mood");
   await waitForText(tab, "1990-1999", "direct intent confirmation");
-  await waitForText(tab, "Apply to tonight", "direct intent apply action");
-  await clickButton(tab, "Apply to tonight");
-  await waitForText(tab, "Applied to tonight only", "active direct tonight intent");
-  await waitForText(tab, "taste profile is unchanged", "tonight-only distinction");
+  await waitForText(tab, "Tonight’s signals", "direct intent review");
+  await clickButton(tab, "Confirm tonight");
+  await waitForText(tab, "Confirmed", "active direct tonight intent");
   await assertNoHorizontalOverflow(tab, "direct tonight intent review");
   await clickButton(tab, "Clear");
 
   await fillInput(tab, "#tonight-intent-input", "ugh I feel sad today");
-  await clickButton(tab, "Review");
+  await clickButton(tab, "Read my mood");
   await waitForText(tab, "Do you want something comforting", "intent clarification");
-  await fillInput(tab, "[aria-label='Clarify tonight intent']", "comforting and light");
-  await clickButton(tab, "Answer");
-  await waitForText(tab, "Apply to tonight", "clarified intent apply action");
-  await clickButton(tab, "Apply to tonight");
-  await waitForText(tab, "Applied to tonight only", "active clarified tonight intent");
+  await fillInput(tab, "#tonight-intent-clarification", "comforting and light");
+  await clickButton(tab, "Use this answer");
+  await waitForText(tab, "Tonight’s signals", "clarified intent review");
+  await clickButton(tab, "Confirm tonight");
+  await waitForText(tab, "Confirmed", "active clarified tonight intent");
   await assertNoHorizontalOverflow(tab, "clarified tonight intent review");
+  await clickButton(tab, "Done");
 }
 
 function withReviewMode(url) {
@@ -260,7 +292,10 @@ async function startWebServer(apiBaseUrl = null) {
   const fallbackApiPort = await getFreePort();
   const packageRunner = await resolvePackageRunner();
   const serverScript = resolveWebServerScript();
-  if (serverScript === "start") {
+  if (
+    serverScript === "start"
+    && process.env.MOBILE_UX_SMOKE_REUSE_BUILD !== "1"
+  ) {
     await ensureWebBuild(packageRunner);
   }
   const child = spawn(
@@ -278,6 +313,10 @@ async function startWebServer(apiBaseUrl = null) {
       env: {
         ...process.env,
         API_BASE_URL: apiBaseUrl || `http://127.0.0.1:${fallbackApiPort}`,
+        BACKEND_SERVICE_TOKEN: SMOKE_BACKEND_SERVICE_TOKEN,
+        HOUSEHOLD_ACCESS_PASSWORD: SMOKE_ACCESS_PASSWORD,
+        HOUSEHOLD_SESSION_SECRET: SMOKE_SESSION_SECRET,
+        WATCHSIGNAL_HOUSEHOLD_ID: SMOKE_HOUSEHOLD_ID,
         NEXT_TELEMETRY_DISABLED: "1",
         PNPM_HOME: resolveToolPath("pnpm"),
         XDG_CACHE_HOME: resolveToolPath("cache"),
@@ -318,6 +357,7 @@ async function startApiServer() {
       cwd: join(repoRoot, "apps", "api"),
       env: {
         ...uvEnvironment(),
+        BACKEND_SERVICE_TOKEN: SMOKE_BACKEND_SERVICE_TOKEN,
         MOVIE_NIGHT_MEDIATOR_SQLITE_PATH: databasePath,
       },
       stdio: ["ignore", "pipe", "pipe"],
@@ -333,6 +373,22 @@ async function startApiServer() {
   const apiUrl = `http://127.0.0.1:${port}`;
   await waitForHttp(`${apiUrl}/health`, "api health");
   return { apiUrl };
+}
+
+async function authenticateSmokeBrowser(tab, returnUrl) {
+  const status = await evaluate(tab, async (password) => {
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    return response.status;
+  }, SMOKE_ACCESS_PASSWORD);
+  if (status !== 200) {
+    throw new Error(`Mobile UX smoke login failed with HTTP ${status}.`);
+  }
+  await tab.send("Page.navigate", { url: returnUrl });
+  await waitForReadyState(tab);
 }
 
 async function seedBackendOnboarding(apiBaseUrl) {
@@ -678,6 +734,79 @@ async function clickButton(tab, label) {
   });
 }
 
+async function clickButtonByAriaLabel(tab, label) {
+  const rect = await waitForValue(
+    async () =>
+      evaluate(tab, (wantedLabel) => {
+        const buttons = [...document.querySelectorAll("button")];
+        const button = buttons.find(
+          (candidate) =>
+            candidate.getAttribute("aria-label") === wantedLabel
+            && !candidate.disabled,
+        );
+        if (!button) {
+          return null;
+        }
+        button.scrollIntoView({ block: "center", inline: "center" });
+        const bounds = button.getBoundingClientRect();
+        return {
+          x: bounds.left + bounds.width / 2,
+          y: bounds.top + bounds.height / 2,
+        };
+      }, label),
+    `enabled button with aria-label "${label}"`,
+  );
+
+  await tab.send("Input.dispatchMouseEvent", {
+    type: "mousePressed",
+    x: rect.x,
+    y: rect.y,
+    button: "left",
+    clickCount: 1,
+  });
+  await tab.send("Input.dispatchMouseEvent", {
+    type: "mouseReleased",
+    x: rect.x,
+    y: rect.y,
+    button: "left",
+    clickCount: 1,
+  });
+}
+
+async function clickFirstPressedChoiceCandidate(tab) {
+  const rect = await waitForValue(
+    async () =>
+      evaluate(tab, () => {
+        const button = document.querySelector('[aria-label="Movie watched"] button:not([disabled])');
+        if (!(button instanceof HTMLButtonElement)) {
+          return null;
+        }
+        button.scrollIntoView({ block: "center", inline: "center" });
+        const bounds = button.getBoundingClientRect();
+        return {
+          x: bounds.left + bounds.width / 2,
+          y: bounds.top + bounds.height / 2,
+        };
+      }),
+    "first available shortlist outcome choice",
+  );
+
+  await tab.send("Input.dispatchMouseEvent", {
+    type: "mousePressed",
+    x: rect.x,
+    y: rect.y,
+    button: "left",
+    clickCount: 1,
+  });
+  await tab.send("Input.dispatchMouseEvent", {
+    type: "mouseReleased",
+    x: rect.x,
+    y: rect.y,
+    button: "left",
+    clickCount: 1,
+  });
+}
+
 async function fillInput(tab, selector, value) {
   const focused = await waitForValue(
     async () =>
@@ -711,7 +840,7 @@ async function clickButtonInSection(tab, sectionHeading, label) {
     async () =>
       evaluate(tab, (wantedHeading, wantedLabel) => {
         const normalize = (value) => value.replace(/\s+/g, " ").trim();
-        const headings = [...document.querySelectorAll("h4")];
+        const headings = [...document.querySelectorAll("h3, h4")];
         const heading = headings.find(
           (candidate) => normalize(candidate.textContent || "") === wantedHeading,
         );
@@ -719,7 +848,7 @@ async function clickButtonInSection(tab, sectionHeading, label) {
           return null;
         }
 
-        const section = heading.closest("article");
+        const section = heading.closest("article, section");
         if (!section) {
           return null;
         }
@@ -926,24 +1055,59 @@ async function assertButtonDisabled(tab, label, context) {
   }
 }
 
-async function waitForText(tab, text, context) {
-  const expected = text.toLowerCase();
+async function waitForText(tab, text, context, timeoutMs = 20_000) {
+  const expected = text.replace(/\s+/g, " ").trim().toLowerCase();
   await waitForValue(
     async () =>
       evaluate(tab, (expected) => {
-        return document.body.innerText.toLowerCase().includes(expected);
+        return document.body.innerText
+          .replace(/\s+/g, " ")
+          .trim()
+          .toLowerCase()
+          .includes(expected);
       }, expected),
     `text "${text}" on ${context}`,
+    timeoutMs,
+  );
+}
+
+async function waitForButtonText(tab, text, context) {
+  await waitForValue(
+    async () =>
+      evaluate(tab, (expected) => {
+        const normalize = (value) => value.replace(/\s+/g, " ").trim();
+        return [...document.querySelectorAll("button")].some(
+          (button) => normalize(button.textContent || "") === expected,
+        );
+      }, text),
+    `button text "${text}" on ${context}`,
+  );
+}
+
+async function currentResultTitle(tab) {
+  return waitForValue(
+    async () =>
+      evaluate(tab, () => {
+        const heading = document.querySelector(".goldenResultsStage h1");
+        const title = heading?.textContent?.replace(/\s+/g, " ").trim();
+        return title || null;
+      }),
+    "current ranked result title",
   );
 }
 
 async function hasTextSoon(tab, text, timeoutMs) {
+  const expected = text.replace(/\s+/g, " ").trim().toLowerCase();
   try {
     await waitForValue(
       async () =>
         evaluate(tab, (expected) => {
-          return document.body.innerText.toLowerCase().includes(expected);
-        }, text.toLowerCase()),
+          return document.body.innerText
+            .replace(/\s+/g, " ")
+            .trim()
+            .toLowerCase()
+            .includes(expected);
+        }, expected),
       `text "${text}"`,
       timeoutMs,
     );
@@ -984,11 +1148,19 @@ async function waitForCinematicScreen(tab, selector, label) {
   );
 }
 
+async function waitForElement(tab, selector, label) {
+  await waitForValue(
+    async () => evaluate(tab, (wantedSelector) => Boolean(document.querySelector(wantedSelector)), selector),
+    label,
+    5_000,
+  );
+}
+
 async function waitForPosterImage(tab) {
   await waitForValue(
     async () =>
       evaluate(tab, () => {
-        const image = document.querySelector(".posterImage");
+        const image = document.querySelector("[data-reaction-stage] img");
         if (!(image instanceof HTMLImageElement)) {
           return false;
         }
@@ -1003,11 +1175,11 @@ async function waitForRankedShortlist(tab) {
   await waitForValue(
     async () =>
       evaluate(tab, () => {
-        const rankedList = document.querySelector('[aria-label="Reranked shortlist"]');
+        const rankedList = document.querySelector('[aria-label="Ranked movies"]');
         if (!rankedList) {
           return false;
         }
-        return rankedList.querySelectorAll("article").length > 0;
+        return rankedList.querySelectorAll("button").length === 5;
       }),
     'ranked shortlist content on results screen',
   );
@@ -1097,6 +1269,7 @@ async function captureScreenshot(tab, directory, filename) {
 async function waitForPassProgress(tab, completedIndex, context) {
   if (completedIndex < 5) {
     await waitForText(tab, `${completedIndex + 1} of 5`, context);
+    await delay(350);
     return;
   }
 }
@@ -1167,7 +1340,11 @@ async function waitForHttp(url, label, timeoutMs = 30_000) {
 }
 
 async function getJson(url) {
-  const response = await fetch(url);
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${SMOKE_BACKEND_SERVICE_TOKEN}`,
+    },
+  });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status} while reading ${url}.`);
   }
@@ -1178,6 +1355,7 @@ async function putJson(url, body) {
   const response = await fetch(url, {
     method: "PUT",
     headers: {
+      Authorization: `Bearer ${SMOKE_BACKEND_SERVICE_TOKEN}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
@@ -1191,12 +1369,10 @@ async function putJson(url, body) {
 async function postJson(url, body = undefined) {
   const response = await fetch(url, {
     method: "POST",
-    headers:
-      body === undefined
-        ? undefined
-        : {
-            "Content-Type": "application/json",
-          },
+    headers: {
+      Authorization: `Bearer ${SMOKE_BACKEND_SERVICE_TOKEN}`,
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!response.ok) {

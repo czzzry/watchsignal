@@ -1,0 +1,63 @@
+.board {
+  --night: #07050c;
+  --raised: #100b18;
+  --paper: #f7f5fb;
+  --violet: #9c68ff;
+  --cyan: #8eefff;
+  width: min(100%, 720px);
+  min-height: 100svh;
+  margin: 0 auto;
+  padding: 20px 18px 72px;
+  background: radial-gradient(circle at 92% 7%, rgba(125, 58, 226, 0.24), transparent 24%), var(--night);
+  color: var(--paper);
+  font-family: "Avenir Next", "SF Pro Text", "Segoe UI Variable Text", system-ui, sans-serif;
+}
+
+.header { min-height: 44px; display: flex; align-items: center; justify-content: space-between; }
+.header a { color: #d8c4ff; font-size: 11px; font-weight: 650; text-underline-offset: 3px; }
+.brand { display: flex; align-items: center; gap: 8px; }
+.brand span { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; background: var(--paper); color: #160d20; font-size: 12px; font-weight: 780; }
+.brand strong { font-size: 13px; letter-spacing: -0.02em; }
+.hero { padding: 56px 0 36px; }
+.phaseLine { display: flex; align-items: center; gap: 7px; color: #d2baff; font-size: 11px; font-weight: 680; }
+.liveDot { width: 7px; height: 7px; border-radius: 50%; background: var(--violet); box-shadow: 0 0 0 5px rgba(156, 104, 255, 0.14); }
+.hero h1 { margin: 12px 0 8px; font-family: "New York", "Iowan Old Style", Baskerville, Georgia, serif; font-size: 44px; font-weight: 600; line-height: 0.98; letter-spacing: -0.035em; }
+.hero > p { max-width: 48ch; margin: 0 0 30px; color: rgba(255, 255, 255, 0.68); font-size: 12px; line-height: 1.55; }
+.progressMeta { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; font-size: 10px; }
+.progressMeta span { color: rgba(255, 255, 255, 0.52); font-variant-numeric: tabular-nums; }
+.progressTrack { height: 4px; overflow: hidden; border-radius: 99px; background: rgba(255, 255, 255, 0.12); }
+.progressTrack i { width: 100%; height: 100%; display: block; transform-origin: left center; border-radius: inherit; background: linear-gradient(90deg, var(--violet), var(--cyan)); transition: transform 400ms cubic-bezier(0.16, 1, 0.3, 1); }
+.sectionHeading { min-height: 34px; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.sectionHeading h2 { margin: 0; font-size: 13px; }
+.sectionHeading span, .sectionHeading time { color: rgba(255, 255, 255, 0.5); font-size: 9px; }
+.agentSection, .sliceSection, .logSection { margin-top: 28px; }
+.agentRail { display: grid; grid-auto-columns: minmax(154px, 1fr); grid-auto-flow: column; gap: 8px; overflow-x: auto; padding-bottom: 3px; scroll-snap-type: x mandatory; }
+.agentRail article { min-height: 126px; display: flex; flex-direction: column; scroll-snap-align: start; border-radius: 12px; padding: 13px; background: rgba(255, 255, 255, 0.065); }
+.agentState { width: 8px; height: 8px; margin-bottom: 16px; border-radius: 50%; background: rgba(255, 255, 255, 0.28); }
+.agent_working { background: var(--violet); box-shadow: 0 0 0 5px rgba(156, 104, 255, 0.12); }
+.agent_judging { background: var(--cyan); box-shadow: 0 0 0 5px rgba(142, 239, 255, 0.1); }
+.agent_done { background: #a6e7a1; }
+.agentRail p { margin: 0 0 4px; color: rgba(255, 255, 255, 0.52); font-size: 8px; }
+.agentRail strong { font-size: 11px; }
+.agentRail small { margin-top: auto; color: rgba(255, 255, 255, 0.6); font-size: 8.5px; line-height: 1.4; }
+.sliceList { overflow: hidden; border-radius: 13px; background: rgba(255, 255, 255, 0.055); }
+.sliceList article { min-height: 62px; display: grid; grid-template-columns: 32px 1fr auto; align-items: center; gap: 10px; padding: 8px 12px; }
+.sliceList article + article { border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.sliceId { color: rgba(255, 255, 255, 0.38); font-size: 9px; font-weight: 700; }
+.sliceList article > div { min-width: 0; display: grid; gap: 4px; }
+.sliceList strong { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.sliceList small { overflow: hidden; color: rgba(255, 255, 255, 0.46); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.statusLabel { min-height: 24px; display: flex; align-items: center; border-radius: 999px; padding: 0 8px; background: rgba(255, 255, 255, 0.07); color: rgba(255, 255, 255, 0.58); font-size: 7.5px; font-weight: 700; }
+.slice_in_progress .statusLabel { background: rgba(156, 104, 255, 0.18); color: #dccbff; }
+.slice_in_review .statusLabel { background: rgba(142, 239, 255, 0.12); color: #b9f5ff; }
+.slice_revising .statusLabel { background: rgba(255, 190, 113, 0.12); color: #ffd3a0; }
+.slice_accepted .statusLabel { background: rgba(166, 231, 161, 0.12); color: #c9f6c5; }
+.logSection ol { display: grid; gap: 9px; margin: 4px 0 0; padding: 0; list-style: none; counter-reset: updates; }
+.logSection li { counter-increment: updates; display: grid; grid-template-columns: 18px 1fr; color: rgba(255, 255, 255, 0.66); font-size: 10px; line-height: 1.45; }
+.logSection li::before { content: counter(updates); color: #c9adff; font-size: 8px; font-weight: 750; }
+.blockers { margin-top: 14px; border-radius: 12px; padding: 12px; background: rgba(255, 117, 117, 0.1); }
+.blockers strong { color: #ffb7b7; font-size: 9px; }
+.blockers p { margin: 5px 0 0; color: rgba(255, 255, 255, 0.72); font-size: 9px; }
+
+@media (max-width: 430px) { .board { padding-bottom: 48px; } .hero { padding-top: 48px; } }
+@media (prefers-reduced-motion: reduce) { .progressTrack i { transition: none; } }

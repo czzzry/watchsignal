@@ -6,6 +6,7 @@ import {
   serviceConstraintFromAvailability,
   startPassThePhoneSession,
 } from "../app/pass-the-phone/session-lifecycle.ts";
+import { demoCandidateViewModels } from "../app/pass-the-phone-helpers.ts";
 
 function candidate(sourceMovieId = "tmdb:1") {
   return {
@@ -29,6 +30,10 @@ function candidate(sourceMovieId = "tmdb:1") {
     whyShort: "Strong shared fit.",
     year: 2024,
   };
+}
+
+function candidateBatch(prefix = "tmdb") {
+  return Array.from({ length: 5 }, (_, index) => candidate(`${prefix}:${index + 1}`));
 }
 
 function ports() {
@@ -63,7 +68,7 @@ function startInput(overrides = {}) {
     availabilityRegion: "Prime Video Germany",
     activeTonightIntent: null,
     activeTonightIntents: [],
-    fallbackCandidates: [],
+    fallbackCandidates: demoCandidateViewModels,
     disconnectedMessage: "Local mode.",
     ...overrides,
   };
@@ -73,7 +78,7 @@ test("disconnected start stays local without calling the backend", async () => {
   const lifecyclePorts = ports();
   let backendCalls = 0;
 
-  await startPassThePhoneSession(
+  const outcome = await startPassThePhoneSession(
     startInput({ apiConnected: false }),
     lifecyclePorts.value,
     {
@@ -94,12 +99,14 @@ test("disconnected start stays local without calling the backend", async () => {
   );
 
   assert.equal(backendCalls, 0);
-  assert.deepEqual(lifecyclePorts.events, [
-    ["resetBatch", undefined],
-    ["resetSessionProgress"],
-    ["updateSession", { sessionSource: "demo", apiError: "Local mode." }],
-    ["navigateToStarted"],
-  ]);
+  assert.deepEqual(outcome, {
+    status: "ready",
+    movieSource: "local",
+    persistenceSource: "local",
+  });
+  const reset = lifecyclePorts.events.find(([name, ids]) => name === "resetBatch" && ids?.length === 5);
+  assert.equal(new Set(reset[1]).size, 5);
+  assert.equal(lifecyclePorts.events.at(-1)[0], "navigateToStarted");
 });
 
 test("solo start loads candidates and keeps a live continuation id", async () => {
@@ -112,7 +119,7 @@ test("solo start loads candidates and keeps a live continuation id", async () =>
       createId: () => "session-1",
       loadShortlist: async (request) => {
         assert.equal(request.serviceConstraint, "Prime Video");
-        return { recommendationSource: "live_tmdb", shortlist: [candidate()] };
+        return { recommendationSource: "live_tmdb", shortlist: candidateBatch() };
       },
       createSession: async () => {
         throw new Error("solo sessions do not create shared state");
@@ -138,8 +145,41 @@ test("solo start loads candidates and keeps a live continuation id", async () =>
         householdId === "default-household",
     ),
   );
-  assert.deepEqual(lifecyclePorts.events.at(-2), ["finishSessionSync"]);
-  assert.deepEqual(lifecyclePorts.events.at(-1), ["navigateToStarted"]);
+  assert.equal(lifecyclePorts.events.some(([name]) => name === "finishSessionSync"), true);
+  assert.equal(lifecyclePorts.events.some(([name]) => name === "navigateToStarted"), true);
+});
+
+test("initial shortlist marks only active confirmed UI intent as applied transport", async () => {
+  const activeIntent = {
+    status: "confirmation_required",
+    rawText: "No superhero movies",
+    filters: {},
+    softSignals: [],
+    excludedSignals: ["superhero"],
+    confidence: "high",
+  };
+  const requests = [];
+
+  await startPassThePhoneSession(
+    startInput({
+      activeTonightIntent: activeIntent,
+      activeTonightIntents: [activeIntent],
+    }),
+    ports().value,
+    {
+      createId: () => "session-applied",
+      loadShortlist: async (request) => {
+        requests.push(request);
+        return { recommendationSource: "live_tmdb", shortlist: candidateBatch() };
+      },
+      createSession: async () => { throw new Error("not used"); },
+      continueSession: async () => { throw new Error("not used"); },
+    },
+  );
+
+  assert.equal(requests[0].tonightIntent.applied, true);
+  assert.equal(requests[0].tonightIntents[0].applied, true);
+  assert.equal(activeIntent.applied, undefined);
 });
 
 test("availability text becomes an explicit provider constraint", () => {

@@ -8,6 +8,7 @@ export type PassThePhoneNavigationState = {
 export type PassThePhoneNavigationAction =
   | { type: "session.reset" }
   | { type: "session.started" }
+  | { type: "session.recovered"; step: WizardStep }
   | { type: "firstPass.completed"; coupleSession: boolean }
   | { type: "handoff.completed" }
   | { type: "secondPass.completed" }
@@ -26,6 +27,8 @@ export function passThePhoneNavigationReducer(
       return initialPassThePhoneNavigationState;
     case "session.started":
       return { step: "founder" };
+    case "session.recovered":
+      return { step: action.step };
     case "firstPass.completed":
       if (state.step !== "founder") {
         return state;
@@ -64,7 +67,7 @@ function previousStep(step: WizardStep): WizardStep {
     case "founder":
       return "setup";
     case "handoff":
-      return "founder";
+      return "handoff";
     case "wife":
       return "handoff";
     case "results":

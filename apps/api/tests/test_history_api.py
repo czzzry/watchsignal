@@ -79,14 +79,65 @@ class HistoryApiTest(unittest.TestCase):
             ]
 
             self.assertEqual(len(payload), 1)
-            self.assertEqual(payload[0]["sessionId"], "history-session-1")
-            self.assertEqual(payload[0]["bestPickTitle"], "Arrival")
-            self.assertEqual(payload[0]["outcomeType"], "watched_recommended")
-            self.assertEqual(payload[0]["outcomeTitle"], "Arrival")
             self.assertEqual(
-                payload[0]["feedback"],
-                [{"userId": "husband", "feedbackLabel": "loved"}],
+                set(payload[0]),
+                {"historyHandle", "occurredAt", "title", "outcomeLabel", "posterUrl"},
             )
+            self.assertTrue(payload[0]["historyHandle"].startswith("night_"))
+            self.assertNotIn("history-session-1", payload[0]["historyHandle"])
+            self.assertEqual(payload[0]["title"], "Arrival")
+            self.assertEqual(payload[0]["outcomeLabel"], "Watched")
+            self.assertIsInstance(payload[0]["occurredAt"], str)
+            self.assertTrue(payload[0]["occurredAt"].strip())
+            self.assertIn("image.tmdb.org", payload[0]["posterUrl"])
+            self.assertTrue(
+                {
+                    "sessionId",
+                    "participantIds",
+                    "state",
+                    "activeMode",
+                    "bestPickSourceMovieId",
+                    "feedback",
+                }.isdisjoint(payload[0])
+            )
+
+            detail = payload_to_dict(
+                routes["get_household_history_detail"](
+                    payload[0]["historyHandle"],
+                    householdId="default-household",
+                )
+            )
+            self.assertEqual(
+                set(detail),
+                {
+                    "occurredAt",
+                    "title",
+                    "posterUrl",
+                    "alternatives",
+                    "outcomeLabel",
+                    "feedbackLabels",
+                },
+            )
+            self.assertEqual(detail["title"], "Arrival")
+            self.assertEqual(detail["outcomeLabel"], "Household outcome saved")
+            self.assertEqual(detail["feedbackLabels"], ["Loved it"])
+            self.assertIn("image.tmdb.org", detail["posterUrl"])
+            self.assertEqual(
+                [item["title"] for item in detail["alternatives"]],
+                ["Knives Out", "Past Lives", "Edge of Tomorrow", "The Grand Budapest Hotel"],
+            )
+            diagnostic_keys = {
+                "participantIds",
+                "founderReactions",
+                "wifeReactions",
+                "sourceMovieId",
+                "candidateRank",
+                "recommendationSnapshot",
+                "unavailableEvidence",
+                "sessionId",
+                "state",
+            }
+            self.assertTrue(diagnostic_keys.isdisjoint(detail))
 
 
 def history_route_endpoints(app):
@@ -105,6 +156,7 @@ def history_route_endpoints(app):
         "post_outcome": routes[("POST", "/sessions/{session_id}/outcome")],
         "post_feedback": routes[("POST", "/feedback/post-watch")],
         "get_recent_sessions": routes[("GET", "/history/sessions")],
+        "get_household_history_detail": routes[("GET", "/history/sessions/{history_handle}")],
     }
 
 

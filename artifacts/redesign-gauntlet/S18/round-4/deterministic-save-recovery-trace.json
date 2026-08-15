@@ -1,0 +1,54 @@
+{
+  "postAttempts": 3,
+  "first": {
+    "title": "Crocodile Dundee II",
+    "retained": "true"
+  },
+  "retry": {
+    "title": "Back to the Future"
+  },
+  "second": {
+    "retained": "true"
+  },
+  "local": {
+    "title": "Conan the Barbarian",
+    "status": "Kept on this phone. Next movie."
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:3118/api/taste-lab/profile-1/queue?householdId=default-household&limit=10",
+      "at": 1786582542577
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:3118/api/taste-lab/profile-1/ratings?householdId=default-household",
+      "at": 1786582542578
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:3118/api/taste-lab/cezary-tester/queue?householdId=default-household&limit=10",
+      "at": 1786582542866
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:3118/api/taste-lab/cezary-tester/ratings?householdId=default-household",
+      "at": 1786582542868
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:3118/api/taste-lab/cezary-tester/ratings",
+      "at": 1786582544588
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:3118/api/taste-lab/cezary-tester/ratings",
+      "at": 1786582545196
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:3118/api/taste-lab/cezary-tester/ratings",
+      "at": 1786582545981
+    }
+  ]
+}

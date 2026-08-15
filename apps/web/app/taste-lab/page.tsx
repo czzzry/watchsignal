@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getTasteLabProfiles,
   getTasteLabQueue,
@@ -13,54 +13,57 @@ import {
   type TasteLabRatingInputPayload,
   type TasteLabRatingLabel,
 } from "../taste-lab-client";
+import { WatchSignalIcon } from "../ui/watchsignal-icons";
+import { WatchSignalBrand } from "../ui/primitives";
+import {
+  tasteLabChoiceGroups,
+  tasteLabQueueState,
+  type TasteLabQueueState,
+} from "./taste-lab-contract";
+import styles from "./taste-lab.module.css";
 
 const householdId = "default-household";
 const fallbackProfileId = "profile-1";
 const fallbackProfiles: SetupProfilePayload[] = [
-  {
-    id: "profile-1",
-    label: "Husband",
-    order: 1,
-    avatarKey: "spark",
-    colorKey: "cyan",
-  },
-  {
-    id: "profile-2",
-    label: "Wife",
-    order: 2,
-    avatarKey: "moon",
-    colorKey: "rose",
-  },
+  { id: "profile-1", label: "Husband", order: 1, avatarKey: "spark", colorKey: "cyan" },
+  { id: "profile-2", label: "Wife", order: 2, avatarKey: "moon", colorKey: "rose" },
 ];
 
-const labels: {
-  value: TasteLabRatingLabel;
-  label: string;
-  cue: string;
-}[] = [
-  { value: "loved", label: "Loved", cue: "strong yes" },
-  { value: "liked", label: "Liked", cue: "good fit" },
-  { value: "meh", label: "Meh", cue: "neutral" },
-  { value: "hated", label: "Hated", cue: "strong no" },
-  { value: "havent_seen", label: "Haven't seen", cue: "not a taste vote" },
-];
+type DraftsByProfile = Record<string, Record<string, TasteLabRatingLabel>>;
 
 export default function TasteLabPage() {
   const [profiles, setProfiles] = useState<SetupProfilePayload[]>(fallbackProfiles);
   const [profileId, setProfileId] = useState(fallbackProfileId);
   const [queue, setQueue] = useState<TasteLabCandidatePayload[]>([]);
-  const [ratings, setRatings] = useState<Record<string, TasteLabRatingLabel>>({});
-  const [history, setHistory] = useState<TasteLabRatingExportPayload[]>([]);
-  const [status, setStatus] = useState("Loading Taste Lab.");
+  const [draftsByProfile, setDraftsByProfile] = useState<DraftsByProfile>({});
+  const [historyByProfile, setHistoryByProfile] = useState<
+    Record<string, TasteLabRatingExportPayload[]>
+  >({});
+  const [queueState, setQueueState] = useState<TasteLabQueueState>("loading");
+  const [status, setStatus] = useState("Loading your next movies…");
   const [busy, setBusy] = useState(false);
+  const [batchTotal, setBatchTotal] = useState(0);
+  const [batchAnswered, setBatchAnswered] = useState(0);
+  const [posterFailed, setPosterFailed] = useState(false);
+  const [readyPosterMovieId, setReadyPosterMovieId] = useState<string | null>(null);
+  const requestIdRef = useRef(0);
+  const activeTitleRef = useRef<HTMLHeadingElement>(null);
 
-  const selectedCount = Object.keys(ratings).length;
-  const importableCount = history.filter((rating) => rating.isImportablePreference).length;
-  const unseenCount = history.length - importableCount;
   const activeProfile = profiles.find((profile) => profile.id === profileId) ?? profiles[0];
-  const queueSource = queue[0]?.queueProvenance.queueSource ?? null;
-  const queueSourceLabel = queueSourceLabelFor(queueSource);
-  const queueSourceDetail = queueSourceDetailFor(queueSource);
+  const history = historyByProfile[profileId] ?? [];
+  const activeCandidate = queue[0] ?? null;
+  const selectedLabel = activeCandidate
+    ? draftsByProfile[profileId]?.[activeCandidate.movie.sourceMovieId]
+    : undefined;
+  const importableCount = history.filter((rating) => rating.isImportablePreference).length;
+  const familiarityCount = history.length - importableCount;
+  const coverage = useMemo(() => {
+    const genres = new Set<string>();
+    history.forEach((rating) => rating.movie.genres.forEach((genre) => genres.add(genre)));
+    return genres.size;
+  }, [history]);
+  const isLocal = queueState === "local" || queueState === "local-exhausted";
+  const progressPosition = Math.min(batchTotal, batchAnswered + (activeCandidate ? 1 : 0));
 
   useEffect(() => {
     void loadProfiles();
@@ -68,423 +71,411 @@ export default function TasteLabPage() {
 
   useEffect(() => {
     void refresh(profileId);
+    return () => {
+      requestIdRef.current += 1;
+    };
   }, [profileId]);
 
-  async function loadProfiles() {
+  useEffect(() => {
+    setPosterFailed(false);
+    setReadyPosterMovieId(null);
+    if (activeCandidate) {
+      requestAnimationFrame(() => activeTitleRef.current?.focus());
+    }
+  }, [activeCandidate?.movie.sourceMovieId]);
+
+  async function loadProfiles(): Promise<void> {
     try {
       const setup = await getTasteLabProfiles();
-      const sortedProfiles = [...setup.profiles].sort(
-        (first, second) => first.order - second.order,
-      );
+      const sortedProfiles = [...setup.profiles].sort((first, second) => first.order - second.order);
+      if (sortedProfiles.length === 0) return;
       setProfiles(sortedProfiles);
       setProfileId(
-        setup.activeProfileId &&
-          sortedProfiles.some((profile) => profile.id === setup.activeProfileId)
+        setup.activeProfileId && sortedProfiles.some((profile) => profile.id === setup.activeProfileId)
           ? setup.activeProfileId
-          : sortedProfiles[0]?.id ?? fallbackProfileId,
+          : sortedProfiles[0].id,
       );
     } catch {
       setProfiles(fallbackProfiles);
-      setProfileId(fallbackProfileId);
     }
   }
 
-  async function refresh(nextProfileId = profileId) {
+  async function refresh(nextProfileId = profileId): Promise<void> {
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
     setBusy(true);
-    setStatus("Refreshing the queue.");
+    setQueue([]);
+    setBatchTotal(0);
+    setBatchAnswered(0);
+    setQueueState("loading");
+    setStatus("Loading your next movies…");
     try {
-      const { nextQueue, savedRatings } = await loadProfileState(nextProfileId);
-      setStatus(
-        nextQueue.length > 0
-          ? "Queue ready."
-          : savedRatings.length > 0
-            ? `No unrated queued movies remain for ${profileLabel(nextProfileId, profiles)}.`
-          : "No candidates yet. Load the high-signal queue to start.",
-      );
-    } catch (error) {
-      const nextQueue = localDemoQueue(history);
+      const [nextQueue, savedRatings] = await Promise.all([
+        getTasteLabQueue(householdId, nextProfileId, 10),
+        getTasteLabRatings(householdId, nextProfileId),
+      ]);
+      if (requestIdRef.current !== requestId) return;
       setQueue(nextQueue);
-      setRatings({});
+      setHistoryByProfile((current) => ({ ...current, [nextProfileId]: savedRatings }));
+      setBatchTotal(nextQueue.length);
+      setBatchAnswered(0);
+      setQueueState(tasteLabQueueState(nextQueue.length, savedRatings.length, false));
       setStatus(
         nextQueue.length > 0
-          ? "API offline. Showing the remaining local demo queue."
-          : "API offline. No local demo candidates remain for this profile.",
+          ? `Ready for ${profileLabel(nextProfileId, profiles)}.`
+          : savedRatings.length > 0
+            ? "You’ve answered every movie currently available."
+            : "No movies are ready yet.",
+      );
+    } catch {
+      if (requestIdRef.current !== requestId) return;
+      const savedRatings = historyByProfile[nextProfileId] ?? [];
+      const nextQueue = localDemoQueue(savedRatings);
+      setQueue(nextQueue);
+      setBatchTotal(nextQueue.length);
+      setBatchAnswered(0);
+      setQueueState(tasteLabQueueState(nextQueue.length, savedRatings.length, true));
+      setStatus(
+        nextQueue.length > 0
+          ? "Using built-in movies. Choices stay on this phone until you reconnect."
+          : "Taste Lab is offline and there are no built-in movies left.",
       );
     } finally {
-      setBusy(false);
+      if (requestIdRef.current === requestId) setBusy(false);
     }
   }
 
-  async function loadProfileState(nextProfileId = profileId): Promise<{
-    nextQueue: TasteLabCandidatePayload[];
-    savedRatings: TasteLabRatingExportPayload[];
-  }> {
-    const [nextQueue, savedRatings] = await Promise.all([
-      getTasteLabQueue(householdId, nextProfileId, 10),
-      getTasteLabRatings(householdId, nextProfileId),
-    ]);
-
-    setQueue(nextQueue);
-    setHistory(savedRatings);
-    setRatings({});
-
-    return { nextQueue, savedRatings };
-  }
-
-  async function seedSmartQueue() {
+  async function seedQueue(): Promise<void> {
     setBusy(true);
-    setStatus("Loading the high-signal queue.");
+    setQueueState("loading");
+    setStatus("Preparing your first movies…");
     try {
       await seedDefaultTasteLabCandidates(householdId);
-      const { nextQueue, savedRatings } = await loadProfileState(profileId);
-      setStatus(
-        nextQueue.length > 0
-          ? "High-signal queue loaded. Rate this batch, then confirm at the bottom."
-          : savedRatings.length > 0
-            ? `All high-signal starter movies are already answered for ${profileLabel(profileId, profiles)}. Switch profiles or reset the test data to start over.`
-            : "High-signal queue loaded, but no batch came back.",
-      );
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "High-signal queue could not be loaded.";
-      if (message.includes("Taste Lab seed queue artifact is missing")) {
-        setQueue([]);
-        setRatings({});
-        setStatus(message);
-        return;
-      }
-
-      const nextQueue = demoTasteLabCandidates;
+      await refresh(profileId);
+    } catch {
+      const nextQueue = localDemoQueue(history);
       setQueue(nextQueue);
-      setRatings({});
+      setBatchTotal(nextQueue.length);
+      setBatchAnswered(0);
+      setQueueState(tasteLabQueueState(nextQueue.length, history.length, true));
       setStatus(
         nextQueue.length > 0
-          ? "API offline. Loaded the small local fallback queue. Ratings will stay in this browser until the API reconnects."
-          : "API offline. No local demo candidates are available.",
+          ? "Using built-in movies. Choices stay on this phone until you reconnect."
+          : "Couldn’t prepare movies. Try again when you’re connected.",
       );
-    } finally {
       setBusy(false);
     }
   }
 
-  async function submitBatch() {
-    const selectedRatings: TasteLabRatingInputPayload[] = queue
-      .filter((candidate) => ratings[candidate.movie.sourceMovieId])
-      .map((candidate) => ({
-        movie: candidate.movie,
-        label: ratings[candidate.movie.sourceMovieId],
-        queueProvenance: candidate.queueProvenance,
-        ratedAt: new Date().toISOString(),
-      }));
+  function choose(label: TasteLabRatingLabel): void {
+    if (!activeCandidate || busy) return;
+    setDraftsByProfile((current) => ({
+      ...current,
+      [profileId]: {
+        ...(current[profileId] ?? {}),
+        [activeCandidate.movie.sourceMovieId]: label,
+      },
+    }));
+    setStatus(label === "havent_seen" ? "Marked as not seen. This is not a taste vote." : "Choice ready to save.");
+  }
 
-    if (selectedRatings.length === 0) {
-      setStatus("Pick at least one label before saving.");
+  async function saveAndNext(): Promise<void> {
+    if (!activeCandidate || !selectedLabel || busy) return;
+    if (isLocal) {
+      keepCurrentChoiceLocally();
       return;
     }
 
+    const rating = ratingInput(activeCandidate, selectedLabel);
     setBusy(true);
-    setStatus("Saving taste signals.");
+    setQueueState("saving");
+    setStatus(`Saving ${activeCandidate.movie.title}…`);
     try {
-      await submitTasteLabRatings(householdId, profileId, selectedRatings);
-      const { nextQueue } = await loadProfileState(profileId);
-      setStatus(
-        nextQueue.length > 0
-          ? `${selectedRatings.length} signal${selectedRatings.length === 1 ? "" : "s"} saved. Next batch is ready.`
-          : `${selectedRatings.length} signal${selectedRatings.length === 1 ? "" : "s"} saved. No unrated queued movies remain for ${profileLabel(profileId, profiles)}.`,
-      );
-    } catch (error) {
-      const savedAt = new Date().toISOString();
-      const localRatings = selectedRatings.map((rating) =>
-        localRatingExport(householdId, profileId, rating, savedAt),
-      );
-      const ratedMovieIds = new Set(
-        selectedRatings.map((rating) => rating.movie.sourceMovieId),
-      );
-
-      setHistory((current) => [...localRatings, ...current]);
-      setQueue((current) =>
-        current.filter((candidate) => !ratedMovieIds.has(candidate.movie.sourceMovieId)),
-      );
-      setRatings({});
-      setStatus(
-        `${selectedRatings.length} local signal${selectedRatings.length === 1 ? "" : "s"} captured. API is offline, so this is not permanently saved yet.`,
-      );
+      const saved = await submitTasteLabRatings(householdId, profileId, [rating]);
+      commitCurrentChoice(saved, false);
+    } catch {
+      setQueueState("error");
+      setStatus("Couldn’t save. Your choice is still here.");
     } finally {
       setBusy(false);
     }
   }
 
-  const coverage = useMemo(() => {
-    const genres = new Set<string>();
-    history.forEach((rating) => {
-      rating.movie.genres.forEach((genre) => genres.add(genre));
+  function keepCurrentChoiceLocally(): void {
+    if (!activeCandidate || !selectedLabel) return;
+    const savedAt = new Date().toISOString();
+    const local = localRatingExport(
+      householdId,
+      profileId,
+      ratingInput(activeCandidate, selectedLabel),
+      savedAt,
+    );
+    commitCurrentChoice([local], true);
+  }
+
+  function commitCurrentChoice(
+    saved: TasteLabRatingExportPayload[],
+    local: boolean,
+  ): void {
+    if (!activeCandidate) return;
+    const movieId = activeCandidate.movie.sourceMovieId;
+    const nextQueue = queue.filter((candidate) => candidate.movie.sourceMovieId !== movieId);
+    setHistoryByProfile((current) => {
+      const profileHistory = current[profileId] ?? [];
+      return {
+        ...current,
+        [profileId]: [
+          ...saved,
+          ...profileHistory.filter(
+            (item) => !saved.some((next) => next.movie.sourceMovieId === item.movie.sourceMovieId),
+          ),
+        ],
+      };
     });
-    return genres.size;
-  }, [history]);
+    setDraftsByProfile((current) => {
+      const nextProfileDrafts = { ...(current[profileId] ?? {}) };
+      delete nextProfileDrafts[movieId];
+      return { ...current, [profileId]: nextProfileDrafts };
+    });
+    setQueue(nextQueue);
+    setBatchAnswered((current) => current + 1);
+    setQueueState(nextQueue.length > 0 ? (local ? "local" : "ready") : (local ? "local-exhausted" : "batch-complete"));
+    setStatus(
+      nextQueue.length > 0
+        ? local
+          ? "Kept on this phone. Next movie."
+          : "Saved. Next movie."
+        : local
+          ? "Built-in batch complete. These choices are only on this phone."
+          : "Batch complete. Check for another set when you’re ready.",
+    );
+  }
 
   return (
-    <main className="tasteLabShell">
-      <section className="tasteLabHeader">
-        <p className="eyebrow">Private Taste Lab</p>
-        <h1>Build a sharper taste profile.</h1>
-        <p>
-          Rate high-signal movies in quick batches.
-          WatchSignal saves preference separately from familiarity.
-        </p>
-      </section>
+    <main className={styles.shell}>
+      <header className={styles.topbar}>
+        <a href="/" aria-label="Back to WatchSignal"><WatchSignalBrand /></a>
+        <span>Private Taste Lab</span>
+      </header>
 
-      <section className="syncStrip" aria-label="Taste Lab queue source" role="status">
-        <div>
-          <span>{queueSourceLabel}</span>
-          <p>{queueSourceDetail}</p>
-        </div>
-      </section>
-
-      <section className="tasteLabControlPanel" aria-label="Taste Lab controls">
-        <div className="tasteLabProfileTabs" role="tablist" aria-label="Profile">
-          {profiles.map((profile) => (
-            <button
-              key={profile.id}
-              type="button"
-              className={profile.id === profileId ? "isActive" : ""}
-              onClick={() => setProfileId(profile.id)}
+      <section className={styles.profileBar} aria-label="Whose taste profile">
+        <div className={styles.profileIdentity}>
+          <span aria-hidden="true">{activeProfile?.label.charAt(0).toUpperCase() ?? "P"}</span>
+          <label>
+            <small>Learning for</small>
+            <select
+              value={profileId}
+              onChange={(event) => setProfileId(event.target.value)}
+              disabled={busy}
+              aria-label="Taste Lab profile"
             >
-              {profile.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="tasteLabStats" aria-label="Taste Lab progress">
-          <span>
-            <strong>{history.length}</strong>
-            rated
-          </span>
-          <span>
-            <strong>{importableCount}</strong>
-            taste signals
-          </span>
-          <span>
-            <strong>{unseenCount}</strong>
-            unseen
-          </span>
-          <span>
-            <strong>{coverage}</strong>
-            genres
-          </span>
-        </div>
-
-        <div className="tasteLabActions">
-          <button type="button" onClick={seedSmartQueue} disabled={busy}>
-            Load high-signal queue
-          </button>
-          <button type="button" onClick={() => refresh(profileId)} disabled={busy}>
-            Check next batch
-          </button>
+              {profiles.map((profile) => (
+                <option key={profile.id} value={profile.id}>{profile.label}</option>
+              ))}
+            </select>
+          </label>
         </div>
       </section>
 
-      <section className="tasteLabQueueHeader">
-        <div>
-          <p className="eyebrow">{activeProfile.label}'s batch</p>
-          <h2>{selectedCount} of {queue.length} selected</h2>
-        </div>
-      </section>
+      {activeCandidate ? (
+        <>
+          <section className={styles.progress} aria-label={`Movie ${progressPosition} of ${batchTotal}`}>
+            <div><span>Tonight’s taste check</span><strong>{progressPosition} of {batchTotal}</strong></div>
+            <i><span style={{ width: `${batchTotal ? (progressPosition / batchTotal) * 100 : 0}%` }} /></i>
+          </section>
 
-      <section className="tasteLabStatus" aria-live="polite">
-        {status}
-      </section>
-
-      <section className="tasteLabGrid" aria-label="Taste Lab movie queue">
-        {queue.map((candidate) => (
-          <article className="tasteLabCard" key={candidate.movie.sourceMovieId}>
-            <div className="tasteLabPoster">
-              {candidate.movie.posterPath ? (
-                <img src={posterUrl(candidate.movie.posterPath)} alt="" />
+          <article className={styles.decision} aria-labelledby="taste-lab-movie-title">
+            <div className={styles.poster}>
+              {activeCandidate.movie.posterPath && !posterFailed ? (
+                <>
+                  {readyPosterMovieId !== activeCandidate.movie.sourceMovieId ? (
+                    <div className={styles.posterLoading} role="status" aria-label={`${activeCandidate.movie.title} poster loading`}>
+                      <span>W</span><small>Loading poster</small>
+                    </div>
+                  ) : null}
+                  <img
+                    key={activeCandidate.movie.sourceMovieId}
+                    src={posterUrl(activeCandidate.movie.posterPath)}
+                    alt=""
+                    hidden={readyPosterMovieId !== activeCandidate.movie.sourceMovieId}
+                    onLoad={() => setReadyPosterMovieId(activeCandidate.movie.sourceMovieId)}
+                    onError={() => setPosterFailed(true)}
+                  />
+                </>
               ) : (
-                <span>{candidate.movie.title}</span>
+                <div aria-label={`${activeCandidate.movie.title} poster unavailable`}>
+                  <span>W</span><small>Poster unavailable</small>
+                </div>
               )}
             </div>
-            <div className="tasteLabCardBody">
-              <div className="tasteLabMovieTitle">
-                <h3>{candidate.movie.title}</h3>
-                <span>{candidate.movie.releaseYear}</span>
-              </div>
-              <p>
-                Signal {percent(candidate.queueProvenance.signalScore)}
-                {" "}• Rank {candidate.queueProvenance.rank ?? "new"}
-              </p>
-              <div className="tasteLabGenreRow">
-                {candidate.movie.genres.slice(0, 3).map((genre) => (
-                  <span key={genre}>{genre}</span>
-                ))}
-              </div>
-              <div className="tasteLabLabelGrid" aria-label={`Rate ${candidate.movie.title}`}>
-                {labels.map((label) => {
-                  const selected = ratings[candidate.movie.sourceMovieId] === label.value;
-                  return (
-                    <button
-                      key={label.value}
-                      type="button"
-                      className={selected ? "isSelected" : ""}
-                      onClick={() =>
-                        setRatings((current) => ({
-                          ...current,
-                          [candidate.movie.sourceMovieId]: label.value,
-                        }))
-                      }
-                    >
-                      <strong>{label.label}</strong>
-                      <span>{label.cue}</span>
-                    </button>
-                  );
-                })}
-              </div>
+            <div className={styles.movieCopy}>
+              <span>{[activeCandidate.movie.releaseYear, ...activeCandidate.movie.genres.slice(0, 2)].filter(Boolean).join(" · ")}</span>
+              <h1 id="taste-lab-movie-title" ref={activeTitleRef} tabIndex={-1}>{activeCandidate.movie.title}</h1>
+              <p>How did this movie land for you?</p>
             </div>
           </article>
-        ))}
-      </section>
 
-      <section className="tasteLabBatchFooter" aria-label="Taste Lab batch actions">
-        {queue.length > 0 ? (
-          <>
-            <button type="button" onClick={submitBatch} disabled={busy || selectedCount === 0}>
-              Confirm ratings
-            </button>
-            <p>
-              {selectedCount === 0
-                ? "Select a reaction for at least one movie, then confirm."
-                : `${selectedCount} selected for ${activeProfile.label}.`}
+          <section className={styles.choices} aria-label={`Your opinion of ${activeCandidate.movie.title}`}>
+            <div className={styles.preferenceChoices} role="group" aria-label="Taste preference">
+              {tasteLabChoiceGroups.preference.map((choice) => (
+                <button
+                  key={choice.value}
+                  type="button"
+                  aria-pressed={selectedLabel === choice.value}
+                  onClick={() => choose(choice.value)}
+                  disabled={busy}
+                >
+                  <WatchSignalIcon name={choice.icon} />
+                  <span>{choice.label}</span>
+                </button>
+              ))}
+            </div>
+            <div className={styles.familiarity}>
+              <span><strong>Haven’t seen it?</strong><small>This records familiarity only.</small></span>
+              <button
+                type="button"
+                aria-pressed={selectedLabel === tasteLabChoiceGroups.familiarity.value}
+                onClick={() => choose(tasteLabChoiceGroups.familiarity.value)}
+                disabled={busy}
+              >
+                <WatchSignalIcon name="eye-off" />
+                {tasteLabChoiceGroups.familiarity.label}
+              </button>
+            </div>
+          </section>
+
+          <section className={styles.actionArea}>
+            <p className={queueState === "error" ? styles.error : undefined} role={queueState === "error" ? "alert" : "status"} aria-live="polite">
+              {status}
             </p>
-          </>
-        ) : (
-          <>
-            <button type="button" onClick={seedSmartQueue} disabled={busy}>
-              Load high-signal queue
-            </button>
-            <p>
-              Use this to start calibration or check whether any unrated starter movies remain.
-            </p>
-          </>
-        )}
-      </section>
+            {queueState === "error" ? (
+              <div className={styles.recoveryActions}>
+                <button type="button" onClick={keepCurrentChoiceLocally}>Keep on this phone</button>
+                <button className={styles.primary} type="button" onClick={() => void saveAndNext()}>Try again</button>
+              </div>
+            ) : (
+              <button className={styles.primary} type="button" onClick={() => void saveAndNext()} disabled={!selectedLabel || busy}>
+                {busy ? "Saving…" : isLocal ? "Keep & next" : "Save & next"}
+                {!busy ? <WatchSignalIcon name="chevron-right" /> : null}
+              </button>
+            )}
+          </section>
+        </>
+      ) : (
+        <TasteLabState
+          state={queueState}
+          status={status}
+          busy={busy}
+          onAction={queueState === "empty" ? seedQueue : () => refresh(profileId)}
+        />
+      )}
+
+      <details className={styles.summary}>
+        <summary>Your Taste Lab progress</summary>
+        <div>
+          <span><strong>{history.length}</strong> answered</span>
+          <span><strong>{importableCount}</strong> taste choices</span>
+          <span><strong>{familiarityCount}</strong> not seen</span>
+          <span><strong>{coverage}</strong> genres</span>
+        </div>
+        <p>{isLocal ? "Using built-in movies on this phone." : "Saved privately to this household profile."}</p>
+      </details>
     </main>
   );
 }
 
-function queueSourceLabelFor(queueSource: string | null): string {
-  if (queueSource === null) {
-    return "Queue source pending";
-  }
-
-  if (queueSource.startsWith("movielens_signal_score_v1")) {
-    return "Stored signal queue";
-  }
-
-  if (queueSource.includes("demo") || queueSource.includes("offline")) {
-    return "Local demo queue";
-  }
-
-  return "Saved queue";
-}
-
-function queueSourceDetailFor(queueSource: string | null): string {
-  if (queueSource === null) {
-    return "Taste Lab is loading the current queue source.";
-  }
-
-  if (queueSource.startsWith("movielens_signal_score_v1")) {
-    return "Taste Lab is using the stored high-signal MovieLens queue from the backend, not live TMDb discovery.";
-  }
-
-  if (queueSource.includes("demo") || queueSource.includes("offline")) {
-    return "Taste Lab is showing the local demo fallback queue.";
-  }
-
-  return `Taste Lab queue source: ${queueSource}.`;
-}
-
-function profileLabel(
-  profileId: string,
-  profiles: SetupProfilePayload[] = fallbackProfiles,
-): string {
+function TasteLabState({ state, status, busy, onAction }: {
+  state: TasteLabQueueState;
+  status: string;
+  busy: boolean;
+  onAction: () => void | Promise<void>;
+}) {
+  const loading = state === "loading";
+  const localExhausted = state === "local-exhausted";
+  const empty = state === "empty";
+  const batchComplete = state === "batch-complete";
   return (
-    profiles.find((profile) => profile.id === profileId)?.label
-    ?? fallbackProfiles.find((profile) => profile.id === profileId)?.label
-    ?? profileId
+    <section className={styles.state} aria-live="polite">
+      <span className={styles.stateIcon}><WatchSignalIcon name={loading ? "refresh" : localExhausted ? "eye-off" : empty ? "sparkles" : "check"} /></span>
+      <small>{loading ? "Taste Lab" : localExhausted ? "Offline" : batchComplete ? "Batch complete" : empty ? "Ready when you are" : "All caught up"}</small>
+      <h1>{loading ? "Finding useful movies…" : localExhausted ? "No built-in movies left" : batchComplete ? "Nice work" : empty ? "Start with a few movies" : "You’ve answered them all"}</h1>
+      <p>{status}</p>
+      {!loading ? (
+        <button type="button" onClick={() => void onAction()} disabled={busy || localExhausted}>
+          {busy ? "Checking…" : empty ? "Start Taste Lab" : batchComplete ? "Check next batch" : localExhausted ? "Reconnect to continue" : "Check for more"}
+        </button>
+      ) : <div className={styles.loadingBars} aria-hidden="true"><i /><i /><i /></div>}
+    </section>
   );
+}
+
+function ratingInput(
+  candidate: TasteLabCandidatePayload,
+  label: TasteLabRatingLabel,
+): TasteLabRatingInputPayload {
+  return {
+    movie: candidate.movie,
+    label,
+    queueProvenance: candidate.queueProvenance,
+    ratedAt: new Date().toISOString(),
+  };
+}
+
+function profileLabel(profileId: string, profiles: SetupProfilePayload[]): string {
+  return profiles.find((profile) => profile.id === profileId)?.label
+    ?? fallbackProfiles.find((profile) => profile.id === profileId)?.label
+    ?? "Profile";
 }
 
 function posterUrl(path: string): string {
-  if (path.startsWith("http")) {
-    return path;
-  }
-
-  return `https://image.tmdb.org/t/p/w342${path}`;
+  return path.startsWith("http") ? path : `https://image.tmdb.org/t/p/w500${path}`;
 }
 
-function localDemoQueue(
-  savedRatings: TasteLabRatingExportPayload[],
-): TasteLabCandidatePayload[] {
-  const ratedMovieIds = new Set(
-    savedRatings.map((rating) => rating.movie.sourceMovieId),
-  );
-
-  return demoTasteLabCandidates.filter(
-    (candidate) => !ratedMovieIds.has(candidate.movie.sourceMovieId),
-  );
+function localDemoQueue(savedRatings: TasteLabRatingExportPayload[]): TasteLabCandidatePayload[] {
+  const ratedMovieIds = new Set(savedRatings.map((rating) => rating.movie.sourceMovieId));
+  return demoTasteLabCandidates.filter((candidate) => !ratedMovieIds.has(candidate.movie.sourceMovieId));
 }
 
 function localRatingExport(
-  householdId: string,
-  profileId: string,
+  household: string,
+  profile: string,
   rating: TasteLabRatingInputPayload,
   ratedAt: string,
 ): TasteLabRatingExportPayload {
   const preferenceValueByLabel: Record<TasteLabRatingLabel, number | null> = {
-    loved: 2,
-    liked: 1,
+    loved: 1,
+    liked: 0.65,
     meh: 0,
-    hated: -2,
+    hated: -1,
     havent_seen: null,
   };
   const isImportablePreference = rating.label !== "havent_seen";
-
   return {
     schemaVersion: "taste_lab.rating_export.v1",
-    householdId,
-    profileId,
+    householdId: household,
+    profileId: profile,
     movie: rating.movie,
     label: rating.label,
     familiarity: isImportablePreference ? "seen" : "unseen",
     preferenceValue: preferenceValueByLabel[rating.label],
-    watchsignalTasteSignal: isImportablePreference
-      ? `Local Taste Lab demo: ${rating.label}`
-      : "Local Taste Lab demo: not seen",
+    watchsignalTasteSignal: isImportablePreference ? rating.label : "familiarity_only",
     isImportablePreference,
     ratedAt,
     queueProvenance: rating.queueProvenance ?? null,
   };
 }
 
-function percent(value: number | null | undefined): string {
-  if (typeof value !== "number") {
-    return "pending";
-  }
-
-  return `${Math.round(value * 100)}%`;
-}
-
 const demoTasteLabCandidates: TasteLabCandidatePayload[] = [
-  demoCandidate(1, "movielens:1", "Arrival", 2016, "tt2543164", "/x2FJsf1ElAgr63Y3PNPtJrcmpoe.jpg", ["Sci-Fi", "Drama", "Mystery"], 0.94),
-  demoCandidate(2, "movielens:2", "Knives Out", 2019, "tt8946378", "/pThyQovXQrw2m0s9x82twj48Jq4.jpg", ["Mystery", "Comedy", "Crime"], 0.91),
-  demoCandidate(3, "movielens:3", "The Matrix", 1999, "tt0133093", "/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg", ["Action", "Sci-Fi"], 0.89),
-  demoCandidate(4, "movielens:4", "Parasite", 2019, "tt6751668", "/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg", ["Thriller", "Drama", "Comedy"], 0.88),
-  demoCandidate(5, "movielens:5", "Mad Max: Fury Road", 2015, "tt1392190", "/hA2ple9q4qnwxp3hKVNhroipsir.jpg", ["Action", "Adventure", "Sci-Fi"], 0.86),
-  demoCandidate(6, "movielens:6", "Eternal Sunshine of the Spotless Mind", 2004, "tt0338013", "/5MwkWH9tYHv3mV9OdYTMR5qreIz.jpg", ["Romance", "Drama", "Sci-Fi"], 0.84),
-  demoCandidate(7, "movielens:7", "Spirited Away", 2001, "tt0245429", "/39wmItIWsg5sZMyRUHLkWBcuVCM.jpg", ["Animation", "Fantasy", "Adventure"], 0.82),
-  demoCandidate(8, "movielens:8", "The Grand Budapest Hotel", 2014, "tt2278388", "/eWdyYQreja6JGCzqHWXpWHDrrPo.jpg", ["Comedy", "Adventure", "Crime"], 0.8),
-  demoCandidate(9, "movielens:9", "Edge of Tomorrow", 2014, "tt1631867", "/xjw5trHV7Mwo61P0kCTy8paEkgO.jpg", ["Action", "Sci-Fi", "Adventure"], 0.78),
-  demoCandidate(10, "movielens:10", "Past Lives", 2023, "tt13238346", "/k3waqVXSnvCZWfJYNtdamTgTtTA.jpg", ["Romance", "Drama"], 0.76),
+  demoCandidate(1, "movielens:1", "Arrival", 2016, "/x2FJsf1ElAgr63Y3PNPtJrcmpoe.jpg", ["Sci-Fi", "Drama", "Mystery"]),
+  demoCandidate(2, "movielens:2", "Knives Out", 2019, "/pThyQovXQrw2m0s9x82twj48Jq4.jpg", ["Mystery", "Comedy", "Crime"]),
+  demoCandidate(3, "movielens:3", "The Matrix", 1999, "/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg", ["Action", "Sci-Fi"]),
+  demoCandidate(4, "movielens:4", "Parasite", 2019, "/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg", ["Thriller", "Drama", "Comedy"]),
+  demoCandidate(5, "movielens:5", "Mad Max: Fury Road", 2015, "/hA2ple9q4qnwxp3hKVNhroipsir.jpg", ["Action", "Adventure", "Sci-Fi"]),
+  demoCandidate(6, "movielens:6", "Eternal Sunshine of the Spotless Mind", 2004, "/5MwkWH9tYHv3mV9OdYTMR5qreIz.jpg", ["Romance", "Drama", "Sci-Fi"]),
+  demoCandidate(7, "movielens:7", "Spirited Away", 2001, "/39wmItIWsg5sZMyRUHLkWBcuVCM.jpg", ["Animation", "Fantasy", "Adventure"]),
+  demoCandidate(8, "movielens:8", "The Grand Budapest Hotel", 2014, "/eWdyYQreja6JGCzqHWXpWHDrrPo.jpg", ["Comedy", "Adventure", "Crime"]),
+  demoCandidate(9, "movielens:9", "Edge of Tomorrow", 2014, "/xjw5trHV7Mwo61P0kCTy8paEkgO.jpg", ["Action", "Sci-Fi", "Adventure"]),
+  demoCandidate(10, "movielens:10", "Past Lives", 2023, "/k3waqVXSnvCZWfJYNtdamTgTtTA.jpg", ["Romance", "Drama"]),
 ];
 
 function demoCandidate(
@@ -492,31 +483,17 @@ function demoCandidate(
   sourceMovieId: string,
   title: string,
   releaseYear: number,
-  tmdbId: string,
   posterPath: string,
   genres: string[],
-  signalScore: number,
 ): TasteLabCandidatePayload {
   return {
-    movie: {
-      sourceMovieId,
-      title,
-      releaseYear,
-      tmdbId,
-      posterPath,
-      genres,
-    },
+    movie: { sourceMovieId, title, releaseYear, posterPath, genres },
     queueProvenance: {
-      queueSource: "offline_signal_score_v1_demo",
-      generatedAt: "2026-07-01T12:00:00Z",
+      queueSource: "offline_demo",
       rank,
-      signalScore,
-      scoreComponents: {
-        recognizability: Math.max(0.6, signalScore - 0.02),
-        divisiveness: Math.max(0.55, signalScore - 0.08),
-        coverage: Math.max(0.5, signalScore - 0.12),
-        non_redundancy: Math.max(0.45, signalScore - 0.18),
-      },
+      signalScore: null,
+      scoreComponents: {},
+      queueReason: "Built-in taste check",
     },
   };
 }

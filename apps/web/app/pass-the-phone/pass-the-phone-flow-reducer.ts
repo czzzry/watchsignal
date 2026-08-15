@@ -5,7 +5,8 @@ import type {
 } from "../pass-the-phone-model";
 import type {
   DebugHistorySessionPayload,
-  RecentSessionSummaryPayload,
+  HouseholdHistoryDetailPayload,
+  HouseholdHistorySummaryPayload,
   SharedSessionPayload,
   TasteProfileSummaryPayload,
   TonightIntentInterpretationPayload,
@@ -13,6 +14,8 @@ import type {
 
 export type SessionFlowState = {
   sessionSource: SessionSource;
+  movieSource: "live" | "local";
+  persistenceSource: "shared" | "local";
   recommendationSource: string;
   syncStatus: SyncStatus;
   apiError: string | null;
@@ -42,10 +45,10 @@ export type ResultsFlowState = {
 };
 
 export type HistoryPanelState = {
-  recentSessions: RecentSessionSummaryPayload[];
+  recentSessions: HouseholdHistorySummaryPayload[];
   recentSessionsStatus: DebugHistoryStatus;
   recentSessionsMessage: string | null;
-  selectedHistory: DebugHistorySessionPayload | null;
+  selectedHistory: HouseholdHistoryDetailPayload | null;
   selectedHistoryStatus: DebugHistoryStatus;
   selectedHistoryMessage: string | null;
 };
@@ -78,7 +81,7 @@ export type PassThePhoneFlowAction =
   | { type: "historyPanel.updated"; updates: Partial<HistoryPanelState> };
 
 const DISCONNECTED_SESSION_MESSAGE =
-  "Live session sync is unavailable, so tonight is running in local mode.";
+  "Tonight is in local mode and stays on this phone. Your choices are still here.";
 const DEMO_DEBUG_HISTORY_MESSAGE =
   "Debug evidence is unavailable because the session fell back to demo mode.";
 
@@ -141,7 +144,11 @@ export function passThePhoneFlowReducer(
     case "session.demoFallback":
       return {
         ...state,
-        session: { ...state.session, sessionSource: "demo" },
+        session: {
+          ...state.session,
+          sessionSource: "demo",
+          persistenceSource: "local",
+        },
         results: {
           ...state.results,
           debugHistoryStatus: "failed",
@@ -183,6 +190,8 @@ export function passThePhoneFlowReducer(
 function initialSessionFlowState(apiConnected: boolean): SessionFlowState {
   return {
     sessionSource: apiConnected ? "api" : "demo",
+    movieSource: apiConnected ? "live" : "local",
+    persistenceSource: "local",
     recommendationSource: "demo",
     syncStatus: "ready",
     apiError: apiConnected ? null : DISCONNECTED_SESSION_MESSAGE,

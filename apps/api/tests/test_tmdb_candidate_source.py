@@ -8,7 +8,13 @@ from movie_night_mediator.adapters import (
     TmdbCandidateSourceConfig,
     TmdbCandidateSourceError,
 )
-from movie_night_mediator.app.shortlist import get_candidate_source_shortlist
+from movie_night_mediator.app.shortlist import (
+    get_candidate_source_shortlist,
+    get_candidate_source_shortlist_items,
+)
+from movie_night_mediator.api.recommendation_contract import (
+    offline_shortlist_item_to_payload,
+)
 from movie_night_mediator.domain import (
     AudienceMode,
     CandidateSource,
@@ -37,10 +43,33 @@ class TmdbCandidateSourceTest(unittest.TestCase):
             client=FakeTmdbClient(
                 movie_ids=(11, 22),
                 movie_overrides={
+                    11: {
+                        "keywords": {
+                            "keywords": [
+                                {"id": 9715, "name": "superhero"},
+                                {"id": 9717, "name": "based on comic"},
+                            ]
+                        },
+                        "credits": {
+                            "cast": [
+                                {
+                                    "name": "Actor One",
+                                    "character": "Character One",
+                                    "profile_path": "/actor-one.jpg",
+                                },
+                                {
+                                    "name": "Actor Two",
+                                    "character": "Character Two",
+                                    "profile_path": None,
+                                },
+                            ]
+                        },
+                    },
                     22: {
                         "title": "Subtitles Need Checking",
                         "original_language": "ko",
                         "spoken_languages": [{"iso_639_1": "ko"}],
+                        "backdrop_path": "",
                     },
                 },
             ),
@@ -67,13 +96,30 @@ class TmdbCandidateSourceTest(unittest.TestCase):
             candidates[0].poster_url,
             "https://image.tmdb.org/t/p/w342/poster-11.jpg",
         )
+        self.assertEqual(
+            candidates[0].backdrop_url,
+            "https://image.tmdb.org/t/p/original/backdrop-11.jpg",
+        )
         self.assertEqual(candidates[0].genres, ("Drama", "Sci-Fi"))
+        self.assertEqual(
+            candidates[0].metadata_keywords,
+            ("superhero", "based on comic"),
+        )
+        self.assertEqual(candidates[0].top_cast, ("Actor One", "Actor Two"))
+        self.assertEqual(candidates[0].cast_details[0].name, "Actor One")
+        self.assertEqual(candidates[0].cast_details[0].character, "Character One")
+        self.assertEqual(
+            candidates[0].cast_details[0].profile_url,
+            "https://image.tmdb.org/t/p/w342/actor-one.jpg",
+        )
+        self.assertIsNone(candidates[0].cast_details[1].profile_url)
         self.assertEqual(candidates[0].providers, ("Amazon Prime Video", "Amazon Video"))
         self.assertEqual(candidates[0].provider_availability[0].access_type, "flatrate")
         self.assertEqual(candidates[0].provider_availability[0].region, "DE")
         self.assertEqual(candidates[0].spoken_languages, ("en",))
         self.assertEqual(candidates[0].safety_status, CandidateSafety.SAFE_PICK)
         self.assertEqual(candidates[1].safety_status, CandidateSafety.NEEDS_QUICK_CHECK)
+        self.assertIsNone(candidates[1].backdrop_url)
 
     def test_tmdb_candidates_can_be_scored_into_five_title_shortlist(self) -> None:
         source = TmdbCandidateSource(
@@ -99,6 +145,27 @@ class TmdbCandidateSourceTest(unittest.TestCase):
         self.assertEqual([candidate.candidate_rank for candidate in shortlist], [1, 2, 3, 4, 5])
         self.assertTrue(all(candidate.source_movie_id.startswith("tmdb:") for candidate in shortlist))
         self.assertTrue(all(candidate.hard_filter_pass for candidate in shortlist))
+        shortlist_items = get_candidate_source_shortlist_items(
+            source,
+            session=SessionContext(
+                session_id="live-shortlist-items",
+                audience_mode=AudienceMode.SHARED,
+                viewer_user_ids=("husband", "wife"),
+                region="DE",
+                service_constraint="Prime Video",
+            ),
+            household_defaults=HouseholdDefaults(),
+            users=(DEMO_HUSBAND_PROFILE, DEMO_WIFE_PROFILE),
+            limit=5,
+        )
+        self.assertEqual(
+            shortlist_items[0].backdrop_url,
+            "https://image.tmdb.org/t/p/original/backdrop-11.jpg",
+        )
+        self.assertEqual(
+            offline_shortlist_item_to_payload(shortlist_items[0]).backdropUrl,
+            "https://image.tmdb.org/t/p/original/backdrop-11.jpg",
+        )
 
     def test_person_constraint_uses_tmdb_person_search_and_movie_credits(
         self,
@@ -183,6 +250,27 @@ class TmdbCandidateSourceTest(unittest.TestCase):
             client.discover_monetization_filters,
             ["flatrate|rent|buy"],
         )
+
+    def test_fetch_candidates_passes_confirmed_language_into_discover_query(self) -> None:
+        client = FakeTmdbClient(movie_ids=(11, 22, 33))
+        source = TmdbCandidateSource(
+            client=client,
+            config=TmdbCandidateSourceConfig(api_key="test"),
+        )
+
+        source.fetch_candidates(
+            session=SessionContext(
+                session_id="language-steer",
+                audience_mode=AudienceMode.SOLO,
+                region="DE",
+                service_constraint="Prime Video",
+                language_constraint="fr",
+            ),
+            household_defaults=HouseholdDefaults(),
+            limit=3,
+        )
+
+        self.assertEqual(client.discover_languages, ["fr"])
 
     def test_fetch_candidates_uses_thematic_keyword_discovery_from_mood_text(self) -> None:
         client = FakeTmdbClient(
@@ -425,6 +513,7 @@ class FakeTmdbClient:
         self.discover_genres: list[str] = []
         self.discover_provider_filters: list[str] = []
         self.discover_monetization_filters: list[str] = []
+        self.discover_languages: list[str] = []
         self.person_queries: list[str] = []
         self.person_credit_requests: list[int] = []
         self.keyword_queries: list[str] = []
@@ -480,6 +569,9 @@ class FakeTmdbClient:
             genre = params.get("with_genres")
             if genre is not None:
                 self.discover_genres.append(genre)
+            original_language = params.get("with_original_language")
+            if original_language is not None:
+                self.discover_languages.append(original_language)
             keyword = params.get("with_keywords")
             if keyword is not None:
                 self.keyword_discoveries.append(keyword)
@@ -538,6 +630,7 @@ class FakeTmdbClient:
             "overview": f"Overview for {movie_id}.",
             "original_language": "en",
             "spoken_languages": [{"iso_639_1": "en"}],
+            "backdrop_path": f"/backdrop-{movie_id}.jpg",
         }
         payload.update(self._movie_overrides.get(movie_id, {}))
         return payload

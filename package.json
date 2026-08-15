@@ -50,12 +50,14 @@
     "eval:movielens:ablate": "node scripts/run_api_uv.mjs run python ../../scripts/movielens_feature_ablation.py",
     "eval:movielens:select": "node scripts/run_api_uv.mjs run python ../../scripts/finalize_movielens_model_selection.py",
     "dev:web": "pnpm --dir apps/web dev",
+    "prototype:ui": "pnpm --dir apps/web exec next dev --hostname 0.0.0.0 --port 3110",
     "build:web": "pnpm --dir apps/web build",
     "smoke:ux:mobile": "node scripts/mobile_pass_the_phone_ux_smoke.mjs",
     "test:api": "node scripts/run_api_uv.mjs run python -m unittest discover -s tests",
     "test:tooling": "node --test scripts/tests/*.test.mjs",
     "test:web:state": "node --experimental-strip-types --test apps/web/tests/*.test.mjs",
     "compile:api": "node scripts/run_api_uv.mjs run python -m compileall -q src tests",
+    "purge:private-recovery": "node scripts/run_api_uv.mjs run python -m movie_night_mediator.app.private_transition_recovery_maintenance",
     "check": "pnpm test:tooling && pnpm test:api && pnpm compile:api && pnpm test:web:state"
   }
 }

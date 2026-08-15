@@ -1,0 +1,288 @@
+.transition,
+.handoff {
+  width: min(100%, 430px);
+  min-height: 100svh;
+  margin-inline: auto;
+  padding:
+    max(24px, var(--ws-safe-top))
+    max(var(--ws-page-gutter), var(--ws-safe-right))
+    max(24px, var(--ws-safe-bottom))
+    max(var(--ws-page-gutter), var(--ws-safe-left));
+  background:
+    radial-gradient(circle at 50% 42%, rgba(185, 134, 255, 0.13), transparent 17rem),
+    var(--ws-night-950);
+  color: var(--ws-text);
+  font-family: var(--ws-font-ui);
+}
+
+.transition {
+  position: fixed;
+  z-index: 55;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 32px;
+  overflow: auto;
+}
+
+.seal {
+  position: relative;
+  width: 136px;
+  height: 136px;
+  display: grid;
+  place-items: center;
+  animation: sealClose 520ms var(--ws-ease-out) both;
+}
+
+.mark,
+.ring,
+.signal {
+  position: absolute;
+}
+
+.mark {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: var(--ws-paper-50);
+  color: var(--ws-ink-900);
+  font-family: var(--ws-font-ui);
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.ring {
+  inset: 10px;
+  border: 1px solid rgba(213, 189, 255, 0.42);
+  border-radius: 50%;
+  transform: scale(1.18);
+  opacity: 0;
+  animation: ringClose 520ms var(--ws-ease-out) both;
+}
+
+.signal {
+  width: 116px;
+  height: 4px;
+  border-radius: var(--ws-radius-pill);
+  background: linear-gradient(90deg, var(--ws-cyan-500), var(--ws-signal-400));
+  transform-origin: center;
+  animation: signalSeal 520ms var(--ws-ease-out) both;
+}
+
+.transitionCopy,
+.handoffCopy {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+}
+
+.transitionCopy {
+  gap: 8px;
+}
+
+.transitionCopy h1,
+.transitionCopy p,
+.handoffCopy h1,
+.handoffCopy p,
+.handoffCopy span {
+  margin: 0;
+}
+
+.transitionCopy h1,
+.handoffCopy h1 {
+  font-family: var(--ws-font-display);
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.transitionCopy p,
+.handoffCopy span {
+  max-width: 30ch;
+  color: var(--ws-text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.handoff {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto auto minmax(0, 1fr);
+  align-items: center;
+  justify-items: center;
+  gap: 20px;
+  overflow: auto;
+}
+
+.handoffSignal {
+  align-self: end;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.handoffSignal i {
+  width: 48px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(213, 189, 255, 0.62), rgba(120, 232, 245, 0.5));
+}
+
+.sealedMark,
+.recipient {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+}
+
+.sealedMark {
+  border-radius: 16px;
+  background: var(--ws-paper-50);
+  color: var(--ws-ink-900);
+}
+
+.sealedMark svg {
+  width: 22px;
+  height: 22px;
+}
+
+.recipient {
+  border-radius: 50%;
+  background: var(--ws-cyan-500);
+  color: var(--ws-night-950);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.recipient[data-color="violet"],
+.recipient[data-color="plum"],
+.recipient[data-color="orchid"] {
+  background: var(--ws-signal-400);
+}
+
+.handoffCopy {
+  gap: 10px;
+}
+
+.handoffCopy p {
+  color: var(--ws-cyan-500);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.handoffCopy h1 {
+  font-size: 40px;
+}
+
+.handoffCopy h1:focus {
+  outline: none;
+}
+
+.beginButton {
+  width: min(100%, 358px);
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 0;
+  border-radius: var(--ws-radius-md);
+  padding: 0 16px;
+  background: var(--ws-action);
+  color: var(--ws-action-ink);
+  font: 700 14px/1 var(--ws-font-ui);
+}
+
+.beginButton svg {
+  width: 18px;
+  height: 18px;
+}
+
+.beginButton:disabled {
+  opacity: 0.66;
+}
+
+.assurance {
+  align-self: start;
+  min-height: 18px;
+  color: var(--ws-text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@keyframes signalSeal {
+  from { opacity: 0.9; transform: scaleX(1); }
+  to { opacity: 0; transform: scaleX(0.12); }
+}
+
+@keyframes ringClose {
+  45% { opacity: 1; transform: scale(1); }
+  to { opacity: 0.46; transform: scale(0.72); }
+}
+
+@keyframes sealClose {
+  from { transform: scale(1.08); }
+  to { transform: scale(1); }
+}
+
+@media (max-height: 620px) {
+  .transition,
+  .handoff {
+    padding-top: max(12px, var(--ws-safe-top));
+    padding-bottom: max(12px, var(--ws-safe-bottom));
+  }
+
+  .transition { gap: 20px; }
+  .seal { width: 104px; height: 104px; }
+  .mark { width: 56px; height: 56px; }
+  .handoff { gap: 12px; }
+  .handoffSignal { align-self: center; }
+  .sealedMark, .recipient { width: 52px; height: 52px; }
+  .handoffCopy h1 { font-size: 32px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seal,
+  .ring,
+  .signal {
+    animation-duration: 1ms;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .transition,
+  .handoff {
+    background: var(--ws-night-950);
+  }
+}
+
+@media (forced-colors: active) {
+  .mark,
+  .sealedMark,
+  .recipient,
+  .beginButton {
+    border: 1px solid CanvasText;
+  }
+
+  .signal,
+  .handoffSignal i {
+    background: Highlight;
+  }
+}
+
+:global(.appShell:has([data-private-handoff])) {
+  width: 100%;
+  max-width: none;
+  min-height: 100svh;
+  padding: 0;
+}
+
+:global(.appShell:has([data-private-handoff]) .shellStatus),
+:global(body:has([data-private-handoff]) > .siteCreditsLink) {
+  display: none;
+}

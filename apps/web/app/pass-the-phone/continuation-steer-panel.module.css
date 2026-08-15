@@ -1,0 +1,38 @@
+.panel { display: grid; gap: 16px; padding: 4px 0 20px; color: var(--ws-text); font-family: var(--ws-font-ui); }
+.intro { display: flex; align-items: center; gap: 12px; }
+.signal { width: 44px; height: 44px; display: grid; flex: none; place-items: center; border-radius: 12px; background: var(--ws-accent-soft); color: var(--ws-signal-300); }
+.signal svg { width: 19px; height: 19px; }
+.intro div { display: grid; gap: 2px; }
+.intro h2, .intro p { margin: 0; }
+.intro h2 { font-size: 21px; line-height: 1.1; letter-spacing: -.025em; }
+.intro p, .notice, .status { color: var(--ws-text-muted); font-size: 12px; line-height: 1.5; }
+.carry { display: grid; gap: 3px; margin: 0; border-radius: 12px; padding: 11px 12px; background: var(--ws-surface); }
+.carry strong { font-size: 12px; }
+.carry span { color: var(--ws-text-muted); font-size: 12px; line-height: 1.4; }
+.primary, .secondary, .saveOnly, .composer button, .review button { border: 0; border-radius: var(--ws-radius-md); font: 700 14px/1 var(--ws-font-ui); }
+.primary { min-height: 54px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 16px; background: var(--ws-action); color: var(--ws-action-ink); }
+.primary svg { width: 17px; height: 17px; }
+.secondary { min-height: 48px; background: var(--ws-surface); color: var(--ws-text); }
+.divider { height: 20px; display: flex; align-items: center; color: var(--ws-text-muted); font-size: 12px; }
+.divider::before, .divider::after { content: ""; height: 1px; flex: 1; background: var(--ws-border); }
+.divider span { padding: 0 10px; }
+.composer { display: grid; gap: 7px; }
+.composer label, .review label, .review small { color: var(--ws-text-muted); font-size: 12px; }
+.composer > div { display: grid; grid-template-columns: minmax(0, 1fr) 82px; gap: 8px; }
+.composer input, .review input { min-width: 0; min-height: 48px; border: 1px solid var(--ws-border); border-radius: var(--ws-radius-md); padding: 0 12px; background: var(--ws-surface); color: var(--ws-text); font: 500 14px/1.3 var(--ws-font-ui); }
+.composer input::placeholder { color: var(--ws-text-muted); opacity: 1; }
+.composer button { min-height: 48px; background: var(--ws-surface-strong); color: var(--ws-text); }
+.composer button:disabled { background: #342d39; color: #aaa1af; opacity: 1; }
+.notice, .status { margin: 0; }
+.review { display: grid; gap: 10px; border-radius: var(--ws-radius-md); padding: 12px; background: var(--ws-surface); }
+.review > p { margin: 0; font-size: 13px; line-height: 1.5; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips span { border-radius: var(--ws-radius-pill); padding: 6px 9px; background: var(--ws-accent-soft); color: var(--ws-signal-300); font-size: 12px; }
+.saveOnly { min-height: 44px; background: transparent; color: var(--ws-text-muted); }
+.status { min-height: 18px; }
+.status[data-error="true"] { color: var(--ws-danger-400); }
+@media (max-width: 350px) { .composer > div { grid-template-columns: 1fr; } .composer button { width: 100%; } }
+@media (max-height: 568px) { .panel { gap: 12px; padding-bottom: 12px; } .divider { height: 14px; } }
+@media (prefers-reduced-motion: reduce) { .panel * { scroll-behavior: auto; transition: none; } }
+@media (prefers-reduced-transparency: reduce) { .carry, .review, .composer input { background: var(--ws-night-850); } }
+@media (forced-colors: active) { .primary, .secondary, .saveOnly, .composer input, .composer button, .review { border: 1px solid CanvasText; } .chips span { border: 1px solid Highlight; } }

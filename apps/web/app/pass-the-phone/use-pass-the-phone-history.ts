@@ -4,6 +4,7 @@ import { toDebugHistoryErrorMessage } from "../pass-the-phone-helpers";
 import type { SessionSource } from "../pass-the-phone-model";
 import {
   getRecentSessions,
+  getHouseholdHistoryDetail,
   getSessionDebugHistory,
   getTasteProfileSummary,
   type SharedSessionPayload,
@@ -13,11 +14,14 @@ import type {
   HistoryPanelState,
   ResultsFlowState,
 } from "./pass-the-phone-flow-reducer";
+import { reviewModeAllowsDiagnostics } from "./review-mode-contract";
+import { publicErrorMessage } from "./public-error-message.ts";
 
 type PassThePhoneHistoryOptions = {
   apiConnected: boolean;
   sessionSource: SessionSource;
   sharedSession: SharedSessionPayload | null;
+  reviewMode: boolean;
   updateResults: (updates: Partial<ResultsFlowState>) => void;
   updateHistoryPanel: (updates: Partial<HistoryPanelState>) => void;
   backendDebugHistoryOnlyMessage: string;
@@ -28,6 +32,7 @@ export function usePassThePhoneHistory({
   apiConnected,
   sessionSource,
   sharedSession,
+  reviewMode,
   updateResults,
   updateHistoryPanel,
   backendDebugHistoryOnlyMessage,
@@ -47,6 +52,7 @@ export function usePassThePhoneHistory({
   async function loadTasteProfileSummariesForSession(
     session: SharedSessionPayload,
   ): Promise<void> {
+    if (!reviewModeAllowsDiagnostics(reviewMode)) return;
     await loadSoloTasteProfileSummaries(
       session.householdId,
       session.participantIds,
@@ -57,6 +63,7 @@ export function usePassThePhoneHistory({
     householdId: string,
     profileIds: string[],
   ): Promise<void> {
+    if (!reviewModeAllowsDiagnostics(reviewMode)) return;
     try {
       updateResults({
         tasteProfileSummaries: await tasteProfileSummariesForSession(
@@ -70,6 +77,7 @@ export function usePassThePhoneHistory({
   }
 
   async function loadDebugHistory(): Promise<void> {
+    if (!reviewModeAllowsDiagnostics(reviewMode)) return;
     if (sessionSource !== "api" || sharedSession === null) {
       updateResults({
         debugHistory: null,
@@ -126,7 +134,7 @@ export function usePassThePhoneHistory({
       updateHistoryPanel({
         recentSessions: [],
         recentSessionsStatus: "failed",
-        recentSessionsMessage: toDebugHistoryErrorMessage(error),
+        recentSessionsMessage: publicErrorMessage("history-load", error),
       });
     }
   }
@@ -137,7 +145,7 @@ export function usePassThePhoneHistory({
       selectedHistoryMessage: null,
     });
     try {
-      const history = await getSessionDebugHistory(sessionId);
+      const history = await getHouseholdHistoryDetail(sessionId);
       updateHistoryPanel({
         selectedHistory: history,
         selectedHistoryStatus: "ready",
@@ -146,7 +154,7 @@ export function usePassThePhoneHistory({
       updateHistoryPanel({
         selectedHistory: null,
         selectedHistoryStatus: "failed",
-        selectedHistoryMessage: toDebugHistoryErrorMessage(error),
+        selectedHistoryMessage: publicErrorMessage("history-load", error),
       });
     }
   }

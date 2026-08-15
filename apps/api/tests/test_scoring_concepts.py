@@ -1,4 +1,5 @@
 import unittest
+from dataclasses import replace
 
 from movie_night_mediator.domain.models import (
     Candidate,
@@ -98,6 +99,43 @@ class ScoringConceptRegistryTest(unittest.TestCase):
         self.assertNotIn(
             ("bleak", "negative", "nudge_negative"),
             {(item.concept, item.polarity, item.source) for item in evidence},
+        )
+
+    def test_metadata_keywords_only_support_confirmed_nudges(self) -> None:
+        candidate = Candidate(
+            source_movie_id="fixture:superhero",
+            title="Metadata Only",
+            media_type=MediaType.MOVIE,
+            providers=("Prime Video",),
+            metadata_keywords=("superhero",),
+        )
+
+        ordinary = ScoringConceptRegistry().concepts_for_candidate(candidate)
+        without_keywords = ScoringConceptRegistry().concepts_for_candidate(
+            replace(candidate, metadata_keywords=())
+        )
+        steered = ScoringConceptRegistry().concepts_for_candidate(
+            candidate,
+            tonight_intents=(
+                TonightIntentContract(
+                    raw_text="no superhero movies",
+                    signals=(
+                        TonightIntentSignal(
+                            concept="superhero",
+                            polarity="negative",
+                            intensity=1.0,
+                            confidence="high",
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        self.assertEqual(ordinary, without_keywords)
+        self.assertNotIn("superhero", {item.concept for item in ordinary})
+        self.assertIn(
+            ("superhero", "negative", "nudge_negative"),
+            {(item.concept, item.polarity, item.source) for item in steered},
         )
 
     def test_compiles_profile_evidence_into_concept_affinities(self) -> None:

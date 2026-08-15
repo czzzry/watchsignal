@@ -1,0 +1,9 @@
+### Result
+{"appeared":true,"detectMs":1366,"removedMs":2150,"marker":"shown","replayed":false}
+### Ran Playwright code
+```js
+await (async page => { await page.goto('http://127.0.0.1:3122', {waitUntil:'domcontentloaded'}); const observedAt = Date.now(); let appeared=false; for(let i=0;i<20;i++){ if(await page.locator('.launchSting').count()){appeared=true;break;} await page.waitForTimeout(20); } const appearedAt=Date.now(); if(appeared){ await page.locator('.launchSting').waitFor({state:'detached',timeout:1500}); } const removedAt=Date.now(); const marker=await page.evaluate(()=>sessionStorage.getItem('watchsignal.launch-sting.v1')); await page.reload({waitUntil:'domcontentloaded'}); await page.waitForTimeout(100); const replayed=(await page.locator('.launchSting').count())>0; return {appeared,detectMs:appearedAt-observedAt,removedMs:removedAt-observedAt,marker,replayed}; })(page);
+```
+### Page
+- Page URL: http://127.0.0.1:3122/
+- Page Title: WatchSignal
