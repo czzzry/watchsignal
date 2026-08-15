@@ -50,12 +50,14 @@ No task-owned preview server, browser automation process, test watcher, or build
 
 The local hosted proof uses two fresh API processes and stateless web adapters against the configured PostgreSQL database.
 
-It does not replace the required deployed Vercel and Neon cold-invocation trace.
+The later deployed proof completed the required Vercel and Neon cold-deployment trace on production.
 
-The redesign worktree is still uncommitted and must become an intentional founder-approved checkpoint before publication.
+The browser screenshot command for that deployed trace did not retain a PNG, so the deployed evidence relies on live accessibility snapshots and sanitized network status observations.
+
+The redesign worktree was committed, CI-gated, merged, and deployed before the final production trace.
 
 ## Decision
 
-Local implementation and release evidence are complete.
+Local and deployed implementation evidence are complete.
 
-Production publication remains held only for the deployed Vercel and Neon trace and the founder-owned Git checkpoint.
+The final independent deployed-recovery critic returned ACCEPT with no material blocker.
