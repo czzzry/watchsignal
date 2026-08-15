@@ -17,6 +17,9 @@ from movie_night_mediator.api.main import (
     _live_candidate_fetch_limit,
     create_app,
 )
+from movie_night_mediator.api.recommendation_contract import (
+    recommendation_request_from_payload,
+)
 from movie_night_mediator.app.backfill import ManualBackfillService
 from movie_night_mediator.app.taste_memory import TasteMemoryService
 from movie_night_mediator.app.shortlist import get_offline_demo_shortlist
@@ -43,6 +46,25 @@ from movie_night_mediator.taste_lab import (
 
 
 class ShortlistApiTest(unittest.TestCase):
+    def test_confirmed_french_intent_reaches_the_recommendation_session(self) -> None:
+        request = recommendation_request_from_payload(
+            RecommendationShortlistRequestPayload(
+                sessionId="french-steer",
+                participantIds=["profile-1"],
+                tonightIntents=[
+                    {
+                        "rawText": "French dialogue",
+                        "status": "confirmation_required",
+                        "applied": True,
+                        "filters": {"language": "fr"},
+                        "softSignals": [],
+                    }
+                ],
+            )
+        )
+
+        self.assertEqual(request.session.language_constraint, "fr")
+
     def test_live_candidate_fetch_limit_scales_with_exclusions_without_exploding(
         self,
     ) -> None:
@@ -147,6 +169,26 @@ class ShortlistApiTest(unittest.TestCase):
         self.assertEqual(payload[0].originalLanguage, "en")
         self.assertEqual(payload[0].spokenLanguages, ["en"])
         self.assertFalse(payload[0].englishSubtitlesVerified)
+        self.assertEqual(
+            [member.model_dump(mode="json") for member in payload[0].castDetails],
+            [
+                {
+                    "name": "Amy Adams",
+                    "character": "Louise Banks",
+                    "profileUrl": "https://image.tmdb.org/t/p/w185/1h2r2VTpoFb5QefAaBYYQgQzL9z.jpg",
+                },
+                {
+                    "name": "Jeremy Renner",
+                    "character": "Ian Donnelly",
+                    "profileUrl": "https://image.tmdb.org/t/p/w185/yB84D1neTYXfWBaV0QOE9RF2VCu.jpg",
+                },
+                {
+                    "name": "Forest Whitaker",
+                    "character": "Colonel Weber",
+                    "profileUrl": "https://image.tmdb.org/t/p/w185/4w7l5JUwnwFNBy7J93ZwYN1nihm.jpg",
+                },
+            ],
+        )
 
     def test_recommendation_shortlist_route_includes_stable_language_and_score_fields(
         self,
@@ -408,8 +450,16 @@ class ShortlistApiTest(unittest.TestCase):
                     sessionId="steered-session",
                     source="live_tmdb",
                     tonightIntents=[
-                        {"rawText": "something funny from the 90s"},
-                        {"rawText": "actually more action"},
+                        {
+                            "rawText": "something funny from the 90s",
+                            "status": "confirmation_required",
+                            "applied": True,
+                        },
+                        {
+                            "rawText": "actually more action",
+                            "status": "confirmation_required",
+                            "applied": True,
+                        },
                     ],
                 )
             )
@@ -446,6 +496,8 @@ class ShortlistApiTest(unittest.TestCase):
                     tonightIntents=[
                         {
                             "rawText": "something with Tom Cruise in it",
+                            "status": "confirmation_required",
+                            "applied": True,
                             "filters": {"people": ["Tom Cruise"]},
                         },
                     ],
@@ -487,6 +539,8 @@ class ShortlistApiTest(unittest.TestCase):
                     tonightIntents=[
                         {
                             "rawText": "No cartoonish kids stuff",
+                            "status": "confirmation_required",
+                            "applied": True,
                             "softSignals": ["cozy"],
                             "excludedSignals": ["animation", "family"],
                             "confidence": "high",
@@ -517,6 +571,133 @@ class ShortlistApiTest(unittest.TestCase):
                 },
             )
 
+    def test_unconfirmed_superhero_interpretation_does_not_reach_ranking(self) -> None:
+        pending_intent = {
+            "rawText": "No superhero or comic-book movies",
+            "excludedSignals": ["superhero"],
+            "filters": {
+                "genres": ["Drama"],
+                "language": "fr",
+                "people": ["Amy Adams"],
+            },
+            "confidence": "high",
+            "status": "confirmation_required",
+        }
+        pending_request = recommendation_request_from_payload(
+            RecommendationShortlistRequestPayload(
+                sessionId="superhero-unconfirmed",
+                source="live_tmdb",
+                participantIds=["profile-1"],
+                tonightIntents=[pending_intent],
+            )
+        )
+        absent_request = recommendation_request_from_payload(
+            RecommendationShortlistRequestPayload(
+                sessionId="superhero-absent",
+                source="live_tmdb",
+                participantIds=["profile-1"],
+            )
+        )
+
+        self.assertEqual(pending_request.session.tonight_intents, ())
+        self.assertIsNone(pending_request.session.mood_text)
+        self.assertIsNone(pending_request.session.genre_hint)
+        self.assertIsNone(pending_request.session.language_constraint)
+        self.assertEqual(pending_request.session.person_constraints, ())
+        self.assertEqual(
+            (
+                pending_request.session.mood_text,
+                pending_request.session.genre_hint,
+                pending_request.session.language_constraint,
+                pending_request.session.person_constraints,
+                pending_request.session.tonight_intents,
+            ),
+            (
+                absent_request.session.mood_text,
+                absent_request.session.genre_hint,
+                absent_request.session.language_constraint,
+                absent_request.session.person_constraints,
+                absent_request.session.tonight_intents,
+            ),
+        )
+
+    def test_legacy_confirmed_intent_remains_applied_without_new_marker(self) -> None:
+        request = recommendation_request_from_payload(
+            RecommendationShortlistRequestPayload(
+                sessionId="legacy-confirmed",
+                source="live_tmdb",
+                participantIds=["profile-1"],
+                tonightIntents=[
+                    {
+                        "rawText": "French dialogue",
+                        "status": "confirmed",
+                        "filters": {"language": "fr"},
+                        "softSignals": [],
+                    }
+                ],
+            )
+        )
+
+        self.assertEqual(request.session.language_constraint, "fr")
+        self.assertEqual(len(request.session.tonight_intents), 1)
+
+    def test_confirmed_superhero_exclusion_survives_initial_and_continuation_ranking(
+        self,
+    ) -> None:
+        source = SuperheroRiskCandidateSource()
+        post_shortlist = recommendation_shortlist_endpoint(
+            create_app(candidate_source=source),
+            method="POST",
+        )
+        confirmed_intent = {
+            "rawText": "No superhero or comic-book movies",
+            "excludedSignals": ["superhero"],
+            "confidence": "high",
+            "status": "confirmation_required",
+            "applied": True,
+        }
+
+        first = post_shortlist(
+            RecommendationShortlistRequestPayload(
+                sessionId="superhero-initial",
+                source="live_tmdb",
+                participantIds=["profile-1"],
+                tonightIntents=[confirmed_intent],
+            )
+        )
+        continuation = post_shortlist(
+            RecommendationShortlistRequestPayload(
+                sessionId="superhero-continuation",
+                source="live_tmdb",
+                participantIds=["profile-1"],
+                tonightIntents=[confirmed_intent],
+                excludedSourceMovieIds=[item.sourceMovieId for item in first],
+            )
+        )
+
+        self.assertEqual(len(first), 5)
+        self.assertEqual(len(continuation), 5)
+        self.assertFalse(
+            {"tmdb:hero-1", "tmdb:hero-2"}
+            & {item.sourceMovieId for item in (*first, *continuation)}
+        )
+        self.assertTrue(
+            all(
+                "nudge_signal:avoid:superhero" not in item.dominantPenalties
+                for item in (*first, *continuation)
+            )
+        )
+        self.assertEqual(
+            [
+                signal.concept
+                for session in source.sessions
+                for intent in session.tonight_intents
+                for signal in intent.signals
+                if signal.polarity == "negative"
+            ],
+            ["superhero", "superhero"],
+        )
+
     def test_post_recommendation_shortlist_returns_explicit_nudge_shortage_error(
         self,
     ) -> None:
@@ -533,6 +714,8 @@ class ShortlistApiTest(unittest.TestCase):
                     tonightIntents=[
                         {
                             "rawText": "something with Josh Brolin in it",
+                            "status": "confirmation_required",
+                            "applied": True,
                             "filters": {"people": ["Josh Brolin"]},
                         },
                     ],
@@ -540,8 +723,11 @@ class ShortlistApiTest(unittest.TestCase):
             )
 
         self.assertEqual(raised.exception.status_code, 502)
-        self.assertIn("couldn't find five movies", raised.exception.detail.casefold())
-        self.assertIn("nudges", raised.exception.detail.casefold())
+        self.assertEqual(
+            raised.exception.detail,
+            "We couldn't find five movies that match your current nudges. "
+            "Try removing the latest nudge or making it broader.",
+        )
 
     def test_post_recommendation_shortlist_consumes_saved_taste_lab_profile_evidence(
         self,
@@ -1019,6 +1205,71 @@ class SixCandidateSource(FakeCandidateSource):
             live_candidate(index=index, title=f"Live Pick {index}")
             for index in range(1, min(limit, 6) + 1)
         )
+
+
+class SuperheroRiskCandidateSource:
+    def __init__(self) -> None:
+        self.sessions: list[SessionContext] = []
+
+    def fetch_candidates(
+        self,
+        *,
+        session: SessionContext,
+        household_defaults: HouseholdDefaults,
+        limit: int = 20,
+    ) -> tuple[Candidate, ...]:
+        self.sessions.append(session)
+        candidates = (
+            superhero_risk_candidate(index=1),
+            superhero_risk_candidate(index=2),
+            *(
+                Candidate(
+                    source_movie_id=f"tmdb:action-{index}",
+                    title=f"Orbital Rescue {index}",
+                    media_type=MediaType.MOVIE,
+                    release_year=2024,
+                    runtime_min=105,
+                    genres=("Action", "Sci-Fi"),
+                    overview="A rescue crew races across deep space.",
+                    metadata_keywords=("space mission", "rescue"),
+                    providers=("Amazon Prime Video",),
+                    provider_availability=(
+                        ProviderAvailability(
+                            provider_name="Amazon Prime Video",
+                            access_type=ProviderAccessType.FLATRATE,
+                            region="DE",
+                        ),
+                    ),
+                    original_language="en",
+                    spoken_languages=("en",),
+                )
+                for index in range(1, 21)
+            ),
+        )
+        return tuple(candidates[:limit])
+
+
+def superhero_risk_candidate(*, index: int) -> Candidate:
+    return Candidate(
+        source_movie_id=f"tmdb:hero-{index}",
+        title=f"Masked Metropolis {index}",
+        media_type=MediaType.MOVIE,
+        release_year=2024,
+        runtime_min=105,
+        genres=("Action", "Sci-Fi"),
+        overview="A defender faces a threat to the city.",
+        metadata_keywords=("superhero", "based on comic"),
+        providers=("Amazon Prime Video",),
+        provider_availability=(
+            ProviderAvailability(
+                provider_name="Amazon Prime Video",
+                access_type=ProviderAccessType.FLATRATE,
+                region="DE",
+            ),
+        ),
+        original_language="en",
+        spoken_languages=("en",),
+    )
 
 
 class RecordingSixCandidateSource(SixCandidateSource):

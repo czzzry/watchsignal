@@ -9,6 +9,7 @@ from movie_night_mediator.app.recommendation_snapshot import (
 from movie_night_mediator.app.safe_pick import SafePickClassifier
 from movie_night_mediator.domain.models import (
     Candidate,
+    CandidateCastMember,
     HouseholdDefaults,
     MediaType,
     ProviderAccessType,
@@ -29,6 +30,13 @@ class FixtureProviderAvailability:
 
 
 @dataclass(frozen=True)
+class FixtureCastMember:
+    name: str
+    character: str | None = None
+    profile_url: str | None = None
+
+
+@dataclass(frozen=True)
 class FixtureCandidate:
     source_movie_id: str
     title: str
@@ -41,6 +49,7 @@ class FixtureCandidate:
     tone: str | None = None
     reason: str | None = None
     top_cast: tuple[str, ...] = ()
+    cast_details: tuple[FixtureCastMember, ...] = ()
     matched_person_names: tuple[str, ...] = ()
     provider_availability: tuple[FixtureProviderAvailability, ...] = ()
     original_language: str = "en"
@@ -74,6 +83,14 @@ def fixture_candidate_to_domain(
         genres=fixture.genres,
         overview=fixture.overview,
         top_cast=fixture.top_cast,
+        cast_details=tuple(
+            CandidateCastMember(
+                name=member.name,
+                character=member.character,
+                profile_url=member.profile_url,
+            )
+            for member in fixture.cast_details
+        ),
         providers=tuple(
             dict.fromkeys(
                 availability.provider_name for availability in provider_availability

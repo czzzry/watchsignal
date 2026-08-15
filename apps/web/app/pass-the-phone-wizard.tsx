@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useReducer, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { type SetupLoadResult } from "./setup-api";
 import {
   type DemoCandidate,
@@ -12,8 +12,9 @@ import {
 } from "./pass-the-phone/session-control";
 import {
   advancePassThePhoneHandoff,
+  canContinuePassThePhoneSession,
+  commitSeenMemory,
   continuePassThePhoneSession,
-  persistSeenMemory,
   startPassThePhoneSession,
   submitActorSessionPass,
   type SessionLifecyclePorts,
@@ -32,23 +33,47 @@ import {
 } from "./pass-the-phone/pass-the-phone-navigation-reducer";
 import { usePassThePhoneOnboardingSetupState } from "./pass-the-phone/use-pass-the-phone-onboarding-setup-state";
 import {
-  HandoffStep,
   LaunchSting,
-  CinematicTransitionOverlay,
-  OnboardingDialog,
   ReactionStep,
   ResultsStep,
   ReviewNotesWidget,
-  SeenMemoryDialog,
   SessionRecoveryStep,
   SetupStep,
-  type CinematicWaitKind,
 } from "./pass-the-phone-components";
+import { RequiredOnboarding } from "./pass-the-phone/required-onboarding";
+import {
+  PrivateHandoffStep,
+  PrivacySealTransition,
+} from "./pass-the-phone/private-seal-handoff";
+import { MatchingTransition } from "./pass-the-phone/matching-transition";
+import type { MatchingTransitionPhase } from "./pass-the-phone/matching-transition-contract";
+import { ShortlistGeneration } from "./pass-the-phone/shortlist-generation";
+import type { ShortlistGenerationStage } from "./pass-the-phone/shortlist-generation-contract";
+import {
+  createPrivateTransitionRecoveryClient,
+  type PrivateTransitionRecoveryClient,
+} from "./pass-the-phone/private-transition-recovery";
+import { privateTransitionRestorePlan } from "./pass-the-phone/private-transition-restore-plan";
+import {
+  createPrivateTransitionCommandId,
+  recoveryMovieDisplayFromCandidate,
+  type PrivateTransitionCommand,
+} from "./pass-the-phone/private-transition-command";
+import {
+  createReviewDiagnosticRequests,
+  reviewModeFromSearch,
+  reviewSurfaceContract,
+} from "./pass-the-phone/review-mode-contract";
+import {
+  launchStingPlan,
+  launchStingStorageKey,
+} from "./pass-the-phone/launch-sting-contract";
 import {
   demoCandidateViewModels,
   formatSessionDate,
   rankCandidates,
   stepHeadline,
+  toRecoverySessionCandidate,
 } from "./pass-the-phone-helpers";
 import type {
   ApiHealth,
@@ -58,30 +83,36 @@ import type {
   SeenMemoryValue,
   WizardStep,
 } from "./pass-the-phone-model";
-import { type TonightIntentInterpretationPayload } from "./session-client";
+import type { SeenMemorySaveResult } from "./pass-the-phone/seen-memory-contract";
+import {
+  commitTonightDefaultsTransaction,
+  type TonightDefaultsDraft,
+  type TonightDefaultsSaveResult,
+} from "./pass-the-phone/tonight-defaults-contract";
+import {
+  getSharedSession,
+  type SharedSessionPayload,
+  type TonightIntentInterpretationPayload,
+} from "./session-client";
+import type { PrivateTransitionResumeProjectionPayload } from "./api-contract.generated";
 
 type PassThePhoneWizardProps = {
   apiHealth: ApiHealth;
   setupLoad: SetupLoadResult;
-  configuredRecommendationSource: "demo" | "live_tmdb";
 };
 
 const stepOrder: WizardStep[] = ["setup", "founder", "handoff", "wife", "results"];
-
-function cinematicDelay(duration: number): Promise<void> {
-  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  return new Promise((resolve) => window.setTimeout(resolve, prefersReducedMotion ? Math.min(duration, 180) : duration));
-}
+let launchStingShownInMemory = false;
 
 export function PassThePhoneWizard({
   apiHealth,
   setupLoad,
-  configuredRecommendationSource,
 }: PassThePhoneWizardProps) {
   const [navigation, dispatchNavigation] = useReducer(
     passThePhoneNavigationReducer,
     initialPassThePhoneNavigationState,
   );
+  const appShellRef = useRef<HTMLElement>(null);
   const { step } = navigation;
   const [sessionMode, setSessionMode] = useState<SessionMode>("compromise");
   const [peopleMode, setPeopleMode] = useState<PeopleMode>("couple");
@@ -98,15 +129,18 @@ export function PassThePhoneWizard({
     profileSetupBusy,
     profileSetupMessage,
     onboardingCompletion,
+    onboardingStatus,
     onboardingBusy,
     onboardingMessage,
     setOnboardingMessage,
     onboardingPrompt,
     onboardingDraft,
+    onboardingOpener,
     isOnboardingRequired,
     profileMemorySummaries,
     profileMemoryEvents,
     profileMemoryMessage,
+    profileMemoryStatus,
     chooseActiveProfile,
     choosePartnerProfile,
     createProfile,
@@ -140,12 +174,33 @@ export function PassThePhoneWizard({
     setFounderSeenMemories,
     wifeSeenMemories,
     setWifeSeenMemories,
-    seenMemoryPrompt,
-    setSeenMemoryPrompt,
+    localReactionHistory,
+    archiveLocalReactionHistory,
+    clearLocalReactionHistory,
     resetBatch,
   } = sessionControl;
-  const [showLaunchSting, setShowLaunchSting] = useState(true);
-  const [cinematicWait, setCinematicWait] = useState<CinematicWaitKind | null>(null);
+  const [showLaunchSting, setShowLaunchSting] = useState(false);
+  const [shortlistGeneration, setShortlistGeneration] = useState<{
+    stage: ShortlistGenerationStage;
+    error: string | null;
+    opener: HTMLElement | null;
+  } | null>(null);
+  const [privacySeal, setPrivacySeal] = useState<{ ownerLabel: string } | null>(null);
+  const privacySealResolverRef = useRef<(() => void) | null>(null);
+  const [matchingTransition, setMatchingTransition] = useState<{
+    phase: MatchingTransitionPhase;
+  } | null>(null);
+  const matchingResolverRef = useRef<(() => void) | null>(null);
+  const pendingFinalPassRef = useRef<{
+    actor: "founder" | "wife";
+    reactions: ReactionState;
+  } | null>(null);
+  const transitionRecoveryClientRef = useRef<PrivateTransitionRecoveryClient | null>(null);
+  const [transitionRecoveryStage, setTransitionRecoveryStage] = useState<
+    PrivateTransitionResumeProjectionPayload["kind"] | "sealing" | null
+  >(null);
+  const recoveryAttemptedRef = useRef(false);
+  const matchingFailureConsumedRef = useRef(false);
   const [reviewMode, setReviewMode] = useState(false);
   const {
     session,
@@ -168,6 +223,8 @@ export function PassThePhoneWizard({
   } = usePassThePhoneFlowState({ apiConnected: apiHealth.connected });
   const {
     sessionSource,
+    movieSource,
+    persistenceSource,
     recommendationSource,
     syncStatus,
     apiError,
@@ -211,21 +268,31 @@ export function PassThePhoneWizard({
     apiConnected: apiHealth.connected,
     sessionSource,
     sharedSession,
+    reviewMode,
     updateResults,
     updateHistoryPanel,
     backendDebugHistoryOnlyMessage: flowMessages.backendDebugHistoryOnly,
     recentHistoryUnavailableMessage: flowMessages.recentHistoryUnavailable,
   });
+  const reviewDiagnosticRequests = createReviewDiagnosticRequests(reviewMode, {
+    loadDebugHistory,
+    loadSessionTasteEvidence: loadTasteProfileSummariesForSession,
+    loadSoloTasteEvidence: loadSoloTasteProfileSummaries,
+  });
+  const reviewSurface = reviewSurfaceContract(reviewMode);
   const {
     activeTonightIntent,
+    updateTonightIntentText,
     interpretTonightIntentText,
     answerTonightIntentClarification,
+    removeTonightIntentSignal,
     interpretSteerText,
     answerSteerClarification,
     applySteerAndShowMore,
     addSteerToNextFive,
     applyTonightIntent,
     clearTonightIntent,
+    cancelTonightIntentInterpretation,
   } = usePassThePhoneIntentSteering({
     apiConnected: apiHealth.connected,
     tonightIntent,
@@ -273,13 +340,42 @@ export function PassThePhoneWizard({
 
   const currentStepIndex = activeStepOrder.indexOf(step);
   const isSyncing = syncStatus !== "ready";
+  const canShowMore = canContinuePassThePhoneSession({
+    apiConnected: apiHealth.connected,
+    sessionSource,
+    movieSource,
+    fallbackCandidates: demoCandidateViewModels,
+    shownSourceMovieIds,
+    sessionCandidates,
+    shortlistSize: effectiveSetupLoad.setup.defaults.shortlistSize,
+  });
   const tonightIntentBusy = tonightIntentStatus !== "ready";
   const sessionDateLabel = formatSessionDate(new Date());
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setShowLaunchSting(false);
-    }, 2200);
+    let storedAsShown = false;
+    try {
+      storedAsShown = window.sessionStorage.getItem(launchStingStorageKey) === "shown";
+    } catch {
+      storedAsShown = launchStingShownInMemory;
+    }
+    const plan = launchStingPlan({
+      alreadyShown: launchStingShownInMemory || storedAsShown,
+      reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    });
+
+    if (plan.markAsSeen) {
+      launchStingShownInMemory = true;
+      try {
+        window.sessionStorage.setItem(launchStingStorageKey, "shown");
+      } catch {
+        // The in-memory marker still prevents replay when session storage is unavailable.
+      }
+    }
+    if (!plan.show) return;
+
+    setShowLaunchSting(true);
+    const timer = window.setTimeout(() => setShowLaunchSting(false), plan.durationMs);
 
     return () => window.clearTimeout(timer);
   }, []);
@@ -289,8 +385,23 @@ export function PassThePhoneWizard({
   }, [step, founderIndex, wifeIndex]);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setReviewMode(params.get("review") === "1");
+    setReviewMode(reviewModeFromSearch(window.location.search));
+  }, []);
+
+  useEffect(() => {
+    if (recoveryAttemptedRef.current) return;
+    recoveryAttemptedRef.current = true;
+    void transitionRecoveryClient().load()
+      .then((projection) => {
+        if (!projection) return;
+        setShowLaunchSting(false);
+        return restorePrivateTransition(projection);
+      })
+      .catch(() => {
+        updateSession({
+          apiError: "Private recovery is taking longer than expected. Your earlier answers remain hidden.",
+        });
+      });
   }, []);
 
   useEffect(() => {
@@ -326,8 +437,10 @@ export function PassThePhoneWizard({
   ]);
 
   function resetSession() {
+    clearTransitionRecovery();
     dispatchNavigation({ type: "session.reset" });
     resetBatch();
+    clearLocalReactionHistory();
     resetAllFlowState();
     if (apiHealth.connected) {
       void loadProfileMemorySummaries();
@@ -335,6 +448,15 @@ export function PassThePhoneWizard({
   }
 
   async function startSession() {
+    clearTransitionRecovery();
+    clearLocalReactionHistory();
+    const reviewParams = new URLSearchParams(window.location.search);
+    const forceShortlistFailure =
+      reviewParams.get("review") === "1" &&
+      reviewParams.get("shortlistFailure") === "1";
+    const forceLocalPersistence =
+      reviewParams.get("review") === "1" &&
+      reviewParams.get("shortlistPersistence") === "local";
     if (apiHealth.connected) {
       const completion =
         onboardingCompletion ??
@@ -347,37 +469,54 @@ export function PassThePhoneWizard({
       }
     }
 
-    setCinematicWait("building");
+    const opener = shortlistGeneration?.opener ?? (
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
+    );
+    setShortlistGeneration({ stage: "finding", error: null, opener });
     let sessionReady = false;
     try {
-      await Promise.all([
-        startPassThePhoneSession(
-          {
-            apiConnected: apiHealth.connected,
-            isCoupleSession,
-            sessionMode,
-            participantIds,
-            shortlistSize: effectiveSetupLoad.setup.defaults.shortlistSize,
-            availabilityRegion: effectiveSetupLoad.setup.defaults.availabilityRegion,
-            activeTonightIntent,
-            activeTonightIntents,
-            fallbackCandidates: demoCandidateViewModels,
-            disconnectedMessage: flowMessages.disconnectedSession,
+      const outcome = await startPassThePhoneSession(
+        {
+          apiConnected: forceShortlistFailure ? false : apiHealth.connected,
+          isCoupleSession,
+          sessionMode,
+          participantIds,
+          shortlistSize: effectiveSetupLoad.setup.defaults.shortlistSize,
+          availabilityRegion: effectiveSetupLoad.setup.defaults.availabilityRegion,
+          activeTonightIntent,
+          activeTonightIntents,
+          fallbackCandidates: forceShortlistFailure
+            ? demoCandidateViewModels.slice(0, 4)
+            : demoCandidateViewModels,
+          disconnectedMessage: flowMessages.disconnectedSession,
+          sharedPersistenceAvailable: !forceLocalPersistence,
+        },
+        {
+          ...sessionLifecyclePorts(),
+          navigateToStarted: () => {
+            sessionReady = true;
           },
-          {
-            ...sessionLifecyclePorts(),
-            navigateToStarted: () => {
-              sessionReady = true;
-            },
+          updateShortlistStage: (stage) => {
+            setShortlistGeneration((current) => ({
+              stage,
+              error: null,
+              opener: current?.opener ?? opener,
+            }));
           },
-        ),
-        cinematicDelay(1500),
-      ]);
-      if (sessionReady) {
+        },
+      );
+      if (sessionReady && outcome.status === "ready") {
         dispatchNavigation({ type: "session.started" });
+        setShortlistGeneration(null);
+      } else if (outcome.status === "failed") {
+        setShortlistGeneration({ stage: "failed", error: outcome.message, opener });
       }
-    } finally {
-      setCinematicWait(null);
+    } catch {
+      setShortlistGeneration({
+        stage: "failed",
+        error: "We couldn’t make five fresh picks. Your setup is still here.",
+        opener,
+      });
     }
   }
 
@@ -396,13 +535,17 @@ export function PassThePhoneWizard({
         shortlistSize: effectiveSetupLoad.setup.defaults.shortlistSize,
         availabilityRegion: effectiveSetupLoad.setup.defaults.availabilityRegion,
         sessionSource,
+        movieSource,
+        persistenceSource,
         sharedSession,
         liveSessionId,
         shownSourceMovieIds,
         sessionCandidates,
+        fallbackCandidates: demoCandidateViewModels,
         firstPassActor,
         founderReactions,
         wifeReactions,
+        localReactionHistory,
         tonightIntents: nextTonightIntents,
       },
       sessionLifecyclePorts(),
@@ -419,8 +562,18 @@ export function PassThePhoneWizard({
       finishSessionSync,
       navigateToStarted: () => dispatchNavigation({ type: "session.started" }),
       addShownMovieIds,
-      loadTasteProfileSummaries: loadTasteProfileSummariesForSession,
-      loadSoloTasteProfileSummaries,
+      archiveLocalReactionHistory: () =>
+        archiveLocalReactionHistory(firstPassActor),
+      loadTasteProfileSummaries: async (session, trigger) => {
+        if (trigger === "continuation") {
+          await reviewDiagnosticRequests.continuation(session);
+        } else {
+          await reviewDiagnosticRequests.coupleSession(session);
+        }
+      },
+      loadSoloTasteProfileSummaries: async (householdId, profileIds) => {
+        await reviewDiagnosticRequests.soloSession(householdId, profileIds);
+      },
     };
   }
 
@@ -439,21 +592,44 @@ export function PassThePhoneWizard({
       setFounderReactions(nextReactions);
 
       if (founderIndex === sessionCandidates.length - 1) {
-        setCinematicWait(isCoupleSession ? "sealing" : "matching");
-        try {
-          await Promise.all([
-            submitActorPass("founder", nextReactions),
-            cinematicDelay(isCoupleSession ? 1500 : 2100),
-          ]);
+        if (isCoupleSession) {
+          if (sessionSource !== "api" || !sharedSession) {
+            const persistence = submitActorPass("founder", nextReactions);
+            await beginPrivacySeal(firstPassLabel);
+            dispatchNavigation(
+              passCompletedNavigationAction({
+                actor: "founder",
+                coupleSession: true,
+              }),
+            );
+            setPrivacySeal(null);
+            await persistence;
+            return;
+          }
+          setTransitionRecoveryStage("sealing");
+          const recoverySeal = saveAndResumePrivateTransition(
+            recoverySealCommand("founder", nextReactions),
+          );
+          await beginPrivacySeal(firstPassLabel);
           dispatchNavigation(
             passCompletedNavigationAction({
               actor: "founder",
-              coupleSession: isCoupleSession,
+              coupleSession: true,
             }),
           );
-        } finally {
-          setCinematicWait(null);
+          setPrivacySeal(null);
+          try {
+            const projection = await recoverySeal;
+            await restorePrivateTransition(projection);
+          } catch {
+            updateSession({
+              apiError: "This handoff is private, but reload recovery is unavailable. Keep this tab open.",
+            });
+            setTransitionRecoveryStage(null);
+          }
+          return;
         }
+        await runFinalMatching("founder", nextReactions);
         return;
       }
 
@@ -465,21 +641,7 @@ export function PassThePhoneWizard({
     setWifeReactions(nextReactions);
 
     if (wifeIndex === sessionCandidates.length - 1) {
-      setCinematicWait("matching");
-      try {
-        await Promise.all([
-          submitActorPass("wife", nextReactions),
-          cinematicDelay(2100),
-        ]);
-        dispatchNavigation(
-          passCompletedNavigationAction({
-            actor: "wife",
-            coupleSession: isCoupleSession,
-          }),
-        );
-      } finally {
-        setCinematicWait(null);
-      }
+      await runFinalMatching("wife", nextReactions);
       return;
     }
 
@@ -490,16 +652,8 @@ export function PassThePhoneWizard({
     actor: "founder" | "wife",
     candidate: DemoCandidate,
     memory: SeenMemoryValue,
-  ): Promise<void> {
-    if (actor === "founder") {
-      setFounderSeenMemories((current) => ({ ...current, [candidate.id]: memory }));
-    } else {
-      setWifeSeenMemories((current) => ({ ...current, [candidate.id]: memory }));
-    }
-
-    setSeenMemoryPrompt(null);
-
-    await persistSeenMemory(
+  ): Promise<SeenMemorySaveResult> {
+    return commitSeenMemory(
       {
         apiConnected: apiHealth.connected,
         peopleMode,
@@ -509,14 +663,28 @@ export function PassThePhoneWizard({
         memory,
       },
       sessionProgressPorts(),
+      (confirmation) => {
+        if (confirmation.actor === "founder") {
+          setFounderSeenMemories((current) => ({
+            ...current,
+            [confirmation.candidateId]: confirmation.memory,
+          }));
+        } else {
+          setWifeSeenMemories((current) => ({
+            ...current,
+            [confirmation.candidateId]: confirmation.memory,
+          }));
+        }
+      },
     );
   }
 
   async function submitActorPass(
     actor: "founder" | "wife",
     nextReactions: ReactionState,
-  ): Promise<void> {
-    await submitActorSessionPass(
+    failureMode: "fallback" | "retain" = "fallback",
+  ) {
+    return submitActorSessionPass(
       {
         sessionSource,
         sharedSession,
@@ -525,32 +693,326 @@ export function PassThePhoneWizard({
         actor,
         candidates: sessionCandidates,
         reactions: nextReactions,
+        failureMode,
       },
       sessionProgressPorts(),
     );
   }
 
   async function continueAfterHandoff(): Promise<void> {
-    setCinematicWait("handoff");
+    if (transitionRecoveryStage === "handoff_ready") {
+      try {
+        setTransitionRecoveryStage("handoff_pending");
+        const projection = await saveAndResumePrivateTransition({
+          kind: "open_second_pass",
+          workflowVersion: 1,
+          payloadVersion: 1,
+          commandId: createPrivateTransitionCommandId(),
+        });
+        await restorePrivateTransition(projection);
+      } catch {
+        setTransitionRecoveryStage("handoff_ready");
+        updateSession({
+          apiError: "The private handoff is still safe. Try opening the next pass again.",
+        });
+      }
+      return;
+    }
     let handoffReady = false;
     try {
-      await Promise.all([
-        advancePassThePhoneHandoff(
-          { sessionSource, sharedSession },
-          {
-            ...sessionProgressPorts(),
-            completeHandoff: () => {
-              handoffReady = true;
-            },
+      await advancePassThePhoneHandoff(
+        { sessionSource, sharedSession },
+        {
+          ...sessionProgressPorts(),
+          completeHandoff: () => {
+            handoffReady = true;
           },
-        ),
-        cinematicDelay(1300),
-      ]);
+        },
+      );
       if (handoffReady) {
         dispatchNavigation({ type: "handoff.completed" });
       }
-    } finally {
-      setCinematicWait(null);
+    } catch {
+      updateSession({
+        apiError: "The private handoff is still safe. Try opening the next pass again.",
+      });
+    }
+  }
+
+  function beginPrivacySeal(ownerLabel: string): Promise<void> {
+    return new Promise((resolve) => {
+      privacySealResolverRef.current = resolve;
+      setPrivacySeal({ ownerLabel });
+    });
+  }
+
+  const completePrivacySeal = useCallback((): void => {
+    privacySealResolverRef.current?.();
+    privacySealResolverRef.current = null;
+  }, []);
+
+  function beginMatchConvergence(): Promise<void> {
+    return new Promise((resolve) => {
+      matchingResolverRef.current = resolve;
+      setMatchingTransition({ phase: "matching" });
+    });
+  }
+
+  const completeMatchConvergence = useCallback((): void => {
+    matchingResolverRef.current?.();
+    matchingResolverRef.current = null;
+  }, []);
+
+  async function runFinalMatching(
+    actor: "founder" | "wife",
+    reactions: ReactionState,
+  ): Promise<void> {
+    pendingFinalPassRef.current = { actor, reactions };
+    setMatchingTransition({ phase: "saving" });
+    const params = new URLSearchParams(window.location.search);
+    const forceFailure = params.get("matchingFailure") === "1"
+      && params.get("review") === "1"
+      && !matchingFailureConsumedRef.current;
+    if (forceFailure) matchingFailureConsumedRef.current = true;
+    if (
+      actor === "wife"
+      && isCoupleSession
+      && sessionSource === "api"
+      && transitionRecoveryStage === "second_pass_ready"
+    ) {
+      try {
+        const command = recoverySealCommand("wife", reactions);
+        if (forceFailure) {
+          await transitionRecoveryClient().save(command);
+          setTransitionRecoveryStage("matching_failed");
+          setMatchingTransition({ phase: "failed" });
+          return;
+        }
+        const projection = await saveAndResumePrivateTransition(command);
+        setTransitionRecoveryStage("matching_pending");
+        await restorePrivateTransition(projection);
+      } catch {
+        setTransitionRecoveryStage("matching_failed");
+        setMatchingTransition({ phase: "failed" });
+      }
+      return;
+    }
+    const submission = forceFailure
+      ? { status: "failed" as const, message: "Review fixture" }
+      : await submitActorPass(actor, reactions, "retain");
+    if (submission.status === "failed") {
+      setMatchingTransition({ phase: "failed" });
+      return;
+    }
+    await beginMatchConvergence();
+    dispatchNavigation(
+      passCompletedNavigationAction({ actor, coupleSession: isCoupleSession }),
+    );
+    pendingFinalPassRef.current = null;
+    setMatchingTransition(null);
+  }
+
+  async function retryFinalMatching(): Promise<void> {
+    if (
+      transitionRecoveryStage === "matching_pending"
+      || transitionRecoveryStage === "matching_failed"
+    ) {
+      setMatchingTransition({ phase: "saving" });
+      try {
+        const projection = await transitionRecoveryClient().load();
+        if (!projection) throw new Error("Private recovery was not found.");
+        await restorePrivateTransition(projection);
+      } catch {
+        setTransitionRecoveryStage("matching_failed");
+        setMatchingTransition({ phase: "failed" });
+      }
+      return;
+    }
+    const pending = pendingFinalPassRef.current;
+    if (!pending) {
+      return;
+    }
+    await runFinalMatching(pending.actor, pending.reactions);
+  }
+
+  async function showLocalResult(): Promise<void> {
+    if (
+      transitionRecoveryStage === "matching_pending"
+      || transitionRecoveryStage === "matching_failed"
+    ) {
+      setMatchingTransition({ phase: "saving" });
+      try {
+        const projection = await saveAndResumePrivateTransition({
+          kind: "use_local_result",
+          workflowVersion: 1,
+          payloadVersion: 1,
+          commandId: createPrivateTransitionCommandId(),
+        });
+        await restorePrivateTransition(projection);
+      } catch {
+        setTransitionRecoveryStage("matching_failed");
+        setMatchingTransition({ phase: "failed" });
+        updateSession({
+          apiError: "The saved result is still finishing. Try again in a moment.",
+        });
+      }
+      return;
+    }
+    const pending = pendingFinalPassRef.current;
+    if (!pending) {
+      return;
+    }
+    setDemoDebugFallback();
+    updateSession({
+      apiError: "Live matching paused. Showing the result from the picks already on this phone.",
+    });
+    await beginMatchConvergence();
+    dispatchNavigation(
+      passCompletedNavigationAction({
+        actor: pending.actor,
+        coupleSession: isCoupleSession,
+      }),
+    );
+    pendingFinalPassRef.current = null;
+    setMatchingTransition(null);
+    await clearTransitionRecovery();
+  }
+
+  function transitionRecoveryClient(): PrivateTransitionRecoveryClient {
+    transitionRecoveryClientRef.current ??= createPrivateTransitionRecoveryClient();
+    return transitionRecoveryClientRef.current;
+  }
+
+  async function saveAndResumePrivateTransition(
+    command: PrivateTransitionCommand,
+  ): Promise<PrivateTransitionResumeProjectionPayload> {
+    try {
+      await transitionRecoveryClient().save(command);
+    } catch {
+      const reconciled = await transitionRecoveryClient().load();
+      if (reconciled) return reconciled;
+      throw new Error("Private recovery could not be reconciled.");
+    }
+    const projection = await transitionRecoveryClient().load();
+    if (!projection) throw new Error("Private recovery was not found.");
+    return projection;
+  }
+
+  function recoverySealCommand(
+    actor: "founder" | "wife",
+    reactions: ReactionState,
+  ): PrivateTransitionCommand {
+    const ballot = sessionCandidates.map((candidate) => {
+      const reaction = reactions[candidate.id];
+      if (!reaction) {
+        throw new Error("Every movie needs a private reaction before sealing.");
+      }
+      return { sourceMovieId: candidate.id, reaction };
+    });
+    const displaySnapshot = sessionCandidates.map(recoveryMovieDisplayFromCandidate);
+    if (actor === "founder") {
+      if (!sharedSession) {
+        throw new Error("A shared session is required for durable handoff recovery.");
+      }
+      return {
+        kind: "seal_founder_ballot",
+        workflowVersion: 1,
+        payloadVersion: 1,
+        canonicalSessionId: sharedSession.sessionId,
+        commandId: createPrivateTransitionCommandId(),
+        ballot,
+        displaySnapshot,
+      };
+    }
+    return {
+      kind: "seal_final_ballot",
+      workflowVersion: 1,
+      payloadVersion: 1,
+      commandId: createPrivateTransitionCommandId(),
+      ballot,
+      displaySnapshot,
+    };
+  }
+
+  async function clearTransitionRecovery(): Promise<void> {
+    setTransitionRecoveryStage(null);
+    await transitionRecoveryClient().clear().catch(() => undefined);
+  }
+
+  async function restorePrivateTransition(
+    projection: PrivateTransitionResumeProjectionPayload,
+  ): Promise<void> {
+    const plan = privateTransitionRestorePlan(projection);
+    setTransitionRecoveryStage(plan.stage);
+    setPeopleMode("couple");
+    if (plan.kind === "handoff") {
+      dispatchNavigation({ type: "session.recovered", step: "handoff" });
+      updateSession({
+        sessionSource: "api",
+        persistenceSource: "shared",
+        apiError: "Private session restored on this tab.",
+      });
+      if (plan.shouldPoll) {
+        window.setTimeout(() => void resumePrivateTransition(), 750);
+      }
+      return;
+    }
+    if (plan.kind === "second_pass") {
+      const candidates = plan.displaySnapshot.map(toRecoverySessionCandidate);
+      resetBatch(candidates);
+      updateSession({
+        sessionSource: "api",
+        movieSource: "live",
+        persistenceSource: "shared",
+        shownSourceMovieIds: candidates.map((candidate) => candidate.id),
+        apiError: "Private session restored on this tab.",
+      });
+      dispatchNavigation({ type: "session.recovered", step: "wife" });
+      return;
+    }
+    if (plan.kind === "matching") {
+      dispatchNavigation({ type: "session.recovered", step: "wife" });
+      setMatchingTransition({ phase: plan.phase });
+      if (plan.phase === "failed") matchingFailureConsumedRef.current = true;
+      if (plan.shouldPoll) {
+        window.setTimeout(() => void resumePrivateTransition(), 750);
+      }
+      return;
+    }
+
+    const recoveredSession = await getSharedSession(plan.canonicalSessionId);
+    const candidates = plan.displaySnapshot.map(toRecoverySessionCandidate);
+    resetBatch(candidates);
+    setSessionMode(sessionModeFromSharedSession(recoveredSession));
+    setFounderReactions(reactionStateFromSharedSession(recoveredSession.founderReactions));
+    setWifeReactions(reactionStateFromSharedSession(plan.finalReactions));
+    const localResult = plan.resultSource === "local";
+    updateSession({
+      sessionSource: localResult ? "demo" : "api",
+      movieSource: "live",
+      persistenceSource: localResult ? "local" : "shared",
+      liveSessionId: recoveredSession.sessionId,
+      sharedSession: localResult ? null : recoveredSession,
+      shownSourceMovieIds: recoveredSession.shownSourceMovieIds,
+      apiError: localResult
+        ? "Live matching paused. Showing the result from the picks already on this phone."
+        : "Private result restored on this tab.",
+    });
+    await beginMatchConvergence();
+    dispatchNavigation({ type: "session.recovered", step: "results" });
+    pendingFinalPassRef.current = null;
+    setMatchingTransition(null);
+    window.requestAnimationFrame(() => void clearTransitionRecovery());
+  }
+
+  async function resumePrivateTransition(): Promise<void> {
+    try {
+      const projection = await transitionRecoveryClient().load();
+      if (!projection) throw new Error("Private recovery was not found.");
+      await restorePrivateTransition(projection);
+    } catch {
+      setTransitionRecoveryStage("matching_failed");
+      setMatchingTransition({ phase: "failed" });
     }
   }
 
@@ -564,11 +1026,48 @@ export function PassThePhoneWizard({
     };
   }
 
+  async function saveTonightDefaults(
+    draft: TonightDefaultsDraft,
+  ): Promise<TonightDefaultsSaveResult> {
+    return commitTonightDefaultsTransaction(
+      draft,
+      saveAvailabilityRegion,
+      (committed) => {
+        setLanguageMode(committed.languageMode);
+        setSessionMode(committed.sessionMode);
+      },
+    );
+  }
+
 
   return (
-    <main className="appShell">
+    <main ref={appShellRef} className="appShell">
       {showLaunchSting ? <LaunchSting /> : null}
-      {cinematicWait ? <CinematicTransitionOverlay kind={cinematicWait} /> : null}
+      {shortlistGeneration ? (
+        <ShortlistGeneration
+          backgroundRef={appShellRef}
+          opener={shortlistGeneration.opener}
+          stage={shortlistGeneration.stage}
+          error={shortlistGeneration.error}
+          onRetry={startSession}
+          onBack={() => setShortlistGeneration(null)}
+        />
+      ) : null}
+      {privacySeal ? (
+        <PrivacySealTransition
+          ownerLabel={privacySeal.ownerLabel}
+          onSealComplete={completePrivacySeal}
+        />
+      ) : null}
+      {matchingTransition ? (
+        <MatchingTransition
+          phase={matchingTransition.phase}
+          coupleSession={isCoupleSession}
+          onConvergenceComplete={completeMatchConvergence}
+          onRetry={retryFinalMatching}
+          onUseLocal={showLocalResult}
+        />
+      ) : null}
 
       {step !== "setup" && step !== "founder" && step !== "handoff" && step !== "wife" && step !== "results" ? (
         <header className="topBar">
@@ -582,23 +1081,6 @@ export function PassThePhoneWizard({
         </header>
       ) : null}
 
-      <div className="shellStatus">
-        <section className="syncStrip" aria-label="Recommendation source" role="status">
-          <div>
-            <span>
-              {configuredRecommendationSource === "live_tmdb"
-                ? "Live recommendations"
-                : "Demo recommendations"}
-            </span>
-            <p>
-              {configuredRecommendationSource === "live_tmdb"
-                ? "This server is configured to ask the backend for live TMDb recommendation pools."
-                : "This server is configured to use the seeded demo catalog for recommendation testing."}
-            </p>
-          </div>
-        </section>
-      </div>
-
       {step === "setup" ? (
         <SetupStep
           founderLabel={founderLabel}
@@ -606,7 +1088,6 @@ export function PassThePhoneWizard({
           setupLoad={effectiveSetupLoad}
           apiHealth={apiHealth}
           sessionMode={sessionMode}
-          onSessionModeChange={setSessionMode}
           peopleMode={peopleMode}
           onPeopleModeChange={setPeopleMode}
           activeProfileId={effectiveSetupLoad.setup.activeProfileId}
@@ -616,11 +1097,11 @@ export function PassThePhoneWizard({
           onActiveProfileChange={chooseActiveProfile}
           onPartnerProfileChange={choosePartnerProfile}
           onCreateProfile={createProfile}
-          onAvailabilityRegionChange={saveAvailabilityRegion}
           languageMode={languageMode}
-          onLanguageModeChange={setLanguageMode}
+          onSaveTonightDefaults={saveTonightDefaults}
           isSyncing={isSyncing}
           onboardingBusy={onboardingBusy}
+          onboardingStatus={onboardingStatus}
           onboardingRequired={isOnboardingRequired}
           onboardingCompletion={onboardingCompletion}
           onboardingMessage={onboardingMessage}
@@ -628,8 +1109,10 @@ export function PassThePhoneWizard({
           profileMemorySummaries={profileMemorySummaries}
           profileMemoryEvents={profileMemoryEvents}
           profileMemoryMessage={profileMemoryMessage}
+          profileMemoryStatus={profileMemoryStatus}
+          onLoadProfileMemory={loadProfileMemorySummaries}
           tonightIntentText={tonightIntentText}
-          onTonightIntentTextChange={(value) => updateTonightIntent({ text: value })}
+          onTonightIntentTextChange={updateTonightIntentText}
           pendingTonightIntent={pendingTonightIntent}
           activeTonightIntent={activeTonightIntent}
           tonightIntentClarificationText={tonightIntentClarificationText}
@@ -640,10 +1123,12 @@ export function PassThePhoneWizard({
           tonightIntentMessage={tonightIntentMessage}
           onInterpretTonightIntent={interpretTonightIntentText}
           onAnswerTonightIntentClarification={answerTonightIntentClarification}
+          onRemoveTonightIntentSignal={removeTonightIntentSignal}
           onApplyTonightIntent={applyTonightIntent}
           onClearTonightIntent={clearTonightIntent}
+          onCancelTonightIntentInterpretation={cancelTonightIntentInterpretation}
           onStart={startSession}
-          onBeginOnboarding={() => beginOnboarding()}
+          onBeginOnboarding={(opener) => beginOnboarding(undefined, opener)}
           recentSessions={recentSessions}
           recentSessionsStatus={recentSessionsStatus}
           recentSessionsMessage={recentSessionsMessage}
@@ -681,12 +1166,15 @@ export function PassThePhoneWizard({
                 : wifeSeenMemories[firstPassCandidate.id]
             }
             isSyncing={isSyncing}
+            localOnly={persistenceSource === "local"}
+            sessionNotice={
+              persistenceSource === "local" || movieSource === "local"
+                ? apiError
+                : null
+            }
             onReaction={recordReaction}
-            onSeenIt={() =>
-              setSeenMemoryPrompt({
-                actor: firstPassActor,
-                candidate: firstPassCandidate,
-              })
+            onSeenIt={(memory) =>
+              recordSeenMemory(firstPassActor, firstPassCandidate, memory)
             }
             onBack={() => {
               if ((firstPassActor === "founder" ? founderIndex : wifeIndex) === 0) {
@@ -712,11 +1200,16 @@ export function PassThePhoneWizard({
       ) : null}
 
       {step === "handoff" && isCoupleSession ? (
-        <HandoffStep
-          founderLabel={founderLabel}
-          wifeLabel={wifeLabel}
-          isSyncing={isSyncing}
-          onBack={() => dispatchNavigation({ type: "navigation.back" })}
+        <PrivateHandoffStep
+          ownerLabel={firstPassLabel}
+          recipientLabel={wifeLabel}
+          recipientAvatarKey={wifeAvatarKey}
+          recipientColorKey={wifeColorKey}
+          isSyncing={
+            isSyncing
+            || transitionRecoveryStage === "sealing"
+            || transitionRecoveryStage === "handoff_pending"
+          }
           onContinue={continueAfterHandoff}
         />
       ) : null}
@@ -734,10 +1227,14 @@ export function PassThePhoneWizard({
             selectedReaction={wifeReactions[wifeCandidate.id]}
             seenMemory={wifeSeenMemories[wifeCandidate.id]}
             isSyncing={isSyncing}
-            onReaction={recordReaction}
-            onSeenIt={() =>
-              setSeenMemoryPrompt({ actor: "wife", candidate: wifeCandidate })
+            localOnly={persistenceSource === "local"}
+            sessionNotice={
+              persistenceSource === "local" || movieSource === "local"
+                ? apiError
+                : null
             }
+            onReaction={recordReaction}
+            onSeenIt={(memory) => recordSeenMemory("wife", wifeCandidate, memory)}
             onBack={() => {
               if (wifeIndex === 0) {
                 dispatchNavigation({ type: "navigation.back" });
@@ -768,6 +1265,7 @@ export function PassThePhoneWizard({
           wifeReactions={wifeReactions}
           sessionMode={sessionMode}
           sessionSource={sessionSource}
+          movieSource={movieSource}
           sharedSession={sharedSession}
           activeTonightIntents={activeTonightIntents}
           recommendationSource={recommendationSource}
@@ -785,6 +1283,7 @@ export function PassThePhoneWizard({
           onRefreshProfileMemory={loadProfileMemorySummaries}
           onReset={resetSession}
           onShowMore={showFiveMore}
+          canShowMore={canShowMore}
           onSteerTextChange={(value) => updateResults({ steerText: value })}
           onInterpretSteer={interpretSteerText}
           onSteerClarificationTextChange={(value) =>
@@ -798,29 +1297,15 @@ export function PassThePhoneWizard({
         />
       ) : null}
 
-      {seenMemoryPrompt ? (
-        <SeenMemoryDialog
-          actorLabel={
-            seenMemoryPrompt.actor === "founder" ? founderLabel : wifeLabel
-          }
-          candidate={seenMemoryPrompt.candidate}
-          isSaving={isSyncing}
-          onChoose={(memory) =>
-            recordSeenMemory(
-              seenMemoryPrompt.actor,
-              seenMemoryPrompt.candidate,
-              memory,
-            )
-          }
-          onClose={() => setSeenMemoryPrompt(null)}
-        />
-      ) : null}
-
       {onboardingPrompt && onboardingDraft ? (
-        <OnboardingDialog
+        <RequiredOnboarding
+          key={onboardingPrompt.profileId}
+          backgroundRef={appShellRef}
+          opener={onboardingOpener}
           profileLabel={onboardingPrompt.profileLabel}
           draft={onboardingDraft}
           isSaving={onboardingBusy}
+          message={onboardingMessage}
           onAddSuggested={addSuggestedSeed}
           onUpdateManual={updateManualSeed}
           onAddManual={addManualSeed}
@@ -830,8 +1315,31 @@ export function PassThePhoneWizard({
         />
       ) : null}
 
-      {reviewMode ? <ReviewNotesWidget currentStep={step} /> : null}
+      {reviewSurface.showNotes ? <ReviewNotesWidget currentStep={step} /> : null}
     </main>
   );
 
+}
+
+function sessionModeFromSharedSession(
+  session: SharedSessionPayload,
+): SessionMode {
+  if (session.activeMode === "husband_first") return "founder-first";
+  if (session.activeMode === "wife_first") return "wife-first";
+  return "compromise";
+}
+
+function reactionStateFromSharedSession(
+  reactions: Array<{
+    sourceMovieId: string;
+    reactionLabel?: "interested" | "maybe" | "no" | "seen";
+    reaction?: "interested" | "maybe" | "no" | "seen";
+  }>,
+): ReactionState {
+  return Object.fromEntries(
+    reactions.map((reaction) => {
+      const value = reaction.reactionLabel ?? reaction.reaction ?? "maybe";
+      return [reaction.sourceMovieId, value === "seen" ? "maybe" : value];
+    }),
+  );
 }

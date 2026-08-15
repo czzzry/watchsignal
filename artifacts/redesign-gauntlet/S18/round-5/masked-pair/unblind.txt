@@ -1,0 +1,4 @@
+Seed: 1805
+screen-1: previously accepted S09 Utility reference
+screen-2: S18 current candidate with matching settled poster
+screen-3: S18 current candidate with intentional current-title poster loading state

@@ -1,0 +1,9 @@
+{
+  "before": true,
+  "after": false,
+  "active": {
+    "tag": "BODY",
+    "text": "Demo recommendationsThis server is configured to use the seeded demo catalog for recommendation test",
+    "aria": null
+  }
+}

@@ -1,0 +1,367 @@
+.studio {
+  --night: #07050c;
+  --night-raised: #100b18;
+  --paper: #f7f5fb;
+  --violet: #9c68ff;
+  --violet-deep: #6f38dc;
+  --cyan: #8eefff;
+  --ink: #fbf9ff;
+  --muted: rgba(251, 249, 255, 0.7);
+  --faint: rgba(251, 249, 255, 0.42);
+  --line: rgba(251, 249, 255, 0.12);
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  overflow-x: hidden;
+  padding: 18px 12px 104px;
+  background: #030206;
+  color: var(--ink);
+  font-family: "Avenir Next", "SF Pro Text", "Segoe UI Variable Text", system-ui, sans-serif;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.prototypeNotice {
+  position: fixed;
+  z-index: 50;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: rgba(3, 2, 6, 0.9);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.32);
+}
+
+.phoneFrame {
+  width: min(100%, 390px);
+  height: min(844px, calc(100svh - 70px));
+  min-height: 720px;
+  overflow: hidden;
+  border-radius: 28px;
+  background: var(--night);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.62);
+}
+
+.screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.resultHeader {
+  position: relative;
+  z-index: 8;
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px var(--space-5) 8px;
+}
+
+.resultHeader > span {
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: white;
+}
+
+.brand > span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--paper);
+  color: #150b21;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.brand strong { font-size: 13px; font-weight: 650; letter-spacing: -0.02em; }
+
+.cinematicTitle {
+  font-family: "New York", "Iowan Old Style", Baskerville, Georgia, serif;
+  font-weight: 600;
+}
+
+.movieMeta {
+  margin: 0;
+  color: #79717e;
+  font-size: 10px;
+  line-height: 1.45;
+  font-weight: 550;
+}
+
+.movieMetaLight { color: rgba(255, 255, 255, 0.66); }
+
+.scoreDial {
+  position: relative;
+  width: 68px;
+  height: 68px;
+  display: grid;
+  place-items: center;
+  color: white;
+  font-variant-numeric: tabular-nums;
+}
+
+.scoreDial svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.scoreDial circle { fill: none; stroke-width: 3; }
+.scoreDialBase { stroke: rgba(255, 255, 255, 0.16); }
+.scoreDialValue { stroke: var(--violet); stroke-linecap: round; }
+.scoreDial > span { display: grid; place-items: center; gap: 1px; }
+.scoreDial strong { font-size: 23px; line-height: 1; letter-spacing: -0.03em; }
+.scoreDial small { color: rgba(255, 255, 255, 0.62); font-size: 8px; font-weight: 600; }
+.scoreDialCompact { width: 58px; height: 58px; }
+.scoreDialCompact circle { stroke-width: 3.5; }
+.scoreDialCompact strong { font-size: 20px; }
+
+.resultActions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.resultActions button,
+.findAction {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 0;
+  border-radius: 12px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  transition: transform 170ms cubic-bezier(0.16, 1, 0.3, 1), background-color 170ms ease, color 170ms ease;
+}
+
+.resultActions button:hover,
+.findAction:hover { transform: translateY(-1px); }
+
+.resultActions button:active,
+.findAction:active { transform: scale(0.975); }
+
+.resultActions button:focus-visible,
+.posterFilmstrip button:focus-visible,
+.numberedReel button:focus-visible,
+.scoreTrack button:focus-visible,
+.peekPoster:focus-visible,
+.nextFive button:focus-visible,
+.steerInput:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+.resultActions svg,
+.findAction svg,
+.nextFiveHeader svg,
+.nextFiveSignal svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.watchAction { background: var(--paper); color: #160d20; }
+.moreAction { background: rgba(255, 255, 255, 0.1); color: white; }
+.watchAction svg path { fill: currentColor; stroke: none; }
+
+/* A: Full-bleed poster, filmstrip and controlled afterglow. */
+
+.afterglow { background: var(--night); }
+.afterglowPoster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 34%; animation: imageChange 260ms ease-out both; }
+.afterglowAtmosphere {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 75% 42%, rgba(132, 44, 255, 0.38), transparent 34%),
+    linear-gradient(180deg, rgba(6, 3, 10, 0.16) 0%, rgba(6, 3, 10, 0.14) 32%, rgba(7, 4, 12, 0.78) 55%, #07050c 76%);
+}
+.afterglowContent { position: absolute; z-index: 4; right: var(--space-5); bottom: var(--space-5); left: var(--space-5); }
+.afterglowContent > .scoreDial { margin-bottom: var(--space-3); }
+.resultCue { margin: 0 0 var(--space-1); color: rgba(255, 255, 255, 0.72); font-size: 12px; font-weight: 600; }
+.afterglowContent h1 { max-width: 290px; margin: 0 0 6px; font-size: 45px; line-height: 0.98; letter-spacing: -0.035em; text-wrap: balance; }
+.matchReason { min-height: 38px; display: flex; align-items: baseline; gap: 6px; margin: var(--space-3) 0 var(--space-4); color: rgba(255, 255, 255, 0.7); font-size: 12px; line-height: 1.4; }
+.matchReason strong { flex: none; color: white; font-weight: 650; }
+
+.posterFilmstrip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; margin-bottom: var(--space-4); }
+.posterFilmstrip button {
+  position: relative;
+  height: 88px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 9px;
+  padding: 0;
+  background: #17101f;
+  opacity: 0.48;
+  transform: scale(0.94);
+  transition: opacity 190ms ease, transform 190ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 190ms ease;
+}
+.posterFilmstrip img { width: 100%; height: 100%; object-fit: cover; }
+.posterFilmstrip span { position: absolute; right: 4px; bottom: 4px; min-width: 25px; padding: 3px 5px; border-radius: 6px; background: rgba(6, 3, 10, 0.84); color: white; font-size: 10px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.posterFilmstrip .posterFilmActive { opacity: 1; transform: scale(1); box-shadow: 0 0 0 2px var(--violet); }
+.posterFilmstrip button:hover { opacity: 0.8; }
+
+/* B: A calm screening-room frame with precise reel tabs. */
+
+.screeningRoom { display: flex; flex-direction: column; background: #08080a; }
+.screeningFrame { position: relative; height: 330px; flex: none; margin: var(--space-2) var(--space-4) 0; overflow: hidden; border-radius: 12px; background: #18171a; }
+.screeningFrame > img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 37%; animation: imageChange 260ms ease-out both; }
+.frameShade { position: absolute; inset: 35% 0 0; background: linear-gradient(180deg, transparent, rgba(7, 7, 9, 0.76)); }
+.screeningFrame .scoreDial { position: absolute; right: 14px; bottom: 14px; }
+.screeningFrame figcaption { position: absolute; left: 14px; bottom: 18px; color: rgba(255, 255, 255, 0.88); font-size: 12px; font-weight: 600; }
+.screeningCopy { min-height: 118px; padding: var(--space-4) var(--space-5) var(--space-3); }
+.screeningCopy h1 { margin: 0 0 5px; font-size: 30px; line-height: 1; font-weight: 650; letter-spacing: -0.04em; text-wrap: balance; }
+.screeningCopy > p:last-child { margin: 10px 0 0; color: rgba(255, 255, 255, 0.7); font-size: 12px; line-height: 1.4; }
+.numberedReel { min-height: 100px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 0 var(--space-4); }
+.numberedReel button { position: relative; height: 90px; overflow: hidden; border: 0; border-radius: 8px; padding: 0; background: #17171a; opacity: 0.44; transition: opacity 180ms ease, transform 180ms cubic-bezier(0.16, 1, 0.3, 1); }
+.numberedReel img { width: 100%; height: 100%; object-fit: cover; }
+.numberedReel button > span { position: absolute; inset: auto 0 0; min-height: 28px; display: flex; align-items: center; justify-content: space-between; padding: 0 6px; background: rgba(5, 5, 7, 0.84); color: white; }
+.numberedReel small { font-size: 8px; font-weight: 600; }
+.numberedReel strong { font-size: 11px; font-variant-numeric: tabular-nums; }
+.numberedReel .numberedReelActive { opacity: 1; transform: translateY(-3px); box-shadow: 0 3px 0 var(--violet); }
+.numberedReel button:hover { opacity: 0.78; }
+.screeningActions { margin-top: auto; padding: var(--space-3) var(--space-4) var(--space-5); }
+.screeningRoom .moreAction { background: #222126; }
+
+/* C: A centered poster spotlight with all five scores on one rail. */
+
+.spotlight { display: flex; flex-direction: column; background: #0c0712; }
+.spotlightGlow { position: absolute; inset: 0; background: radial-gradient(circle at 50% 32%, rgba(127, 65, 230, 0.34), transparent 39%); }
+.posterCarousel { position: relative; height: 405px; flex: none; display: grid; place-items: center; perspective: 900px; }
+.spotlightPoster { position: relative; z-index: 2; width: 226px; height: 340px; margin: 0; }
+.spotlightPoster > img { width: 100%; height: 100%; border-radius: 12px; object-fit: cover; box-shadow: 0 8px 8px rgba(0, 0, 0, 0.38); animation: spotlightChange 240ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.spotlightPoster .scoreDial { position: absolute; right: -13px; bottom: -13px; border-radius: 50%; background: #140b1c; }
+.peekPoster { position: absolute; z-index: 1; top: 52px; width: 120px; height: 282px; overflow: hidden; border: 0; border-radius: 10px; padding: 0; background: #17101f; opacity: 0.34; filter: saturate(0.76); transition: opacity 180ms ease, transform 180ms cubic-bezier(0.16, 1, 0.3, 1); }
+.peekPoster:hover { opacity: 0.5; }
+.peekPoster img { width: 100%; height: 100%; object-fit: cover; }
+.peekBefore { left: -62px; transform: rotateY(12deg) scale(0.92); }
+.peekAfter { right: -62px; transform: rotateY(-12deg) scale(0.92); }
+.spotlightCopy { position: relative; z-index: 3; min-height: 116px; padding: 2px var(--space-5) var(--space-3); text-align: center; }
+.spotlightCopy h1 { margin: 0 0 var(--space-2); font-size: 35px; line-height: 1; letter-spacing: -0.035em; text-wrap: balance; }
+.spotlightCopy .movieMeta { margin-bottom: 7px; }
+.spotlightCopy p { margin: 0 auto; color: rgba(255, 255, 255, 0.69); font-size: 12px; line-height: 1.4; text-wrap: pretty; }
+.spotlightCopy strong { color: white; font-weight: 650; }
+
+.scoreTrack { position: relative; z-index: 3; height: 58px; display: grid; grid-template-columns: repeat(5, 1fr); align-items: center; margin: auto var(--space-5) 0; }
+.scoreTrack > i { position: absolute; top: 36px; right: 9%; left: 9%; height: 1px; background: rgba(255, 255, 255, 0.16); }
+.scoreTrack button { position: relative; z-index: 1; min-height: 50px; display: grid; place-items: center; align-content: center; gap: 7px; border: 0; padding: 0; background: transparent; color: rgba(255, 255, 255, 0.46); font-variant-numeric: tabular-nums; transition: color 180ms ease, transform 180ms cubic-bezier(0.16, 1, 0.3, 1); }
+.scoreTrack span { font-size: 12px; font-weight: 650; }
+.scoreTrack b { width: 7px; height: 7px; border-radius: 50%; background: #5a5260; box-shadow: 0 0 0 4px #0c0712; }
+.scoreTrack .scoreTrackActive { color: white; transform: translateY(-2px); }
+.scoreTrack .scoreTrackActive b { background: var(--violet); box-shadow: 0 0 0 4px #0c0712, 0 0 14px rgba(156, 104, 255, 0.8); }
+.scoreTrack button:hover { color: rgba(255, 255, 255, 0.82); }
+.spotlightActions { position: relative; z-index: 3; padding: var(--space-2) var(--space-4) var(--space-5); }
+.spotlight .watchAction { background: var(--violet); color: white; }
+.spotlight .moreAction { background: rgba(255, 255, 255, 0.09); }
+
+/* Full-screen continuation state used by all three concepts. */
+
+.nextFive { background: #0b0712; }
+.nextFive_afterglow { background: radial-gradient(circle at 88% 0%, rgba(128, 55, 230, 0.32), transparent 32%), #0b0712; }
+.nextFive_screening { background: #08080a; }
+.nextFive_spotlight { background: radial-gradient(circle at 50% 18%, rgba(124, 63, 219, 0.28), transparent 33%), #0c0712; }
+.nextFiveHeader { min-height: 68px; display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; padding: 12px var(--space-4) 8px; }
+.nextFiveHeader > button { width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 12px; padding: 0; background: rgba(255, 255, 255, 0.08); color: white; }
+.nextFiveHeader .brand { justify-self: center; }
+.nextFiveHeader .brand > strong { display: none; }
+.nextFiveBody { padding: 40px var(--space-5) var(--space-5); }
+.nextFiveSignal { width: 54px; height: 54px; display: grid; place-items: center; margin-bottom: 24px; border-radius: 15px; background: rgba(156, 104, 255, 0.16); color: #b98cff; }
+.nextFiveSignal svg { width: 25px; height: 25px; }
+.nextFiveBody h1 { margin: 0 0 var(--space-3); font-family: "New York", "Iowan Old Style", Baskerville, Georgia, serif; font-size: 43px; line-height: 0.98; font-weight: 600; letter-spacing: -0.035em; }
+.nextFiveBody > p { margin: 0 0 30px; color: rgba(255, 255, 255, 0.68); font-size: 13px; line-height: 1.45; }
+.nextFiveChoices { display: grid; gap: var(--space-2); }
+.nextFiveChoices > button { min-height: 66px; display: grid; grid-template-columns: 1fr 24px; align-items: center; border: 0; border-radius: 12px; padding: 0 var(--space-4); background: rgba(255, 255, 255, 0.07); color: white; text-align: left; transition: background-color 170ms ease, transform 170ms cubic-bezier(0.16, 1, 0.3, 1); }
+.nextFiveChoices > button:active { transform: scale(0.985); }
+.nextFiveChoices > button > span { display: grid; gap: 3px; }
+.nextFiveChoices strong { font-size: 13px; font-weight: 650; }
+.nextFiveChoices small { color: rgba(255, 255, 255, 0.6); font-size: 11px; }
+.nextFiveChoices i { width: 22px; height: 22px; display: grid; place-items: center; border: 1px solid rgba(255, 255, 255, 0.26); border-radius: 50%; color: white; font-size: 11px; font-style: normal; }
+.nextFiveChoices .choiceSelected { background: rgba(156, 104, 255, 0.18); box-shadow: inset 0 0 0 1px rgba(184, 140, 255, 0.55); }
+.nextFiveChoices .choiceSelected i { border-color: var(--violet); background: var(--violet-deep); }
+.nextFiveChoices > button:hover { background: rgba(255, 255, 255, 0.11); }
+.steerInput { width: 100%; min-height: 52px; margin-top: var(--space-2); border: 0; border-radius: 12px; padding: 0 var(--space-4); background: rgba(255, 255, 255, 0.1); color: white; font: inherit; font-size: 16px; }
+.steerInput::placeholder { color: rgba(255, 255, 255, 0.56); }
+.findAction { width: 100%; margin-top: var(--space-4); background: var(--paper); color: #160d20; }
+.findAction:disabled { opacity: 0.7; }
+.loadingMark { width: 16px; height: 16px; border: 2px solid rgba(22, 13, 32, 0.2); border-top-color: #160d20; border-radius: 50%; animation: spin 700ms linear infinite; }
+
+.switcher {
+  position: fixed;
+  z-index: 60;
+  bottom: 16px;
+  left: 50%;
+  width: min(calc(100% - 24px), 330px);
+  min-height: 62px;
+  display: grid;
+  grid-template-columns: 48px 1fr 48px;
+  align-items: center;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  padding: 6px;
+  background: rgba(247, 245, 251, 0.97);
+  color: #1a1221;
+  box-shadow: 0 8px 8px rgba(0, 0, 0, 0.36);
+  backdrop-filter: blur(18px);
+}
+.switcher button { width: 48px; min-height: 48px; border: 0; border-radius: 50%; padding: 0; background: #21142b; color: white; font-size: 18px; }
+.switcher div { display: grid; gap: 2px; padding: 0 10px; text-align: center; }
+.switcher span { color: #786f7e; font-size: 9px; font-weight: 650; }
+.switcher strong { font-size: 12px; font-weight: 650; letter-spacing: -0.01em; }
+
+@keyframes imageChange { from { opacity: 0.68; transform: scale(1.02); } }
+@keyframes spotlightChange { from { opacity: 0.72; transform: translateY(5px) scale(0.985); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 430px) {
+  .studio { place-items: start center; padding: 0 0 90px; }
+  .phoneFrame { width: 100%; height: calc(100svh - 82px); min-height: 670px; border-radius: 0 0 20px 20px; }
+  .prototypeNotice { display: none; }
+}
+
+@media (max-height: 760px) {
+  .phoneFrame { min-height: 670px; }
+  .afterglowContent h1 { font-size: 39px; }
+  .afterglowContent > .scoreDial { width: 58px; height: 58px; margin-bottom: var(--space-2); }
+  .matchReason { margin: var(--space-2) 0 var(--space-3); }
+  .posterFilmstrip button { height: 75px; }
+  .screeningFrame { height: 270px; }
+  .screeningCopy { min-height: 105px; }
+  .numberedReel { min-height: 90px; }
+  .numberedReel button { height: 80px; }
+  .posterCarousel { height: 355px; }
+  .spotlightPoster { width: 195px; height: 292px; }
+  .peekPoster { top: 45px; height: 240px; }
+  .spotlightCopy { min-height: 90px; }
+  .nextFiveBody { padding-top: 22px; }
+  .nextFiveBody > p { margin-bottom: 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen *, .screen *::before, .screen *::after { animation-duration: 1ms !important; animation-delay: 0ms !important; transition-duration: 1ms !important; }
+}

@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 from fastapi import HTTPException
 from fastapi.routing import APIRoute
@@ -19,10 +20,81 @@ from movie_night_mediator.domain import (
     ParticipantOnboarding,
     TitleResolutionEntry,
 )
-from movie_night_mediator.storage import SQLiteSessionStore
+from movie_night_mediator.storage import SQLiteSessionStore, SQLiteTasteMemoryStore
 
 
 class SharedSessionApiTest(unittest.TestCase):
+    def test_reaction_command_id_makes_http_replay_idempotent(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "sessions.sqlite3"
+            memory_store = SQLiteTasteMemoryStore(database_path=database_path)
+            routes = session_route_endpoints(
+                create_app(
+                    onboarding_store=complete_onboarding_store(database_path),
+                    session_store=SQLiteSessionStore(database_path=database_path),
+                    taste_memory_store=memory_store,
+                )
+            )
+            routes["post_session"](
+                CreateSharedSessionPayload(**GENERIC_CREATE_SESSION_PAYLOAD)
+            )
+            payload = SubmitSessionReactionsPayload(
+                participantId="husband",
+                reactions=reaction_payloads(
+                    ["maybe", "interested", "no", "seen", "maybe"]
+                ),
+                commandId="a" * 64,
+            )
+
+            first = routes["post_reactions"]("session-api-1", payload)
+            replay = routes["post_reactions"]("session-api-1", payload)
+
+            self.assertEqual(payload_to_dict(first), payload_to_dict(replay))
+            self.assertEqual(payload_to_dict(replay)["state"], "handoff")
+            self.assertEqual(
+                len(
+                    memory_store.list_profile_events(
+                        household_id="default-household",
+                        profile_id="husband",
+                    )
+                ),
+                1,
+            )
+
+            opened = routes["post_handoff"](
+                "session-api-1",
+                SimpleNamespace(commandId="b" * 64),
+            )
+            opened_replay = routes["post_handoff"](
+                "session-api-1",
+                SimpleNamespace(commandId="b" * 64),
+            )
+            final_payload = SubmitSessionReactionsPayload(
+                participantId="wife",
+                reactions=reaction_payloads(
+                    ["interested", "maybe", "no", "maybe", "seen"]
+                ),
+                commandId="c" * 64,
+            )
+            reranked = routes["post_reactions"]("session-api-1", final_payload)
+            reranked_replay = routes["post_reactions"](
+                "session-api-1",
+                final_payload,
+            )
+            self.assertEqual(payload_to_dict(opened), payload_to_dict(opened_replay))
+            self.assertEqual(payload_to_dict(opened)["state"], "wife_reacting")
+            self.assertEqual(payload_to_dict(reranked), payload_to_dict(reranked_replay))
+            self.assertEqual(payload_to_dict(reranked)["state"], "reranked")
+            self.assertEqual(
+                len(
+                    memory_store.list_profile_events(
+                        household_id="default-household",
+                        profile_id="wife",
+                    )
+                ),
+                1,
+            )
+
     def test_session_api_round_trips_full_pass_the_phone_flow(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             database_path = Path(directory) / "sessions.sqlite3"

@@ -50,6 +50,8 @@ requirePath("apps/api/vercel.json");
 requireText(".env.example", "HOUSEHOLD_ACCESS_PASSWORD=");
 requireText(".env.example", "HOUSEHOLD_SESSION_SECRET=");
 requireText(".env.example", "BACKEND_SERVICE_TOKEN=");
+requireText(".env.example", "WATCHSIGNAL_HOUSEHOLD_ID=");
+requireText(".env.example", "CRON_SECRET=");
 requireText(".env.example", "DATABASE_URL=");
 
 if (failures.length) {

@@ -6,7 +6,6 @@ import {
   formatDebugCandidateInput,
   formatDebugSnapshotCandidate,
   titleForSourceMovieId,
-  toMatchTier,
 } from "../../pass-the-phone-helpers";
 import type {
   DebugHistoryStatus,
@@ -67,8 +66,7 @@ export function WinnerReveal({
   sharedWhy: string;
   onPosterFallback: PosterFallbackHandler;
 }) {
-  const matchTier = toMatchTier(bestPick.score);
-  const scoreLabel = peopleMode === "couple" ? "Shared signal" : "Profile signal";
+  const scoreLabel = peopleMode === "couple" ? "Shared match" : "Profile match";
 
   return (
     <section className="winnerReveal">
@@ -81,10 +79,10 @@ export function WinnerReveal({
         />
       </article>
 
-      <div className={`matchPulse matchPulse${matchTier} resultsPulse`} aria-label={`${scoreLabel} ${bestPick.score}%`}>
+      <div className="matchPulse resultsPulse" aria-label={`${scoreLabel} ${bestPick.score} out of 100`}>
         <span className="scoreSparkle" aria-hidden="true">✦</span>
         <span className="matchPulseLabel">{scoreLabel}</span>
-        <strong>{bestPick.score}%</strong>
+        <strong>{bestPick.score}</strong>
         <span className="scoreSparkle" aria-hidden="true">✦</span>
       </div>
 
@@ -200,8 +198,8 @@ export function BackupTitles({
               <strong>{candidate.title}</strong>
               <span>
                 {peopleMode === "couple"
-                  ? `${candidate.score}%`
-                  : `${candidate.profileScore}% profile`}
+                  ? `${candidate.score} match`
+                  : `${candidate.profileScore} profile`}
               </span>
             </div>
           </article>
@@ -633,6 +631,7 @@ export function SteerNextPanel({
   continuationError,
   busy,
   canContinue,
+  canSteer,
   onTextChange,
   onInterpret,
   onClarificationTextChange,
@@ -650,6 +649,7 @@ export function SteerNextPanel({
   continuationError: string | null;
   busy: boolean;
   canContinue: boolean;
+  canSteer: boolean;
   onTextChange: (text: string) => void;
   onInterpret: () => void | Promise<void>;
   onClarificationTextChange: (text: string) => void;
@@ -718,7 +718,7 @@ export function SteerNextPanel({
               type="button"
               className="secondaryButton compactButton"
               onClick={() => onTextChange(quickSteer)}
-              disabled={busy || !canContinue}
+              disabled={busy || !canSteer}
             >
               {quickSteer}
             </button>
@@ -730,18 +730,24 @@ export function SteerNextPanel({
             value={text}
             onChange={(event) => onTextChange(event.target.value)}
             placeholder="scarier, sadder, Jack Nicholson..."
-            disabled={busy || !canContinue}
+            disabled={busy || !canSteer}
           />
           <button
             type="button"
             className="secondaryAction compactAction"
             onClick={onInterpret}
-            disabled={busy || !canContinue || text.trim().length === 0}
+            disabled={busy || !canSteer || text.trim().length === 0}
           >
             Review
           </button>
         </div>
       </div>
+
+      {!canSteer ? (
+        <p className="tonightIntentNote">
+          Local mode keeps the same direction. Live recommendations unlock signal nudges.
+        </p>
+      ) : null}
 
       {hasConfirmation ? (
         <div className="tonightIntentReview">
@@ -767,7 +773,7 @@ export function SteerNextPanel({
             type="button"
             className="secondaryAction compactAction"
             onClick={onAdd}
-            disabled={busy || !canContinue || !canApplyPending}
+            disabled={busy || !canSteer || !canApplyPending}
           >
             {pendingResolution === "guess" ? "Accept guess" : "Save nudge"}
           </button>
@@ -775,7 +781,7 @@ export function SteerNextPanel({
             type="button"
             className="primaryAction compactAction"
             onClick={onApply}
-            disabled={busy || !canContinue || !canApplyPending}
+            disabled={busy || !canSteer || !canApplyPending}
           >
             {pendingResolution === "guess" ? "Accept guess and find 5" : "Use nudge and find 5"}
           </button>
@@ -790,14 +796,14 @@ export function SteerNextPanel({
               value={clarificationText}
               onChange={(event) => onClarificationTextChange(event.target.value)}
               placeholder="comforting, not matching the mood"
-              disabled={busy || !canContinue}
+              disabled={busy || !canSteer}
               aria-label="Clarify steer next 5"
             />
             <button
               type="button"
               className="secondaryAction compactAction"
               onClick={onAnswerClarification}
-              disabled={busy || !canContinue || clarificationText.trim().length === 0}
+              disabled={busy || !canSteer || clarificationText.trim().length === 0}
             >
               Answer
             </button>

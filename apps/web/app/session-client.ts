@@ -1,6 +1,6 @@
 "use client";
 
-import type { SessionMode } from "./session-fixtures";
+import type { CandidateCastMember, SessionMode } from "./session-fixtures";
 import type {
   AppOwnedMovieRatingPayload,
   AppOwnedMovieWatchedPayload,
@@ -14,6 +14,7 @@ import type {
   DebugHistoryScoringEvidencePayload,
   DebugHistorySignalContributionPayload,
   DebugHistoryUserScorePayload,
+  HouseholdHistoryDetailPayload as BackendHouseholdHistoryDetailPayload,
   OnboardingCompletionPayload,
   OnboardingConstraintsPayload as BackendOnboardingConstraintsPayload,
   OutcomeSelectionOrigin,
@@ -21,8 +22,7 @@ import type {
   PostWatchFeedbackPayload,
   ProfileMemorySignalPayload,
   ProfileMemorySummaryPayload,
-  RecentSessionFeedbackPayload,
-  RecentSessionSummaryPayload as BackendRecentSessionSummaryPayload,
+  HouseholdHistorySummaryPayload as BackendHouseholdHistorySummaryPayload,
   RecommendationProviderAvailabilityPayload,
   RecommendationShortlistItemPayload,
   SaveSessionOutcomePayload,
@@ -61,7 +61,6 @@ export type {
   PostWatchFeedbackPayload,
   ProfileMemorySignalPayload,
   ProfileMemorySummaryPayload,
-  RecentSessionFeedbackPayload,
   ScoringSessionReactionPayload,
   SessionOutcomeType,
   SessionReactionPayload,
@@ -77,7 +76,12 @@ export type {
 };
 
 export type ApiSessionMode = BackendSessionMode;
-export type ShortlistCandidatePayload = RecommendationShortlistItemPayload;
+export type AppliedTonightIntentPayload = TonightIntentInterpretationPayload & {
+  applied: true;
+};
+export type ShortlistCandidatePayload = RecommendationShortlistItemPayload & {
+  providerUrl?: string | null;
+};
 export type SaveSessionOutcomeRequest = SaveSessionOutcomePayload;
 export type SavePostWatchFeedbackRequest = PostWatchFeedbackPayload;
 export type SaveWatchlistEntryRequest = SaveWatchlistEntryPayload;
@@ -103,9 +107,13 @@ export type ParticipantOnboardingPayload = NormalizeNullables<
   BackendParticipantOnboardingPayload,
   "constraints" | "fineTitleEntries" | "isComplete" | "lovedTitleEntries" | "noTitleEntries"
 >;
-export type RecentSessionSummaryPayload = NormalizeNullables<
-  BackendRecentSessionSummaryPayload,
-  "bestPickSourceMovieId" | "bestPickTitle" | "outcomeTitle" | "outcomeType"
+export type HouseholdHistorySummaryPayload = NormalizeNullables<
+  BackendHouseholdHistorySummaryPayload,
+  "occurredAt" | "posterUrl"
+>;
+export type HouseholdHistoryDetailPayload = NormalizeNullables<
+  BackendHouseholdHistoryDetailPayload,
+  "occurredAt" | "posterUrl"
 >;
 export type SessionOutcomePayload = NormalizeNullables<
   BackendSessionOutcomePayload,
@@ -129,8 +137,8 @@ export type LoadShortlistRequest = {
   shortlistSize: number;
   availabilityRegion?: string;
   serviceConstraint?: string | null;
-  tonightIntent?: TonightIntentInterpretationPayload | null;
-  tonightIntents?: TonightIntentInterpretationPayload[];
+  tonightIntent?: AppliedTonightIntentPayload | null;
+  tonightIntents?: AppliedTonightIntentPayload[];
   excludedSourceMovieIds?: string[];
   sessionReactions?: ScoringSessionReactionPayload[];
 };
@@ -144,6 +152,12 @@ export type SubmitReactionsRequest = {
   participantId: string;
   reactions: SessionReactionPayload[];
 };
+
+export function appliedTonightIntentForTransport(
+  intent: TonightIntentInterpretationPayload,
+): AppliedTonightIntentPayload {
+  return { ...intent, applied: true };
+}
 
 export function toApiSessionMode(mode: SessionMode): ApiSessionMode {
   if (mode === "founder-first") {
@@ -201,11 +215,27 @@ export async function advanceSessionHandoff(
   return postJson(`/api/session/${encodeURIComponent(sessionId)}/advance-handoff`, {});
 }
 
+export async function getSharedSession(
+  sessionId: string,
+): Promise<SharedSessionPayload> {
+  return getJson(`/api/session/${encodeURIComponent(sessionId)}`);
+}
+
 export async function getSessionDebugHistory(
   sessionId: string,
 ): Promise<DebugHistorySessionPayload> {
   return getJson(
     `/api/session/${encodeURIComponent(sessionId)}/debug-history`,
+  );
+}
+
+export async function getHouseholdHistoryDetail(
+  sessionId: string,
+  householdId = "default-household",
+): Promise<HouseholdHistoryDetailPayload> {
+  const query = new URLSearchParams({ householdId });
+  return getJson(
+    `/api/history/sessions/${encodeURIComponent(sessionId)}?${query.toString()}`,
   );
 }
 
@@ -282,7 +312,7 @@ export async function submitPostWatchFeedback(
 export async function getRecentSessions(
   householdId: string,
   limit = 6,
-): Promise<RecentSessionSummaryPayload[]> {
+): Promise<HouseholdHistorySummaryPayload[]> {
   const query = new URLSearchParams({
     householdId,
     limit: String(limit),
@@ -327,12 +357,13 @@ export async function getProfileOnboarding(
 
 export async function getOnboardingCompletion(
   requiredProfileIds: string[],
+  signal?: AbortSignal,
 ): Promise<OnboardingCompletionPayload> {
   const query = new URLSearchParams();
   requiredProfileIds.forEach((profileId) => {
     query.append("requiredProfileIds", profileId);
   });
-  return getJson(`/api/onboarding/completion?${query.toString()}`);
+  return getJson(`/api/onboarding/completion?${query.toString()}`, signal);
 }
 
 export async function saveProfileOnboarding(
@@ -386,10 +417,15 @@ async function putJson<TResponse>(
   return payload as TResponse;
 }
 
-async function getJson<TResponse>(url: string): Promise<TResponse> {
+async function getJson<TResponse>(
+  url: string,
+  signal?: AbortSignal,
+): Promise<TResponse> {
   const response = await fetch(url, {
     method: "GET",
-    signal: AbortSignal.timeout(clientRequestTimeoutMs()),
+    signal: signal
+      ? AbortSignal.any([signal, AbortSignal.timeout(clientRequestTimeoutMs())])
+      : AbortSignal.timeout(clientRequestTimeoutMs()),
   });
 
   const payload = (await response.json().catch(() => null)) as unknown;
@@ -490,6 +526,12 @@ function parseShortlistCandidate(
     posterUrl:
       stringValue(candidate.posterUrl) ??
       stringValue(candidate.poster_url),
+    backdropUrl:
+      stringValue(candidate.backdropUrl) ??
+      stringValue(candidate.backdrop_url),
+    providerUrl:
+      stringValue(candidate.providerUrl) ??
+      stringValue(candidate.provider_url),
     overview: stringValue(candidate.overview) ?? "",
     safePickStatus:
       stringValue(candidate.safePickStatus) ??
@@ -506,6 +548,10 @@ function parseShortlistCandidate(
     topCast:
       stringArrayValue(candidate.topCast) ??
       stringArrayValue(candidate.top_cast) ??
+      undefined,
+    castDetails:
+      castDetailsValue(candidate.castDetails) ??
+      castDetailsValue(candidate.cast_details) ??
       undefined,
     matchedPersonNames:
       stringArrayValue(candidate.matchedPersonNames) ??
@@ -620,6 +666,35 @@ function providerAvailabilityValue(
     .filter(
       (entry): entry is RecommendationProviderAvailabilityPayload => entry !== null,
     );
+}
+
+function castDetailsValue(value: unknown): CandidateCastMember[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  const members: CandidateCastMember[] = [];
+  for (const entry of value) {
+    if (!isRecord(entry)) {
+      continue;
+    }
+    const name = stringValue(entry.name);
+    if (!name) {
+      continue;
+    }
+    members.push({
+      name,
+      character: stringValue(entry.character) ?? undefined,
+      profileUrl:
+        stringValue(entry.profileUrl) ??
+        stringValue(entry.profile_url) ??
+        undefined,
+    });
+    if (members.length >= 3) {
+      break;
+    }
+  }
+  return members;
 }
 
 function mediaTypeValue(value: unknown): "movie" | "tv" | null {

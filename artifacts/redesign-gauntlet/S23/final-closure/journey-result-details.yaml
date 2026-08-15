@@ -1,0 +1,45 @@
+- generic [active] [ref=f4e1]:
+  - main [ref=f4e2]:
+    - region [ref=f4e248]:
+      - generic [ref=f4e249]:
+        - generic [ref=f4e250]: W
+        - generic [ref=f4e256]:
+          - generic [ref=f4e257]:
+            - generic [ref=f4e258]: W
+            - strong [ref=f4e259]: WatchSignal
+          - generic [ref=f4e260]:
+            - generic "Rank 1 of 5" [ref=f4e261]:
+              - strong [ref=f4e262]: "1"
+              - generic [ref=f4e263]: of 5
+            - button "More result options" [ref=f4e264] [cursor=pointer]:
+              - generic [ref=f4e265]: •••
+        - generic [ref=f4e266]:
+          - generic [ref=f4e267]:
+            - generic "Match score 89 out of 100" [ref=f4e268]:
+              - generic [ref=f4e272]:
+                - strong [ref=f4e273]: "89"
+                - generic [ref=f4e274]: match
+            - generic [ref=f4e275]:
+              - strong [ref=f4e276]: Tonight’s strongest match
+              - generic [ref=f4e277]: 6 points clear
+          - button "Open details for The Devil Wears Prada 2" [ref=f4e278] [cursor=pointer]:
+            - heading "The Devil Wears Prada 2" [level=1] [ref=f4e279]
+            - paragraph [ref=f4e280]: 2026 · 1h 59m · Comedy · Drama
+            - generic [ref=f4e281]: Both interested. Its comedy, drama mood fit both of you.
+          - generic "Ranked movies" [ref=f4e282]:
+            - button "1. The Devil Wears Prada 2, match score 89" [pressed] [ref=f4e283] [cursor=pointer]:
+              - generic [ref=f4e284]: "89"
+            - button "2. Project Hail Mary, match score 83" [ref=f4e285] [cursor=pointer]:
+              - generic [ref=f4e286]: "83"
+            - button "3. Masters of the Universe, match score 78" [ref=f4e287] [cursor=pointer]:
+              - generic [ref=f4e288]: "78"
+            - 'button "4. Avengers: Infinity War, match score 74" [ref=f4e289] [cursor=pointer]':
+              - generic [ref=f4e290]: "74"
+            - button "5. The Amazing Spider-Man 2, match score 74" [ref=f4e291] [cursor=pointer]:
+              - generic [ref=f4e292]: "74"
+          - group "Result actions" [ref=f4e293]:
+            - button "Details" [ref=f4e294] [cursor=pointer]
+            - button "Where to watch" [ref=f4e298] [cursor=pointer]
+            - button "Find five more movies" [ref=f4e302] [cursor=pointer]:
+              - generic [ref=f4e306]: 5 more
+  - alert [ref=f4e104]

@@ -1,0 +1,76 @@
+- generic [ref=f4e1]:
+  - main [ref=f4e2]:
+    - region [ref=f4e801]:
+      - generic [ref=f4e249]:
+        - generic [ref=f4e250]: W
+        - generic [ref=f4e256]:
+          - generic [ref=f4e257]:
+            - generic [ref=f4e258]: W
+            - strong [ref=f4e259]: WatchSignal
+          - generic [ref=f4e260]:
+            - generic [ref=f4e802]:
+              - strong [ref=f4e262]: "2"
+              - generic [ref=f4e263]: of 5
+            - button [expanded] [ref=f4e803] [cursor=pointer]:
+              - generic [ref=f4e265]: •••
+        - generic [ref=f4e266]:
+          - generic [ref=f4e267]:
+            - generic [ref=f4e272]:
+              - strong [ref=f4e273]: "83"
+              - generic [ref=f4e274]: match
+            - generic [ref=f4e275]:
+              - strong [ref=f4e276]: "Ranked #2 tonight"
+              - generic [ref=f4e277]: "6 points behind #1"
+          - button [ref=f4e805] [cursor=pointer]:
+            - heading [level=1] [ref=f4e806]: Project Hail Mary
+            - paragraph [ref=f4e280]: 2026 · 2h 37m · Science Fiction · Adventure
+            - generic [ref=f4e281]: Both interested. Its science fiction, adventure mood fit both of you.
+          - generic [ref=f4e807]:
+            - button [ref=f4e808] [cursor=pointer]:
+              - generic [ref=f4e284]: "89"
+            - button [pressed] [ref=f4e809] [cursor=pointer]:
+              - generic [ref=f4e286]: "83"
+            - button [ref=f4e810] [cursor=pointer]:
+              - generic [ref=f4e288]: "78"
+            - button [ref=f4e811] [cursor=pointer]:
+              - generic [ref=f4e290]: "74"
+            - button [ref=f4e812] [cursor=pointer]:
+              - generic [ref=f4e292]: "74"
+          - group [ref=f4e813]:
+            - button [ref=f4e814] [cursor=pointer]:
+              - generic [ref=f4e297]: Details
+            - button [ref=f4e815] [cursor=pointer]:
+              - generic [ref=f4e301]: Where to watch
+            - button [ref=f4e816] [cursor=pointer]:
+              - generic [ref=f4e306]: 5 more
+  - alert [ref=f4e104]
+  - dialog "Result options" [ref=f4e818]:
+    - generic [ref=f4e819]:
+      - strong [ref=f4e820]: Tonight’s result
+      - button "Close" [active] [ref=f4e821] [cursor=pointer]
+    - region [ref=f4e827]:
+      - generic [ref=f4e828]:
+        - button "Back to result options" [ref=f4e829] [cursor=pointer]
+        - generic [ref=f4e832]:
+          - generic [ref=f4e833]: After tonight
+          - heading "What happened?" [level=2] [ref=f4e834]
+      - group "What happened tonight" [ref=f4e835]:
+        - button "Watched The Devil Wears Prada 2 Tonight’s first pick" [ref=f4e836] [cursor=pointer]:
+          - generic [ref=f4e839]:
+            - strong [ref=f4e840]: Watched The Devil Wears Prada 2
+            - generic [ref=f4e841]: Tonight’s first pick
+        - button "Watched another Choose from the shortlist" [ref=f4e842] [cursor=pointer]:
+          - generic [ref=f4e846]:
+            - strong [ref=f4e847]: Watched another
+            - generic [ref=f4e848]: Choose from the shortlist
+        - button "Nothing tonight Keep the result, skip ratings" [pressed] [ref=f4e849] [cursor=pointer]:
+          - generic [ref=f4e853]:
+            - strong [ref=f4e854]: Nothing tonight
+            - generic [ref=f4e855]: Keep the result, skip ratings
+      - generic [ref=f4e856]:
+        - generic [ref=f4e857]:
+          - text: Note
+          - generic [ref=f4e858]: Optional
+        - textbox "Note Optional" [ref=f4e859]:
+          - /placeholder: Anything worth remembering?
+      - button "Save and finish" [ref=f4e860] [cursor=pointer]

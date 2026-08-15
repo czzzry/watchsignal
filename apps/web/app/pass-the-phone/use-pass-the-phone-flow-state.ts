@@ -16,13 +16,13 @@ type PassThePhoneFlowStateOptions = {
 };
 
 const DISCONNECTED_SESSION_MESSAGE =
-  "Live session sync is unavailable, so tonight is running in local mode.";
+  "Tonight is in local mode and stays on this phone. Your choices are still here.";
 const DEMO_DEBUG_HISTORY_MESSAGE =
   "Debug evidence is unavailable because the session fell back to demo mode.";
 const BACKEND_DEBUG_HISTORY_MESSAGE =
   "Debug evidence is only available for backend-backed sessions.";
 const RECENT_HISTORY_UNAVAILABLE_MESSAGE =
-  "Recent history is only available when the backend API is connected.";
+  "Recent nights aren’t available offline. Nothing was changed.";
 
 export function usePassThePhoneFlowState({
   apiConnected,

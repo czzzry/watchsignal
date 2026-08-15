@@ -124,6 +124,9 @@ class DeterministicTonightIntentProvider:
             filters["exclude_watched"] = True
             soft_signals.append("not-seen")
 
+        if language := _language_request(lowered_text):
+            filters["language"] = language
+
         genre_signals = _genre_signals(lowered_text)
         if genre_signals:
             filters["genres"] = list(genre_signals)
@@ -165,6 +168,9 @@ class DeterministicTonightIntentProvider:
         if _asks_to_avoid_subtitles(lowered_text):
             filters["exclude_subtitled"] = True
             excluded_signals.append("subtitles")
+
+        if language := _language_request(lowered_text):
+            filters["language"] = language
 
         genre_signals = _genre_signals(lowered_text)
         if genre_signals:
@@ -437,6 +443,23 @@ def _asks_to_avoid_subtitles(text: str) -> bool:
     )
 
 
+def _language_request(text: str) -> str | None:
+    languages = {
+        "french": "fr",
+        "francophone": "fr",
+        "german": "de",
+        "deutsch": "de",
+        "spanish": "es",
+        "italian": "it",
+        "japanese": "ja",
+        "korean": "ko",
+    }
+    for cue, code in languages.items():
+        if re.search(rf"\b{re.escape(cue)}\b", text):
+            return code
+    return None
+
+
 def _genre_signals(text: str) -> tuple[str, ...]:
     genres: list[str] = []
     if any(word in text for word in ("laugh", "funny", "silly", "comedy", "comedies")):
@@ -601,6 +624,8 @@ def _confirmation_text(filters: dict[str, object], soft_signals: tuple[str, ...]
         pieces.append(f"in the {franchise} lane")
     if genres := filters.get("genres"):
         pieces.append(f"leaning {', '.join(str(genre) for genre in genres)}")
+    if language := filters.get("language"):
+        pieces.append(f"in {_language_name(str(language))}")
     if filters.get("exclude_watched"):
         pieces.append("skipping movies you have already seen")
     if not pieces and soft_signals:
@@ -623,6 +648,8 @@ def _directed_summary(
         pieces.append(f"from {start}" if start == end else f"from {start}-{end}")
     if genres := filters.get("genres"):
         pieces.append(f"leaning {', '.join(str(genre) for genre in genres)}")
+    if language := filters.get("language"):
+        pieces.append(f"in {_language_name(str(language))}")
     if person_intents:
         pieces.append(
             "with "
@@ -749,6 +776,8 @@ def _is_supported_directed_clause(normalized_text: str, lowered_text: str) -> bo
         return True
     if _asks_to_avoid_subtitles(lowered_text):
         return True
+    if _language_request(lowered_text):
+        return True
     if _genre_signals(lowered_text):
         return True
     if _tone_signals(lowered_text):
@@ -762,6 +791,17 @@ def _is_supported_directed_clause(normalized_text: str, lowered_text: str) -> bo
     if _person_intents(normalized_text):
         return True
     return False
+
+
+def _language_name(code: str) -> str:
+    return {
+        "fr": "French",
+        "de": "German",
+        "es": "Spanish",
+        "it": "Italian",
+        "ja": "Japanese",
+        "ko": "Korean",
+    }.get(code.casefold(), code)
 
 
 def _merge_directed_nudges(

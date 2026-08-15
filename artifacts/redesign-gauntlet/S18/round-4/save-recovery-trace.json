@@ -1,0 +1,32 @@
+{
+  "firstTitle": "Legends of the Fall",
+  "pressed": "true",
+  "selectedTraversal": [
+    {
+      "tag": "BUTTON",
+      "name": "It was fine",
+      "disabled": false
+    },
+    {
+      "tag": "BUTTON",
+      "name": "Not for me",
+      "disabled": false
+    },
+    {
+      "tag": "BUTTON",
+      "name": "I haven’t seen it",
+      "disabled": false
+    },
+    {
+      "tag": "BUTTON",
+      "name": "Save & next",
+      "disabled": false
+    }
+  ],
+  "draftRetained": "true",
+  "secondTitle": "Crocodile Dundee II",
+  "localDraft": "true",
+  "thirdTitle": "Saving Private Ryan",
+  "attempts": 1,
+  "status": "Kept on this phone. Next movie."
+}

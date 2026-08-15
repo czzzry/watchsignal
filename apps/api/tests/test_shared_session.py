@@ -1,5 +1,7 @@
+import sqlite3
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 
 from movie_night_mediator.app.onboarding import SQLiteOnboardingStore
@@ -7,6 +9,7 @@ from movie_night_mediator.app.session import (
     SessionTransitionError,
     SharedSessionService,
 )
+from movie_night_mediator.app.taste_memory import TasteMemoryService
 from movie_night_mediator.domain import (
     OnboardingConstraints,
     ParticipantOnboarding,
@@ -17,10 +20,196 @@ from movie_night_mediator.domain import (
     SharedSessionState,
     TitleResolutionEntry,
 )
-from movie_night_mediator.storage import SQLiteSessionStore
+from movie_night_mediator.storage import SQLiteSessionStore, SQLiteTasteMemoryStore
 
 
 class SharedSessionServiceTest(unittest.TestCase):
+    def test_reaction_command_rolls_back_session_and_ledger_when_memory_fails(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "sessions.sqlite3"
+            memory_store = SQLiteTasteMemoryStore(database_path=database_path)
+            service = create_service_with_complete_onboarding(
+                database_path,
+                memory_sink=TasteMemoryService(memory_store),
+            )
+            service.start_session(
+                session_id="session-1",
+                participant_ids=("husband", "wife"),
+                shortlist=GENERIC_SHORTLIST,
+            )
+            memory_store.initialize_schema()
+            with closing(sqlite3.connect(database_path)) as connection, connection:
+                connection.execute(
+                    """
+                    CREATE TRIGGER reject_test_session_memory
+                    BEFORE INSERT ON taste_memory_events
+                    WHEN NEW.source = 'session_reaction:session-1'
+                    BEGIN
+                        SELECT RAISE(ABORT, 'injected memory failure');
+                    END
+                    """
+                )
+
+            with self.assertRaisesRegex(sqlite3.IntegrityError, "memory failure"):
+                service.submit_reactions(
+                    "session-1",
+                    "husband",
+                    reactions_for(
+                        "session-1",
+                        "husband",
+                        ["maybe", "interested", "no", "seen", "maybe"],
+                    ),
+                    command_id="a" * 64,
+                )
+
+            self.assertEqual(
+                service.load_session("session-1").state,
+                SharedSessionState.FOUNDER_REACTING,
+            )
+            with closing(sqlite3.connect(database_path)) as connection:
+                command_count = connection.execute(
+                    "SELECT COUNT(*) FROM shared_session_commands"
+                ).fetchone()[0]
+                event_count = connection.execute(
+                    "SELECT COUNT(*) FROM taste_memory_events"
+                ).fetchone()[0]
+            self.assertEqual(command_count, 0)
+            self.assertEqual(event_count, 0)
+
+    def test_reaction_command_replay_is_idempotent_with_one_memory_event(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "sessions.sqlite3"
+            memory_store = SQLiteTasteMemoryStore(database_path=database_path)
+            service = create_service_with_complete_onboarding(
+                database_path,
+                memory_sink=TasteMemoryService(memory_store),
+            )
+            service.start_session(
+                session_id="session-1",
+                participant_ids=("husband", "wife"),
+                shortlist=GENERIC_SHORTLIST,
+            )
+            ballot = reactions_for(
+                "session-1",
+                "husband",
+                ["maybe", "interested", "no", "seen", "maybe"],
+            )
+
+            first = service.submit_reactions(
+                "session-1",
+                "husband",
+                ballot,
+                command_id="a" * 64,
+            )
+            replay = service.submit_reactions(
+                "session-1",
+                "husband",
+                ballot,
+                command_id="a" * 64,
+            )
+
+            self.assertEqual(first, replay)
+            self.assertEqual(first.state, SharedSessionState.HANDOFF)
+            self.assertEqual(
+                len(
+                    memory_store.list_profile_events(
+                        household_id="default-household",
+                        profile_id="husband",
+                    )
+                ),
+                1,
+            )
+            with self.assertRaisesRegex(
+                SessionTransitionError,
+                "different request",
+            ):
+                service.submit_reactions(
+                    "session-1",
+                    "husband",
+                    reactions_for(
+                        "session-1",
+                        "husband",
+                        ["maybe", "interested", "no", "maybe", "seen"],
+                    ),
+                    command_id="a" * 64,
+                )
+
+    def test_handoff_and_final_commands_replay_without_duplicate_side_effects(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "sessions.sqlite3"
+            memory_store = SQLiteTasteMemoryStore(database_path=database_path)
+            service = create_service_with_complete_onboarding(
+                database_path,
+                memory_sink=TasteMemoryService(memory_store),
+            )
+            service.start_session(
+                session_id="session-1",
+                participant_ids=("husband", "wife"),
+                shortlist=GENERIC_SHORTLIST,
+            )
+            service.submit_reactions(
+                "session-1",
+                "husband",
+                reactions_for(
+                    "session-1",
+                    "husband",
+                    ["maybe", "interested", "no", "seen", "maybe"],
+                ),
+                command_id="a" * 64,
+            )
+
+            opened = service.advance_handoff(
+                "session-1",
+                command_id="b" * 64,
+            )
+            opened_replay = service.advance_handoff(
+                "session-1",
+                command_id="b" * 64,
+            )
+            final_ballot = reactions_for(
+                "session-1",
+                "wife",
+                ["interested", "maybe", "no", "maybe", "seen"],
+            )
+            reranked = service.submit_reactions(
+                "session-1",
+                "wife",
+                final_ballot,
+                command_id="c" * 64,
+            )
+            reranked_replay = service.submit_reactions(
+                "session-1",
+                "wife",
+                final_ballot,
+                command_id="c" * 64,
+            )
+
+            self.assertEqual(opened, opened_replay)
+            self.assertEqual(opened.state, SharedSessionState.WIFE_REACTING)
+            self.assertEqual(reranked, reranked_replay)
+            self.assertEqual(reranked.state, SharedSessionState.RERANKED)
+            self.assertEqual(
+                len(
+                    memory_store.list_profile_events(
+                        household_id="default-household",
+                        profile_id="wife",
+                    )
+                ),
+                1,
+            )
+            with self.assertRaisesRegex(
+                SessionTransitionError,
+                "different request",
+            ):
+                service.submit_reactions(
+                    "session-1",
+                    "wife",
+                    final_ballot,
+                    command_id="b" * 64,
+                )
+
     def test_session_moves_through_pass_the_phone_flow_and_persists(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             database_path = Path(directory) / "sessions.sqlite3"
@@ -248,7 +437,11 @@ CONTINUATION_SHORTLIST = (
 )
 
 
-def create_service_with_complete_onboarding(database_path: Path) -> SharedSessionService:
+def create_service_with_complete_onboarding(
+    database_path: Path,
+    *,
+    memory_sink=None,
+) -> SharedSessionService:
     onboarding_store = SQLiteOnboardingStore(database_path=database_path)
     for profile_id in ("husband", "wife"):
         onboarding_store.save_profile_onboarding(complete_onboarding(profile_id))
@@ -256,6 +449,7 @@ def create_service_with_complete_onboarding(database_path: Path) -> SharedSessio
     return SharedSessionService(
         session_store=SQLiteSessionStore(database_path=database_path),
         onboarding_store=onboarding_store,
+        memory_sink=memory_sink,
     )
 
 

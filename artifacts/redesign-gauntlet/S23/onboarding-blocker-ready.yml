@@ -1,0 +1,53 @@
+- generic [active] [ref=f3e1] [box=0,0,390,1127]:
+  - main [ref=f3e2] [box=0,0,390,1059]:
+    - region [ref=f3e3] [box=14,16,362,1043]:
+      - generic [ref=f3e4] [box=14,16,362,1043]:
+        - generic [ref=f3e5] [box=14,16,362,800]:
+          - generic [ref=f3e6] [box=14,16,362,196]:
+            - paragraph [ref=f3e7] [box=42,54,306,15]: Thursday, Aug 13
+            - heading "Tonight, we pick together." [level=2] [ref=f3e9] [box=42,77,306,62]:
+              - generic [ref=f3e10] [box=42,77,306,31]: Tonight,
+              - generic [ref=f3e11] [box=42,108,306,31]:
+                - text: we pick
+                - emphasis [ref=f3e12] [box=166,102,133,42]: together.
+            - paragraph [ref=f3e13] [box=42,161,237,37]: Let's find the perfect movie for a great night in.
+          - generic [ref=f3e14] [box=14,218,362,519]:
+            - generic [ref=f3e19] [box=46,457,298,146]:
+              - button "People Cezary Recovery Test + Husband" [ref=f3e21] [cursor=pointer] [box=58,463,274,44]:
+                - generic [ref=f3e22] [box=58,473,98,24]: People
+                - strong [ref=f3e32] [box=166,471,166,28]: Cezary Recovery Test + Husband
+              - button "Tonight English · Any streaming service · Balanced" [ref=f3e34] [cursor=pointer] [box=58,508,274,44]:
+                - generic [ref=f3e35] [box=58,518,98,24]: Tonight
+                - strong [ref=f3e43] [box=166,516,166,28]: English · Any streaming service · Balanced
+              - button "Mood Optional" [ref=f3e45] [cursor=pointer] [box=58,553,274,44]:
+                - generic [ref=f3e46] [box=58,563,98,24]: Mood
+                - strong [ref=f3e56] [box=166,568,45,14]: Optional
+            - generic [ref=f3e57] [box=45,616,300,121]:
+              - paragraph [ref=f3e59] [box=45,616,300,17]: Step 1 of 3
+              - button "Start first pass" [ref=f3e62] [cursor=pointer] [box=45,656,300,54]:
+                - generic [ref=f3e64] [box=304,673,20,20]: →
+              - paragraph [ref=f3e65] [box=45,720,300,18]: We'll take turns. No duplicates.
+        - generic "Household tools" [ref=f3e66] [box=45,834,300,225]:
+          - button "Taste memory What WatchSignal has learned" [ref=f3e67] [cursor=pointer] [box=45,835,300,56]:
+            - generic [ref=f3e71] [box=83,846,232,34]:
+              - strong [ref=f3e72] [box=83,846,232,16]: Taste memory
+              - generic [ref=f3e73] [box=83,864,232,16]: What WatchSignal has learned
+          - button "Recent nights Remember what you watched" [ref=f3e76] [cursor=pointer] [box=45,891,300,56]:
+            - generic [ref=f3e80] [box=83,902,232,34]:
+              - strong [ref=f3e81] [box=83,902,232,16]: Recent nights
+              - generic [ref=f3e82] [box=83,920,232,16]: Remember what you watched
+          - link "Tune tastes A few private movie choices" [ref=f3e85] [cursor=pointer] [box=45,947,300,56]:
+            - /url: /taste-lab
+            - generic [ref=f3e88] [box=83,958,232,34]:
+              - strong [ref=f3e89] [box=83,958,232,16]: Tune tastes
+              - generic [ref=f3e90] [box=83,976,232,16]: A few private movie choices
+          - link "Household setup Names and usual defaults" [ref=f3e93] [cursor=pointer] [box=45,1003,300,56]:
+            - /url: /setup
+            - generic [ref=f3e97] [box=83,1014,232,34]:
+              - strong [ref=f3e98] [box=83,1014,232,16]: Household setup
+              - generic [ref=f3e99] [box=83,1032,232,16]: Names and usual defaults
+        - text: +
+  - contentinfo [ref=f3e102] [box=0,1059,390,68]:
+    - link "Data credits" [ref=f3e103] [cursor=pointer] [box=153,1059,83,44]:
+      - /url: /credits
+  - alert [ref=f3e104] [box=-1,1126,1,1]

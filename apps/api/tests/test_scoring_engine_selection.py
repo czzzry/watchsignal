@@ -270,6 +270,91 @@ class ScoringEngineSelectionTest(unittest.TestCase):
         self.assertIn("nudge_signal:avoid:animation", animated.dominant_penalties)
         self.assertEqual(v2.partial_support_notes, ())
 
+    def test_confirmed_superhero_exclusion_demotes_comic_metadata_without_harming_action_scifi(
+        self,
+    ) -> None:
+        candidates = (
+            Candidate(
+                source_movie_id="tmdb:hero",
+                title="Masked Metropolis",
+                media_type=MediaType.MOVIE,
+                genres=("Action", "Sci-Fi"),
+                overview="A defender faces a threat to the city.",
+                metadata_keywords=("based on comic",),
+                providers=("Prime Video",),
+            ),
+            Candidate(
+                source_movie_id="tmdb:rescue",
+                title="Orbital Rescue",
+                media_type=MediaType.MOVIE,
+                genres=("Action", "Sci-Fi"),
+                overview="A rescue crew races across deep space.",
+                metadata_keywords=("space mission", "rescue"),
+                providers=("Prime Video",),
+            ),
+        )
+        users = (UserProfile(user_id="solo", role="solo", display_label="Solo"),)
+        baseline = build_recommendation_scorer().score(
+            ScoringRequest(
+                session=SessionContext(session_id="superhero-baseline"),
+                household_defaults=HouseholdDefaults(),
+                users=users,
+                candidates=candidates,
+            )
+        )
+        steered = build_recommendation_scorer().score(
+            ScoringRequest(
+                session=SessionContext(
+                    session_id="superhero-excluded",
+                    tonight_intents=(
+                        TonightIntentContract(
+                            raw_text="No superhero or comic-book movies",
+                            signals=(
+                                TonightIntentSignal(
+                                    concept="superhero",
+                                    polarity="negative",
+                                    intensity=1.0,
+                                    confidence="high",
+                                    source="excluded_signal",
+                                ),
+                            ),
+                            confidence="high",
+                        ),
+                    ),
+                ),
+                household_defaults=HouseholdDefaults(),
+                users=users,
+                candidates=candidates,
+            )
+        )
+
+        baseline_by_id = {
+            candidate.source_movie_id: candidate
+            for candidate in baseline.ranked_candidates
+        }
+        steered_by_id = {
+            candidate.source_movie_id: candidate
+            for candidate in steered.ranked_candidates
+        }
+        self.assertEqual(steered.ranked_candidates[0].source_movie_id, "tmdb:rescue")
+        self.assertAlmostEqual(
+            steered_by_id["tmdb:rescue"].group_score,
+            baseline_by_id["tmdb:rescue"].group_score,
+        )
+        self.assertLessEqual(
+            steered_by_id["tmdb:hero"].group_score,
+            baseline_by_id["tmdb:hero"].group_score - 0.1,
+        )
+        self.assertIn(
+            "nudge_signal:avoid:superhero",
+            steered_by_id["tmdb:hero"].dominant_penalties,
+        )
+        self.assertNotIn(
+            "nudge_signal:avoid:superhero",
+            steered_by_id["tmdb:rescue"].dominant_penalties,
+        )
+        self.assertEqual(steered.partial_support_notes, ())
+
     def test_v2_reports_negative_nudge_when_metadata_cannot_verify_it(self) -> None:
         request = ScoringRequest(
             session=SessionContext(

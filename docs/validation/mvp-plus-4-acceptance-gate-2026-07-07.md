@@ -36,13 +36,13 @@ Mobile dogfood command selected: `pnpm beta:dogfood:live`.
 
 | Beta readiness preflight | `pnpm beta:preflight` | passed | 2s |
 
-| API tests and compile | `pnpm check` | passed | 10s |
+| API tests and compile | `pnpm check` | passed | 60s |
 
-| Web production build | `pnpm build:web` | passed | 17s |
+| Web production build | `pnpm build:web` | passed | 56s |
 
-| MVP+4 recommendation evaluation | `pnpm eval:mvp4` | passed | 2s |
+| MVP+4 recommendation evaluation | `pnpm eval:mvp4` | passed | 1s |
 
-| Live TMDb mobile dogfood | `pnpm beta:dogfood:live` | passed | 205s |
+| Live TMDb mobile dogfood | `pnpm beta:dogfood:live` | passed | 61s |
 
 ## Recommendation Evaluation
 

@@ -115,6 +115,7 @@ class SQLiteRecommendationSnapshotStore:
                         title,
                         candidate_position,
                         genres,
+                        metadata_keywords,
                         providers,
                         provider_access,
                         safety_status,
@@ -125,7 +126,7 @@ class SQLiteRecommendationSnapshotStore:
                         enrichment_feature_scores,
                         matched_enrichment_source_movie_id
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     [
                         (
@@ -134,6 +135,7 @@ class SQLiteRecommendationSnapshotStore:
                             candidate.title,
                             index,
                             _join_values(candidate.genres),
+                            _join_values(candidate.metadata_keywords),
                             _join_values(candidate.providers),
                             _join_values(candidate.provider_access),
                             candidate.safety_status,
@@ -270,6 +272,7 @@ class SQLiteRecommendationSnapshotStore:
                     source_movie_id,
                     title,
                     genres,
+                    metadata_keywords,
                     providers,
                     provider_access,
                     safety_status,
@@ -311,6 +314,7 @@ class SQLiteRecommendationSnapshotStore:
                     source_movie_id=row["source_movie_id"],
                     title=row["title"],
                     genres=_split_values(row["genres"]),
+                    metadata_keywords=_split_values(row["metadata_keywords"]),
                     providers=_split_values(row["providers"]),
                     provider_access=_split_values(row["provider_access"]),
                     safety_status=row["safety_status"],
@@ -409,6 +413,7 @@ class SQLiteRecommendationSnapshotStore:
                         title TEXT NOT NULL,
                         candidate_position INTEGER NOT NULL,
                         genres TEXT NOT NULL,
+                        metadata_keywords TEXT NOT NULL DEFAULT '',
                         providers TEXT NOT NULL,
                         provider_access TEXT NOT NULL,
                         safety_status TEXT NOT NULL,
@@ -575,6 +580,10 @@ def _ensure_candidate_input_enrichment_columns(
         "matched_enrichment_source_movie_id": (
             "ALTER TABLE recommendation_snapshot_candidate_inputs "
             "ADD COLUMN matched_enrichment_source_movie_id TEXT"
+        ),
+        "metadata_keywords": (
+            "ALTER TABLE recommendation_snapshot_candidate_inputs "
+            "ADD COLUMN metadata_keywords TEXT NOT NULL DEFAULT ''"
         ),
     }
     for column_name, statement in migrations.items():

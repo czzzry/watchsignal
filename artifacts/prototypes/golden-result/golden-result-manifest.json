@@ -1,0 +1,56 @@
+{
+  "artifact": "WatchSignal golden result",
+  "status": "candidate awaiting founder approval",
+  "route": "http://localhost:3110/prototype/llm-journey?variant=A",
+  "viewport": {
+    "widthCssPixels": 390,
+    "heightCssPixels": 844
+  },
+  "screenshots": {
+    "main": "golden-result-main.png",
+    "details": "golden-result-details.png"
+  },
+  "movieData": {
+    "provider": "TMDB",
+    "movieId": 329865,
+    "detailsEndpointShape": "/movie/329865?append_to_response=credits,watch/providers",
+    "imagesEndpointShape": "/movie/329865/images",
+    "region": "DE"
+  },
+  "visibleRemoteAssets": {
+    "backdrop": {
+      "provider": "TMDB movie images",
+      "url": "https://image.tmdb.org/t/p/original/hNCqkXbWd40eftqSdjq8TmV7Mqr.jpg"
+    },
+    "posters": [
+      "https://image.tmdb.org/t/p/w500/x2FJsf1ElAgr63Y3PNPtJrcmpoe.jpg",
+      "https://image.tmdb.org/t/p/w500/pThyQovXQrw2m0s9x82twj48Jq4.jpg",
+      "https://image.tmdb.org/t/p/w500/k3waqVXSnvCZWfJYNtdamTgTtTA.jpg",
+      "https://image.tmdb.org/t/p/w500/eWdyYQreja6JGCzqHWXpWHDrrPo.jpg",
+      "https://image.tmdb.org/t/p/w500/nBM9MMa2WCwvMG4IJ3eiGUdbPe6.jpg"
+    ],
+    "arrivalCastProfiles": [
+      "https://image.tmdb.org/t/p/w185/1h2r2VTpoFb5QefAaBYYQgQzL9z.jpg",
+      "https://image.tmdb.org/t/p/w185/yB84D1neTYXfWBaV0QOE9RF2VCu.jpg",
+      "https://image.tmdb.org/t/p/w185/4w7l5JUwnwFNBy7J93ZwYN1nihm.jpg"
+    ]
+  },
+  "appOwnedElements": [
+    "match score",
+    "rank and score gap",
+    "why-this-won explanation",
+    "button layout",
+    "typography",
+    "color overlays",
+    "motion",
+    "all interface icons"
+  ],
+  "iconImplementation": "Local inline SVG authored as part of the WatchSignal interface, not supplied by TMDB.",
+  "requiredStates": [
+    "main ranked result",
+    "expanded movie details",
+    "watch availability acknowledgement",
+    "selection of each ranked alternative",
+    "navigation to five-more refinement"
+  ]
+}

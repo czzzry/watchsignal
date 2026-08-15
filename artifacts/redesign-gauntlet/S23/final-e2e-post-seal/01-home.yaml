@@ -1,0 +1,53 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - region [ref=e107]:
+      - generic [ref=e4]:
+        - generic [ref=e5]:
+          - generic [ref=e6]:
+            - paragraph [ref=e8]: Thursday, Aug 13
+            - heading "Tonight, we pick together." [level=2] [ref=e108]:
+              - generic [ref=e109]: Tonight,
+              - generic [ref=e110]:
+                - text: we pick
+                - emphasis [ref=e111]: together.
+            - paragraph [ref=e12]: Let's find the perfect movie for a great night in.
+          - generic [ref=e13]:
+            - generic [ref=e18]:
+              - button "People Cezary Recovery Test + Husband" [ref=e20] [cursor=pointer]:
+                - generic [ref=e21]: People
+                - strong [ref=e31]: Cezary Recovery Test + Husband
+              - button "Tonight English · Any streaming service · Balanced" [ref=e33] [cursor=pointer]:
+                - generic [ref=e34]: Tonight
+                - strong [ref=e42]: English · Any streaming service · Balanced
+              - button "Mood Optional" [ref=e44] [cursor=pointer]:
+                - generic [ref=e45]: Mood
+                - strong [ref=e55]: Optional
+            - generic [ref=e56]:
+              - paragraph [ref=e58]: Step 1 of 3
+              - button "Start first pass" [ref=e113] [cursor=pointer]:
+                - generic [ref=e114]: →
+              - paragraph [ref=e67]: We'll take turns. No duplicates.
+        - generic "Household tools" [ref=e68]:
+          - button "Taste memory What WatchSignal has learned" [ref=e69] [cursor=pointer]:
+            - generic [ref=e73]:
+              - strong [ref=e74]: Taste memory
+              - generic [ref=e75]: What WatchSignal has learned
+          - button "Recent nights Remember what you watched" [ref=e78] [cursor=pointer]:
+            - generic [ref=e82]:
+              - strong [ref=e83]: Recent nights
+              - generic [ref=e84]: Remember what you watched
+          - link "Tune tastes A few private movie choices" [ref=e87] [cursor=pointer]:
+            - /url: /taste-lab
+            - generic [ref=e90]:
+              - strong [ref=e91]: Tune tastes
+              - generic [ref=e92]: A few private movie choices
+          - link "Household setup Names and usual defaults" [ref=e95] [cursor=pointer]:
+            - /url: /setup
+            - generic [ref=e99]:
+              - strong [ref=e100]: Household setup
+              - generic [ref=e101]: Names and usual defaults
+        - text: +
+  - contentinfo [ref=e104]:
+    - link "Data credits" [ref=e105] [cursor=pointer]:
+      - /url: /credits
+  - alert [ref=e106]

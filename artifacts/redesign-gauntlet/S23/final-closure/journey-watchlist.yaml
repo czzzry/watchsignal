@@ -1,0 +1,118 @@
+- generic [active] [ref=f4e1]:
+  - main [ref=f4e2]:
+    - region [ref=f4e462]:
+      - generic [ref=f4e249]:
+        - generic [ref=f4e250]: W
+        - generic [ref=f4e256]:
+          - generic [ref=f4e257]:
+            - generic [ref=f4e258]: W
+            - strong [ref=f4e259]: WatchSignal
+          - generic [ref=f4e260]:
+            - generic [ref=f4e463]:
+              - strong [ref=f4e262]: "2"
+              - generic [ref=f4e263]: of 5
+            - button [expanded] [ref=f4e464] [cursor=pointer]:
+              - generic [ref=f4e265]: •••
+        - generic [ref=f4e266]:
+          - generic [ref=f4e267]:
+            - generic [ref=f4e272]:
+              - strong [ref=f4e273]: "83"
+              - generic [ref=f4e274]: match
+            - generic [ref=f4e275]:
+              - strong [ref=f4e276]: "Ranked #2 tonight"
+              - generic [ref=f4e277]: "6 points behind #1"
+          - button [ref=f4e466] [cursor=pointer]:
+            - heading [level=1] [ref=f4e467]: Project Hail Mary
+            - paragraph [ref=f4e280]: 2026 · 2h 37m · Science Fiction · Adventure
+            - generic [ref=f4e281]: Both interested. Its science fiction, adventure mood fit both of you.
+          - generic [ref=f4e468]:
+            - button [ref=f4e469] [cursor=pointer]:
+              - generic [ref=f4e284]: "89"
+            - button [pressed] [ref=f4e470] [cursor=pointer]:
+              - generic [ref=f4e286]: "83"
+            - button [ref=f4e471] [cursor=pointer]:
+              - generic [ref=f4e288]: "78"
+            - button [ref=f4e472] [cursor=pointer]:
+              - generic [ref=f4e290]: "74"
+            - button [ref=f4e473] [cursor=pointer]:
+              - generic [ref=f4e292]: "74"
+          - group [ref=f4e474]:
+            - button [ref=f4e475] [cursor=pointer]:
+              - generic [ref=f4e297]: Details
+            - button [ref=f4e476] [cursor=pointer]:
+              - generic [ref=f4e301]: Where to watch
+            - button [ref=f4e477] [cursor=pointer]:
+              - generic [ref=f4e306]: 5 more
+  - alert [ref=f4e104]
+  - dialog "Result options" [ref=f4e479]:
+    - generic [ref=f4e480]:
+      - strong [ref=f4e481]: Tonight’s result
+      - button "Close" [ref=f4e482] [cursor=pointer]
+    - region [ref=f4e519]:
+      - generic [ref=f4e520]:
+        - button "Back to result options" [ref=f4e521] [cursor=pointer]
+        - generic [ref=f4e524]:
+          - generic [ref=f4e525]: Shared
+          - heading "Watchlist" [level=2] [ref=f4e526]
+        - strong [ref=f4e527]: "3"
+      - generic [ref=f4e528]:
+        - article "Arrival" [ref=f4e529]:
+          - generic [ref=f4e530]:
+            - generic [ref=f4e531]:
+              - strong [ref=f4e532]: Arrival
+              - generic [ref=f4e533]: "2016"
+            - button "Remove Arrival" [ref=f4e534] [cursor=pointer]
+          - generic [ref=f4e538]:
+            - generic [ref=f4e539]:
+              - generic [ref=f4e540]: Cezary Recovery Test
+              - group "Cezary Recovery Test rating for Arrival" [ref=f4e541]:
+                - button "Loved" [ref=f4e542] [cursor=pointer]
+                - button "Fine" [ref=f4e543] [cursor=pointer]
+                - button "No" [ref=f4e544] [cursor=pointer]
+            - generic [ref=f4e545]:
+              - generic [ref=f4e546]: Husband
+              - group "Husband rating for Arrival" [ref=f4e547]:
+                - button "Loved" [ref=f4e548] [cursor=pointer]
+                - button "Fine" [ref=f4e549] [cursor=pointer]
+                - button "No" [ref=f4e550] [cursor=pointer]
+          - button "Mark watched" [ref=f4e551] [cursor=pointer]
+        - article "The Shawshank Redemption" [ref=f4e552]:
+          - generic [ref=f4e553]:
+            - generic [ref=f4e554]:
+              - strong [ref=f4e555]: The Shawshank Redemption
+              - generic [ref=f4e556]: "1994"
+            - button "Remove The Shawshank Redemption" [ref=f4e557] [cursor=pointer]
+          - generic [ref=f4e561]:
+            - generic [ref=f4e562]:
+              - generic [ref=f4e563]: Cezary Recovery Test
+              - group "Cezary Recovery Test rating for The Shawshank Redemption" [ref=f4e564]:
+                - button "Loved" [ref=f4e565] [cursor=pointer]
+                - button "Fine" [ref=f4e566] [cursor=pointer]
+                - button "No" [ref=f4e567] [cursor=pointer]
+            - generic [ref=f4e568]:
+              - generic [ref=f4e569]: Husband
+              - group "Husband rating for The Shawshank Redemption" [ref=f4e570]:
+                - button "Loved" [ref=f4e571] [cursor=pointer]
+                - button "Fine" [ref=f4e572] [cursor=pointer]
+                - button "No" [ref=f4e573] [cursor=pointer]
+          - button "Mark watched" [ref=f4e574] [cursor=pointer]
+        - article "Pulp Fiction" [ref=f4e575]:
+          - generic [ref=f4e576]:
+            - generic [ref=f4e577]:
+              - strong [ref=f4e578]: Pulp Fiction
+              - generic [ref=f4e579]: "1994"
+            - button "Remove Pulp Fiction" [ref=f4e580] [cursor=pointer]
+          - generic [ref=f4e584]:
+            - generic [ref=f4e585]:
+              - generic [ref=f4e586]: Cezary Recovery Test
+              - group "Cezary Recovery Test rating for Pulp Fiction" [ref=f4e587]:
+                - button "Loved" [ref=f4e588] [cursor=pointer]
+                - button "Fine" [ref=f4e589] [cursor=pointer]
+                - button "No" [ref=f4e590] [cursor=pointer]
+            - generic [ref=f4e591]:
+              - generic [ref=f4e592]: Husband
+              - group "Husband rating for Pulp Fiction" [ref=f4e593]:
+                - button "Loved" [ref=f4e594] [cursor=pointer]
+                - button "Fine" [ref=f4e595] [cursor=pointer]
+                - button "No" [ref=f4e596] [cursor=pointer]
+          - button "Mark watched" [ref=f4e597] [cursor=pointer]

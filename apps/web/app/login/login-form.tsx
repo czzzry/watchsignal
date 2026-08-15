@@ -1,27 +1,40 @@
 "use client";
 
 import { FormEvent, useRef, useState } from "react";
+import { WatchSignalIcon } from "../ui/watchsignal-icons";
+import { WatchSignalBrand, WatchSignalButton } from "../ui/primitives";
+import styles from "./login.module.css";
+
+type LoginPhase = "idle" | "submitting" | "error" | "success";
 
 export function LoginForm() {
-  const [message, setMessage] = useState("Enter your household passphrase to continue.");
-  const [hasError, setHasError] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [phase, setPhase] = useState<LoginPhase>("idle");
   const [showPassword, setShowPassword] = useState(false);
   const passwordInput = useRef<HTMLInputElement>(null);
+  const busy = phase === "submitting" || phase === "success";
+
+  function recoverAtPassphrase() {
+    window.requestAnimationFrame(() => passwordInput.current?.select());
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const password = form.get("password");
-    if (typeof password !== "string" || !password) {
-      setMessage("Enter the household passphrase.");
-      setHasError(true);
-      passwordInput.current?.focus();
+    if (busy) {
       return;
     }
 
-    setBusy(true);
-    setHasError(false);
+    const form = new FormData(event.currentTarget);
+    const password = form.get("password");
+    if (typeof password !== "string" || !password) {
+      setMessage("Enter your household passphrase.");
+      setPhase("error");
+      recoverAtPassphrase();
+      return;
+    }
+
+    setMessage("Checking your passphrase…");
+    setPhase("submitting");
     const response = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -29,74 +42,100 @@ export function LoginForm() {
     }).catch(() => null);
 
     if (!response?.ok) {
-      const payload = (await response?.json().catch(() => null)) as
-        | { detail?: unknown }
-        | null;
       setMessage(
-        typeof payload?.detail === "string"
-          ? payload.detail
-          : "WatchSignal could not sign in. Check the connection and try again.",
+        response?.status === 401
+          ? "That passphrase isn’t right. Try again."
+          : response
+            ? "WatchSignal isn’t available right now. Try again."
+            : "Can’t reach WatchSignal. Check your connection and try again.",
       );
-      setHasError(true);
-      setBusy(false);
-      passwordInput.current?.select();
+      setPhase("error");
+      recoverAtPassphrase();
       return;
     }
 
+    setMessage("Signed in. Opening WatchSignal…");
+    setPhase("success");
     window.location.assign("/");
   }
 
   return (
-    <form className="loginCard" onSubmit={submit}>
-      <div className="loginIdentity">
-        <img src="/icons/watchsignal-192.png" alt="" width="88" height="88" />
-        <div>
-          <p className="eyebrow">Private household</p>
-          <h1>Welcome back</h1>
+    <section className={styles.loginSurface} aria-labelledby="login-title">
+      <header className={styles.loginHeader}>
+        <WatchSignalBrand />
+      </header>
+
+      <form className={styles.loginForm} onSubmit={submit} noValidate>
+        <div className={styles.loginIntro}>
+          <span className={styles.householdGlyph} aria-hidden="true">
+            <WatchSignalIcon name="users" />
+          </span>
+          <h1 id="login-title">Welcome back.</h1>
+          <p>Continue to your household.</p>
         </div>
-      </div>
-      <p
-        className={hasError ? "loginMessage loginMessageError" : "loginMessage"}
-        role={hasError ? "alert" : "status"}
-        aria-live="polite"
-      >
-        {message}
-      </p>
-      <label className="loginPasswordLabel" htmlFor="household-password">
-        Household passphrase
-      </label>
-      <div className="loginPasswordField">
-        <input
-          ref={passwordInput}
-          id="household-password"
-          name="password"
-          type={showPassword ? "text" : "password"}
-          autoComplete="current-password"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          enterKeyHint="go"
-          aria-invalid={hasError}
-          aria-describedby="login-session-note"
-          autoFocus
-          required
-        />
-        <button
-          className="loginPasswordToggle"
-          type="button"
-          aria-label={showPassword ? "Hide passphrase" : "Show passphrase"}
-          aria-pressed={showPassword}
-          onClick={() => setShowPassword((visible) => !visible)}
-        >
-          {showPassword ? "Hide" : "Show"}
-        </button>
-      </div>
-      <p className="loginSessionNote" id="login-session-note">
-        You’ll stay signed in on this phone for 90 days.
-      </p>
-      <button type="submit" disabled={busy}>
-        {busy ? "Opening…" : "Continue"}
-      </button>
-    </form>
+
+        <div className={styles.fieldGroup}>
+          <label htmlFor="household-password">Household passphrase</label>
+          <div className={styles.passwordField} data-invalid={phase === "error" || undefined}>
+            <WatchSignalIcon className={styles.fieldIcon} name="lock" />
+            <input
+              ref={passwordInput}
+              id="household-password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="go"
+              aria-invalid={phase === "error"}
+              aria-describedby="login-feedback login-session-note"
+              autoFocus
+              disabled={busy}
+              onChange={() => {
+                if (phase === "error") {
+                  setMessage("");
+                  setPhase("idle");
+                }
+              }}
+            />
+            <button
+              className={styles.passwordToggle}
+              type="button"
+              aria-label={showPassword ? "Hide passphrase" : "Show passphrase"}
+              aria-pressed={showPassword}
+              disabled={busy}
+              onClick={() => setShowPassword((visible) => !visible)}
+            >
+              <WatchSignalIcon name={showPassword ? "eye-off" : "eye"} />
+            </button>
+          </div>
+          <p
+            className={styles.feedback}
+            data-state={phase}
+            id="login-feedback"
+            role={phase === "error" ? "alert" : "status"}
+            aria-live="polite"
+          >
+            {message}
+          </p>
+        </div>
+
+        <WatchSignalButton className={styles.continueButton} type="submit" disabled={busy}>
+          {phase === "success" ? (
+            <><WatchSignalIcon name="check" />Opening…</>
+          ) : phase === "submitting" ? (
+            "Checking…"
+          ) : (
+            "Continue"
+          )}
+        </WatchSignalButton>
+
+        <p className={styles.sessionNote} id="login-session-note">
+          <WatchSignalIcon name="lock" />
+          This phone stays signed in for 90 days.
+        </p>
+      </form>
+    </section>
   );
 }

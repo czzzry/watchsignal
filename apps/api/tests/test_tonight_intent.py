@@ -203,6 +203,16 @@ class TonightIntentInterpreterTest(unittest.TestCase):
         self.assertIn("tonight", nudge.soft_signals)
         self.assertIn("without subtitles", nudge.user_facing_summary or "")
 
+    def test_directed_nudge_maps_french_to_a_language_filter(self) -> None:
+        nudge = DeterministicTonightIntentProvider().interpret_directed_nudge(
+            "French, but keep it light"
+        )
+
+        self.assertEqual(nudge.status, DirectedNudgeStatus.CONFIRMATION_REQUIRED)
+        self.assertEqual(nudge.resolution, DirectedNudgeResolution.EXACT)
+        self.assertEqual(nudge.filters["language"], "fr")
+        self.assertIn("French", nudge.user_facing_summary or "")
+
     def test_directed_nudge_does_not_promote_negated_genres(self) -> None:
         nudge = DeterministicTonightIntentProvider().interpret_directed_nudge(
             "severe turn-of-the-century American drama about greed, frontier capitalism, oil money, obsession, moral rot, no whimsy, no sci-fi, no romance"

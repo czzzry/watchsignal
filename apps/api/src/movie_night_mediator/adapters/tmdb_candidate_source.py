@@ -12,6 +12,7 @@ from urllib.request import Request, urlopen
 from movie_night_mediator.app.safe_pick import SafePickClassifier
 from movie_night_mediator.domain.models import (
     Candidate,
+    CandidateCastMember,
     HouseholdDefaults,
     MediaType,
     PersonCandidateConstraint,
@@ -24,6 +25,7 @@ TMDB_API_KEY_ENV_VAR = "TMDB_API_KEY"
 TMDB_READ_ACCESS_TOKEN_ENV_VAR = "TMDB_READ_ACCESS_TOKEN"
 TMDB_BASE_URL = "https://api.themoviedb.org/3"
 TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w342"
+TMDB_BACKDROP_IMAGE_BASE_URL = "https://image.tmdb.org/t/p/original"
 TMDB_PRIME_VIDEO_PROVIDER_IDS = ("9", "10")
 TMDB_DISCOVER_PAGE_SIZE = 20
 TMDB_REQUEST_TIMEOUT_SECONDS = 8
@@ -85,6 +87,7 @@ class TmdbCandidateSourceConfig:
     read_access_token: str | None = None
     base_url: str = TMDB_BASE_URL
     image_base_url: str = TMDB_IMAGE_BASE_URL
+    backdrop_image_base_url: str = TMDB_BACKDROP_IMAGE_BASE_URL
     default_provider_ids: tuple[str, ...] = TMDB_PRIME_VIDEO_PROVIDER_IDS
     default_provider_name: str = "Prime Video"
     default_region: str = "DE"
@@ -191,6 +194,8 @@ class TmdbCandidateSource:
             discover_params["with_watch_providers"] = "|".join(provider_ids)
         if genre_id := _genre_id_for_hint(session.genre_hint):
             discover_params["with_genres"] = genre_id
+        if original_language := _tmdb_original_language(session.language_constraint):
+            discover_params["with_original_language"] = original_language
 
         candidates: list[Candidate] = []
         seen_tmdb_ids: set[int] = set()
@@ -477,7 +482,9 @@ class TmdbCandidateSource:
         params = {
             "language": language,
             "append_to_response": (
-                "credits,watch/providers" if include_credits else "watch/providers"
+                "credits,keywords,watch/providers"
+                if include_credits
+                else "keywords,watch/providers"
             ),
         }
         payload = self._client.get_json(
@@ -599,11 +606,21 @@ class TmdbCandidateSource:
                 _string_value(details.get("poster_path"))
                 or _string_value(result.get("poster_path")),
             ),
+            backdrop_url=_poster_url(
+                self._config.backdrop_image_base_url,
+                _string_value(details.get("backdrop_path"))
+                or _string_value(result.get("backdrop_path")),
+            ),
             genres=_genre_names(details),
+            metadata_keywords=_metadata_keywords(details),
             overview=_string_value(details.get("overview"))
             or _string_value(result.get("overview"))
             or "",
             top_cast=_top_cast_names(details.get("credits")),
+            cast_details=_top_cast_details(
+                details.get("credits"),
+                image_base_url=self._config.image_base_url,
+            ),
             providers=tuple(
                 dict.fromkeys(
                     availability.provider_name for availability in provider_availability
@@ -668,6 +685,29 @@ def _genre_id_for_hint(genre_hint: str | None) -> str | None:
     return TMDB_GENRE_IDS.get(genre_hint.strip().casefold())
 
 
+def _tmdb_original_language(language_constraint: str | None) -> str | None:
+    if not language_constraint:
+        return None
+    normalized = language_constraint.strip().casefold()
+    aliases = {
+        "english": "en",
+        "english audio": "en",
+        "french": "fr",
+        "francophone": "fr",
+        "german": "de",
+        "deutsch": "de",
+        "spanish": "es",
+        "italian": "it",
+        "japanese": "ja",
+        "korean": "ko",
+    }
+    if normalized in aliases:
+        return aliases[normalized]
+    if len(normalized) == 2 and normalized.isalpha():
+        return normalized
+    return None
+
+
 def _theme_keyword_queries(mood_text: str | None) -> tuple[str, ...]:
     if not mood_text:
         return ()
@@ -684,6 +724,22 @@ def _genre_names(details: Mapping[str, object]) -> tuple[str, ...]:
         name
         for genre in _objects(details.get("genres"))
         if (name := _string_value(genre.get("name"))) is not None
+    )
+
+
+def _metadata_keywords(details: Mapping[str, object]) -> tuple[str, ...]:
+    keyword_payload = details.get("keywords")
+    if not isinstance(keyword_payload, Mapping):
+        return ()
+    return tuple(
+        dict.fromkeys(
+            name
+            for keyword in (
+                *_objects(keyword_payload.get("keywords")),
+                *_objects(keyword_payload.get("results")),
+            )
+            if (name := _string_value(keyword.get("name"))) is not None
+        )
     )
 
 
@@ -716,6 +772,33 @@ def _top_cast_names(credits: object) -> tuple[str, ...]:
             break
 
     return tuple(names)
+
+
+def _top_cast_details(
+    credits: object,
+    *,
+    image_base_url: str,
+) -> tuple[CandidateCastMember, ...]:
+    if not isinstance(credits, Mapping):
+        return ()
+
+    members: list[CandidateCastMember] = []
+    for credit in _objects(credits.get("cast")):
+        name = _string_value(credit.get("name"))
+        if name is None:
+            continue
+        profile_path = _string_value(credit.get("profile_path"))
+        members.append(
+            CandidateCastMember(
+                name=name,
+                character=_string_value(credit.get("character")),
+                profile_url=_poster_url(image_base_url, profile_path),
+            )
+        )
+        if len(members) >= 3:
+            break
+
+    return tuple(members)
 
 
 def _spoken_language_codes(details: Mapping[str, object]) -> tuple[str, ...]:

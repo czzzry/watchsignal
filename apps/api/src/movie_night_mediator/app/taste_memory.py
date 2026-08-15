@@ -210,15 +210,48 @@ class TasteMemoryService:
         title: str,
         reaction_label: SessionReactionLabel,
     ) -> TasteMemoryEvent | None:
+        event = self.build_session_reaction_event(
+            household_id=household_id,
+            profile_id=profile_id,
+            session_id=session_id,
+            source_movie_id=source_movie_id,
+            title=title,
+            reaction_label=reaction_label,
+        )
+        return self.store.save_event(event) if event is not None else None
+
+    def build_session_reaction_event(
+        self,
+        *,
+        household_id: str,
+        profile_id: str,
+        session_id: str,
+        source_movie_id: str,
+        title: str,
+        reaction_label: SessionReactionLabel,
+    ) -> TasteMemoryEvent | None:
         if reaction_label != SessionReactionLabel.SEEN:
             return None
 
-        return self.record_seen_before(
+        return TasteMemoryEvent(
+            event_id=_event_id(
+                f"session_reaction:{session_id}:seen_before",
+                household_id,
+                profile_id,
+                source_movie_id,
+            ),
             household_id=household_id,
             profile_id=profile_id,
+            event_type=TasteMemoryEventType.SEEN_BEFORE,
+            source=f"session_reaction:{session_id}",
             source_movie_id=source_movie_id,
             title=title,
-            source=f"session_reaction:{session_id}",
+            sentiment_label="seen",
+            preference_value=-0.35,
+            familiarity="seen",
+            effect_label="avoids repeats",
+            status=TasteMemorySignalStatus.ACTIVE,
+            occurred_at=_current_timestamp(),
         )
 
     def list_profile_events(

@@ -1,0 +1,9 @@
+### Result
+{"media":true,"count":0,"marker":"shown"}
+### Ran Playwright code
+```js
+await (async page => { await page.emulateMedia({reducedMotion:'reduce'}); await page.goto('http://127.0.0.1:3122',{waitUntil:'domcontentloaded'}); await page.waitForTimeout(100); return {media:await page.evaluate(()=>matchMedia('(prefers-reduced-motion: reduce)').matches),count:await page.locator('.launchSting').count(),marker:await page.evaluate(()=>sessionStorage.getItem('watchsignal.launch-sting.v1'))}; })(page);
+```
+### Page
+- Page URL: http://127.0.0.1:3122/
+- Page Title: WatchSignal

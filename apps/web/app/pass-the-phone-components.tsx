@@ -1,7 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import type { SetupLoadResult, SetupProfile } from "./setup-api";
+import type { SetupLoadResult } from "./setup-api";
 import {
   reactionLabels,
   type DemoCandidate,
@@ -16,8 +17,6 @@ import {
   fallbackPosterUrl,
   formatSessionDate,
   suggestedSeedsForBucket,
-  titleForSourceMovieId,
-  toErrorMessage,
 } from "./pass-the-phone-helpers";
 import type {
   ApiHealth,
@@ -25,6 +24,7 @@ import type {
   LanguageMode,
   OnboardingDraft,
   OnboardingPromptState,
+  OnboardingStatus,
   PeopleMode,
   RankedCandidate,
   ReactionState,
@@ -40,27 +40,49 @@ import type {
 import {
   type DebugHistoryReactionPayload,
   type DebugHistorySessionPayload,
+  type HouseholdHistoryDetailPayload,
+  type HouseholdHistorySummaryPayload,
   type OnboardingCompletionPayload,
   type ProfileMemorySummaryPayload,
-  type RecentSessionSummaryPayload,
   type SharedSessionPayload,
   type TasteProfileSummaryPayload,
   type TasteMemoryEventPayload,
   type TonightIntentInterpretationPayload,
 } from "./session-client";
 import {
-  BackupTitles,
   DebugHistoryPanel as ResultsDebugHistoryPanel,
-  OutcomePanel,
   RecommendationEvidencePanel,
-  ResultsActions,
   type ResultsParticipantEntry,
   SessionEvidencePanel,
-  SteerNextPanel as ResultsSteerNextPanel,
-  WatchlistPanel,
-  WinnerReveal,
 } from "./pass-the-phone/results/results-panels";
 import { useResultsPersistence } from "./pass-the-phone/results/use-results-persistence";
+import { RankedResultStage } from "./pass-the-phone/results/ranked-result-stage";
+import { WatchlistUtility } from "./pass-the-phone/results/watchlist-utility";
+import { OutcomeUtility } from "./pass-the-phone/results/outcome-utility";
+import {
+  ResultUtilityHub,
+  type ResultUtilityView,
+} from "./pass-the-phone/results/result-utility-hub";
+import { PrivateReactionCard } from "./pass-the-phone/private-reaction-card";
+import type { SeenMemorySaveResult } from "./pass-the-phone/seen-memory-contract";
+import { ViewerProfileSetup } from "./pass-the-phone/viewer-profile-setup";
+import { TonightDefaultsSetup } from "./pass-the-phone/tonight-defaults-setup";
+import { TonightIntentSetup } from "./pass-the-phone/tonight-intent-setup";
+import { intentSummary } from "./pass-the-phone/tonight-intent-contract";
+import { ContinuationSteerPanel } from "./pass-the-phone/continuation-steer-panel";
+import { ProfileMemorySnapshot } from "./pass-the-phone/profile-memory-snapshot";
+import { HouseholdHistory } from "./pass-the-phone/household-history";
+import { WatchSignalIcon } from "./ui/watchsignal-icons";
+import {
+  tonightDefaultsSummary,
+  type TonightDefaultsDraft,
+  type TonightDefaultsSaveResult,
+} from "./pass-the-phone/tonight-defaults-contract";
+import {
+  createReviewDiagnosticRequests,
+  reviewSurfaceContract,
+} from "./pass-the-phone/review-mode-contract";
+import { onboardingHomePresentation } from "./pass-the-phone/onboarding-truthful-state";
 
 const stepLabels: Record<WizardStep, string> = {
   setup: "Setup",
@@ -80,26 +102,6 @@ const languageModeLabels: Record<LanguageMode, string> = {
   english: "English",
   "subtitles-ok": "Foreign + English subtitles",
   anything: "No rules",
-};
-
-const availabilityOptions = [
-  {
-    value: "Prime Video Germany",
-    label: "Prime Video",
-    detail: "Live TMDb filters to Amazon availability in Germany, including Prime plus Amazon rent or buy.",
-  },
-  {
-    value: "Any streaming Germany",
-    label: "Any streaming",
-    detail: "Live TMDb allows any flatrate streaming provider in Germany.",
-  },
-];
-
-const seenMemoryLabels: Record<SeenMemoryValue, string> = {
-  loved: "Loved it",
-  fine: "Ok",
-  no: "Hated it",
-  forget: "I forget",
 };
 
 export type CinematicWaitKind = "building" | "sealing" | "handoff" | "matching";
@@ -235,7 +237,6 @@ export function SetupStep({
   setupLoad,
   apiHealth,
   sessionMode,
-  onSessionModeChange,
   peopleMode,
   onPeopleModeChange,
   activeProfileId,
@@ -245,11 +246,11 @@ export function SetupStep({
   onActiveProfileChange,
   onPartnerProfileChange,
   onCreateProfile,
-  onAvailabilityRegionChange,
   languageMode,
-  onLanguageModeChange,
+  onSaveTonightDefaults,
   isSyncing,
   onboardingBusy,
+  onboardingStatus,
   onboardingRequired,
   onboardingCompletion,
   onboardingMessage,
@@ -257,6 +258,8 @@ export function SetupStep({
   profileMemorySummaries,
   profileMemoryEvents,
   profileMemoryMessage,
+  profileMemoryStatus,
+  onLoadProfileMemory,
   tonightIntentText,
   onTonightIntentTextChange,
   pendingTonightIntent,
@@ -267,8 +270,10 @@ export function SetupStep({
   tonightIntentMessage,
   onInterpretTonightIntent,
   onAnswerTonightIntentClarification,
+  onRemoveTonightIntentSignal,
   onApplyTonightIntent,
   onClearTonightIntent,
+  onCancelTonightIntentInterpretation,
   onStart,
   onBeginOnboarding,
   recentSessions,
@@ -286,7 +291,6 @@ export function SetupStep({
   setupLoad: SetupLoadResult;
   apiHealth: ApiHealth;
   sessionMode: SessionMode;
-  onSessionModeChange: (mode: SessionMode) => void;
   peopleMode: PeopleMode;
   onPeopleModeChange: (mode: PeopleMode) => void;
   activeProfileId: string;
@@ -296,11 +300,13 @@ export function SetupStep({
   onActiveProfileChange: (profileId: string) => void | Promise<void>;
   onPartnerProfileChange: (profileId: string) => void | Promise<void>;
   onCreateProfile: (label: string) => void | Promise<void>;
-  onAvailabilityRegionChange: (availabilityRegion: string) => void | Promise<void>;
   languageMode: LanguageMode;
-  onLanguageModeChange: (mode: LanguageMode) => void;
+  onSaveTonightDefaults: (
+    draft: TonightDefaultsDraft,
+  ) => Promise<TonightDefaultsSaveResult>;
   isSyncing: boolean;
   onboardingBusy: boolean;
+  onboardingStatus: OnboardingStatus;
   onboardingRequired: boolean;
   onboardingCompletion: OnboardingCompletionPayload | null;
   onboardingMessage: string | null;
@@ -308,6 +314,8 @@ export function SetupStep({
   profileMemorySummaries: ProfileMemorySummaryPayload[];
   profileMemoryEvents: TasteMemoryEventPayload[];
   profileMemoryMessage: string | null;
+  profileMemoryStatus: "loading" | "ready" | "failed";
+  onLoadProfileMemory: () => void | Promise<void>;
   tonightIntentText: string;
   onTonightIntentTextChange: (text: string) => void;
   pendingTonightIntent: TonightIntentInterpretationPayload | null;
@@ -318,46 +326,57 @@ export function SetupStep({
   tonightIntentMessage: string | null;
   onInterpretTonightIntent: () => void | Promise<void>;
   onAnswerTonightIntentClarification: () => void | Promise<void>;
+  onRemoveTonightIntentSignal: (chipId: string) => void;
   onApplyTonightIntent: () => void;
   onClearTonightIntent: () => void;
+  onCancelTonightIntentInterpretation: () => void;
   onStart: () => void;
-  onBeginOnboarding: () => void | Promise<void>;
-  recentSessions: RecentSessionSummaryPayload[];
+  onBeginOnboarding: (opener: HTMLElement) => void | Promise<void>;
+  recentSessions: HouseholdHistorySummaryPayload[];
   recentSessionsStatus: DebugHistoryStatus;
   recentSessionsMessage: string | null;
-  selectedHistory: DebugHistorySessionPayload | null;
+  selectedHistory: HouseholdHistoryDetailPayload | null;
   selectedHistoryStatus: DebugHistoryStatus;
   selectedHistoryMessage: string | null;
   onLoadRecentSessions: () => void | Promise<void>;
   onSelectRecentSession: (sessionId: string) => void | Promise<void>;
   reviewMode: boolean;
 }) {
-  const [expandedControl, setExpandedControl] = useState<
-    "people" | "language" | "availability" | null
+  const [setupUtility, setSetupUtility] = useState<
+    "people" | "defaults" | "intent" | "memory" | "history" | null
   >(null);
-  const [newProfileName, setNewProfileName] = useState("");
+  const [setupUtilityOpener, setSetupUtilityOpener] = useState<HTMLElement | null>(null);
+  const setupBackgroundRef = useRef<HTMLDivElement>(null);
   const sessionDateLabel = formatSessionDate(new Date());
+  const isCoupleSession = peopleMode === "couple";
   const completedCount = onboardingCompletion?.completedProfileIds.length ?? 0;
   const totalCount = onboardingCompletion?.requiredProfileIds.length ?? 2;
-  const isCoupleSession = peopleMode === "couple";
+  const onboardingHomeStatus = onboardingHomePresentation({
+    state: {
+      status: onboardingStatus,
+      completion: onboardingCompletion,
+      message: onboardingMessage,
+    },
+    onboardingRequired,
+    onboardingPromptLabel: onboardingPrompt?.profileLabel ?? null,
+    isSyncing,
+    isCoupleSession,
+  });
+  const onboardingCheckPending =
+    onboardingRequired && onboardingStatus === "loading" && !onboardingCompletion;
   const peopleModeLabels: Record<PeopleMode, string> = {
     couple: `${founderLabel} + ${wifeLabel}`,
     founder: founderLabel,
     wife: wifeLabel,
   };
   const selectedPeopleLabel = peopleModeLabels[peopleMode];
-  const selectedPartnerProfile = setupLoad.setup.profiles.find(
-    (profile) => profile.id === partnerProfileId,
-  );
   const selectedLanguageLabel = languageModeLabels[languageMode];
-  const selectedLanguageDisplayLabel = languageMode === "english"
-    ? "English audio & subtitles"
-    : selectedLanguageLabel;
-  const selectedAvailabilityOption = availabilityOptions.find(
-    (option) => option.value === setupLoad.setup.defaults.availabilityRegion,
-  );
-  const availabilityDisplayLabel =
-    selectedAvailabilityOption?.label ?? setupLoad.setup.defaults.availabilityRegion;
+  const defaultsSummary = tonightDefaultsSummary({
+    peopleMode,
+    languageMode,
+    availabilityRegion: setupLoad.setup.defaults.availabilityRegion,
+    sessionMode,
+  });
   const missingLabels =
     onboardingCompletion?.incompleteProfileIds
       .map(
@@ -380,19 +399,10 @@ export function SetupStep({
     : isCoupleSession
       ? "One shared phone. Five quick reactions each. We only shortlist movies you can actually start tonight."
       : "A faster solo flow. Five quick calls, then one clean pick for tonight.";
-  const primaryLabel = onboardingRequired
-    ? onboardingPrompt
-      ? `Continue ${onboardingPrompt.profileLabel}'s setup`
-      : completedCount === 0
-        ? "Set up tastes"
-        : "Finish setup"
-    : isSyncing
-      ? "Building tonight's picks..."
-      : "Start first pass";
-  const primaryAction = onboardingRequired ? onBeginOnboarding : onStart;
-  const primaryDisabled = onboardingRequired ? onboardingBusy : isSyncing;
+  const primaryLabel = onboardingHomeStatus.primaryLabel;
+  const primaryDisabled = onboardingHomeStatus.primaryDisabled;
   const summaryLine = onboardingRequired
-    ? `${completedCount} of ${totalCount} ready`
+    ? onboardingHomeStatus.progressLabel
     : "Step 1 of 3";
   const setupProgress = onboardingRequired
     ? totalCount > 0
@@ -410,23 +420,40 @@ export function SetupStep({
     day: "numeric",
   }).format(new Date());
   const heroTitle = onboardingRequired
-    ? isCoupleSession
+    ? onboardingCheckPending
+      ? "Getting tonight ready."
+      : isCoupleSession
       ? "Before tonight, tune both tastes."
       : `Before tonight, tune ${selectedPeopleLabel.toLowerCase()}.`
     : isCoupleSession
       ? "Tonight,\nwe pick together."
       : `Tonight,\n${selectedPeopleLabel.toLowerCase()} picks clean.`;
   const footerLine = onboardingRequired
-    ? "Three seed calls is enough to unlock a better shortlist."
+    ? "Three quick choices unlock a better shortlist."
     : isCoupleSession
       ? "We'll take turns. No duplicates. Keep it fun."
       : "One fast pass. No doom-scrolling.";
   const setupLead = onboardingRequired
-    ? heroLead
+    ? onboardingCheckPending
+      ? "Checking your household's taste setup."
+      : heroLead
     : "Let's find the perfect movie for a great night in.";
+  function openSetupUtility(
+    utility: "people" | "defaults" | "intent" | "memory" | "history",
+    opener: HTMLElement,
+  ): void {
+    setSetupUtilityOpener(opener);
+    setSetupUtility(utility);
+  }
+
+  function closeTonightIntent(): void {
+    onCancelTonightIntentInterpretation();
+    setSetupUtility(null);
+  }
 
   return (
     <section className="wizardPanel heroPanel cinematicHeroPanel" aria-labelledby="setup-heading">
+      <div ref={setupBackgroundRef}>
       <div className="startupStage">
         <div className="startupCinematicHeader">
           {heroEyebrow ? <p className="eyebrow startupHeroEyebrow">{heroEyebrow}</p> : null}
@@ -470,10 +497,9 @@ export function SetupStep({
                 <button
                   type="button"
                   className="startupRowSummaryButton"
-                  onClick={() =>
-                    setExpandedControl((current) => (current === "people" ? null : "people"))
-                  }
-                  aria-expanded={expandedControl === "people"}
+                  onClick={(event) => openSetupUtility("people", event.currentTarget)}
+                  aria-haspopup="dialog"
+                  aria-expanded={setupUtility === "people"}
                 >
                   <span className="startupRowSummaryMain">
                     <SetupControlIcon kind="people" />
@@ -485,149 +511,46 @@ export function SetupStep({
                     <strong className="startupControlValue">{selectedPeopleLabel}</strong>
                   </span>
                 </button>
-                {expandedControl === "people" ? (
-                  <div className="startupInlineOptions startupProfileOptions" aria-label="People and profile setup">
-                    <div className="startupProfileGroup" role="group" aria-label="People mode">
-                      {(Object.keys(peopleModeLabels) as PeopleMode[]).map((mode) => (
-                        <button
-                          key={mode}
-                          type="button"
-                          className={mode === peopleMode ? "startupOptionPill startupOptionPillActive" : "startupOptionPill"}
-                          onClick={() => onPeopleModeChange(mode)}
-                        >
-                          {peopleModeLabels[mode]}
-                        </button>
-                      ))}
-                    </div>
-
-                    <ProfileSelectRow
-                      label="Me"
-                      value={activeProfileId}
-                      profiles={setupLoad.setup.profiles}
-                      disabled={profileSetupBusy}
-                      onChange={onActiveProfileChange}
-                    />
-                    {peopleMode === "couple" ? (
-                      <ProfileSelectRow
-                        label="Partner"
-                        value={partnerProfileId}
-                        profiles={setupLoad.setup.profiles.filter(
-                          (profile) => profile.id !== activeProfileId,
-                        )}
-                        disabled={profileSetupBusy}
-                        onChange={onPartnerProfileChange}
-                      />
-                    ) : null}
-
-                    <form
-                      className="startupProfileCreate"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        void onCreateProfile(newProfileName);
-                        setNewProfileName("");
-                      }}
-                    >
-                      <input
-                        value={newProfileName}
-                        onChange={(event) => setNewProfileName(event.target.value)}
-                        placeholder="Add profile name"
-                        maxLength={28}
-                        disabled={profileSetupBusy}
-                      />
-                      <button
-                        type="submit"
-                        className="secondaryAction compactAction"
-                        disabled={profileSetupBusy || newProfileName.trim().length === 0}
-                      >
-                        Add
-                      </button>
-                    </form>
-                    {peopleMode === "couple" && !selectedPartnerProfile ? (
-                      <p className="startupProfileNote">Add another profile before household mode can start.</p>
-                    ) : null}
-                    {profileSetupMessage ? (
-                      <p className="startupProfileNote">{profileSetupMessage}</p>
-                    ) : null}
-                  </div>
-                ) : null}
               </div>
 
               <div className="startupControlRow">
                 <button
                   type="button"
                   className="startupRowSummaryButton"
-                  onClick={() =>
-                    setExpandedControl((current) => (current === "language" ? null : "language"))
-                  }
-                  aria-expanded={expandedControl === "language"}
-                >
-                  <span className="startupRowSummaryMain">
-                    <SetupControlIcon kind="language" />
-                    <span className="startupControlLabelGroup">
-                      <span>Language</span>
-                    </span>
-                  </span>
-                  <span className="startupRowSummarySecondary">
-                    <strong className="startupControlValue startupControlValueLong">{selectedLanguageDisplayLabel}</strong>
-                  </span>
-                </button>
-                {expandedControl === "language" ? (
-                  <div className="startupInlineOptions" role="group" aria-label="Language mode">
-                    {(Object.keys(languageModeLabels) as LanguageMode[]).map((mode) => (
-                      <button
-                        key={mode}
-                        type="button"
-                        className={mode === languageMode ? "startupOptionPill startupOptionPillActive" : "startupOptionPill"}
-                        onClick={() => onLanguageModeChange(mode)}
-                      >
-                        {languageModeLabels[mode]}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="startupControlRow">
-                <button
-                  type="button"
-                  className="startupRowSummaryButton"
-                  onClick={() =>
-                    setExpandedControl((current) =>
-                      current === "availability" ? null : "availability",
-                    )
-                  }
-                  aria-expanded={expandedControl === "availability"}
+                  onClick={(event) => openSetupUtility("defaults", event.currentTarget)}
+                  aria-haspopup="dialog"
+                  aria-expanded={setupUtility === "defaults"}
                 >
                   <span className="startupRowSummaryMain">
                     <SetupControlIcon kind="availability" />
                     <span className="startupControlLabelGroup">
-                      <span>Availability</span>
+                      <span>Tonight</span>
                     </span>
                   </span>
-                  <strong className="startupControlValue">{availabilityDisplayLabel}</strong>
+                  <span className="startupRowSummarySecondary">
+                    <strong className="startupControlValue startupControlValueLong">{defaultsSummary}</strong>
+                  </span>
                 </button>
-                {expandedControl === "availability" ? (
-                  <div className="startupInlineOptions" role="group" aria-label="Availability">
-                    {availabilityOptions.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        className={
-                          option.value === setupLoad.setup.defaults.availabilityRegion
-                            ? "startupOptionPill startupOptionPillActive"
-                            : "startupOptionPill"
-                        }
-                        onClick={() => void onAvailabilityRegionChange(option.value)}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                    <p className="startupProfileNote">
-                      {selectedAvailabilityOption?.detail ??
-                        "Demo fixtures may still show their fixed catalog availability."}
-                    </p>
-                  </div>
-                ) : null}
+              </div>
+
+              <div className="startupControlRow">
+                <button
+                  type="button"
+                  className="startupRowSummaryButton"
+                  onClick={(event) => openSetupUtility("intent", event.currentTarget)}
+                  aria-haspopup="dialog"
+                  aria-expanded={setupUtility === "intent"}
+                >
+                  <span className="startupRowSummaryMain">
+                    <SetupControlIcon kind="intent" />
+                    <span className="startupControlLabelGroup"><span>Mood</span></span>
+                  </span>
+                  <span className="startupRowSummarySecondary">
+                    <strong className="startupControlValue startupControlValueLong">
+                      {intentSummary(activeTonightIntent)}
+                    </strong>
+                  </span>
+                </button>
               </div>
             </div>
           </div>
@@ -650,13 +573,21 @@ export function SetupStep({
                   ? "primaryAction heroAction startupPrimaryButton cinematicActionPending"
                   : "primaryAction heroAction startupPrimaryButton"
               }
-              onClick={primaryAction}
+              onClick={(event) => {
+                if (onboardingRequired) {
+                  void onBeginOnboarding(event.currentTarget);
+                } else {
+                  onStart();
+                }
+              }}
               disabled={primaryDisabled}
             >
               {primaryDisabled ? <CinematicBusyMark /> : null}
               <span>{primaryLabel}</span>
               {!onboardingRequired && !primaryDisabled ? <span className="startupPrimaryArrow" aria-hidden="true">→</span> : null}
-              {primaryDisabled ? <small>{onboardingRequired ? "Saving" : "Preparing"}</small> : null}
+              {primaryDisabled ? (
+                <small>{onboardingRequired ? onboardingHomeStatus.busyLabel ?? "Working" : "Preparing"}</small>
+              ) : null}
             </button>
 
             <p className="startupFooterNote">
@@ -666,30 +597,41 @@ export function SetupStep({
         </div>
       </div>
 
-      <ProfileMemoryPanel
-        founderLabel={founderLabel}
-        wifeLabel={wifeLabel}
-        summaries={profileMemorySummaries}
-        events={profileMemoryEvents}
-        message={profileMemoryMessage}
-      />
-
-      {!onboardingRequired ? (
-        <TonightIntentPanel
-          text={tonightIntentText}
-          onTextChange={onTonightIntentTextChange}
-          pendingIntent={pendingTonightIntent}
-          activeIntent={activeTonightIntent}
-          clarificationText={tonightIntentClarificationText}
-          onClarificationTextChange={onTonightIntentClarificationTextChange}
-          busy={tonightIntentBusy}
-          message={tonightIntentMessage}
-          onInterpret={onInterpretTonightIntent}
-          onAnswerClarification={onAnswerTonightIntentClarification}
-          onApply={onApplyTonightIntent}
-          onClear={onClearTonightIntent}
-        />
-      ) : null}
+      <div className="setupUtilityLinks" aria-label="Household tools">
+        <button
+          type="button"
+          onClick={(event) => openSetupUtility("memory", event.currentTarget)}
+          aria-haspopup="dialog"
+          aria-expanded={setupUtility === "memory"}
+        >
+          <WatchSignalIcon name="sparkles" />
+          <span><strong>Taste memory</strong><small>What WatchSignal has learned</small></span>
+          <WatchSignalIcon name="chevron-right" />
+        </button>
+        <button
+          type="button"
+          onClick={(event) => {
+            openSetupUtility("history", event.currentTarget);
+            if (recentSessionsStatus === "idle") void onLoadRecentSessions();
+          }}
+          aria-haspopup="dialog"
+          aria-expanded={setupUtility === "history"}
+        >
+          <WatchSignalIcon name="history" />
+          <span><strong>Recent nights</strong><small>Remember what you watched</small></span>
+          <WatchSignalIcon name="chevron-right" />
+        </button>
+        <a href="/taste-lab">
+          <WatchSignalIcon name="heart" />
+          <span><strong>Tune tastes</strong><small>A few private movie choices</small></span>
+          <WatchSignalIcon name="chevron-right" />
+        </a>
+        <a href="/setup">
+          <WatchSignalIcon name="users" />
+          <span><strong>Household setup</strong><small>Names and usual defaults</small></span>
+          <WatchSignalIcon name="chevron-right" />
+        </a>
+      </div>
 
       {onboardingMessage ? (
         <p className="setupCallout">{onboardingMessage}</p>
@@ -700,20 +642,16 @@ export function SetupStep({
         <div className="disclosureBody">
           <p className="disclosureText">
             {onboardingRequired
-              ? "Each person needs one Loved, one Ok, and one No seed. Suggested titles are there to make this fast, and you can type your own if needed."
+              ? "Each person needs one Loved, one Ok, and one No choice. Suggested titles make this fast, and you can type your own."
               : "The first pass is just triage. If you have already seen something, save that memory first, then still answer whether it fits tonight."}
           </p>
           <div className="sessionSummaryGrid">
-            <SummaryTile
-              label="Backend"
-              value={
-                apiHealth.connected
-                  ? onboardingRequired
-                    ? "Waiting for onboarding"
-                    : "Ready"
-                  : "Demo fallback"
-              }
-            />
+            {reviewMode ? (
+              <SummaryTile
+                label="Review source"
+                value={apiHealth.connected ? "Connected" : "Local fallback"}
+              />
+            ) : null}
             <SummaryTile label="People" value={selectedPeopleLabel} />
             <SummaryTile label="Language" value={selectedLanguageLabel} />
             <SummaryTile
@@ -742,185 +680,103 @@ export function SetupStep({
             </div>
           </div>
 
-          <div className="modeBlock">
-            <p className="controlLabel">Language</p>
-            <div className="segmentedControl" role="group" aria-label="Language mode">
-              {(Object.keys(languageModeLabels) as LanguageMode[]).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  className={mode === languageMode ? "segment segmentActive" : "segment"}
-                  onClick={() => onLanguageModeChange(mode)}
-                >
-                  {languageModeLabels[mode]}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {!onboardingRequired && isCoupleSession ? (
-            <div className="modeBlock">
-              <p className="controlLabel">Tonight's mode</p>
-              <div className="segmentedControl" role="group" aria-label="Session mode">
-                {(Object.keys(sessionModeLabels) as SessionMode[]).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    className={mode === sessionMode ? "segment segmentActive" : "segment"}
-                    onClick={() => onSessionModeChange(mode)}
-                  >
-                    {sessionModeLabels[mode]}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
         </div>
       </details>
 
-      {reviewMode ? (
-        <details className="disclosurePanel startupDisclosure historyDisclosure">
-          <summary>Recent nights</summary>
-          <div className="disclosureBody">
-            <RecentSessionsPanel
-              sessions={recentSessions}
-              status={recentSessionsStatus}
-              message={recentSessionsMessage}
-              selectedHistory={selectedHistory}
-              selectedHistoryStatus={selectedHistoryStatus}
-              selectedHistoryMessage={selectedHistoryMessage}
-              onLoad={onLoadRecentSessions}
-              onSelect={onSelectRecentSession}
-            />
-          </div>
-        </details>
-      ) : null}
-    </section>
-  );
-}
-
-function TonightIntentPanel({
-  text,
-  onTextChange,
-  pendingIntent,
-  activeIntent,
-  clarificationText,
-  onClarificationTextChange,
-  busy,
-  message,
-  onInterpret,
-  onAnswerClarification,
-  onApply,
-  onClear,
-}: {
-  text: string;
-  onTextChange: (text: string) => void;
-  pendingIntent: TonightIntentInterpretationPayload | null;
-  activeIntent: TonightIntentInterpretationPayload | null;
-  clarificationText: string;
-  onClarificationTextChange: (text: string) => void;
-  busy: boolean;
-  message: string | null;
-  onInterpret: () => void | Promise<void>;
-  onAnswerClarification: () => void | Promise<void>;
-  onApply: () => void;
-  onClear: () => void;
-}) {
-  const pendingSignals = pendingIntent?.softSignals.slice(0, 4) ?? [];
-  const activeSignals = activeIntent?.softSignals.slice(0, 4) ?? [];
-  const hasActiveIntent = activeIntent?.status === "confirmation_required";
-  const hasClarification = pendingIntent?.status === "clarification_required";
-  const hasConfirmation = pendingIntent?.status === "confirmation_required";
-
-  return (
-    <section className="tonightIntentPanel" aria-labelledby="tonight-intent-heading">
-      <div className="tonightIntentHeader">
-        <div>
-          <p className="eyebrow">Tonight only</p>
-          <h3 id="tonight-intent-heading">Steer this movie night</h3>
-        </div>
-        {hasActiveIntent ? (
-          <button type="button" className="secondaryAction compactAction" onClick={onClear}>
-            Clear
-          </button>
-        ) : null}
       </div>
 
-      {hasActiveIntent ? (
-        <div className="tonightIntentActive" aria-label="Active tonight context">
-          <strong>{activeIntent.confirmationText}</strong>
-          <span>This applies to this session only. It is not saved to either taste profile.</span>
-          {activeSignals.length > 0 ? (
-            <div className="tonightIntentSignals">
-              {activeSignals.map((signal) => (
-                <span key={`active-${signal}`}>{formatTonightIntentSignal(signal)}</span>
-              ))}
-            </div>
-          ) : null}
-        </div>
+      {setupUtility === "people" ? (
+        <ViewerProfileSetup
+          backgroundRef={setupBackgroundRef}
+          opener={setupUtilityOpener}
+          founderLabel={founderLabel}
+          wifeLabel={wifeLabel}
+          peopleMode={peopleMode}
+          profiles={setupLoad.setup.profiles}
+          activeProfileId={activeProfileId}
+          partnerProfileId={partnerProfileId}
+          busy={profileSetupBusy}
+          message={profileSetupMessage}
+          canPersist={setupLoad.canPersist}
+          onPeopleModeChange={onPeopleModeChange}
+          onActiveProfileChange={onActiveProfileChange}
+          onPartnerProfileChange={onPartnerProfileChange}
+          onCreateProfile={onCreateProfile}
+          onClose={() => setSetupUtility(null)}
+        />
       ) : null}
 
-      <div className="tonightIntentComposer">
-        <label htmlFor="tonight-intent-input">Natural-language nudge</label>
-        <div className="tonightIntentInputRow">
-          <input
-            id="tonight-intent-input"
-            value={text}
-            onChange={(event) => onTextChange(event.target.value)}
-            placeholder="something funny from the 90s"
-            disabled={busy}
-          />
-          <button
-            type="button"
-            className="secondaryAction compactAction"
-            onClick={onInterpret}
-            disabled={busy || text.trim().length === 0}
-          >
-            {busy ? "Reading..." : "Review"}
-          </button>
-        </div>
-      </div>
-
-      {hasConfirmation ? (
-        <div className="tonightIntentReview">
-          <p>{pendingIntent.confirmationText}</p>
-          {pendingSignals.length > 0 ? (
-            <div className="tonightIntentSignals">
-              {pendingSignals.map((signal) => (
-                <span key={`pending-${signal}`}>{formatTonightIntentSignal(signal)}</span>
-              ))}
-            </div>
-          ) : null}
-          <button type="button" className="primaryAction compactAction" onClick={onApply} disabled={busy}>
-            Apply to tonight
-          </button>
-        </div>
+      {setupUtility === "defaults" ? (
+        <TonightDefaultsSetup
+          backgroundRef={setupBackgroundRef}
+          opener={setupUtilityOpener}
+          founderLabel={founderLabel}
+          wifeLabel={wifeLabel}
+          peopleMode={peopleMode}
+          languageMode={languageMode}
+          availabilityRegion={setupLoad.setup.defaults.availabilityRegion}
+          sessionMode={sessionMode}
+          busy={profileSetupBusy}
+          message={profileSetupMessage}
+          canPersist={setupLoad.canPersist}
+          onSave={onSaveTonightDefaults}
+          onClose={closeTonightIntent}
+        />
       ) : null}
 
-      {hasClarification ? (
-        <div className="tonightIntentReview">
-          <p>{pendingIntent.clarificationQuestion}</p>
-          <div className="tonightIntentInputRow">
-            <input
-              value={clarificationText}
-              onChange={(event) => onClarificationTextChange(event.target.value)}
-              placeholder="comforting, not matching the mood"
-              disabled={busy}
-              aria-label="Clarify tonight intent"
-            />
-            <button
-              type="button"
-              className="secondaryAction compactAction"
-              onClick={onAnswerClarification}
-              disabled={busy || clarificationText.trim().length === 0}
-            >
-              Answer
-            </button>
-          </div>
-        </div>
+      {setupUtility === "intent" ? (
+        <TonightIntentSetup
+          backgroundRef={setupBackgroundRef}
+          opener={setupUtilityOpener}
+          text={tonightIntentText}
+          onTextChange={onTonightIntentTextChange}
+          pendingIntent={pendingTonightIntent}
+          activeIntent={activeTonightIntent}
+          clarificationText={tonightIntentClarificationText}
+          onClarificationTextChange={onTonightIntentClarificationTextChange}
+          busy={tonightIntentBusy}
+          message={tonightIntentMessage}
+          onInterpret={onInterpretTonightIntent}
+          onAnswerClarification={onAnswerTonightIntentClarification}
+          onRemoveSignal={onRemoveTonightIntentSignal}
+          onApply={onApplyTonightIntent}
+          onClear={onClearTonightIntent}
+          onClose={closeTonightIntent}
+        />
       ) : null}
 
-      {message ? <p className="tonightIntentNote">{message}</p> : null}
+      {setupUtility === "memory" ? (
+        <ProfileMemorySnapshot
+          backgroundRef={setupBackgroundRef}
+          opener={setupUtilityOpener}
+          profileLabels={Object.fromEntries([
+            [setupLoad.setup.activeProfileId, founderLabel],
+            [setupLoad.setup.partnerProfileId, wifeLabel],
+          ])}
+          summaries={profileMemorySummaries}
+          events={profileMemoryEvents}
+          status={profileMemoryStatus}
+          message={profileMemoryMessage}
+          onRetry={onLoadProfileMemory}
+          onClose={() => setSetupUtility(null)}
+        />
+      ) : null}
+
+      {setupUtility === "history" ? (
+        <HouseholdHistory
+          backgroundRef={setupBackgroundRef}
+          opener={setupUtilityOpener}
+          sessions={recentSessions}
+          status={recentSessionsStatus}
+          message={recentSessionsMessage}
+          selectedHistory={selectedHistory}
+          selectedHistoryStatus={selectedHistoryStatus}
+          selectedHistoryMessage={selectedHistoryMessage}
+          onLoad={onLoadRecentSessions}
+          onSelect={onSelectRecentSession}
+          onClose={() => setSetupUtility(null)}
+        />
+      ) : null}
     </section>
   );
 }
@@ -1218,49 +1074,10 @@ function eventStatusLabel(status: string): string {
     .join(" ");
 }
 
-function formatTonightIntentSignal(signal: string): string {
-  return signal
-    .split("-")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function ProfileSelectRow({
-  label,
-  value,
-  profiles,
-  disabled,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  profiles: SetupProfile[];
-  disabled: boolean;
-  onChange: (profileId: string) => void | Promise<void>;
-}) {
-  return (
-    <label className="startupProfileSelect">
-      <span>{label}</span>
-      <select
-        value={value}
-        disabled={disabled}
-        onChange={(event) => void onChange(event.target.value)}
-      >
-        {profiles.map((profile) => (
-          <option key={profile.id} value={profile.id}>
-            {profile.label}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
 function SetupControlIcon({
   kind,
 }: {
-  kind: "people" | "language" | "availability";
+  kind: "people" | "language" | "availability" | "intent";
 }) {
   if (kind === "people") {
     return (
@@ -1287,6 +1104,19 @@ function SetupControlIcon({
     );
   }
 
+  if (kind === "intent") {
+    return (
+      <span className="startupControlIcon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M5 15.5c2.5-6.8 7.2-8.8 14-7" />
+          <path d="M5 12.2c2.3 4.2 6.7 5.8 13.2 3.8" />
+          <circle cx="5" cy="13.8" r="1.2" />
+          <circle cx="18.5" cy="8.7" r="1.2" />
+        </svg>
+      </span>
+    );
+  }
+
   return (
     <span className="startupControlIcon" aria-hidden="true">
       <svg viewBox="0 0 24 24">
@@ -1300,10 +1130,14 @@ function SetupControlIcon({
 function StartupConceptHero() {
   return (
     <div className="startupConceptHero" role="img" aria-label="Glowing particle sculpture">
-      <img
+      <Image
         className="startupConceptHeroImage"
-        src="/concept-startup-hero-scene-v2.png"
+        src="/watchsignal-startup-signal.webp"
         alt=""
+        width={864}
+        height={1821}
+        sizes="(max-width: 430px) 74vw, 260px"
+        priority
       />
     </div>
   );
@@ -1320,6 +1154,8 @@ export function ReactionStep({
   selectedReaction,
   seenMemory,
   isSyncing,
+  localOnly,
+  sessionNotice,
   onReaction,
   onSeenIt,
   onBack,
@@ -1334,260 +1170,34 @@ export function ReactionStep({
   selectedReaction: ReactionValue | undefined;
   seenMemory: SeenMemoryValue | undefined;
   isSyncing: boolean;
+  localOnly: boolean;
+  sessionNotice?: string | null;
   onReaction: (
     actor: "founder" | "wife",
     candidateId: string,
     reaction: ReactionValue,
   ) => void | Promise<void>;
-  onSeenIt: () => void;
+  onSeenIt: (memory: SeenMemoryValue) => Promise<SeenMemorySaveResult>;
   onBack: () => void;
 }) {
-  const [detailsExpanded, setDetailsExpanded] = useState(false);
-  const [pendingReaction, setPendingReaction] = useState<{
-    candidateId: string;
-    reaction: ReactionValue;
-  } | null>(null);
-  useEffect(() => {
-    setDetailsExpanded(false);
-  }, [candidate.id]);
-  const pendingForCurrent = pendingReaction?.candidateId === candidate.id
-    ? pendingReaction.reaction
-    : undefined;
-  const activeReaction = pendingForCurrent ?? selectedReaction;
-  const confidenceScore = candidate.taste.founder && candidate.taste.wife
-    ? Math.round((candidate.taste.founder + candidate.taste.wife) / 2)
-    : 87;
-  const accentCopy = actor === "wife" ? "Your turn" : `${actorLabel} first`;
-  const reactionSummary = candidate.hook ?? candidate.reason;
-  const reactionDetail = candidate.whyNow ?? candidate.languageAccess;
-  const synopsis = candidate.overview ?? candidate.reason;
-
-  async function commitReaction(reaction: ReactionValue): Promise<void> {
-    if (pendingReaction !== null || isSyncing) {
-      return;
-    }
-
-    setPendingReaction({ candidateId: candidate.id, reaction });
-    await new Promise<void>((resolve) => window.setTimeout(resolve, 560));
-
-    try {
-      await onReaction(actor, candidate.id, reaction);
-    } finally {
-      setPendingReaction(null);
-    }
-  }
-
   return (
-    <section className="wizardPanel reactionPanel cinematicReactionPanel" aria-labelledby="reaction-heading">
-      <div className="reactionChrome">
-        <button
-          type="button"
-          className="secondaryButton chromeIconButton"
-          onClick={onBack}
-          disabled={isSyncing}
-          aria-label="Back"
-        >
-          &larr;
-        </button>
-        <div className="reactionProgressInline">
-          <div className="reactionProgressInlineTrack">
-            <span
-              className="reactionProgressInlineFill"
-              style={{ width: `${((index + 1) / total) * 100}%` }}
-            />
-          </div>
-          <span>{index + 1} of {total}</span>
-        </div>
-        <div className="chromeGhostDot" aria-hidden="true">
-          ...
-        </div>
-      </div>
-
-      <article
-        key={candidate.id}
-        className={pendingForCurrent ? "movieCard cinematicMovieCard cinematicMovieCardCommitting" : "movieCard cinematicMovieCard"}
-      >
-        <div className="posterFrame">
-          <img
-            src={candidate.posterUrl}
-            alt=""
-            className="posterImage"
-            onError={handlePosterFallback}
-          />
-        </div>
-        <div className="movieDetails">
-          <div className="movieSignalRow movieSignalRowTight">
-            <span className="safePill">{candidate.safePickStatus}</span>
-            {candidate.criticScore ? (
-              <span className="criticScorePill" aria-label="Critic score">
-                Critics {candidate.criticScore}%
-              </span>
-            ) : null}
-            <span className="criticScorePill" aria-label="Fast confidence cue">
-              Signal {confidenceScore}
-            </span>
-          </div>
-          <h2>{candidate.title}</h2>
-          <p className="movieFacts">
-            {candidate.year} · {candidate.runtime} · {candidate.tone}
-          </p>
-          {candidate.topCast.length > 0 ? (
-            <div className="castChips" aria-label="Top cast">
-              {candidate.topCast.slice(0, 3).map((name) => (
-                <span key={name} className="castChip">
-                  {name}
-                </span>
-              ))}
-            </div>
-          ) : null}
-          <div className={detailsExpanded ? "movieReasonBlock movieReasonBlockExpanded" : "movieReasonBlock"}>
-            <p className="movieReason movieReasonLead">{reactionSummary}</p>
-            <p className="movieReason movieReasonSubtle">{reactionDetail}</p>
-            {detailsExpanded ? (
-              <>
-                <p className="movieReason movieReasonSubtle">{synopsis}</p>
-                {candidate.topCast.length > 0 ? (
-                  <div className="castChips" aria-label="Expanded top cast">
-                    {candidate.topCast.slice(0, 3).map((name) => (
-                      <span key={`expanded-${name}`} className="castChip">
-                        {name}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-                <p className="movieReason movieReasonSubtle">{candidate.languageAccess}</p>
-              </>
-            ) : null}
-            <div className="movieReasonActions">
-              <button
-                type="button"
-                className="ghostInlineButton"
-                disabled={isSyncing}
-                onClick={() => setDetailsExpanded((current) => !current)}
-                aria-expanded={detailsExpanded}
-              >
-                {detailsExpanded ? "Less" : "More"}
-              </button>
-            </div>
-          </div>
-          {seenMemory ? (
-            <div className="seenMemoryBanner" aria-label="Seen memory">
-              Already seen: {seenMemoryLabels[seenMemory]}
-            </div>
-          ) : null}
-        </div>
-        {pendingForCurrent ? (
-          <div className="cinematicReactionReceipt" role="status" aria-live="polite">
-            <i>✓</i>
-            <strong>{reactionLabels[pendingForCurrent]} saved privately</strong>
-          </div>
-        ) : null}
-      </article>
-
-      <div className="reactionActionDock" role="group" aria-label={`Reaction for ${candidate.title}`}>
-        {(Object.keys(reactionLabels) as ReactionValue[]).map((reaction) => (
-          <button
-            key={reaction}
-            type="button"
-            className={
-              activeReaction === reaction
-                ? `reactionOrbButton reactionOrbButton${reaction} reactionOrbButtonActive${pendingForCurrent === reaction ? " cinematicReactionPending" : ""}`
-                : `reactionOrbButton reactionOrbButton${reaction}`
-            }
-            onClick={() => void commitReaction(reaction)}
-            disabled={isSyncing || pendingReaction !== null}
-          >
-            <span className="reactionOrbIcon" aria-hidden="true">
-              {activeReaction === reaction ? <span className="cinematicReactionCheck">✓</span> : <ReactionChoiceIcon kind={reaction} />}
-            </span>
-            <span className="reactionOrbLabel">
-              {activeReaction === reaction ? "Saved" : reactionLabels[reaction]}
-            </span>
-          </button>
-        ))}
-        <button
-          type="button"
-          className={
-            seenMemory
-              ? "reactionOrbButton reactionOrbButtonseen reactionOrbButtonMemoryActive"
-              : "reactionOrbButton reactionOrbButtonseen"
-          }
-          onClick={onSeenIt}
-          disabled={isSyncing || pendingReaction !== null}
-        >
-          <span className="reactionOrbIcon" aria-hidden="true">
-            <ReactionChoiceIcon kind="seen" />
-          </span>
-          <span className="reactionOrbLabel">
-            {seenMemory ? "Seen saved" : "Seen before"}
-          </span>
-        </button>
-      </div>
-
-      <div className="reactionStageFooter">
-        <div className="reactionTurnGlowBar" aria-hidden="true" />
-        <div className={`reactionActorMark reactionActorMark${actorColorKey}`}>
-          <span>{avatarSymbol(actorAvatarKey)}</span>
-          <p>{accentCopy}</p>
-        </div>
-        <p className="reactionTurnPrompt">{actorLabel}, what do you think?</p>
-      </div>
-
-      <p className="memoryHint memoryHintCentered">
-        {seenMemory
-          ? `Seen memory saved: ${seenMemoryLabels[seenMemory]}. Still rate tonight-fit separately.`
-          : "Save a memory note if you have already seen it, then still rate tonight-fit separately."}
-      </p>
-    </section>
-  );
-}
-
-function avatarSymbol(avatarKey: string): string {
-  const symbols: Record<string, string> = {
-    spark: "S",
-    moon: "M",
-    comet: "C",
-    ticket: "T",
-  };
-
-  return symbols[avatarKey] ?? "P";
-}
-
-function ReactionChoiceIcon({
-  kind,
-}: {
-  kind: ReactionValue | "seen";
-}) {
-  if (kind === "interested") {
-    return (
-      <svg viewBox="0 0 32 32">
-        <path d="M16 26.2 7.4 18.3C2.8 14 .6 8.4 5.1 5.3c3.1-2.1 7.2-.7 9 2.1L16 10.2l1.9-2.8c1.8-2.8 5.9-4.2 9-2.1 4.5 3.1 2.3 8.7-2.3 13L16 26.2Z" />
-      </svg>
-    );
-  }
-
-  if (kind === "maybe") {
-    return (
-      <svg viewBox="0 0 32 32">
-        <path d="M12.1 24.8 6.6 19.7C3.1 16.5 1.7 12.3 5 10c2.2-1.5 5.1-.6 6.4 1.4l.7 1 .7-1c1.3-2 4.2-2.9 6.4-1.4 3.3 2.3 1.9 6.5-1.6 9.7l-5.5 5.1Z" />
-        <path d="M22.2 18.2 18.9 15c-2.2-2.1-3-4.8-.9-6.2 1.4-1 3.3-.4 4.1.9l.1.2.2-.2c.8-1.3 2.7-1.9 4.1-.9 2.1 1.4 1.3 4.1-.9 6.2l-3.4 3.2Z" />
-      </svg>
-    );
-  }
-
-  if (kind === "no") {
-    return (
-      <svg viewBox="0 0 32 32">
-        <path d="M9 9 23 23M23 9 9 23" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg viewBox="0 0 32 32">
-      <path d="M3.8 16s4.6-7.3 12.2-7.3S28.2 16 28.2 16 23.6 23.3 16 23.3 3.8 16 3.8 16Z" />
-      <circle cx="16" cy="16" r="4.1" />
-    </svg>
+    <PrivateReactionCard
+      actorLabel={actorLabel}
+      actorAvatarKey={actorAvatarKey}
+      actorColorKey={actorColorKey}
+      actor={actor}
+      index={index}
+      total={total}
+      candidate={candidate}
+      selectedReaction={selectedReaction}
+      seenMemory={seenMemory}
+      isSyncing={isSyncing}
+      localOnly={localOnly}
+      sessionNotice={sessionNotice}
+      onReaction={onReaction}
+      onSeenIt={onSeenIt}
+      onBack={onBack}
+    />
   );
 }
 
@@ -1595,24 +1205,14 @@ export function LaunchSting() {
   return (
     <div className="launchSting" aria-hidden="true">
       <div className="launchStingCard">
-        <img
-          className="launchOrbArt"
-          src="/concept-startup-hero-scene-v2.png"
-          alt=""
-          draggable={false}
-        />
-        <div className="launchStingCopy">
-          <p>Movie Night</p>
-          <h2>Mediator</h2>
-          <span>Tonight, we pick together.</span>
+        <div className="launchSignal" aria-hidden="true">
+          <i />
+          <i />
+          <span>W</span>
         </div>
-        <div className="launchStingMark">
-          <img
-            src="/concept-startup-hero-scene-v2.png"
-            alt=""
-            draggable={false}
-          />
-          <span>Pass the phone</span>
+        <div className="launchStingCopy">
+          <strong>WatchSignal</strong>
+          <span>Tonight, we pick together.</span>
         </div>
       </div>
     </div>
@@ -1657,57 +1257,6 @@ function FlowProgress({
   );
 }
 
-export function SeenMemoryDialog({
-  actorLabel,
-  candidate,
-  isSaving,
-  onChoose,
-  onClose,
-}: {
-  actorLabel: string;
-  candidate: DemoCandidate;
-  isSaving: boolean;
-  onChoose: (memory: SeenMemoryValue) => void | Promise<void>;
-  onClose: () => void;
-}) {
-  return (
-    <div className="dialogScrim" role="presentation">
-      <section className="dialogCard" role="dialog" aria-modal="true" aria-labelledby="seen-memory-heading">
-        <div className="sectionHeading">
-          <p className="eyebrow">Seen it</p>
-          <h3 id="seen-memory-heading">{candidate.title}</h3>
-          <p>
-            Save what {actorLabel} remembers about this movie, then come back and still rate whether it fits tonight.
-          </p>
-        </div>
-
-        <div className="memoryChoiceGrid" role="group" aria-label={`Memory for ${candidate.title}`}>
-          {(Object.keys(seenMemoryLabels) as SeenMemoryValue[]).map((memory) => (
-            <button
-              key={memory}
-              type="button"
-              className="secondaryButton memoryChoiceButton"
-              onClick={() => onChoose(memory)}
-              disabled={isSaving}
-            >
-              {seenMemoryLabels[memory]}
-            </button>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          className="secondaryButton fullWidthButton"
-          onClick={onClose}
-          disabled={isSaving}
-        >
-          Cancel
-        </button>
-      </section>
-    </div>
-  );
-}
-
 export function OnboardingDialog({
   profileLabel,
   draft,
@@ -1741,14 +1290,14 @@ export function OnboardingDialog({
           <p className="eyebrow">Taste setup</p>
           <h3 id="onboarding-heading">{profileLabel}</h3>
           <p>
-            Add at least one Loved, one Ok, and one No seed.
+            Add at least one Loved, one Ok, and one No.
             Use the quick picks below or type titles manually.
           </p>
         </div>
 
         <p className="onboardingHint">
           Tap a saved chip to remove it.
-          This is just enough setup to get the shared recommender off the ground.
+          That is enough for WatchSignal to start learning.
         </p>
 
         <div className="onboardingSections">
@@ -1973,133 +1522,6 @@ export function SessionRecoveryStep({
   );
 }
 
-function RecentSessionsPanel({
-  sessions,
-  status,
-  message,
-  selectedHistory,
-  selectedHistoryStatus,
-  selectedHistoryMessage,
-  onLoad,
-  onSelect,
-}: {
-  sessions: RecentSessionSummaryPayload[];
-  status: DebugHistoryStatus;
-  message: string | null;
-  selectedHistory: DebugHistorySessionPayload | null;
-  selectedHistoryStatus: DebugHistoryStatus;
-  selectedHistoryMessage: string | null;
-  onLoad: () => void | Promise<void>;
-  onSelect: (sessionId: string) => void | Promise<void>;
-}) {
-  return (
-    <section className="debugHistoryPanel" aria-labelledby="recent-history-heading">
-      <div className="debugHistoryHeader">
-        <div>
-          <p className="eyebrow">Recent sessions</p>
-          <h3 id="recent-history-heading">Household history</h3>
-        </div>
-        <button
-          type="button"
-          className="secondaryButton compactButton"
-          onClick={onLoad}
-          disabled={status === "loading"}
-        >
-          {status === "loading" ? "Loading..." : sessions.length > 0 ? "Refresh" : "Load"}
-        </button>
-      </div>
-
-      {message ? <p className="debugMessage">{message}</p> : null}
-
-      {sessions.length > 0 ? (
-        <div className="recentSessionList">
-          {sessions.map((session) => (
-            <article key={session.sessionId} className="recentSessionCard">
-              <div className="recentSessionMeta">
-                <strong>{session.bestPickTitle ?? "No best pick yet"}</strong>
-                <span>{session.outcomeTitle ?? session.outcomeType ?? "No outcome saved"}</span>
-              </div>
-              <p className="recentSessionDetail">
-                {session.participantIds.join(" + ")} · {session.activeMode} · {session.state}
-              </p>
-              <p className="recentSessionDetail">
-                {session.feedback.length > 0
-                  ? session.feedback
-                      .map((feedback) => `${feedback.userId}: ${feedback.feedbackLabel}`)
-                      .join(" · ")
-                  : "No post-watch feedback yet"}
-              </p>
-              <button
-                type="button"
-                className="secondaryButton compactButton"
-                onClick={() => onSelect(session.sessionId)}
-                disabled={selectedHistoryStatus === "loading"}
-              >
-                View details
-              </button>
-            </article>
-          ))}
-        </div>
-      ) : null}
-
-      {selectedHistoryMessage ? <p className="debugMessage">{selectedHistoryMessage}</p> : null}
-
-      {selectedHistory ? (
-        <div className="debugHistoryBody">
-          <dl className="debugFacts">
-            <div>
-              <dt>State</dt>
-              <dd>{selectedHistory.state}</dd>
-            </div>
-            <div>
-              <dt>Participants</dt>
-              <dd>{selectedHistory.participantIds.join(", ")}</dd>
-            </div>
-            <div>
-              <dt>Best pick</dt>
-              <dd>
-                {titleForSourceMovieId(
-                  selectedHistory.shortlist,
-                  selectedHistory.bestPickSourceMovieId,
-                ) ?? selectedHistory.bestPickSourceMovieId ?? "No pick yet"}
-              </dd>
-            </div>
-          </dl>
-
-          <DebugList
-            label="Session outcome"
-            items={
-              selectedHistory.sessionOutcome
-                ? [
-                    [
-                      selectedHistory.sessionOutcome.outcomeType,
-                      selectedHistory.sessionOutcome.selectedTitle,
-                      selectedHistory.sessionOutcome.selectionOrigin,
-                      selectedHistory.sessionOutcome.hasNotes ? "notes saved" : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · "),
-                  ]
-                : []
-            }
-          />
-          <DebugReactionList label="Founder reactions" reactions={selectedHistory.founderReactions} />
-          <DebugReactionList label="Wife reactions" reactions={selectedHistory.wifeReactions} />
-          <DebugList
-            label="Post-watch feedback"
-            items={selectedHistory.postWatchFeedback.map(
-              (feedback) =>
-                `${feedback.userId}: ${feedback.sourceMovieId} = ${feedback.feedbackLabel}${
-                  feedback.hasFreeTextNote ? " (note)" : ""
-                }`,
-            )}
-          />
-        </div>
-      ) : null}
-    </section>
-  );
-}
-
 function SessionSyncStrip({
   source,
   status,
@@ -2303,6 +1725,7 @@ export function ResultsStep({
   wifeReactions,
   sessionMode,
   sessionSource,
+  movieSource,
   sharedSession,
   activeTonightIntents,
   recommendationSource,
@@ -2320,6 +1743,7 @@ export function ResultsStep({
   onRefreshProfileMemory,
   onReset,
   onShowMore,
+  canShowMore,
   onSteerTextChange,
   onInterpretSteer,
   onSteerClarificationTextChange,
@@ -2338,6 +1762,7 @@ export function ResultsStep({
   wifeReactions: ReactionState;
   sessionMode: SessionMode;
   sessionSource: SessionSource;
+  movieSource: "live" | "local";
   sharedSession: SharedSessionPayload | null;
   activeTonightIntents: TonightIntentInterpretationPayload[];
   recommendationSource: string;
@@ -2355,6 +1780,7 @@ export function ResultsStep({
   onRefreshProfileMemory: () => void | Promise<void>;
   onReset: () => void;
   onShowMore: () => void | Promise<void>;
+  canShowMore: boolean;
   onSteerTextChange: (text: string) => void;
   onInterpretSteer: () => void | Promise<void>;
   onSteerClarificationTextChange: (text: string) => void;
@@ -2366,6 +1792,13 @@ export function ResultsStep({
 }) {
   const bestPick = rankedCandidates[0];
   const [continuationOpen, setContinuationOpen] = useState(false);
+  const [utilityView, setUtilityView] = useState<ResultUtilityView>("home");
+  const reviewSurface = reviewSurfaceContract(reviewMode);
+  const diagnosticRequests = createReviewDiagnosticRequests(reviewMode, {
+    loadDebugHistory: onLoadDebugHistory,
+    loadSessionTasteEvidence: async () => {},
+    loadSoloTasteEvidence: async () => {},
+  });
   const participantEntries: ResultsParticipantEntry[] =
     peopleMode === "couple"
       ? [
@@ -2382,12 +1815,11 @@ export function ResultsStep({
     participantEntries,
     rankedCandidates,
     bestPick,
-    onLoadDebugHistory,
+    diagnosticRequests,
     onRefreshProfileMemory,
   });
   const {
     canPersist,
-    canShowMore,
     canSaveWatchlist,
     outcomeType,
     otherPickId,
@@ -2403,8 +1835,14 @@ export function ResultsStep({
     watchlistEntries,
     watchlistStatus,
     watchlistMessage,
+    watchlistEntryBusy,
+    watchlistWatchedState,
     watchlistRatingState,
     bestPickWatchlistEntry,
+    outcomeBusy,
+    outcomeConfirmed,
+    feedbackBusy,
+    refreshWatchlist,
     handleOutcomeTypeChange,
     handleOtherPickChange,
     handleOutcomeNoteChange,
@@ -2428,14 +1866,14 @@ export function ResultsStep({
       return;
     }
 
-    void onLoadDebugHistory();
+    void diagnosticRequests.initialResults();
   }, [
     canPersist,
     sharedSession?.sessionId,
     sharedSession?.state,
     debugHistory,
     debugHistoryStatus,
-    onLoadDebugHistory,
+    diagnosticRequests,
   ]);
 
   if (!bestPick) {
@@ -2450,140 +1888,119 @@ export function ResultsStep({
   }
 
   const canSaveOutcome = persistence.canSaveOutcome;
-  const sharedWhy = describeSharedWhy({
-    candidate: bestPick,
-    founderReaction: founderReactions[bestPick.id],
-    wifeReaction: wifeReactions[bestPick.id],
-    peopleMode,
-    founderLabel,
-    wifeLabel,
-  });
+  const sharedReasons = Object.fromEntries(
+    rankedCandidates.slice(0, 5).map((candidate) => [
+      candidate.id,
+      compactResultReason(
+        describeSharedWhy({
+          candidate,
+          founderReaction: founderReactions[candidate.id],
+          wifeReaction: wifeReactions[candidate.id],
+          peopleMode,
+          founderLabel,
+          wifeLabel,
+        }),
+      ),
+    ]),
+  );
 
-  return (
-    <section className="wizardPanel resultsPanel cinematicResultsPanel" aria-labelledby="results-heading">
-      <div className="resultsTopChrome" aria-hidden="true">
-        <div className="resultsTopIcon">&larr;</div>
-        <div className="resultsTopStatus">{peopleMode === "couple" ? "It's a match!" : "Best pick"}</div>
-        <div className="resultsTopIcon">↗</div>
-      </div>
+  const continuationContent = (
+    <ContinuationSteerPanel
+      activeIntents={activeTonightIntents}
+      text={steerText}
+      pendingIntent={pendingSteerIntent}
+      clarificationText={steerClarificationText}
+      message={steerMessage}
+      continuationError={apiError}
+      busy={isSyncing}
+      canContinue={canShowMore}
+      canSteer={movieSource === "live"}
+      onTextChange={onSteerTextChange}
+      onInterpret={onInterpretSteer}
+      onClarificationTextChange={onSteerClarificationTextChange}
+      onAnswerClarification={onAnswerSteerClarification}
+      onAdd={onAddSteer}
+      onApply={onApplySteer}
+      onContinue={onShowMore}
+    />
+  );
 
-      <div className="cinematicRevealSignal" aria-hidden="true">
-        <i />
-        <i />
-        <strong>W</strong>
-      </div>
-      <p className="cinematicRevealEyebrow">
-        {peopleMode === "couple" ? "Both ballots unlocked" : "Your private ballot is ready"}
-      </p>
-
-      <div className="sectionHeading resultsHeading resultsHeadingCentered">
-        <h2 id="results-heading">Tonight&apos;s pick</h2>
-      </div>
-
-      <WinnerReveal
-        bestPick={bestPick}
-        peopleMode={peopleMode}
-        participantEntries={participantEntries}
-        founderReactions={founderReactions}
-        wifeReactions={wifeReactions}
-        founderLabel={founderLabel}
-        wifeLabel={wifeLabel}
-        sharedWhy={sharedWhy}
-        onPosterFallback={handlePosterFallback}
-      />
-
-      <BackupTitles
-        rankedCandidates={rankedCandidates}
-        peopleMode={peopleMode}
-        onPosterFallback={handlePosterFallback}
-      />
-
-      <RecommendationEvidencePanel
-        bestPick={bestPick}
-        activeIntents={activeTonightIntents}
-        recommendationSource={recommendationSource}
-        availabilityRegion={availabilityRegion}
-        peopleMode={peopleMode}
-        participantEntries={participantEntries}
-        tasteProfileSummaries={tasteProfileSummaries}
-        debugHistory={debugHistory}
-      />
-
-      <ResultsActions
-        canShowMore={canShowMore}
-        canSaveWatchlist={canSaveWatchlist}
-        isSyncing={isSyncing}
-        isBestPickSaved={bestPickWatchlistEntry !== undefined}
-        watchlistStatus={watchlistStatus}
-        continuationOpen={continuationOpen}
-        onShowMore={() => setContinuationOpen((current) => !current)}
-        onSaveBestPick={handleSaveBestPick}
+  const utilityContent = (
+    <div className="resultUtilityStack">
+      <ResultUtilityHub
+        view={utilityView}
+        winnerTitle={bestPick.title}
+        saved={Boolean(bestPickWatchlistEntry)}
+        saveBusy={watchlistStatus === "saving" || Boolean(watchlistEntryBusy[bestPick.id])}
+        saveMessage={watchlistMessage}
+        canSave={canSaveWatchlist}
+        watchlistCount={watchlistEntries.length}
+        onView={setUtilityView}
+        onToggleSave={() => bestPickWatchlistEntry
+          ? handleRemoveWatchlistEntry(bestPick.id)
+          : handleSaveBestPick()}
         onReset={onReset}
-      />
-
-      {continuationOpen ? (
-        <ResultsSteerNextPanel
-          activeIntents={activeTonightIntents}
-          text={steerText}
-          pendingIntent={pendingSteerIntent}
-          referenceTitle={bestPick.title}
-          clarificationText={steerClarificationText}
-          message={steerMessage}
-          continuationError={apiError}
-          busy={isSyncing}
-          canContinue={canShowMore}
-          onTextChange={onSteerTextChange}
-          onInterpret={onInterpretSteer}
-          onClarificationTextChange={onSteerClarificationTextChange}
-          onAnswerClarification={onAnswerSteerClarification}
-          onAdd={onAddSteer}
-          onApply={onApplySteer}
-          onContinue={onShowMore}
-        />
-      ) : null}
-
-      {!canPersist ? <p className="debugMessage quietCallout">Outcome saving still needs a synced shared session. Watchlist saving and more picks can stay live in solo mode.</p> : null}
-      {watchlistMessage ? <p className="debugMessage quietCallout">{watchlistMessage}</p> : null}
-
-      <WatchlistPanel
-        entries={watchlistEntries}
-        participantEntries={participantEntries}
-        status={watchlistStatus}
-        ratingState={watchlistRatingState}
-        onRatingChange={handleWatchlistRatingChange}
-        onMarkWatched={handleMarkWatchlistEntryWatched}
-        onRemove={handleRemoveWatchlistEntry}
-        onPosterFallback={handlePosterFallback}
-      />
-
-      <OutcomePanel
-        rankedCandidates={rankedCandidates}
-        bestPick={bestPick}
-        participantEntries={participantEntries}
-        participantCount={participantIds.length}
-        outcomeType={outcomeType}
-        otherPickId={otherPickId}
-        outcomeNote={outcomeNote}
-        savedOutcome={savedOutcome}
-        watchedTitle={watchedTitle}
-        canSaveOutcome={canSaveOutcome}
-        outcomeError={outcomeError}
-        feedbackError={feedbackError}
-        feedbackState={feedbackState}
-        feedbackNotes={feedbackNotes}
-        savedFeedbackCount={savedFeedback.length}
-        feedbackReady={feedbackReady}
-        onOutcomeTypeChange={handleOutcomeTypeChange}
-        onOtherPickChange={handleOtherPickChange}
-        onOutcomeNoteChange={handleOutcomeNoteChange}
-        onSaveOutcome={handleSaveOutcome}
-        onFeedbackChange={handleFeedbackChange}
-        onFeedbackNoteChange={handleFeedbackNoteChange}
-        onSaveFeedback={handleSaveFeedback}
-      />
-
-      {reviewMode ? (
+      >
+        {utilityView === "watchlist" ? (
+          <WatchlistUtility
+            entries={watchlistEntries}
+            participants={participantEntries}
+            available={canSaveWatchlist}
+            loading={watchlistStatus === "loading"}
+            message={watchlistMessage}
+            ratingState={watchlistRatingState}
+            entryBusy={watchlistEntryBusy}
+            watchedState={watchlistWatchedState}
+            onBack={() => setUtilityView("home")}
+            onRetry={refreshWatchlist}
+            onRating={handleWatchlistRatingChange}
+            onWatched={handleMarkWatchlistEntryWatched}
+            onRemove={handleRemoveWatchlistEntry}
+          />
+        ) : utilityView === "outcome" ? (
+          <OutcomeUtility
+            rankedCandidates={rankedCandidates}
+            participants={participantEntries}
+            outcomeType={outcomeType}
+            otherPickId={otherPickId}
+            note={outcomeNote}
+            savedOutcome={savedOutcome}
+            watchedTitle={watchedTitle}
+            outcomeError={outcomeError}
+            feedbackError={feedbackError}
+            feedbackState={feedbackState}
+            feedbackNotes={feedbackNotes}
+            outcomeBusy={outcomeBusy}
+            outcomeConfirmed={outcomeConfirmed}
+            feedbackBusy={feedbackBusy}
+            canPersist={canPersist}
+            canSaveOutcome={canSaveOutcome}
+            feedbackReady={feedbackReady}
+            savedFeedbackProfileIds={savedFeedback.map((item) => item.userId)}
+            onBack={() => setUtilityView("home")}
+            onOutcomeType={handleOutcomeTypeChange}
+            onOtherPick={handleOtherPickChange}
+            onNote={handleOutcomeNoteChange}
+            onSaveOutcome={handleSaveOutcome}
+            onFeedback={handleFeedbackChange}
+            onFeedbackNote={handleFeedbackNoteChange}
+            onSaveFeedback={handleSaveFeedback}
+            onPosterFallback={handlePosterFallback}
+          />
+        ) : null}
+      </ResultUtilityHub>
+      {reviewSurface.showEvidence ? (
         <SessionEvidencePanel>
+          <RecommendationEvidencePanel
+            bestPick={bestPick}
+            activeIntents={activeTonightIntents}
+            recommendationSource={recommendationSource}
+            availabilityRegion={availabilityRegion}
+            peopleMode={peopleMode}
+            participantEntries={participantEntries}
+            tasteProfileSummaries={tasteProfileSummaries}
+            debugHistory={debugHistory}
+          />
           <ResultsDebugHistoryPanel
             source={sessionSource}
             session={sharedSession}
@@ -2595,9 +2012,35 @@ export function ResultsStep({
           />
         </SessionEvidencePanel>
       ) : null}
-
-    </section>
+    </div>
   );
+
+  return (
+    <>
+      <RankedResultStage
+        rankedCandidates={rankedCandidates}
+        peopleMode={peopleMode}
+        founderReactions={founderReactions}
+        wifeReactions={wifeReactions}
+        sharedReasons={sharedReasons}
+        continuationOpen={continuationOpen}
+        continuationContent={continuationContent}
+        continuationAvailable
+        utilityContent={utilityContent}
+        onToggleContinuation={() => setContinuationOpen((current) => !current)}
+        onPosterFallback={handlePosterFallback}
+      />
+
+    </>
+  );
+}
+
+function compactResultReason(value: string): string {
+  const normalized = value.trim().replace(/\s+/g, " ");
+  if (normalized.length <= 96) {
+    return normalized.replace(/[.!?]?$/, ".");
+  }
+  return `${normalized.slice(0, 93).trimEnd()}…`;
 }
 
 function DebugReactionList({

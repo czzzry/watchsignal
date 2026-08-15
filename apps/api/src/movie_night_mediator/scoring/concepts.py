@@ -52,6 +52,7 @@ class ScoringConceptRegistry:
         evidence: list[ScoringConceptEvidence] = []
         evidence.extend(_genre_concepts(candidate.genres))
         evidence.extend(_feature_concepts(candidate.enrichment_feature_scores))
+        evidence.extend(_metadata_keyword_concepts(candidate.metadata_keywords))
         evidence.extend(_text_concepts(candidate.overview, source="overview"))
         evidence.extend(_runtime_concepts(candidate.runtime_min))
         if tonight_intents:
@@ -120,6 +121,18 @@ KEYWORD_CONCEPTS = {
     "slow": ("slow",),
     "slow burn": ("slow",),
     "slow-burn": ("slow",),
+    "superhero": ("superhero",),
+    "super hero": ("superhero",),
+    "supervillain": ("superhero",),
+    "super villain": ("superhero",),
+    "superhero team": ("superhero",),
+    "comic book": ("superhero",),
+    "comic-book": ("superhero",),
+    "based on comic": ("superhero",),
+    "marvel comics": ("superhero",),
+    "dc comics": ("superhero",),
+    "marvel cinematic universe": ("superhero",),
+    "dc extended universe": ("superhero",),
 }
 
 NEGATIVE_NUDGE_PATTERNS = (
@@ -219,6 +232,24 @@ def _feature_concepts(feature_scores) -> tuple[ScoringConceptEvidence, ...]:
     return tuple(evidence)
 
 
+def _metadata_keyword_concepts(
+    metadata_keywords: tuple[str, ...],
+) -> tuple[ScoringConceptEvidence, ...]:
+    evidence = []
+    for keyword in metadata_keywords:
+        for concept in _concepts_for_keyword(keyword):
+            evidence.append(
+                ScoringConceptEvidence(
+                    concept=concept,
+                    polarity="positive",
+                    source="metadata_keyword",
+                    label=keyword,
+                    weight=1.0,
+                )
+            )
+    return tuple(evidence)
+
+
 def _text_concepts(
     text: str,
     *,
@@ -280,6 +311,7 @@ def _nudge_concepts(
         for evidence in (
             *_genre_concepts(candidate.genres),
             *_feature_concepts(candidate.enrichment_feature_scores),
+            *_metadata_keyword_concepts(candidate.metadata_keywords),
             *_text_concepts(candidate.overview, source="overview"),
         )
     }
@@ -319,6 +351,7 @@ def _structured_nudge_concepts(
         for evidence in (
             *_genre_concepts(candidate.genres),
             *_feature_concepts(candidate.enrichment_feature_scores),
+            *_metadata_keyword_concepts(candidate.metadata_keywords),
             *_text_concepts(candidate.overview, source="overview"),
         )
     }

@@ -58,10 +58,6 @@ async function getApiHealth(
 
 export default async function Home() {
   const apiBaseUrl = process.env.API_BASE_URL ?? DEFAULT_API_BASE_URL;
-  const configuredRecommendationSource =
-    process.env.MOVIE_NIGHT_RECOMMENDATION_SOURCE === "live_tmdb"
-      ? "live_tmdb"
-      : "demo";
   const [apiHealth, setupLoad] = await Promise.all([
     getApiHealth(apiBaseUrl),
     loadSetupState(apiBaseUrl),
@@ -71,7 +67,6 @@ export default async function Home() {
     <PassThePhoneWizard
       apiHealth={apiHealth}
       setupLoad={setupLoad}
-      configuredRecommendationSource={configuredRecommendationSource}
     />
   );
 }

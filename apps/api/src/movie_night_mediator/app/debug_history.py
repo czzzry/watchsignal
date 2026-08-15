@@ -25,6 +25,7 @@ class DebugCandidateInput:
     source_movie_id: str
     title: str
     genres: tuple[str, ...]
+    metadata_keywords: tuple[str, ...]
     providers: tuple[str, ...]
     provider_access: tuple[str, ...]
     safety_status: str
@@ -276,6 +277,7 @@ def _candidate_input(candidate: Candidate) -> DebugCandidateInput:
         source_movie_id=candidate.source_movie_id,
         title=candidate.title,
         genres=candidate.genres,
+        metadata_keywords=candidate.metadata_keywords,
         providers=candidate.providers,
         provider_access=tuple(_provider_access_label(candidate)),
         safety_status=candidate.safety_status.value,

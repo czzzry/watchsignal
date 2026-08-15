@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 import {
   createSetupProfile,
@@ -9,14 +9,7 @@ import {
 } from "../setup-api";
 import type { DemoCandidate } from "../session-fixtures";
 import {
-  entryKey,
-  prependUniqueEntry,
-  removeSeedFromDraft,
-  removeUnresolvedSeedFromDraft,
   toOnboardingDraft,
-  toOnboardingErrorMessage,
-  toResolvedTitleEntry,
-  toErrorMessage,
 } from "../pass-the-phone-helpers";
 import type {
   OnboardingDraft,
@@ -24,6 +17,15 @@ import type {
   OnboardingStatus,
   PeopleMode,
 } from "../pass-the-phone-model";
+import type { TonightDefaultsSaveResult } from "./tonight-defaults-contract";
+import { publicErrorMessage } from "./public-error-message.ts";
+import {
+  addManualOnboardingSeed,
+  addSuggestedOnboardingSeed,
+  onboardingDraftComplete,
+  removeOnboardingSeed,
+} from "./required-onboarding-contract";
+import { createOnboardingTruthfulController } from "./onboarding-truthful-state";
 import {
   getOnboardingCompletion,
   getProfileMemoryEvents,
@@ -51,14 +53,29 @@ export function usePassThePhoneOnboardingSetupState({
   const [currentSetup, setCurrentSetup] = useState(setupLoad.setup);
   const [profileSetupMessage, setProfileSetupMessage] = useState<string | null>(null);
   const [profileSetupBusy, setProfileSetupBusy] = useState(false);
-  const [onboardingCompletion, setOnboardingCompletion] =
-    useState<OnboardingCompletionPayload | null>(null);
-  const [onboardingStatus, setOnboardingStatus] =
-    useState<OnboardingStatus>(apiConnected ? "loading" : "ready");
-  const [onboardingMessage, setOnboardingMessage] = useState<string | null>(null);
+  const onboardingController = useMemo(
+    () =>
+      createOnboardingTruthfulController({
+        getCompletion: getOnboardingCompletion,
+        saveProfile: saveProfileOnboarding,
+      }, {
+        initialStatus: apiConnected ? "loading" : "ready",
+      }),
+    [],
+  );
+  const onboardingTruth = useSyncExternalStore(
+    onboardingController.subscribe,
+    onboardingController.getSnapshot,
+    onboardingController.getSnapshot,
+  );
+  const [onboardingEditorStatus, setOnboardingEditorStatus] =
+    useState<OnboardingStatus>("ready");
+  const [onboardingEditorMessage, setOnboardingEditorMessage] =
+    useState<string | null>(null);
   const [onboardingPrompt, setOnboardingPrompt] =
     useState<OnboardingPromptState>(null);
   const [onboardingDraft, setOnboardingDraft] = useState<OnboardingDraft | null>(null);
+  const [onboardingOpener, setOnboardingOpener] = useState<HTMLElement | null>(null);
   const [profileMemorySummaries, setProfileMemorySummaries] = useState<
     ProfileMemorySummaryPayload[]
   >([]);
@@ -66,6 +83,9 @@ export function usePassThePhoneOnboardingSetupState({
     TasteMemoryEventPayload[]
   >([]);
   const [profileMemoryMessage, setProfileMemoryMessage] = useState<string | null>(null);
+  const [profileMemoryStatus, setProfileMemoryStatus] = useState<
+    "loading" | "ready" | "failed"
+  >(apiConnected ? "loading" : "ready");
 
   const effectiveSetupLoad = useMemo(
     () => ({
@@ -105,7 +125,19 @@ export function usePassThePhoneOnboardingSetupState({
       : peopleMode === "founder"
         ? [rawParticipantIds[0]]
         : [rawParticipantIds[1]];
-  const onboardingBusy = onboardingStatus === "loading" || onboardingStatus === "saving";
+  const onboardingCompletion = onboardingTruth.completion;
+  const onboardingStatus =
+    onboardingTruth.status === "loading" ||
+    onboardingTruth.status === "saving" ||
+    onboardingTruth.status === "failed"
+      ? onboardingTruth.status
+      : onboardingEditorStatus;
+  const onboardingMessage = onboardingEditorMessage ?? onboardingTruth.message;
+  const onboardingBusy =
+    onboardingTruth.status === "loading" ||
+    onboardingTruth.status === "saving" ||
+    onboardingEditorStatus === "loading" ||
+    onboardingEditorStatus === "saving";
   const isOnboardingRequired = apiConnected
     ? isCoupleSession
       ? onboardingCompletion?.sharedRecommendationLocked ?? onboardingStatus !== "ready"
@@ -116,19 +148,22 @@ export function usePassThePhoneOnboardingSetupState({
 
   useEffect(() => {
     if (!apiConnected) {
-      setOnboardingCompletion(null);
-      setOnboardingStatus("ready");
-      setOnboardingMessage(null);
+      onboardingController.disconnect();
+      setOnboardingEditorStatus("ready");
+      setOnboardingEditorMessage(null);
       return;
     }
 
     void refreshOnboardingCompletion();
+    return onboardingController.cancelPending;
   }, [apiConnected, isCoupleSession, participantIds.join("|")]);
 
   useEffect(() => {
     if (!apiConnected) {
       setProfileMemorySummaries([]);
+      setProfileMemoryEvents([]);
       setProfileMemoryMessage(null);
+      setProfileMemoryStatus("ready");
       return;
     }
 
@@ -165,7 +200,9 @@ export function usePassThePhoneOnboardingSetupState({
           canPersist: false,
         };
     setCurrentSetup(result.setup);
-    setProfileSetupMessage(result.detail);
+    setProfileSetupMessage(
+      result.canPersist ? "Saved." : publicErrorMessage("profile-selection", result.detail),
+    );
     setProfileSetupBusy(false);
   }
 
@@ -198,11 +235,17 @@ export function usePassThePhoneOnboardingSetupState({
           canPersist: false,
         };
     setCurrentSetup(result.setup);
-    setProfileSetupMessage(result.detail);
+    setProfileSetupMessage(
+      result.canPersist
+        ? `${trimmedLabel} is ready.`
+        : publicErrorMessage("profile-create", result.detail),
+    );
     setProfileSetupBusy(false);
   }
 
-  async function saveAvailabilityRegion(availabilityRegion: string): Promise<void> {
+  async function saveAvailabilityRegion(
+    availabilityRegion: string,
+  ): Promise<TonightDefaultsSaveResult> {
     const nextSetup = {
       ...currentSetup,
       defaults: {
@@ -210,19 +253,26 @@ export function usePassThePhoneOnboardingSetupState({
         availabilityRegion,
       },
     };
-    setCurrentSetup(nextSetup);
     setProfileSetupBusy(true);
-    const result = setupLoad.canPersist
-      ? await saveSetupState(nextSetup)
-      : {
-          setup: nextSetup,
-          source: "fallback" as const,
-          detail: "Setup API is unavailable. Availability is local for this screen.",
-          canPersist: false,
-        };
+    if (!setupLoad.canPersist) {
+      setCurrentSetup(nextSetup);
+      setProfileSetupMessage("Saved on this phone for tonight.");
+      setProfileSetupBusy(false);
+      return { status: "local-only" };
+    }
+
+    const result = await saveSetupState(nextSetup);
+    if (!result.canPersist) {
+      const message = publicErrorMessage("defaults-save", result.detail);
+      setProfileSetupMessage(message);
+      setProfileSetupBusy(false);
+      return { status: "failed", message };
+    }
+
     setCurrentSetup(result.setup);
-    setProfileSetupMessage(result.detail);
+    setProfileSetupMessage("Saved.");
     setProfileSetupBusy(false);
+    return { status: "saved" };
   }
 
   async function refreshOnboardingCompletion(): Promise<OnboardingCompletionPayload | null> {
@@ -230,25 +280,20 @@ export function usePassThePhoneOnboardingSetupState({
       return null;
     }
 
-    setOnboardingStatus("loading");
-    setOnboardingMessage(null);
-
-    try {
-      const completion = await getOnboardingCompletion(participantIds);
-      setOnboardingCompletion(completion);
-      setOnboardingStatus("ready");
-      return completion;
-    } catch (error) {
-      setOnboardingCompletion(null);
-      setOnboardingStatus("failed");
-      setOnboardingMessage(toOnboardingErrorMessage(error));
-      return null;
-    }
+    setOnboardingEditorMessage(null);
+    return onboardingController.check(participantIds);
   }
 
-  async function beginOnboarding(profileId?: string): Promise<void> {
+  async function beginOnboarding(
+    profileId?: string,
+    opener?: HTMLElement | null,
+  ): Promise<void> {
     if (!apiConnected) {
       return;
+    }
+
+    if (opener !== undefined) {
+      setOnboardingOpener(opener);
     }
 
     const targetProfileId =
@@ -263,8 +308,8 @@ export function usePassThePhoneOnboardingSetupState({
       return;
     }
 
-    setOnboardingStatus("loading");
-    setOnboardingMessage(null);
+    setOnboardingEditorStatus("loading");
+    setOnboardingEditorMessage(null);
 
     try {
       const onboarding = await getProfileOnboarding(targetProfileId);
@@ -273,12 +318,12 @@ export function usePassThePhoneOnboardingSetupState({
         profileId: targetProfileId,
         profileLabel: profile.label,
       });
-      setOnboardingStatus("ready");
+      setOnboardingEditorStatus("ready");
     } catch (error) {
       setOnboardingPrompt(null);
       setOnboardingDraft(null);
-      setOnboardingStatus("failed");
-      setOnboardingMessage(toOnboardingErrorMessage(error));
+      setOnboardingEditorStatus("failed");
+      setOnboardingEditorMessage(publicErrorMessage("onboarding-load", error));
     }
   }
 
@@ -291,52 +336,45 @@ export function usePassThePhoneOnboardingSetupState({
     const fineTitleEntries = onboardingDraft.fineTitleEntries;
     const noTitleEntries = onboardingDraft.noTitleEntries;
 
-    if (
-      lovedTitleEntries.length === 0 ||
-      fineTitleEntries.length === 0 ||
-      noTitleEntries.length === 0
-    ) {
-      setOnboardingMessage("Each person needs at least one Loved, Ok, and No seed.");
+    if (!onboardingDraftComplete(onboardingDraft)) {
+      setOnboardingEditorMessage("Each person needs at least one Loved, Ok, and No choice.");
       return;
     }
 
-    setOnboardingStatus("saving");
-    setOnboardingMessage(null);
-
-    try {
-      await saveProfileOnboarding(onboardingPrompt.profileId, {
-        profileId: onboardingPrompt.profileId,
-        lovedTitleEntries,
-        fineTitleEntries,
-        noTitleEntries,
-        constraints: {
-          horrorExclusion: false,
-          subtitleIntolerance: false,
-        },
-        isComplete: true,
-      });
-
-      const completion = await refreshOnboardingCompletion();
-      const nextIncomplete = completion?.incompleteProfileIds[0] ?? null;
-
-      if (nextIncomplete) {
-        await beginOnboarding(nextIncomplete);
-        return;
-      }
-
-      setOnboardingPrompt(null);
-      setOnboardingDraft(null);
-      setOnboardingStatus("ready");
-    } catch (error) {
-      setOnboardingStatus("failed");
-      setOnboardingMessage(toOnboardingErrorMessage(error));
+    setOnboardingEditorMessage(null);
+    const saveResult = await onboardingController.save(onboardingPrompt.profileId, {
+      profileId: onboardingPrompt.profileId,
+      lovedTitleEntries,
+      fineTitleEntries,
+      noTitleEntries,
+      constraints: {
+        horrorExclusion: false,
+        subtitleIntolerance: false,
+      },
+      isComplete: true,
+    });
+    if (saveResult.status === "failed") {
+      return;
     }
+
+    const completion = await refreshOnboardingCompletion();
+    const nextIncomplete = completion?.incompleteProfileIds[0] ?? null;
+
+    if (nextIncomplete) {
+      await beginOnboarding(nextIncomplete);
+      return;
+    }
+
+    setOnboardingPrompt(null);
+    setOnboardingDraft(null);
+    setOnboardingEditorStatus("ready");
   }
 
   function cancelOnboarding(): void {
     setOnboardingPrompt(null);
     setOnboardingDraft(null);
-    setOnboardingMessage(null);
+    setOnboardingEditorMessage(null);
+    setOnboardingOpener(null);
   }
 
   function addSuggestedSeed(
@@ -348,27 +386,7 @@ export function usePassThePhoneOnboardingSetupState({
         return current;
       }
 
-      const entry = toResolvedTitleEntry(candidate);
-      const nextDraft = removeSeedFromDraft(current, candidate.id);
-
-      if (bucket === "loved") {
-        return {
-          ...nextDraft,
-          lovedTitleEntries: prependUniqueEntry(nextDraft.lovedTitleEntries, entry),
-        };
-      }
-
-      if (bucket === "fine") {
-        return {
-          ...nextDraft,
-          fineTitleEntries: prependUniqueEntry(nextDraft.fineTitleEntries, entry),
-        };
-      }
-
-      return {
-        ...nextDraft,
-        noTitleEntries: prependUniqueEntry(nextDraft.noTitleEntries, entry),
-      };
+      return addSuggestedOnboardingSeed(current, bucket, candidate);
     });
   }
 
@@ -399,46 +417,7 @@ export function usePassThePhoneOnboardingSetupState({
         return current;
       }
 
-      const rawTitle =
-        bucket === "loved"
-          ? current.manualLoved
-          : bucket === "fine"
-            ? current.manualFine
-            : current.manualNo;
-      const trimmed = rawTitle.trim();
-
-      if (!trimmed) {
-        return current;
-      }
-
-      const nextDraft = removeUnresolvedSeedFromDraft(current, trimmed);
-      const entry = {
-        rawTitle: trimmed,
-        status: "unresolved" as const,
-        unresolvedReason: "Manual seed entry added from onboarding.",
-      };
-
-      if (bucket === "loved") {
-        return {
-          ...nextDraft,
-          lovedTitleEntries: prependUniqueEntry(nextDraft.lovedTitleEntries, entry),
-          manualLoved: "",
-        };
-      }
-
-      if (bucket === "fine") {
-        return {
-          ...nextDraft,
-          fineTitleEntries: prependUniqueEntry(nextDraft.fineTitleEntries, entry),
-          manualFine: "",
-        };
-      }
-
-      return {
-        ...nextDraft,
-        noTitleEntries: prependUniqueEntry(nextDraft.noTitleEntries, entry),
-        manualNo: "",
-      };
+      return addManualOnboardingSeed(current, bucket);
     });
   }
 
@@ -448,32 +427,13 @@ export function usePassThePhoneOnboardingSetupState({
         return current;
       }
 
-      if (bucket === "loved") {
-        return {
-          ...current,
-          lovedTitleEntries: current.lovedTitleEntries.filter(
-            (entry) => entryKey(entry) !== key,
-          ),
-        };
-      }
-
-      if (bucket === "fine") {
-        return {
-          ...current,
-          fineTitleEntries: current.fineTitleEntries.filter(
-            (entry) => entryKey(entry) !== key,
-          ),
-        };
-      }
-
-      return {
-        ...current,
-        noTitleEntries: current.noTitleEntries.filter((entry) => entryKey(entry) !== key),
-      };
+      return removeOnboardingSeed(current, bucket, key);
     });
   }
 
   async function loadProfileMemorySummaries(): Promise<void> {
+    setProfileMemoryStatus("loading");
+    setProfileMemoryMessage(null);
     try {
       const [summaries, eventGroups] = await Promise.all([
         Promise.all(
@@ -490,10 +450,12 @@ export function usePassThePhoneOnboardingSetupState({
       setProfileMemorySummaries(summaries);
       setProfileMemoryEvents(eventGroups.flat());
       setProfileMemoryMessage(null);
+      setProfileMemoryStatus("ready");
     } catch (error) {
       setProfileMemorySummaries([]);
       setProfileMemoryEvents([]);
-      setProfileMemoryMessage(toErrorMessage(error));
+      setProfileMemoryMessage(publicErrorMessage("profile-memory-load", error));
+      setProfileMemoryStatus("failed");
     }
   }
 
@@ -509,15 +471,18 @@ export function usePassThePhoneOnboardingSetupState({
     profileSetupBusy,
     profileSetupMessage,
     onboardingCompletion,
+    onboardingStatus,
     onboardingBusy,
     onboardingMessage,
-    setOnboardingMessage,
+    setOnboardingMessage: setOnboardingEditorMessage,
     onboardingPrompt,
     onboardingDraft,
+    onboardingOpener,
     isOnboardingRequired,
     profileMemorySummaries,
     profileMemoryEvents,
     profileMemoryMessage,
+    profileMemoryStatus,
     chooseActiveProfile,
     choosePartnerProfile,
     createProfile,

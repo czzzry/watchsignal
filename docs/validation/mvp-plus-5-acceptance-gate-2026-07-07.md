@@ -6,7 +6,7 @@ Phase: MVP+5 - Household Taste Memory
 
 Issue status: 7/7 implementation issues represented in this gate.
 
-Status: Accepted deterministic checks; mobile dogfood blocked locally.
+Status: Accepted.
 
 ## Issue List
 
@@ -34,15 +34,15 @@ Mobile dogfood command selected: `pnpm beta:dogfood:live`.
 
 | --- | --- | --- | --- |
 
-| Beta readiness preflight | `pnpm beta:preflight` | passed | 2s |
+| Beta readiness preflight | `pnpm beta:preflight` | passed | 3s |
 
-| API tests and compile | `pnpm check` | passed | 12s |
+| API tests and compile | `pnpm check` | passed | 40s |
 
-| Web production build | `pnpm build:web` | passed | 15s |
+| Web production build | `pnpm build:web` | passed | 51s |
 
-| MVP+5 household taste memory evaluation | `pnpm eval:mvp5` | passed | 2s |
+| MVP+5 household taste memory evaluation | `pnpm eval:mvp5` | passed | 1s |
 
-| Live TMDb mobile dogfood | `pnpm beta:dogfood:live` | blocked | 2s |
+| Live TMDb mobile dogfood | `pnpm beta:dogfood:live` | passed | 69s |
 
 ## Evaluation Coverage
 
@@ -66,22 +66,6 @@ Memory before and after passed: true.
 
 ## Open Risks
 
-- Live mobile dogfood still needs to be rerun in an environment that can bind localhost.
+- No gate-blocking risks recorded by this run.
 
 - Live TMDb dogfood was selected because TMDb credentials were available.
-
-## Command Tail: Live TMDb mobile dogfood
-
-```text
-
-[ELIFECYCLE] Command failed with exit code 1.
-
-[ELIFECYCLE] Command failed with exit code 1.
-
-$ MOVIE_NIGHT_RECOMMENDATION_SOURCE=live_tmdb MOBILE_UX_SMOKE_EXPECT_API=1 MOBILE_UX_SMOKE_EXPECT_RECOMMENDATION_SOURCE=live_tmdb pnpm smoke:ux:mobile
-
-$ node scripts/mobile_pass_the_phone_ux_smoke.mjs
-
-listen EPERM: operation not permitted 127.0.0.1
-
-```

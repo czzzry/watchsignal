@@ -14,6 +14,7 @@ from movie_night_mediator.domain.models import (
 )
 from movie_night_mediator.fixtures.candidate_adapter import (
     FixtureCandidate,
+    FixtureCastMember,
     FixtureProviderAvailability,
     fixture_candidates_to_domain,
     fixture_candidates_to_shortlist,
@@ -94,6 +95,23 @@ DEMO_CANDIDATE_FIXTURES = (
         tone="Smart, tense, emotional",
         reason="When mysterious spacecraft land around the world, a linguist is recruited to figure out whether the visitors come in peace before fear wins.",
         top_cast=("Amy Adams", "Jeremy Renner", "Forest Whitaker"),
+        cast_details=(
+            FixtureCastMember(
+                name="Amy Adams",
+                character="Louise Banks",
+                profile_url="https://image.tmdb.org/t/p/w185/1h2r2VTpoFb5QefAaBYYQgQzL9z.jpg",
+            ),
+            FixtureCastMember(
+                name="Jeremy Renner",
+                character="Ian Donnelly",
+                profile_url="https://image.tmdb.org/t/p/w185/yB84D1neTYXfWBaV0QOE9RF2VCu.jpg",
+            ),
+            FixtureCastMember(
+                name="Forest Whitaker",
+                character="Colonel Weber",
+                profile_url="https://image.tmdb.org/t/p/w185/4w7l5JUwnwFNBy7J93ZwYN1nihm.jpg",
+            ),
+        ),
         provider_availability=(
             FixtureProviderAvailability(
                 provider_name="Prime Video",

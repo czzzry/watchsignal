@@ -29,6 +29,12 @@ class RecommendationProviderAvailabilityPayload(BaseModel):
     region: str = Field(min_length=1)
 
 
+class RecommendationCastMemberPayload(BaseModel):
+    name: str = Field(min_length=1)
+    character: str | None = None
+    profileUrl: str | None = None
+
+
 class RecommendationShortlistItemPayload(BaseModel):
     sourceMovieId: str = Field(min_length=1)
     title: str = Field(min_length=1)
@@ -42,8 +48,10 @@ class RecommendationShortlistItemPayload(BaseModel):
     providerNames: list[str]
     providerAvailability: list[RecommendationProviderAvailabilityPayload]
     posterUrl: str | None = None
+    backdropUrl: str | None = None
     overview: str = ""
     topCast: list[str] = Field(default_factory=list)
+    castDetails: list[RecommendationCastMemberPayload] = Field(default_factory=list)
     matchedPersonNames: list[str] = Field(default_factory=list)
     safePickStatus: str = Field(min_length=1)
     availability: str = Field(min_length=1)
@@ -191,9 +199,10 @@ def _tonight_intent_mood_text(
     tonight_intent: dict[str, object] | None,
     tonight_intents: list[dict[str, object]] | None = None,
 ) -> str | None:
-    intent_payloads = list(tonight_intents or [])
-    if tonight_intent and tonight_intent not in intent_payloads:
-        intent_payloads.append(tonight_intent)
+    intent_payloads = _applied_tonight_intent_payloads(
+        tonight_intent,
+        tonight_intents,
+    )
 
     if not intent_payloads:
         return None
@@ -228,9 +237,10 @@ def _structured_tonight_intents(
     tonight_intent: dict[str, object] | None,
     tonight_intents: list[dict[str, object]] | None = None,
 ) -> tuple[TonightIntentContract, ...]:
-    intent_payloads = list(tonight_intents or [])
-    if tonight_intent and tonight_intent not in intent_payloads:
-        intent_payloads.append(tonight_intent)
+    intent_payloads = _applied_tonight_intent_payloads(
+        tonight_intent,
+        tonight_intents,
+    )
 
     contracts = []
     for intent in intent_payloads:
@@ -388,6 +398,10 @@ def _tonight_intent_filter_summary(filters: dict[str, object]) -> list[str]:
     if filters.get("exclude_subtitled") is True:
         snippets.append("english audio")
 
+    language = filters.get("language")
+    if isinstance(language, str) and language.strip():
+        snippets.append(f"{language.strip()} language")
+
     return snippets
 
 
@@ -442,6 +456,13 @@ def _tonight_intent_language_constraint(
     tonight_intent: dict[str, object] | None,
     tonight_intents: list[dict[str, object]] | None = None,
 ) -> str | None:
+    language = _tonight_intent_first_string_filter(
+        tonight_intent,
+        tonight_intents,
+        key="language",
+    )
+    if language:
+        return language
     if _tonight_intent_first_string_filter(
         tonight_intent,
         tonight_intents,
@@ -480,9 +501,10 @@ def _tonight_intent_filter_values(
     key: str,
 ) -> tuple[str, ...]:
     values: list[str] = []
-    intent_payloads = list(tonight_intents or [])
-    if tonight_intent and tonight_intent not in intent_payloads:
-        intent_payloads.append(tonight_intent)
+    intent_payloads = _applied_tonight_intent_payloads(
+        tonight_intent,
+        tonight_intents,
+    )
 
     for intent in intent_payloads:
         filters = intent.get("filters")
@@ -499,6 +521,23 @@ def _tonight_intent_filter_values(
             )
 
     return tuple(values)
+
+
+def _applied_tonight_intent_payloads(
+    tonight_intent: dict[str, object] | None,
+    tonight_intents: list[dict[str, object]] | None,
+) -> tuple[dict[str, object], ...]:
+    payloads = list(tonight_intents or [])
+    if tonight_intent and tonight_intent not in payloads:
+        payloads.append(tonight_intent)
+
+    return tuple(
+        intent
+        for intent in payloads
+        if intent.get("applied") is True
+        # Compatibility for previously persisted or external confirmed payloads.
+        or intent.get("status") == "confirmed"
+    )
 
 def offline_shortlist_item_to_payload(
     item: OfflineShortlistItem,
@@ -523,8 +562,17 @@ def offline_shortlist_item_to_payload(
             for availability in item.provider_availability
         ],
         posterUrl=item.poster_url,
+        backdropUrl=item.backdrop_url,
         overview=item.overview,
         topCast=list(item.top_cast),
+        castDetails=[
+            RecommendationCastMemberPayload(
+                name=member.name,
+                character=member.character,
+                profileUrl=member.profile_url,
+            )
+            for member in item.cast_details
+        ],
         matchedPersonNames=list(item.matched_person_names),
         safePickStatus=item.safe_pick_status,
         availability=item.availability,

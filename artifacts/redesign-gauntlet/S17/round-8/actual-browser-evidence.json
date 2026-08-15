@@ -1,0 +1,51 @@
+[
+  {
+    "state": "live",
+    "openerExact": false,
+    "returnExact": false,
+    "back": 1,
+    "fallback": 0,
+    "parts": {
+      "header": 1,
+      "content": 1,
+      "footer": 1
+    },
+    "geom": {
+      "iw": 195,
+      "sw": 195,
+      "sh": 1279
+    }
+  },
+  {
+    "state": "error",
+    "openerExact": false,
+    "returnExact": false,
+    "parts": {
+      "header": 2,
+      "content": 1,
+      "footer": 1
+    },
+    "geom": {
+      "iw": 195,
+      "sw": 195,
+      "sh": 1279
+    }
+  },
+  {
+    "state": "missing",
+    "openerExact": false,
+    "returnExact": false,
+    "back": 1,
+    "fallback": 1,
+    "parts": {
+      "header": 1,
+      "content": 1,
+      "footer": 1
+    },
+    "geom": {
+      "iw": 195,
+      "sw": 195,
+      "sh": 1279
+    }
+  }
+]

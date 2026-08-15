@@ -17,6 +17,9 @@ class ProfileMemorySignalPayload(BaseModel):
     label: str
     count: int
     source: str
+    positiveCount: int = 0
+    neutralCount: int = 0
+    negativeCount: int = 0
 
 
 class ProfileMemorySummaryPayload(BaseModel):
@@ -119,6 +122,9 @@ def _profile_memory_signal_to_payload(
         label=signal.label,
         count=signal.count,
         source=signal.source,
+        positiveCount=signal.positive_count,
+        neutralCount=signal.neutral_count,
+        negativeCount=signal.negative_count,
     )
 
 

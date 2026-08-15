@@ -1,0 +1,209 @@
+/*
+ * WatchSignal shared visual contract.
+ *
+ * Product screens should consume these finite tokens and the primitives in
+ * this folder. Screen-specific composition belongs in a colocated CSS module.
+ */
+:root {
+  color-scheme: dark;
+
+  /* Night / Plum / Signal palette */
+  --ws-night-950: #050309;
+  --ws-night-900: #0a0610;
+  --ws-night-850: #100817;
+  --ws-plum-800: #1c1026;
+  --ws-plum-700: #2b183a;
+  --ws-plum-600: #46255f;
+  --ws-plum-500: #68408e;
+  --ws-signal-500: #b986ff;
+  --ws-signal-400: #b986ff;
+  --ws-signal-300: #d5bdff;
+  --ws-cyan-500: #78e8f5;
+  --ws-paper-50: #faf8fc;
+  --ws-paper-100: #f5f2f8;
+  --ws-paper-200: #e9e2ed;
+  --ws-ink-900: #1b1124;
+  --ws-ink-700: #554a5a;
+  --ws-ink-500: #554a5a;
+  --ws-white: #ffffff;
+  --ws-danger-400: #ff8f9c;
+  --ws-success-400: #9ee0bd;
+  --ws-warning-400: #f4ca8b;
+
+  /* Semantic colors */
+  --ws-canvas: var(--ws-night-950);
+  --ws-canvas-raised: var(--ws-night-850);
+  --ws-surface: rgba(255, 255, 255, 0.075);
+  --ws-surface-strong: rgba(255, 255, 255, 0.12);
+  --ws-surface-light: var(--ws-paper-100);
+  --ws-text: var(--ws-paper-50);
+  --ws-text-muted: rgba(250, 248, 252, 0.68);
+  --ws-text-faint: rgba(250, 248, 252, 0.48);
+  --ws-text-on-light: var(--ws-ink-900);
+  --ws-text-on-light-muted: var(--ws-ink-700);
+  --ws-border: rgba(255, 255, 255, 0.11);
+  --ws-border-light: rgba(27, 17, 36, 0.13);
+  --ws-focus: var(--ws-signal-400);
+  --ws-action: var(--ws-paper-50);
+  --ws-action-ink: var(--ws-ink-900);
+  --ws-accent: var(--ws-signal-400);
+  --ws-accent-soft: rgba(189, 145, 255, 0.17);
+
+  /* Type */
+  --ws-font-ui: "Avenir Next", "SF Pro Text", "Segoe UI Variable Text",
+    "Segoe UI", system-ui, sans-serif;
+  --ws-font-display: "New York", "Iowan Old Style", "Palatino Linotype",
+    Baskerville, Georgia, serif;
+  --ws-type-2xs: 0.75rem;
+  --ws-type-xs: 0.75rem;
+  --ws-type-sm: 0.875rem;
+  --ws-type-md: 1rem;
+  --ws-type-lg: 1.25rem;
+  --ws-type-xl: 1.75rem;
+  --ws-type-2xl: clamp(2.5rem, 11vw, 3.5rem);
+  --ws-leading-tight: 1.05;
+  --ws-leading-body: 1.5;
+  --ws-tracking-tight: -0.03em;
+  --ws-tracking-ui: -0.015em;
+
+  /* 4px spacing grid */
+  --ws-space-0: 0;
+  --ws-space-1: 0.25rem;
+  --ws-space-2: 0.5rem;
+  --ws-space-3: 0.75rem;
+  --ws-space-4: 1rem;
+  --ws-space-5: 1.25rem;
+  --ws-space-6: 1.5rem;
+  --ws-space-8: 2rem;
+  --ws-space-10: 2.5rem;
+  --ws-space-12: 3rem;
+
+  /* Shape and controls */
+  --ws-radius-sm: 0.5rem;
+  --ws-radius-md: 0.75rem;
+  --ws-radius-lg: 1rem;
+  --ws-radius-pill: 999px;
+  --ws-control-icon: 2.75rem;
+  --ws-control-md: 3rem;
+  --ws-control-lg: 3.375rem;
+  --ws-page-gutter: 1rem;
+  --ws-page-max: 30rem;
+
+  /* Depth and motion */
+  --ws-shadow-sm: 0 0.25rem 1rem rgba(0, 0, 0, 0.22);
+  --ws-shadow-md: 0 1.25rem 3rem rgba(0, 0, 0, 0.38);
+  --ws-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ws-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ws-duration-fast: 140ms;
+  --ws-duration-base: 220ms;
+
+  /* Device insets. Use these at the outermost screen boundary. */
+  --ws-safe-top: env(safe-area-inset-top, 0px);
+  --ws-safe-right: env(safe-area-inset-right, 0px);
+  --ws-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --ws-safe-left: env(safe-area-inset-left, 0px);
+
+}
+
+html {
+  min-height: 100%;
+  background: var(--ws-canvas);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+::selection {
+  background: rgba(189, 145, 255, 0.34);
+  color: var(--ws-white);
+}
+
+:where(button, a, input, textarea, select, summary) {
+  touch-action: manipulation;
+}
+
+:root :is(button, [role="button"], a, input, textarea, select, summary):focus-visible {
+  outline: 2px solid var(--ws-focus);
+  outline-offset: 2px;
+}
+
+:where(button, input, textarea, select):disabled,
+:where([aria-disabled="true"]) {
+  cursor: not-allowed;
+}
+
+.wsSafePage {
+  width: min(100%, var(--ws-page-max));
+  min-height: 100dvh;
+  margin-inline: auto;
+  padding:
+    max(var(--ws-space-4), var(--ws-safe-top))
+    max(var(--ws-page-gutter), var(--ws-safe-right))
+    max(var(--ws-space-6), var(--ws-safe-bottom))
+    max(var(--ws-page-gutter), var(--ws-safe-left));
+}
+
+@media (min-width: 25rem) and (max-width: 37.4375rem) {
+  :root {
+    --ws-page-gutter: 1.25rem;
+  }
+}
+
+.wsSrOnly {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ws-duration-fast: 1ms;
+    --ws-duration-base: 1ms;
+  }
+
+  html:focus-within {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --ws-surface: #17101e;
+    --ws-surface-strong: #25172f;
+  }
+
+  :where(.wsTranslucent) {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: var(--ws-night-850) !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :root {
+    --ws-focus: Highlight;
+  }
+
+  :root :is(button, [role="button"], a, input, textarea, select, summary):focus-visible {
+    outline-color: Highlight;
+  }
+
+  :where(svg) {
+    forced-color-adjust: auto;
+  }
+}

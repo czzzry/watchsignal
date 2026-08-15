@@ -1,0 +1,68 @@
+- generic [ref=f4e1]:
+  - main [ref=f4e2]:
+    - region [ref=f4e462]:
+      - generic [ref=f4e249]:
+        - generic [ref=f4e250]: W
+        - generic [ref=f4e256]:
+          - generic [ref=f4e257]:
+            - generic [ref=f4e258]: W
+            - strong [ref=f4e259]: WatchSignal
+          - generic [ref=f4e260]:
+            - generic [ref=f4e463]:
+              - strong [ref=f4e262]: "2"
+              - generic [ref=f4e263]: of 5
+            - button [expanded] [ref=f4e464] [cursor=pointer]:
+              - generic [ref=f4e265]: •••
+        - generic [ref=f4e266]:
+          - generic [ref=f4e267]:
+            - generic [ref=f4e272]:
+              - strong [ref=f4e273]: "83"
+              - generic [ref=f4e274]: match
+            - generic [ref=f4e275]:
+              - strong [ref=f4e276]: "Ranked #2 tonight"
+              - generic [ref=f4e277]: "6 points behind #1"
+          - button [ref=f4e466] [cursor=pointer]:
+            - heading [level=1] [ref=f4e467]: Project Hail Mary
+            - paragraph [ref=f4e280]: 2026 · 2h 37m · Science Fiction · Adventure
+            - generic [ref=f4e281]: Both interested. Its science fiction, adventure mood fit both of you.
+          - generic [ref=f4e468]:
+            - button [ref=f4e469] [cursor=pointer]:
+              - generic [ref=f4e284]: "89"
+            - button [pressed] [ref=f4e470] [cursor=pointer]:
+              - generic [ref=f4e286]: "83"
+            - button [ref=f4e471] [cursor=pointer]:
+              - generic [ref=f4e288]: "78"
+            - button [ref=f4e472] [cursor=pointer]:
+              - generic [ref=f4e290]: "74"
+            - button [ref=f4e473] [cursor=pointer]:
+              - generic [ref=f4e292]: "74"
+          - group [ref=f4e474]:
+            - button [ref=f4e475] [cursor=pointer]:
+              - generic [ref=f4e297]: Details
+            - button [ref=f4e476] [cursor=pointer]:
+              - generic [ref=f4e301]: Where to watch
+            - button [ref=f4e477] [cursor=pointer]:
+              - generic [ref=f4e306]: 5 more
+  - alert [ref=f4e104]
+  - dialog "Result options" [ref=f4e479]:
+    - generic [ref=f4e480]:
+      - strong [ref=f4e481]: Tonight’s result
+      - button "Close" [active] [ref=f4e482] [cursor=pointer]
+    - region [ref=f4e488]:
+      - generic [ref=f4e489]:
+        - generic [ref=f4e490]: Tonight
+        - heading "Keep the night moving" [level=2] [ref=f4e491]
+      - button "Save The Devil Wears Prada 2 Shared watchlist" [ref=f4e492] [cursor=pointer]:
+        - generic [ref=f4e496]:
+          - strong [ref=f4e497]: Save The Devil Wears Prada 2
+          - generic [ref=f4e498]: Shared watchlist
+      - generic [ref=f4e499]:
+        - button "Watchlist 3 saved" [ref=f4e500] [cursor=pointer]:
+          - generic [ref=f4e504]:
+            - strong [ref=f4e505]: Watchlist
+            - generic [ref=f4e506]: 3 saved
+        - button "After tonight Save what you watched" [ref=f4e509] [cursor=pointer]:
+          - generic [ref=f4e513]:
+            - strong [ref=f4e514]: After tonight
+            - generic [ref=f4e515]: Save what you watched
+      - button "Start new night" [ref=f4e518] [cursor=pointer]

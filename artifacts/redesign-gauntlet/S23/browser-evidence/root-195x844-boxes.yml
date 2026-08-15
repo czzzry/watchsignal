@@ -1,0 +1,43 @@
+- generic [active] [ref=f16e1] [box=0,0,195,1121]:
+  - main [ref=f16e2] [box=0,0,195,1053]:
+    - region [ref=f16e3] [box=14,16,167,1037]:
+      - generic [ref=f16e4] [box=14,16,167,1037]:
+        - generic [ref=f16e5] [box=14,16,167,878]:
+          - generic [ref=f16e6] [box=14,16,167,316]:
+            - paragraph [ref=f16e7] [box=42,54,111,30]: Thursday, Aug 13
+            - heading "Tonight, we pick together." [level=2] [ref=f16e9] [box=42,92,111,149]:
+              - generic [ref=f16e10] [box=42,92,111,60]: Tonight,
+              - generic [ref=f16e11] [box=42,152,111,89]:
+                - text: we pick
+                - emphasis [ref=f16e12] [box=42,175,108,71]: together.
+            - paragraph [ref=f16e13] [box=42,263,111,56]: Let's find the perfect movie for a great night in.
+          - generic [ref=f16e14] [box=14,338,167,555]:
+            - generic [ref=f16e19] [box=15,577,190,182]:
+              - button "People Cezary Recovery Test + Husband" [ref=f16e21] [cursor=pointer] [box=27,583,166,56]:
+                - generic [ref=f16e22] [box=27,599,98,24]: People
+                - strong [ref=f16e32] [box=135,583,58,56]: Cezary Recovery Test + Husband
+              - button "Tonight English · Any streaming service · Balanced" [ref=f16e34] [cursor=pointer] [box=27,640,166,69]:
+                - generic [ref=f16e35] [box=27,662,98,24]: Tonight
+                - strong [ref=f16e43] [box=135,640,58,69]: English · Any streaming service · Balanced
+              - button "Mood Optional" [ref=f16e45] [cursor=pointer] [box=27,710,166,44]:
+                - generic [ref=f16e46] [box=27,720,98,24]: Mood
+                - strong [ref=f16e56] [box=135,725,44,14]: Optional
+            - generic [ref=f16e57] [box=14,773,192,121]:
+              - paragraph [ref=f16e59] [box=14,773,192,17]: Step 1 of 3
+              - button "Start first pass" [ref=f16e62] [cursor=pointer] [box=14,811,192,54]:
+                - generic [ref=f16e64] [box=165,829,20,20]: →
+              - paragraph [ref=f16e65] [box=14,875,192,18]: We'll take turns. No duplicates.
+        - generic "Household tools" [ref=f16e66] [box=14,912,167,141]:
+          - button "Taste memory What WatchSignal has learned" [ref=f16e67] [cursor=pointer] [box=14,913,167,78]:
+            - generic [ref=f16e71] [box=52,919,99,65]:
+              - strong [ref=f16e72] [box=52,919,99,16]: Taste memory
+              - generic [ref=f16e73] [box=52,937,99,47]: What WatchSignal has learned
+          - button "Recent nights Remember what you watched" [ref=f16e76] [cursor=pointer] [box=14,990,167,62]:
+            - generic [ref=f16e80] [box=52,996,99,49]:
+              - strong [ref=f16e81] [box=52,996,99,16]: Recent nights
+              - generic [ref=f16e82] [box=52,1014,99,31]: Remember what you watched
+        - text: +
+  - contentinfo [ref=f16e85] [box=0,1053,195,68]:
+    - link "Data credits" [ref=f16e86] [cursor=pointer] [box=56,1053,83,44]:
+      - /url: /credits
+  - alert [ref=f16e87] [box=-1,1120,1,1]

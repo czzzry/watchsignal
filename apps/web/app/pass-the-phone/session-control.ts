@@ -4,7 +4,6 @@ import { useState } from "react";
 import type {
   CandidateViewModel,
   ReactionState,
-  SeenMemoryPromptState,
   SeenMemoryState,
 } from "../pass-the-phone-model";
 import type {
@@ -90,8 +89,9 @@ export function usePassThePhoneSessionControl(
   const [wifeReactions, setWifeReactions] = useState<ReactionState>({});
   const [founderSeenMemories, setFounderSeenMemories] = useState<SeenMemoryState>({});
   const [wifeSeenMemories, setWifeSeenMemories] = useState<SeenMemoryState>({});
-  const [seenMemoryPrompt, setSeenMemoryPrompt] =
-    useState<SeenMemoryPromptState>(null);
+  const [localReactionHistory, setLocalReactionHistory] = useState<
+    ScoringSessionReactionPayload[]
+  >([]);
 
   function resetBatch(nextCandidates = initialCandidates): void {
     setFounderIndex(0);
@@ -101,7 +101,30 @@ export function usePassThePhoneSessionControl(
     setWifeReactions({});
     setFounderSeenMemories({});
     setWifeSeenMemories({});
-    setSeenMemoryPrompt(null);
+  }
+
+  function archiveLocalReactionHistory(actor: "founder" | "wife"): void {
+    const reactions = actor === "founder" ? founderReactions : wifeReactions;
+    const current = scoringReactionSignalsFromLocal({
+      sessionId: "local-history",
+      participantId: actor,
+      candidates: sessionCandidates,
+      reactions,
+    });
+    setLocalReactionHistory((history) =>
+      Array.from(
+        new Map(
+          [...history, ...current].map((reaction) => [
+            reaction.sourceMovieId,
+            reaction,
+          ]),
+        ).values(),
+      ),
+    );
+  }
+
+  function clearLocalReactionHistory(): void {
+    setLocalReactionHistory([]);
   }
 
   return {
@@ -119,8 +142,9 @@ export function usePassThePhoneSessionControl(
     setFounderSeenMemories,
     wifeSeenMemories,
     setWifeSeenMemories,
-    seenMemoryPrompt,
-    setSeenMemoryPrompt,
+    localReactionHistory,
+    archiveLocalReactionHistory,
+    clearLocalReactionHistory,
     resetBatch,
   };
 }

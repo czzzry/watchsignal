@@ -1,4 +1,5 @@
 import "./globals.css";
+import "./ui/watchsignal-system.css";
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { LogoutButton } from "./auth/logout-button";
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#09111a",
+  themeColor: "#050309",
   colorScheme: "dark",
   width: "device-width",
   initialScale: 1,
@@ -27,7 +28,6 @@ export default function RootLayout({
 }: Readonly<{
   children: ReactNode;
 }>) {
-  const build = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7);
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
@@ -35,7 +35,6 @@ export default function RootLayout({
         {children}
         <footer className="siteCreditsLink">
           <a href="/credits">Data credits</a>
-          {build ? <span> · Build {build}</span> : null}
           <LogoutButton />
         </footer>
       </body>

@@ -29,7 +29,41 @@ def render_typescript_contract() -> str:
         lines.append(f"export type {schema_name} = {rendered};")
         lines.append("")
 
+    for alias_name, alias_schema in _named_alias_schemas(schema):
+        rendered = _render_schema(alias_schema, indent_level=0)
+        lines.append(f"export type {alias_name} = {rendered};")
+        lines.append("")
+
     return "\n".join(lines).rstrip() + "\n"
+
+
+def _named_alias_schemas(
+    openapi_schema: dict[str, Any],
+) -> tuple[tuple[str, dict[str, Any]], ...]:
+    components = openapi_schema.get("components", {}).get("schemas", {})
+    paths = openapi_schema.get("paths", {})
+    seal_command = (
+        components.get("PrivateTransitionSealRequestPayload", {})
+        .get("properties", {})
+        .get("command")
+    )
+    resume_projection = (
+        paths.get("/private-transition-recovery/resume", {})
+        .get("post", {})
+        .get("responses", {})
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
+    aliases: list[tuple[str, dict[str, Any]]] = []
+    if isinstance(seal_command, dict):
+        aliases.append(("PrivateTransitionSealCommandPayload", seal_command))
+    if isinstance(resume_projection, dict):
+        aliases.append(
+            ("PrivateTransitionResumeProjectionPayload", resume_projection)
+        )
+    return tuple(aliases)
 
 
 def write_typescript_contract(output_path: Path = DEFAULT_OUTPUT_PATH) -> Path:

@@ -1,0 +1,196 @@
+.layer {
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+  display: grid;
+  justify-items: center;
+  background: var(--ws-night-950);
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--ws-night-950);
+}
+
+.dialog {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 430px);
+  min-height: 100svh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 82% 22%, rgba(185, 134, 255, 0.11), transparent 28%),
+    radial-gradient(circle at 18% 36%, rgba(120, 232, 245, 0.08), transparent 25%),
+    var(--ws-night-900);
+  color: var(--ws-text);
+  font-family: var(--ws-font-ui);
+}
+
+.header {
+  min-height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding:
+    max(16px, var(--ws-safe-top))
+    max(var(--ws-page-gutter), var(--ws-safe-right))
+    12px
+    max(var(--ws-page-gutter), var(--ws-safe-left));
+  border-bottom: 1px solid var(--ws-border);
+}
+
+.header > div { display: grid; gap: 3px; }
+.header span { color: var(--ws-cyan-500); font-size: 12px; font-weight: 700; }
+.header h2 { margin: 0; max-width: 260px; font-size: 22px; line-height: 1.12; letter-spacing: -0.025em; text-wrap: balance; }
+.header button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: var(--ws-surface);
+  color: var(--ws-text);
+}
+.header svg { width: 20px; height: 20px; }
+
+.scroll {
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  gap: 24px;
+  padding: 24px max(var(--ws-page-gutter), var(--ws-safe-right));
+}
+
+.composer { position: relative; display: grid; gap: 8px; }
+.composer label, .traceHeading h3 { font-size: 14px; font-weight: 750; }
+.composer textarea {
+  width: 100%;
+  min-height: 116px;
+  resize: vertical;
+  border: 1px solid rgba(185, 134, 255, 0.34);
+  border-radius: var(--ws-radius-lg);
+  padding: 16px 16px 28px;
+  background: rgba(28, 16, 38, 0.82);
+  color: var(--ws-text);
+  caret-color: var(--ws-cyan-500);
+  font: 550 16px/1.5 var(--ws-font-ui);
+}
+.composer textarea::placeholder { color: rgba(250, 248, 252, 0.56); }
+.composer > span { position: absolute; right: 12px; bottom: 10px; color: var(--ws-text-faint); font-size: 12px; }
+
+.clarification, .review, .active { display: grid; gap: 12px; }
+.clarification h3 { margin: 0; font-size: 19px; line-height: 1.3; letter-spacing: -0.02em; text-wrap: balance; }
+.sourceText { margin: 0; color: var(--ws-text-muted); font-size: 13px; line-height: 1.5; }
+.sourceText mark { border-radius: 4px; padding: 1px 3px; background: rgba(185, 134, 255, 0.28); color: var(--ws-text); }
+.clarification input {
+  min-height: 48px;
+  border: 1px solid var(--ws-border);
+  border-radius: var(--ws-radius-md);
+  padding: 0 14px;
+  background: var(--ws-surface);
+  color: var(--ws-text);
+  font-size: 14px;
+}
+.clarification input::placeholder { color: rgba(250, 248, 252, 0.56); }
+
+.traceHeading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.traceHeading h3 { margin: 0; }
+.traceHeading span { color: var(--ws-text-muted); font-size: 12px; }
+.signalTrace { position: relative; min-height: 92px; display: grid; align-items: center; }
+.signalTrace > i {
+  position: absolute;
+  right: 12px;
+  left: 12px;
+  top: 50%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--ws-cyan-500), var(--ws-signal-400));
+  box-shadow: 0 0 16px rgba(120, 232, 245, 0.18);
+}
+.signalTrace > div { position: relative; display: flex; flex-wrap: wrap; gap: 8px; }
+.signalTrace button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(213, 189, 255, 0.3);
+  border-radius: var(--ws-radius-pill);
+  padding: 0 12px;
+  background: var(--ws-plum-800);
+  color: var(--ws-text);
+  font: 700 13px/1 var(--ws-font-ui);
+}
+.signalTrace button:nth-child(even) { border-color: rgba(120, 232, 245, 0.34); background: #102029; }
+.signalTrace svg { width: 15px; height: 15px; color: var(--ws-text-muted); }
+.emptyReview { margin: 0; color: var(--ws-warning-400); font-size: 13px; line-height: 1.5; }
+
+.active {
+  border-radius: var(--ws-radius-md);
+  padding: 14px;
+  background: var(--ws-surface);
+}
+.active > span { display: flex; align-items: center; gap: 6px; color: var(--ws-success-400); font-size: 12px; font-weight: 750; }
+.active > span svg { width: 16px; height: 16px; }
+.active > div { display: flex; flex-wrap: wrap; gap: 6px 12px; }
+.active strong { font-size: 14px; }
+.active p, .message { margin: 0; color: var(--ws-text-muted); font-size: 12px; line-height: 1.5; }
+.message[role="alert"] { color: var(--ws-danger-400); }
+
+.footer {
+  display: grid;
+  gap: 8px;
+  padding:
+    12px
+    max(var(--ws-page-gutter), var(--ws-safe-right))
+    max(12px, var(--ws-safe-bottom));
+  border-top: 1px solid var(--ws-border);
+  background: var(--ws-night-900);
+}
+.primary {
+  min-height: 54px;
+  border: 0;
+  border-radius: var(--ws-radius-md);
+  background: var(--ws-action);
+  color: var(--ws-action-ink);
+  font: 750 14px/1 var(--ws-font-ui);
+}
+.secondaryActions { min-height: 44px; display: flex; justify-content: center; gap: 8px; }
+.secondaryActions button {
+  min-width: 76px;
+  min-height: 44px;
+  border: 0;
+  padding: 0 12px;
+  background: transparent;
+  color: var(--ws-text-muted);
+  font: 700 13px/1 var(--ws-font-ui);
+}
+
+@media (max-height: 568px) {
+  .header { min-height: 68px; }
+  .scroll { gap: 16px; padding-top: 12px; padding-bottom: 12px; }
+  .composer textarea { min-height: 82px; }
+  .signalTrace { min-height: 52px; }
+  .footer { gap: 4px; padding-top: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog, .signalTrace button { animation: none; transition: none; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .dialog { background: var(--ws-night-900); }
+  .composer textarea, .active { background: var(--ws-night-850); }
+}
+
+@media (forced-colors: active) {
+  .composer textarea, .clarification input, .signalTrace button, .primary { border: 1px solid CanvasText; }
+  .signalTrace > i { background: Highlight; }
+  .sourceText mark { background: Highlight; color: HighlightText; }
+}

@@ -1,0 +1,11 @@
+- generic [ref=f4e1]:
+  - main [ref=f4e2]:
+    - region [ref=f4e180]:
+      - generic [ref=f4e181]: S
+      - generic [ref=f4e187]:
+        - paragraph [ref=f4e188]: Private handoff
+        - heading "Ready for Husband" [active] [level=1] [ref=f4e189]
+        - generic [ref=f4e190]: Cezary Recovery Test's picks are sealed. Only Husband's choices appear next.
+      - button "Begin Husband's picks" [ref=f4e191] [cursor=pointer]
+      - status [ref=f4e194]: No earlier answers are shown
+  - alert [ref=f4e104]

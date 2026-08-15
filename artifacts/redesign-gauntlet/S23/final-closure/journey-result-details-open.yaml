@@ -1,0 +1,86 @@
+- generic [ref=f4e1]:
+  - main [ref=f4e2]:
+    - region [ref=f4e373]:
+      - generic [ref=f4e249]:
+        - generic [ref=f4e250]: W
+        - generic [ref=f4e256]:
+          - generic [ref=f4e257]:
+            - generic [ref=f4e258]: W
+            - strong [ref=f4e259]: WatchSignal
+          - generic [ref=f4e260]:
+            - generic [ref=f4e374]:
+              - strong [ref=f4e262]: "2"
+              - generic [ref=f4e263]: of 5
+            - button [ref=f4e375] [cursor=pointer]:
+              - generic [ref=f4e265]: •••
+        - generic [ref=f4e266]:
+          - generic [ref=f4e267]:
+            - generic [ref=f4e272]:
+              - strong [ref=f4e273]: "83"
+              - generic [ref=f4e274]: match
+            - generic [ref=f4e275]:
+              - strong [ref=f4e276]: "Ranked #2 tonight"
+              - generic [ref=f4e277]: "6 points behind #1"
+          - button [ref=f4e377] [cursor=pointer]:
+            - heading [level=1] [ref=f4e378]: Project Hail Mary
+            - paragraph [ref=f4e280]: 2026 · 2h 37m · Science Fiction · Adventure
+            - generic [ref=f4e281]: Both interested. Its science fiction, adventure mood fit both of you.
+          - generic [ref=f4e379]:
+            - button [ref=f4e380] [cursor=pointer]:
+              - generic [ref=f4e284]: "89"
+            - button [pressed] [ref=f4e381] [cursor=pointer]:
+              - generic [ref=f4e286]: "83"
+            - button [ref=f4e382] [cursor=pointer]:
+              - generic [ref=f4e288]: "78"
+            - button [ref=f4e383] [cursor=pointer]:
+              - generic [ref=f4e290]: "74"
+            - button [ref=f4e384] [cursor=pointer]:
+              - generic [ref=f4e292]: "74"
+          - group [ref=f4e385]:
+            - button [ref=f4e386] [cursor=pointer]:
+              - generic [ref=f4e297]: Details
+            - button [ref=f4e387] [cursor=pointer]:
+              - generic [ref=f4e301]: Where to watch
+            - button [ref=f4e388] [cursor=pointer]:
+              - generic [ref=f4e306]: 5 more
+  - alert [ref=f4e104]
+  - dialog [ref=f4e390]:
+    - banner [ref=f4e392]:
+      - generic [ref=f4e393]:
+        - paragraph [ref=f4e394]: 2026 · 2h 37m
+        - heading "Project Hail Mary" [level=2] [ref=f4e395]
+        - generic [ref=f4e396]: Science Fiction · Adventure
+      - button "Close movie details" [active] [ref=f4e397] [cursor=pointer]
+    - generic [ref=f4e401]:
+      - generic [ref=f4e402]:
+        - heading "What it’s about" [level=3] [ref=f4e403]
+        - paragraph [ref=f4e404]: "Science teacher Ryland Grace wakes up on a spaceship light years from home with no recollection of who he is or how he got there. As his memory returns, he begins to uncover his mission: solve the riddle of the mysterious substance causing the sun to die out. He must call on his scientific knowledge and unorthodox ideas to save everything on Earth from extinction."
+      - generic [ref=f4e405]:
+        - heading "Who’s in it" [level=3] [ref=f4e406]
+        - generic [ref=f4e407]:
+          - article [ref=f4e408]:
+            - strong [ref=f4e410]: Ryan Gosling
+            - generic [ref=f4e411]: Ryland Grace
+          - article [ref=f4e412]:
+            - strong [ref=f4e414]: Sandra Hüller
+            - generic [ref=f4e415]: Eva Stratt
+          - article [ref=f4e416]:
+            - strong [ref=f4e418]: James Ortiz
+            - generic [ref=f4e419]: Rocky (voice)
+      - region "Why match score 83" [ref=f4e420]:
+        - generic [ref=f4e421]:
+          - heading "Why 83" [level=3] [ref=f4e422]
+          - generic [ref=f4e423]: Both interested
+        - list [ref=f4e424]:
+          - listitem [ref=f4e425]:
+            - generic [ref=f4e428]: Both interested
+          - listitem [ref=f4e429]:
+            - generic [ref=f4e432]: Science Fiction, Adventure
+          - listitem [ref=f4e433]:
+            - generic [ref=f4e436]: Runtime 2h 37m
+      - region "German watch availability" [ref=f4e437]:
+        - generic [ref=f4e441]:
+          - strong [ref=f4e442]: Amazon Prime Video, Amazon Prime Video with Ads, MGM Plus Amazon Channel, Apple TV Store, Amazon Video, Sky Store, Rakuten TV, maxdome Store, MagentaTV, Videoload, Freenet meinVOD
+          - generic [ref=f4e443]: Included with subscription, Rent, or buy · Region DE
+          - generic [ref=f4e444]: English audio
+      - paragraph [ref=f4e445]: Movie metadata and imagery from TMDB · Availability region DE

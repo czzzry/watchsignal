@@ -117,6 +117,7 @@ def build_recommendation_snapshot(
                 source_movie_id=candidate.source_movie_id,
                 title=candidate.title,
                 genres=candidate.genres,
+                metadata_keywords=candidate.metadata_keywords,
                 providers=candidate.providers,
                 provider_access=tuple(_provider_access_labels(candidate)),
                 safety_status=candidate.safety_status.value,

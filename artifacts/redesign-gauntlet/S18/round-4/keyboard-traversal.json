@@ -1,0 +1,80 @@
+{
+  "forward": [
+    {
+      "tag": "BUTTON",
+      "role": null,
+      "name": "Loved",
+      "pressed": "false"
+    },
+    {
+      "tag": "BUTTON",
+      "role": null,
+      "name": "Liked it",
+      "pressed": "false"
+    },
+    {
+      "tag": "BUTTON",
+      "role": null,
+      "name": "It was fine",
+      "pressed": "false"
+    },
+    {
+      "tag": "BUTTON",
+      "role": null,
+      "name": "Not for me",
+      "pressed": "false"
+    },
+    {
+      "tag": "BUTTON",
+      "role": null,
+      "name": "I haven’t seen it",
+      "pressed": "false"
+    },
+    {
+      "tag": "SUMMARY",
+      "role": null,
+      "name": "Your Taste Lab progress",
+      "pressed": null
+    },
+    {
+      "tag": "A",
+      "role": null,
+      "name": "Data credits",
+      "pressed": null
+    },
+    {
+      "tag": "BODY",
+      "role": null,
+      "name": "WWatchSignalPrivate Taste LabCLearning forCezary - testerSophie - testerHusbandWifeS10 Judge AS10 Ju",
+      "pressed": null
+    },
+    {
+      "tag": "A",
+      "role": null,
+      "name": "Back to WatchSignal",
+      "pressed": null
+    },
+    {
+      "tag": "SELECT",
+      "role": null,
+      "name": "Taste Lab profile",
+      "pressed": null
+    },
+    {
+      "tag": "BUTTON",
+      "role": null,
+      "name": "Loved",
+      "pressed": "false"
+    },
+    {
+      "tag": "BUTTON",
+      "role": null,
+      "name": "Liked it",
+      "pressed": "false"
+    }
+  ],
+  "reverseAfterEnd": {
+    "tag": "BUTTON",
+    "name": "Liked it"
+  }
+}

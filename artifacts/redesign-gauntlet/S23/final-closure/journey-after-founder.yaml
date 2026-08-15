@@ -1,0 +1,31 @@
+- generic [active] [ref=f4e1]:
+  - main [ref=f4e2]:
+    - region [ref=f4e154]:
+      - generic [ref=f4e106]:
+        - generic [ref=f4e107]:
+          - button "Back" [ref=f4e108] [cursor=pointer]
+          - generic [ref=f4e111]:
+            - generic [ref=f4e112]: C
+            - generic [ref=f4e113]:
+              - strong [ref=f4e114]: Cezary Recovery Test
+              - generic [ref=f4e115]: Private pick
+          - generic "Movie 5 of 5" [ref=f4e155]:
+            - strong [ref=f4e117]: "5"
+            - generic [ref=f4e118]: of 5
+        - main [ref=f4e121]:
+          - article [ref=f4e122]:
+            - generic [ref=f4e124]:
+              - heading "The Amazing Spider-Man 2" [level=1] [ref=f4e156]
+              - paragraph [ref=f4e126]: 2014 · 2h 21m · Action · Adventure · Science Fiction
+              - paragraph [ref=f4e127]: Fits compromise mode with signal from Action, Adventure. ; .
+              - generic [ref=f4e128]:
+                - button "Details" [ref=f4e129] [cursor=pointer]
+                - button "Seen before" [ref=f4e132] [cursor=pointer]
+        - generic [ref=f4e136]:
+          - paragraph [ref=f4e137]: Would you watch this tonight?
+          - group "Private reaction for The Amazing Spider-Man 2" [ref=f4e157]:
+            - button "Interested" [ref=f4e139] [cursor=pointer]
+            - button "Maybe" [ref=f4e143] [cursor=pointer]
+            - button "No" [ref=f4e148] [cursor=pointer]
+          - status [ref=f4e153]: Private until you both finish
+  - alert [ref=f4e104]

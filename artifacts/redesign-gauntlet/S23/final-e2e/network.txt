@@ -1,0 +1,9 @@
+### Result
+17. [GET] http://localhost:3123/api/onboarding/completion?requiredProfileIds=cezary-tester&requiredProfileIds=profile-1 => [200] OK
+18. [GET] http://localhost:3123/api/profiles/cezary-tester/memory?householdId=default-household => [200] OK
+19. [GET] http://localhost:3123/api/profiles/profile-1/memory?householdId=default-household => [200] OK
+20. [GET] http://localhost:3123/api/profiles/cezary-tester/memory/events?householdId=default-household => [200] OK
+21. [GET] http://localhost:3123/api/profiles/profile-1/memory/events?householdId=default-household => [200] OK
+22. [GET] http://localhost:3123/api/auth/status => [200] OK
+
+Note: 17 static requests not shown, run with --static option to see them.

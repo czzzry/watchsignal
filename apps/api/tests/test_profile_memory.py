@@ -119,6 +119,13 @@ class ProfileMemoryServiceTest(unittest.TestCase):
                 ("Sci-Fi", 1, "private_calibration"),
                 {(signal.label, signal.count, signal.source) for signal in summary.signals},
             )
+            private_signal = next(
+                signal for signal in summary.signals
+                if signal.label == "Sci-Fi" and signal.source == "private_calibration"
+            )
+            self.assertEqual(private_signal.positive_count, 1)
+            self.assertEqual(private_signal.neutral_count, 0)
+            self.assertEqual(private_signal.negative_count, 0)
 
 
 if __name__ == "__main__":

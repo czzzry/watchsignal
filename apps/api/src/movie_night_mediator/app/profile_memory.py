@@ -14,6 +14,9 @@ class ProfileMemorySignal:
     label: str
     count: int
     source: str
+    positive_count: int = 0
+    neutral_count: int = 0
+    negative_count: int = 0
 
 
 @dataclass(frozen=True)
@@ -88,6 +91,9 @@ class ProfileMemoryService:
                     + signal.negative_count
                 ),
                 source="private_calibration",
+                positive_count=signal.positive_count,
+                neutral_count=signal.neutral_count,
+                negative_count=signal.negative_count,
             )
             for signal in taste_summary.genre_signals[:2]
         )

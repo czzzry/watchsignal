@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from fastapi import FastAPI, Request
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -33,6 +35,11 @@ from movie_night_mediator.api.routes.onboarding import (
     OnboardingCompletionPayload,
     ParticipantOnboardingPayload,
     register_onboarding_routes,
+)
+from movie_night_mediator.api.routes.private_transition_recovery import (
+    PrivateTransitionRecoveryModule,
+    register_private_transition_recovery_maintenance_routes,
+    register_private_transition_recovery_routes,
 )
 from movie_night_mediator.api.routes.recommendations import (
     RecommendationShortlistItemPayload,
@@ -85,6 +92,9 @@ from movie_night_mediator.app.outcome import SessionOutcomeService
 from movie_night_mediator.app.profile_memory import (
     ProfileMemoryService,
 )
+from movie_night_mediator.app.private_transition_recovery import (
+    PrivateTransitionRecovery,
+)
 from movie_night_mediator.app.recommendation_snapshot import (
     RecommendationSnapshotService,
 )
@@ -110,6 +120,7 @@ from movie_night_mediator.storage import (
     SQLiteFeedbackStore,
     SQLiteOutcomeStore,
     SQLiteRecommendationSnapshotStore,
+    SQLitePrivateTransitionRecoveryStore,
     SQLiteSessionStore,
     SQLiteTasteLabStore,
     SQLiteTasteMemoryStore,
@@ -138,6 +149,8 @@ class _AppServices:
     profile_memory_service: ProfileMemoryService
     tonight_intent_interpreter: TonightIntentInterpreter
     recommendation_service: RecommendationService
+    private_transition_recovery: PrivateTransitionRecoveryModule
+    private_transition_recovery_store: SQLitePrivateTransitionRecoveryStore
 
 
 def _build_app_services(
@@ -153,6 +166,8 @@ def _build_app_services(
     taste_memory_store: SQLiteTasteMemoryStore | None,
     watchlist_store: SQLiteWatchlistStore | None,
     candidate_source: CandidateSource | None,
+    private_transition_recovery: PrivateTransitionRecoveryModule | None,
+    private_transition_recovery_store: SQLitePrivateTransitionRecoveryStore | None,
 ) -> _AppServices:
     resolved_setup_store = setup_store or SQLiteSetupStore()
     resolved_onboarding_store = onboarding_store or SQLiteOnboardingStore()
@@ -161,6 +176,10 @@ def _build_app_services(
     resolved_outcome_store = outcome_store or SQLiteOutcomeStore()
     resolved_recommendation_snapshot_store = (
         recommendation_snapshot_store or SQLiteRecommendationSnapshotStore()
+    )
+    resolved_private_transition_recovery_store = (
+        private_transition_recovery_store
+        or SQLitePrivateTransitionRecoveryStore()
     )
     taste_memory_service = TasteMemoryService(
         taste_memory_store or SQLiteTasteMemoryStore()
@@ -220,6 +239,24 @@ def _build_app_services(
         snapshot_service=recommendation_snapshot_service,
         candidate_source=candidate_source,
     )
+    resolved_private_transition_recovery = private_transition_recovery
+    if resolved_private_transition_recovery is None:
+        def participant_label(profile_id: str) -> str:
+            return next(
+                (
+                    profile.label
+                    for profile in resolved_setup_store.load_setup().profiles
+                    if profile.id == profile_id
+                ),
+                "Next person",
+            )
+
+        resolved_private_transition_recovery = PrivateTransitionRecovery(
+            store=resolved_private_transition_recovery_store,
+            session_reader=session_service,
+            session_writer=session_service,
+            participant_label=participant_label,
+        )
     return _AppServices(
         setup_store=resolved_setup_store,
         onboarding_store=resolved_onboarding_store,
@@ -237,6 +274,8 @@ def _build_app_services(
         profile_memory_service=profile_memory_service,
         tonight_intent_interpreter=tonight_intent_interpreter,
         recommendation_service=recommendation_service,
+        private_transition_recovery=resolved_private_transition_recovery,
+        private_transition_recovery_store=resolved_private_transition_recovery_store,
     )
 
 
@@ -253,12 +292,30 @@ def create_app(
     watchlist_store: SQLiteWatchlistStore | None = None,
     taste_lab_seed_queue_path: Path | str | None = None,
     candidate_source: CandidateSource | None = None,
+    private_transition_recovery: PrivateTransitionRecoveryModule | None = None,
+    private_transition_recovery_store: SQLitePrivateTransitionRecoveryStore | None = None,
 ) -> FastAPI:
     app = FastAPI(
         title="Movie Night Mediator API",
         version="0.1.0",
         description="Local API for the code-first Movie Night Mediator prototype.",
     )
+
+    @app.exception_handler(RequestValidationError)
+    async def private_transition_validation_error(
+        request: Request,
+        error: RequestValidationError,
+    ):
+        if (
+            request.url.path.startswith("/private-transition-recovery")
+            or request.url.path == "/maintenance/private-transition-recoveries"
+        ):
+            return JSONResponse(
+                status_code=400,
+                content={"detail": "Private transition request is invalid."},
+                headers={"Cache-Control": "no-store"},
+            )
+        return await request_validation_exception_handler(request, error)
 
     @app.middleware("http")
     async def require_service_token(request: Request, call_next):
@@ -274,6 +331,16 @@ def create_app(
                     content={"detail": "Backend service authorization required."},
                 )
         return await call_next(request)
+
+    @app.middleware("http")
+    async def prevent_private_transition_caching(request: Request, call_next):
+        response = await call_next(request)
+        if (
+            request.url.path.startswith("/private-transition-recovery")
+            or request.url.path == "/maintenance/private-transition-recoveries"
+        ):
+            response.headers["Cache-Control"] = "no-store"
+        return response
     app.add_middleware(
         CORSMiddleware,
         allow_origins=(
@@ -297,6 +364,8 @@ def create_app(
         taste_memory_store=taste_memory_store,
         watchlist_store=watchlist_store,
         candidate_source=candidate_source,
+        private_transition_recovery=private_transition_recovery,
+        private_transition_recovery_store=private_transition_recovery_store,
     )
 
     register_system_routes(app)
@@ -313,7 +382,6 @@ def create_app(
     register_onboarding_routes(
         app,
         onboarding_store=services.onboarding_store,
-        taste_lab_service=services.taste_lab_service,
     )
     register_backfill_routes(
         app,
@@ -330,6 +398,14 @@ def create_app(
         app,
         session_service=services.session_service,
         outcome_service=services.outcome_service,
+    )
+    register_private_transition_recovery_routes(
+        app,
+        recovery=services.private_transition_recovery,
+    )
+    register_private_transition_recovery_maintenance_routes(
+        app,
+        store=services.private_transition_recovery_store,
     )
     register_profile_memory_routes(
         app,

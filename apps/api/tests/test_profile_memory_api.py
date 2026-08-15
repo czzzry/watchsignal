@@ -62,7 +62,16 @@ class ProfileMemoryApiTest(unittest.TestCase):
             self.assertEqual(payload["privateCalibrationCount"], 0)
             self.assertEqual(
                 payload["signals"],
-                [{"label": "loved", "count": 1, "source": "visible_app_memory"}],
+                [
+                    {
+                        "label": "loved",
+                        "count": 1,
+                        "source": "visible_app_memory",
+                        "positiveCount": 0,
+                        "neutralCount": 0,
+                        "negativeCount": 0,
+                    }
+                ],
             )
 
 

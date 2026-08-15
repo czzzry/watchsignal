@@ -57,6 +57,7 @@ class OpenAIDirectedNudgeProvider:
                 "release_year_max",
                 "exclude_watched",
                 "exclude_subtitled",
+                "language",
             ],
             "supported_soft_signals": [
                 "comforting",
@@ -97,6 +98,7 @@ class OpenAIDirectedNudgeProvider:
                     "release_year_max": "number",
                     "exclude_watched": "boolean",
                     "exclude_subtitled": "boolean",
+                    "language": "ISO 639-1 string",
                 },
                 "soft_signals": ["string"],
                 "excluded_signals": ["string"],

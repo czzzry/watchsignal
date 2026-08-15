@@ -1,0 +1,53 @@
+- generic [active] [ref=f3e1]:
+  - main [ref=f3e2]:
+    - region [ref=f3e3]:
+      - generic [ref=f3e4]:
+        - generic [ref=f3e5]:
+          - generic [ref=f3e6]:
+            - paragraph [ref=f3e7]: Thursday, Aug 13
+            - heading "Tonight, we pick together." [level=2] [ref=f3e9]:
+              - generic [ref=f3e10]: Tonight,
+              - generic [ref=f3e11]:
+                - text: we pick
+                - emphasis [ref=f3e12]: together.
+            - paragraph [ref=f3e13]: Let's find the perfect movie for a great night in.
+          - generic [ref=f3e14]:
+            - generic [ref=f3e19]:
+              - button "People Cezary Recovery Test + Husband" [ref=f3e21] [cursor=pointer]:
+                - generic [ref=f3e22]: People
+                - strong [ref=f3e32]: Cezary Recovery Test + Husband
+              - button "Tonight English · Any streaming service · Balanced" [ref=f3e34] [cursor=pointer]:
+                - generic [ref=f3e35]: Tonight
+                - strong [ref=f3e43]: English · Any streaming service · Balanced
+              - button "Mood Optional" [ref=f3e45] [cursor=pointer]:
+                - generic [ref=f3e46]: Mood
+                - strong [ref=f3e56]: Optional
+            - generic [ref=f3e57]:
+              - paragraph [ref=f3e59]: Step 1 of 3
+              - button "Start first pass" [ref=f3e62] [cursor=pointer]:
+                - generic [ref=f3e64]: →
+              - paragraph [ref=f3e65]: We'll take turns. No duplicates.
+        - generic "Household tools" [ref=f3e66]:
+          - button "Taste memory What WatchSignal has learned" [ref=f3e67] [cursor=pointer]:
+            - generic [ref=f3e71]:
+              - strong [ref=f3e72]: Taste memory
+              - generic [ref=f3e73]: What WatchSignal has learned
+          - button "Recent nights Remember what you watched" [ref=f3e76] [cursor=pointer]:
+            - generic [ref=f3e80]:
+              - strong [ref=f3e81]: Recent nights
+              - generic [ref=f3e82]: Remember what you watched
+          - link "Tune tastes A few private movie choices" [ref=f3e85] [cursor=pointer]:
+            - /url: /taste-lab
+            - generic [ref=f3e88]:
+              - strong [ref=f3e89]: Tune tastes
+              - generic [ref=f3e90]: A few private movie choices
+          - link "Household setup Names and usual defaults" [ref=f3e93] [cursor=pointer]:
+            - /url: /setup
+            - generic [ref=f3e97]:
+              - strong [ref=f3e98]: Household setup
+              - generic [ref=f3e99]: Names and usual defaults
+        - text: +
+  - contentinfo [ref=f3e102]:
+    - link "Data credits" [ref=f3e103] [cursor=pointer]:
+      - /url: /credits
+  - alert [ref=f3e104]
