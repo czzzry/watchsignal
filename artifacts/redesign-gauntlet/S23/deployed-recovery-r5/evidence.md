@@ -32,7 +32,19 @@ Neon owns the durable recovery record.
 
 ## Cross-deployment evidence
 
-Pending the docs-only deployment-trigger merge and the browser reload against the fresh production functions.
+The docs-only deployment-trigger merge produced fresh production web and API deployments.
+
+The first resume request reached the fresh web deployment and returned `503` with the fixed public message `Private transition recovery is not configured.`
+
+The response used `Cache-Control: no-store`, left the opaque checkpoint intact, and exposed no token, title, reaction, or server detail.
+
+Production authentication and ordinary API-backed setup requests remained healthy.
+
+The missing requirement was the non-secret `WATCHSIGNAL_HOUSEHOLD_ID` deployment tenant in the web project.
+
+The follow-up deployment config sets `default-household` in the version-controlled Vercel function environment and adds a normalized configuration regression.
+
+The final cross-deployment resume remains pending that corrected production deployment.
 
 ## Decision
 

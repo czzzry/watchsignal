@@ -96,6 +96,9 @@ test("R2 scheduled cleanup fails closed and never reflects upstream detail", asy
 });
 
 test("R2 production schedule normalizes to one daily cleanup operation", () => {
+  assert.deepEqual(vercelConfig.env, {
+    WATCHSIGNAL_HOUSEHOLD_ID: "default-household",
+  });
   assert.deepEqual(vercelConfig.crons, [
     {
       path: "/api/maintenance/private-transition-recovery",

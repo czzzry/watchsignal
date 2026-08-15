@@ -1,6 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "regions": ["fra1"],
+  "env": {
+    "WATCHSIGNAL_HOUSEHOLD_ID": "default-household"
+  },
   "crons": [
     {
       "path": "/api/maintenance/private-transition-recovery",
