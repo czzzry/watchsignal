@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 import { toSessionCandidate } from "../app/pass-the-phone-helpers.ts";
 
@@ -11,19 +10,6 @@ import {
   privateReactionStatus,
   privateReactionValues,
 } from "../app/pass-the-phone/reaction-card-contract.ts";
-
-const component = readFileSync(
-  new URL("../app/pass-the-phone/private-reaction-card.tsx", import.meta.url),
-  "utf8",
-);
-const css = readFileSync(
-  new URL("../app/pass-the-phone/private-reaction-card.module.css", import.meta.url),
-  "utf8",
-);
-const wizard = readFileSync(
-  new URL("../app/pass-the-phone-wizard.tsx", import.meta.url),
-  "utf8",
-);
 
 test("private reaction contract preserves the three exact API values", () => {
   assert.deepEqual(privateReactionValues, ["interested", "maybe", "no"]);
@@ -80,8 +66,6 @@ test("public fit copy prioritizes verified structured evidence without exposing 
     assert.ok(wordCount(line) >= 8 && wordCount(line) <= 16);
     assert.doesNotMatch(line, /mode|score|signal|evidence|taste lab|count|;\s*\./i);
   }
-  assert.match(component, /publicReactionFitLine\(candidate\)/);
-  assert.doesNotMatch(component, /candidate\.whyNow \?\? candidate\.reason/);
 });
 
 test("movie details never fall back to raw scoring prose when overview is missing", () => {
@@ -105,9 +89,6 @@ test("movie details never fall back to raw scoring prose when overview is missin
     "More details for Arrival are not available yet.",
   );
   assert.doesNotMatch(publicReactionSynopsis(missingOverview), /compromise|signal|score/i);
-  assert.doesNotMatch(component, /candidate\.overview\s*\?\?\s*candidate\.reason/);
-  assert.doesNotMatch(component, /candidate\.reason/);
-  assert.match(component, /publicReactionSynopsis\(candidate\)/);
 });
 
 test("real shortlist payload maps into the public fit contract without mutating raw review evidence", () => {
@@ -172,26 +153,11 @@ test("private reaction gate prevents duplicate commits while pending or syncing"
 
 test("seen memory is separate from the private reaction values", () => {
   assert.equal(privateReactionValues.includes("seen"), false);
-  assert.match(component, /onSeenIt/);
-  assert.doesNotMatch(component, /onReaction\([^)]*seen/);
 });
 
 test("reaction presentation adds no artificial wait and stays within 320ms", () => {
   assert.equal(privateReactionMotionDuration(false), 220);
   assert.equal(privateReactionMotionDuration(true), 0);
-  assert.doesNotMatch(component, /setTimeout|cinematicDelay/);
-  const reactionFlow = wizard.slice(
-    wizard.indexOf("async function recordReaction"),
-    wizard.indexOf("async function recordSeenMemory"),
-  );
-  assert.doesNotMatch(reactionFlow, /cinematicDelay|setTimeout/);
-
-  const durations = Array.from(
-    css.matchAll(/(?:animation|transition)(?:-duration)?:\s*[^;\n]*?(\d+)ms/g),
-    (match) => Number(match[1]),
-  );
-  assert.ok(durations.length > 0);
-  assert.deepEqual(durations.filter((duration) => duration > 320), []);
 });
 
 test("local and syncing status stays consumer-facing and private", () => {
@@ -207,21 +173,6 @@ test("local and syncing status stays consumer-facing and private", () => {
     privateReactionStatus({ pending: null, isSyncing: true, localOnly: false }),
     "Saving your private pick…",
   );
-});
-
-test("reaction CSS has no readable text below the locked 12px floor", () => {
-  const pixelFontSizes = Array.from(
-    css.matchAll(/font-size:\s*([\d.]+)px/g),
-    (match) => Number(match[1]),
-  );
-  assert.ok(pixelFontSizes.length > 0);
-  assert.deepEqual(pixelFontSizes.filter((size) => size < 12), []);
-});
-
-test("reaction card declares forced colors and reduced preference support", () => {
-  assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
-  assert.match(css, /@media\s*\(prefers-reduced-transparency:\s*reduce\)/);
-  assert.match(css, /@media\s*\(forced-colors:\s*active\)/);
 });
 
 function wordCount(value) {

@@ -15,6 +15,16 @@ export type ResultProviderPresentation = {
   regionLabel: string;
 };
 
+export function publicResultSynopsis({
+  overview,
+  title,
+}: {
+  overview?: string | null;
+  title: string;
+}): string {
+  return overview?.trim() || `More details for ${title} are not available yet.`;
+}
+
 export function resultDetailsCast({
   castDetails,
   topCast,

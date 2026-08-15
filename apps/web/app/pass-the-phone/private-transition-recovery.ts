@@ -18,7 +18,9 @@ type PrivateTransitionRecoveryClientPorts = {
 };
 
 export type PrivateTransitionRecoveryClient = {
-  save(command: PrivateTransitionCommand): Promise<void>;
+  save(
+    command: PrivateTransitionCommand,
+  ): Promise<PrivateTransitionResumeProjectionPayload | null>;
   load(): Promise<PrivateTransitionResumeProjectionPayload | null>;
   clear(): Promise<void>;
 };
@@ -64,6 +66,12 @@ export function createPrivateTransitionRecoveryClient(
         throw new Error("Private recovery could not be saved.");
       }
       const handle = await response.json() as unknown;
+      if (isRecoveryProjection(handle)) {
+        if (command.kind !== "use_local_result" || handle.kind !== "result_ready") {
+          throw new Error("Private recovery returned an invalid response.");
+        }
+        return handle;
+      }
       if (!isRecoveryHandle(handle)) {
         throw new Error("Private recovery returned an invalid response.");
       }
@@ -74,6 +82,7 @@ export function createPrivateTransitionRecoveryClient(
         },
         now(),
       ));
+      return null;
     },
 
     async load() {
@@ -150,11 +159,15 @@ function isRecoveryProjection(
     );
   }
   if (value.kind === "matching_pending") {
-    return hasExactKeys(value, ["kind"]);
+    return (
+      hasExactKeys(value, ["kind", "recipientLabel"])
+      && isRecipientLabel(value.recipientLabel)
+    );
   }
   if (value.kind === "matching_failed") {
     return (
-      hasExactKeys(value, ["canRetry", "canUseLocal", "kind"])
+      hasExactKeys(value, ["canRetry", "canUseLocal", "kind", "recipientLabel"])
+      && isRecipientLabel(value.recipientLabel)
       && value.canRetry === true
       && value.canUseLocal === true
     );
@@ -166,11 +179,13 @@ function isRecoveryProjection(
           "displaySnapshot",
           "finalReactions",
           "kind",
+          "recipientLabel",
           "resultSource",
         ] as const
-      : ["displaySnapshot", "kind"] as const;
+      : ["displaySnapshot", "kind", "recipientLabel"] as const;
     return (
       hasExactKeys(value, expectedKeys)
+      && isRecipientLabel(value.recipientLabel)
       && (value.kind !== "result_ready"
         || (
           typeof value.canonicalSessionId === "string"
@@ -186,6 +201,10 @@ function isRecoveryProjection(
     );
   }
   return false;
+}
+
+function isRecipientLabel(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= 100;
 }
 
 function isRecoveryBallotItem(value: unknown): value is {

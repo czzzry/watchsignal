@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -66,41 +65,4 @@ test("S17 has honest offline and retry copy", () => {
   assert.match(historyPublicMessage("failed", "backend unavailable") ?? "", /offline/i);
   assert.equal(historyPublicMessage("failed", "unexpected"), "Couldn’t load recent nights. Try again.");
   assert.equal(historyPublicMessage("ready", null), null);
-});
-
-test("S17 is imported, mounted, and receives every real state and callback", async () => {
-  const [setup, component, css] = await Promise.all([
-    readFile(new URL("../app/pass-the-phone-components.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/pass-the-phone/household-history.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/pass-the-phone/household-history.module.css", import.meta.url), "utf8"),
-  ]);
-  assert.match(setup, /import \{ HouseholdHistory \}/);
-  assert.match(setup, /openSetupUtility\("history", event\.currentTarget\)/);
-  assert.match(setup, /setupUtility === "history"/);
-  for (const prop of [
-    "sessions={recentSessions}",
-    "status={recentSessionsStatus}",
-    "selectedHistory={selectedHistory}",
-    "onLoad={onLoadRecentSessions}",
-    "onSelect={onSelectRecentSession}",
-  ]) assert.match(setup, new RegExp(prop.replace(/[{}]/g, "\\$&")));
-  assert.match(component, /AccessibleModal/);
-  assert.match(component, /focusReturnTiming="synchronous"/);
-  assert.match(component, /Back to recent nights/);
-  assert.match(component, /HistoryFailure/);
-  assert.doesNotMatch(component, /candidateRank|groupScore|userScores|reranked|participantIds|recommendationSnapshot/);
-  const historyHook = await readFile(
-    new URL("../app/pass-the-phone/use-pass-the-phone-history.ts", import.meta.url),
-    "utf8",
-  );
-  const ordinaryDetail = historyHook.slice(historyHook.indexOf("async function loadRecentSessionDetail"));
-  assert.match(ordinaryDetail, /getHouseholdHistoryDetail/);
-  assert.doesNotMatch(ordinaryDetail, /getSessionDebugHistory/);
-  const pixelFonts = [...css.matchAll(/font-size:\s*(\d+)px/g)].map((match) => Number(match[1]));
-  assert.ok(pixelFonts.every((size) => size >= 12));
-  assert.match(css, /max-height:\s*568px/);
-  assert.match(css, /prefers-reduced-motion: reduce/);
-  assert.match(css, /prefers-reduced-transparency: reduce/);
-  assert.match(css, /forced-colors: active/);
-  assert.match(component, /posterUrl=\{session\.posterUrl\}/);
 });

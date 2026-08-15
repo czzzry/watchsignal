@@ -309,6 +309,10 @@ Stage-specific stored schemas are:
 - Final seal and matching failure: display snapshot plus only the unsent final ballot; already-submitted founder data comes from the canonical session.
 - Result-ready: display snapshot only; canonical rerank and reactions come from the session.
 
+`UseLocalResult` returns the final reactions directly for the current authenticated response without advancing the durable record to result-ready.
+Until the browser acknowledges and consumes that response, the record remains final-sealed or matching-failed, where retention of the unsent final ballot is already allowed.
+If the response is lost, the household returns to the safe matching recovery choices instead of leaving a ballot inside a result-ready payload.
+
 Durable refresh recovery under Option A applies only while the recovery service and a canonical shared couple session are reachable.
 
 Solo mode and a disconnected or local-only couple round remain available in the current tab, but do not claim refresh recovery under this decision.

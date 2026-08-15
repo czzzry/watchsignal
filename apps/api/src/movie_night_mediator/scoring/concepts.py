@@ -52,7 +52,6 @@ class ScoringConceptRegistry:
         evidence: list[ScoringConceptEvidence] = []
         evidence.extend(_genre_concepts(candidate.genres))
         evidence.extend(_feature_concepts(candidate.enrichment_feature_scores))
-        evidence.extend(_metadata_keyword_concepts(candidate.metadata_keywords))
         evidence.extend(_text_concepts(candidate.overview, source="overview"))
         evidence.extend(_runtime_concepts(candidate.runtime_min))
         if tonight_intents:

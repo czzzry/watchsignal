@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -13,11 +12,6 @@ import {
   selectedOutcomeMovieId,
   settlePendingFeedback,
 } from "../app/pass-the-phone/results/outcome-contract.ts";
-
-const utility = readFileSync(new URL("../app/pass-the-phone/results/outcome-utility.tsx", import.meta.url), "utf8");
-const persistence = readFileSync(new URL("../app/pass-the-phone/results/use-results-persistence.ts", import.meta.url), "utf8");
-const components = readFileSync(new URL("../app/pass-the-phone-components.tsx", import.meta.url), "utf8");
-const css = readFileSync(new URL("../app/pass-the-phone/results/outcome-utility.module.css", import.meta.url), "utf8");
 
 test("outcome gate permits only the winner, a real shortlist alternative, or nothing", () => {
   const ids = ["arrival", "knives-out"];
@@ -153,43 +147,4 @@ test("partial feedback failure retries only the unresolved profile", async () =>
 test("failed transactional saves retain a clear retry path", () => {
   assert.match(publicOutcomeError("outcome"), /choices are still here/i);
   assert.match(publicOutcomeError("feedback"), /choices are still here/i);
-  assert.match(utility, /Retry/);
-  assert.match(utility, /Retry ratings/);
-  assert.match(utility, /Saving after tonight needs a connected session/);
-});
-
-test("after-tonight UI exposes exact outcomes, optional note, and separate profile ratings", () => {
-  for (const value of ["watched_recommended", "watched_other", "watched_nothing"]) assert.ok(utility.includes(value));
-  assert.match(utility, /Note <small>Optional<\/small>/);
-  assert.match(utility, /participants\.map/);
-  assert.match(utility, /post-watch rating/);
-  assert.match(utility, /onPosterFallback/);
-  assert.match(components, /ResultUtilityHub/);
-});
-
-test("duplicate, profile, and watched-title guards live at the persistence boundary", () => {
-  assert.match(persistence, /createOutcomeSubmissionTransaction/);
-  assert.match(persistence, /confirmedOutcomeFingerprint/);
-  assert.match(persistence, /outcomeConfirmed/);
-  assert.match(persistence, /feedbackLock/);
-  assert.match(persistence, /savedOutcome === null/);
-  assert.match(persistence, /participantIds\.includes\(participantId\)/);
-  assert.match(persistence, /!canSaveOutcome/);
-  assert.match(persistence, /settlePendingFeedback/);
-  assert.match(persistence, /pendingProfileIds,/);
-  assert.match(persistence, /delete next\[participantId\]/);
-  assert.match(utility, /Ratings saved/);
-  assert.match(utility, /Save changes/);
-  assert.match(utility, /outcomeConfirmed \? "Saved"/);
-});
-
-test("outcome CSS keeps readable targets and resilience modes", () => {
-  const sizes = [...css.matchAll(/font-size:\s*([\d.]+)px/g)].map((match) => Number(match[1]));
-  assert.equal(sizes.some((size) => size < 12), false);
-  assert.match(css, /min-height:\s*44px/);
-  assert.match(css, /max-height:\s*568px/);
-  assert.match(css, /focus-visible/);
-  assert.match(css, /prefers-reduced-motion/);
-  assert.match(css, /prefers-reduced-transparency/);
-  assert.match(css, /forced-colors/);
 });

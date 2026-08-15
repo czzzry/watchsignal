@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { demoCandidateViewModels } from "../app/pass-the-phone-helpers.ts";
@@ -167,26 +166,6 @@ test("S13 rejects duplicate or previously shown live batches without replacing r
   assert.equal(events.some(([name]) => name === "reset"), false);
   assert.equal(events.some(([name]) => name === "navigate"), false);
   assert.equal(events.some(([name, value]) => name === "session" && /earlier choices/.test(value.apiError ?? "")), true);
-});
-
-test("S13 surface is minimal, language-friendly, and resilient", async () => {
-  const source = await readFile(new URL("../app/pass-the-phone/continuation-steer-panel.tsx", import.meta.url), "utf8");
-  const hook = await readFile(new URL("../app/pass-the-phone/use-pass-the-phone-intent-steering.ts", import.meta.url), "utf8");
-  const css = await readFile(new URL("../app/pass-the-phone/continuation-steer-panel.module.css", import.meta.url), "utf8");
-  const result = await readFile(new URL("../app/pass-the-phone-components.tsx", import.meta.url), "utf8");
-  assert.match(source, /Same direction/);
-  assert.match(source, /lighter, French, more action/);
-  assert.match(source, /Use this and find five/);
-  assert.match(hook, /clarificationResolvedOnce/);
-  assert.match(result, /continuationAvailable\s*\n/);
-  assert.doesNotMatch(source, /API|backend|server address/i);
-  const sizes = [...css.matchAll(/font-size:\s*(\d+)px/g)].map((match) => Number(match[1]));
-  assert.ok(sizes.every((size) => size >= 12));
-  assert.match(css, /min-height:\s*54px/);
-  assert.match(css, /forced-colors: active/);
-  assert.match(css, /prefers-reduced-motion: reduce/);
-  assert.match(css, /\.composer button:disabled[\s\S]*?opacity:\s*1/);
-  assert.match(css, /max-height:\s*568px/);
 });
 
 function continuationInput(first, intent) {

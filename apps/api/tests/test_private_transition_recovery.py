@@ -648,7 +648,10 @@ class PrivateTransitionRecoveryTest(unittest.TestCase):
             self.assertEqual(writer.advance_calls, 1)
             self.assertEqual(
                 recovery.resume(deployment_tenant="household-1", token=token),
-                SecondPassReady(display_snapshot=display_snapshot()),
+                SecondPassReady(
+                    display_snapshot=display_snapshot(),
+                    recipient_label="Wife",
+                ),
             )
 
     def test_concurrent_final_resume_submits_the_final_ballot_once(self) -> None:
@@ -724,7 +727,10 @@ class PrivateTransitionRecoveryTest(unittest.TestCase):
                 completed = first.result(timeout=2)
 
             self.assertEqual(writer.submit_calls, 1)
-            self.assertEqual(concurrent, MatchingPending())
+            self.assertEqual(
+                concurrent,
+                MatchingPending(recipient_label="Wife"),
+            )
             expected_by_id = {
                 movie.source_movie_id: movie for movie in display_snapshot()
             }
@@ -740,6 +746,7 @@ class PrivateTransitionRecoveryTest(unittest.TestCase):
                     ),
                     canonical_session_id="session-1",
                     final_reactions=recovery_ballot(wife_ballot()),
+                    recipient_label="Wife",
                     result_source="shared",
                 ),
             )
@@ -858,7 +865,10 @@ class PrivateTransitionRecoveryTest(unittest.TestCase):
             )
             self.assertEqual(
                 recovery.resume(deployment_tenant="household-1", token=token),
-                SecondPassReady(display_snapshot=display_snapshot()),
+                SecondPassReady(
+                    display_snapshot=display_snapshot(),
+                    recipient_label="Wife",
+                ),
             )
             recovery.seal(
                 deployment_tenant="household-1",
@@ -1386,7 +1396,10 @@ class PrivateTransitionRecoveryTest(unittest.TestCase):
                     deployment_tenant="household-1",
                     token=token,
                 ),
-                SecondPassReady(display_snapshot=display_snapshot()),
+                SecondPassReady(
+                    display_snapshot=display_snapshot(),
+                    recipient_label="Wife",
+                ),
             )
             with closing(sqlite3.connect(database_path)) as connection, connection:
                 row = connection.execute(
@@ -1467,7 +1480,10 @@ class PrivateTransitionRecoveryTest(unittest.TestCase):
                     deployment_tenant="household-1",
                     token=token,
                 ),
-                SecondPassReady(display_snapshot=display),
+                SecondPassReady(
+                    display_snapshot=display,
+                    recipient_label="Wife",
+                ),
             )
 
     def test_open_second_pass_reconciles_a_lost_store_result(self) -> None:
@@ -1645,7 +1661,7 @@ class PrivateTransitionRecoveryTest(unittest.TestCase):
                     deployment_tenant="household-1",
                     token=token,
                 ),
-                MatchingPending(),
+                MatchingPending(recipient_label="Wife"),
             )
             with closing(sqlite3.connect(database_path)) as connection, connection:
                 pending = connection.execute(
@@ -1685,6 +1701,7 @@ class PrivateTransitionRecoveryTest(unittest.TestCase):
                     ),
                     canonical_session_id="session-1",
                     final_reactions=recovery_ballot(wife_ballot()),
+                    recipient_label="Wife",
                     result_source="shared",
                 ),
             )
@@ -1796,7 +1813,11 @@ class PrivateTransitionRecoveryTest(unittest.TestCase):
 
             self.assertEqual(
                 projection,
-                MatchingFailed(can_retry=True, can_use_local=True),
+                MatchingFailed(
+                    recipient_label="Wife",
+                    can_retry=True,
+                    can_use_local=True,
+                ),
             )
             self.assertFalse(hasattr(projection, "ballot"))
             self.assertFalse(hasattr(projection, "display_snapshot"))
@@ -1860,25 +1881,33 @@ class PrivateTransitionRecoveryTest(unittest.TestCase):
 
             self.assertEqual(
                 projection,
-                MatchingFailed(can_retry=True, can_use_local=True),
+                MatchingFailed(
+                    recipient_label="Wife",
+                    can_retry=True,
+                    can_use_local=True,
+                ),
             )
-            recovery.seal(
+            local_result = recovery.seal(
                 deployment_tenant="household-1",
                 token=token,
                 command=UseLocalResult(command_id="d" * 64),
             )
             self.assertEqual(
-                recovery.resume(
-                    deployment_tenant="household-1",
-                    token=token,
-                ),
+                local_result,
                 ResultReady(
                     display_snapshot=display_snapshot(),
                     canonical_session_id="session-1",
                     final_reactions=recovery_ballot(wife_ballot()),
+                    recipient_label="Wife",
                     result_source="local",
                 ),
             )
+            with closing(sqlite3.connect(database_path)) as connection:
+                stage, payload_json = connection.execute(
+                    "SELECT stage, payload_json FROM private_transition_recoveries"
+                ).fetchone()
+            self.assertEqual(stage, "matching_failed")
+            self.assertIn("ballot", json.loads(payload_json))
             self.assertEqual(writer.submit_calls, 2)
             self.assertEqual(
                 session_store.load_session("session-1").state,
@@ -2028,7 +2057,7 @@ class PrivateTransitionRecoveryTest(unittest.TestCase):
                     deployment_tenant="household-1",
                     token=token,
                 ),
-                MatchingPending(),
+                MatchingPending(recipient_label="Wife"),
             )
 
     def test_same_token_with_changed_ballot_conflicts_without_replacing_recovery(self) -> None:
@@ -2135,14 +2164,10 @@ class PrivateTransitionRecoveryTest(unittest.TestCase):
                 ),
             )
 
-            recovery.seal(
+            projection = recovery.seal(
                 deployment_tenant="household-1",
                 token=token,
                 command=UseLocalResult(command_id="d" * 64),
-            )
-            projection = recovery.resume(
-                deployment_tenant="household-1",
-                token=token,
             )
 
             self.assertEqual(
@@ -2151,9 +2176,16 @@ class PrivateTransitionRecoveryTest(unittest.TestCase):
                     display_snapshot=display_snapshot(),
                     canonical_session_id="session-1",
                     final_reactions=recovery_ballot(wife_ballot()),
+                    recipient_label="Wife",
                     result_source="local",
                 ),
             )
+            with closing(sqlite3.connect(database_path)) as connection:
+                stage, payload_json = connection.execute(
+                    "SELECT stage, payload_json FROM private_transition_recoveries"
+                ).fetchone()
+            self.assertEqual(stage, "final_sealed")
+            self.assertIn("ballot", json.loads(payload_json))
             self.assertEqual(
                 session_store.load_session("session-1").state,
                 SharedSessionState.WIFE_REACTING,

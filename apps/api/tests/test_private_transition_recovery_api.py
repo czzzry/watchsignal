@@ -12,10 +12,15 @@ from movie_night_mediator.app.private_transition_recovery import (
     PrivateTransitionRecoveryConflict,
     PrivateTransitionRecoveryIncompatible,
 )
+from movie_night_mediator.domain import SessionReactionLabel
 from movie_night_mediator.domain.private_transition_recovery import (
     HandoffReady,
     OpenSecondPass,
+    RecoveryBallotItem,
     RecoveryHandle,
+    RecoveryMovieDisplay,
+    ResultReady,
+    UseLocalResult,
 )
 
 
@@ -56,6 +61,55 @@ class PrivateTransitionRecoveryApiTest(unittest.TestCase):
         serialized = json.dumps(payload)
         self.assertNotIn("household-private-marker", serialized)
         self.assertNotIn("A" * 43, serialized)
+
+    def test_local_result_is_returned_directly_without_a_persisted_ballot_shape(
+        self,
+    ) -> None:
+        result = ResultReady(
+            display_snapshot=tuple(
+                RecoveryMovieDisplay(
+                    source_movie_id=f"movie-{index}",
+                    title=f"Movie {index}",
+                )
+                for index in range(5)
+            ),
+            canonical_session_id="session-1",
+            final_reactions=tuple(
+                RecoveryBallotItem(
+                    source_movie_id=f"movie-{index}",
+                    reaction_label=SessionReactionLabel.INTERESTED,
+                )
+                for index in range(5)
+            ),
+            recipient_label="Canonical partner",
+            result_source="local",
+        )
+        recovery = RecordingRecovery(seal_result=result)
+        with patch.dict(os.environ, {"BACKEND_SERVICE_TOKEN": "service-secret"}):
+            status, headers, payload = asyncio.run(
+                asgi_json_request(
+                    create_app(private_transition_recovery=recovery),
+                    "POST",
+                    "/private-transition-recovery/seal",
+                    {
+                        "deploymentTenant": "household-1",
+                        "token": "A" * 43,
+                        "command": {
+                            "kind": "use_local_result",
+                            "commandId": "2" * 64,
+                        },
+                    },
+                    headers=((b"authorization", b"Bearer service-secret"),),
+                )
+            )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(headers.get("cache-control"), "no-store")
+        self.assertEqual(payload["kind"], "result_ready")
+        self.assertEqual(payload["recipientLabel"], "Canonical partner")
+        self.assertEqual(payload["resultSource"], "local")
+        self.assertNotIn("finalBallot", payload)
+        self.assertEqual(recovery.command, UseLocalResult(command_id="2" * 64))
 
     def test_resume_and_consume_use_public_projections_and_no_store(self) -> None:
         recovery = RecordingRecovery(
@@ -269,6 +323,7 @@ class RecordingRecovery:
     deployment_tenant: str | None = None
     token: str | None = None
     command: object | None = None
+    seal_result: object | None = None
     resume_result: object | None = None
     resume_error: Exception | None = None
     resume_calls: list[tuple[str, str]] | None = None
@@ -282,6 +337,8 @@ class RecordingRecovery:
         self.deployment_tenant = deployment_tenant
         self.token = token
         self.command = command
+        if self.seal_result is not None:
+            return self.seal_result
         return RecoveryHandle(version=1, expires_at_ms=7_200_123)
 
     def resume(self, *, deployment_tenant: str, token: str):

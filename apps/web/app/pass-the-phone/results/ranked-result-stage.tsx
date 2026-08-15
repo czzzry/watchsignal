@@ -20,6 +20,7 @@ import { WatchSignalIcon } from "../../ui/watchsignal-icons";
 import { WatchSignalBrand } from "../../ui/primitives";
 import {
   personInitials,
+  publicResultSynopsis,
   resultDetailsCast,
   resultEvidence,
   resultProviderPresentation,
@@ -331,7 +332,7 @@ function ResultDetailsPreview({
       <div className={styles.detailsScroll}>
         <section className={styles.detailsSection}>
           <h3>What it’s about</h3>
-          <p>{movie.overview?.trim() || movie.reason}</p>
+          <p>{publicResultSynopsis(movie)}</p>
         </section>
 
         <section className={styles.detailsSection}>

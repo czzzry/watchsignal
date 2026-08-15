@@ -68,7 +68,7 @@ export async function forwardPrivateTransitionRecovery(
       return publicBackendError(response.status);
     }
     const body = await readBoundedJson(response);
-    if (!isSafeSuccess(operation, body)) {
+    if (!isSafeSuccess(operation, payload, body)) {
       return publicJson(502, "Private transition recovery is temporarily unavailable.");
     }
     return Response.json(body, {
@@ -94,14 +94,23 @@ async function readBoundedJson(response: Response): Promise<unknown> {
 
 function isSafeSuccess(
   operation: PrivateTransitionRecoveryOperation,
+  payload: Record<string, unknown>,
   body: unknown,
 ): boolean {
   if (operation === "seal") {
     return (
-      hasExactKeys(body, ["expiresAtMs", "version"])
-      && body.version === 1
-      && Number.isSafeInteger(body.expiresAtMs)
-      && Number(body.expiresAtMs) > 0
+      (
+        hasExactKeys(body, ["expiresAtMs", "version"])
+        && body.version === 1
+        && Number.isSafeInteger(body.expiresAtMs)
+        && Number(body.expiresAtMs) > 0
+      )
+      || (
+        isObject(payload.command)
+        && payload.command.kind === "use_local_result"
+        && isSafeProjection(body)
+        && body.kind === "result_ready"
+      )
     );
   }
   if (operation === "resume") {
@@ -123,11 +132,15 @@ function isSafeProjection(body: unknown): boolean {
     );
   }
   if (body.kind === "matching_pending") {
-    return hasExactKeys(body, ["kind"]);
+    return (
+      hasExactKeys(body, ["kind", "recipientLabel"])
+      && isBoundedString(body.recipientLabel, 100)
+    );
   }
   if (body.kind === "matching_failed") {
     return (
-      hasExactKeys(body, ["canRetry", "canUseLocal", "kind"])
+      hasExactKeys(body, ["canRetry", "canUseLocal", "kind", "recipientLabel"])
+      && isBoundedString(body.recipientLabel, 100)
       && body.canRetry === true
       && body.canUseLocal === true
     );
@@ -139,11 +152,13 @@ function isSafeProjection(body: unknown): boolean {
           "displaySnapshot",
           "finalReactions",
           "kind",
+          "recipientLabel",
           "resultSource",
         ] as const
-      : ["displaySnapshot", "kind"] as const;
+      : ["displaySnapshot", "kind", "recipientLabel"] as const;
     return (
       hasExactKeys(body, expectedKeys)
+      && isBoundedString(body.recipientLabel, 100)
       && (body.kind !== "result_ready"
         || (
           isBoundedString(body.canonicalSessionId, 128)

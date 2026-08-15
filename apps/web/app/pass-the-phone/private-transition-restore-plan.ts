@@ -15,22 +15,43 @@ export type PrivateTransitionRestorePlan =
   | {
       kind: "second_pass";
       stage: "second_pass_ready";
+      recipientLabel: string;
       displaySnapshot: RecoveryMovieDisplayPayload[];
     }
   | {
       kind: "matching";
       stage: "matching_pending" | "matching_failed";
+      recipientLabel: string;
       phase: "saving" | "failed";
       shouldPoll: boolean;
     }
   | {
       kind: "result";
       stage: "result_ready";
+      recipientLabel: string;
       canonicalSessionId: string;
       displaySnapshot: RecoveryMovieDisplayPayload[];
       finalReactions: RecoveryReactionPayload[];
       resultSource: "shared" | "local";
     };
+
+export type PrivateTransitionRecipientPresentation = {
+  label: string;
+  avatarKey: string;
+  colorKey: string;
+};
+
+export function privateTransitionRecipientPresentation(
+  recoveredRecipientLabel: string | null,
+  current: PrivateTransitionRecipientPresentation,
+): PrivateTransitionRecipientPresentation {
+  if (!recoveredRecipientLabel) return current;
+  return {
+    label: recoveredRecipientLabel,
+    avatarKey: "default",
+    colorKey: "neutral",
+  };
+}
 
 export function privateTransitionRestorePlan(
   projection: PrivateTransitionResumeProjectionPayload,
@@ -51,6 +72,7 @@ export function privateTransitionRestorePlan(
     return {
       kind: "second_pass",
       stage: projection.kind,
+      recipientLabel: projection.recipientLabel,
       displaySnapshot: projection.displaySnapshot,
     };
   }
@@ -58,6 +80,7 @@ export function privateTransitionRestorePlan(
     return {
       kind: "matching",
       stage: projection.kind,
+      recipientLabel: projection.recipientLabel,
       phase: "saving",
       shouldPoll: true,
     };
@@ -66,6 +89,7 @@ export function privateTransitionRestorePlan(
     return {
       kind: "matching",
       stage: projection.kind,
+      recipientLabel: projection.recipientLabel,
       phase: "failed",
       shouldPoll: false,
     };
@@ -73,6 +97,7 @@ export function privateTransitionRestorePlan(
   return {
     kind: "result",
     stage: projection.kind,
+    recipientLabel: projection.recipientLabel,
     canonicalSessionId: projection.canonicalSessionId,
     displaySnapshot: projection.displaySnapshot,
     finalReactions: projection.finalReactions,

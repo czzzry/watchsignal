@@ -13,14 +13,16 @@ import styles from "./private-seal-handoff.module.css";
 
 export function PrivacySealTransition({
   ownerLabel,
+  localOnly = false,
   onSealComplete,
 }: {
   ownerLabel: string;
+  localOnly?: boolean;
   onSealComplete: () => void;
 }) {
   const overlayRef = useRef<HTMLElement>(null);
   const completionControllerRef = useRef<PrivacySealCompletionController | null>(null);
-  const copy = privacySealCopy(ownerLabel);
+  const copy = privacySealCopy(ownerLabel, localOnly);
 
   useEffect(() => {
     const restoreBackground = isolateTransitionBackground(overlayRef.current);

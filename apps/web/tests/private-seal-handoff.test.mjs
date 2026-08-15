@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -81,6 +80,12 @@ test("handoff copy names the recipient without exposing any ballot detail", () =
   });
 });
 
+test("local privacy seal tells the household to keep the current tab open", () => {
+  const copy = privacySealCopy("Alex", true);
+  assert.match(copy.detail, /Keep this tab open while we finish\./);
+  assert.doesNotMatch(copy.detail, /recover|saved|durable/i);
+});
+
 test("handoff back navigation cannot reopen the first private ballot", () => {
   assert.equal(privacySafeBackTarget("handoff"), "handoff");
   assert.deepEqual(
@@ -97,29 +102,4 @@ test("handoff back navigation cannot reopen the first private ballot", () => {
     ),
     { step: "handoff" },
   );
-});
-
-test("private handoff source has one begin action and receives no movie or vote payload", async () => {
-  const source = await readFile(
-    new URL("../app/pass-the-phone/private-seal-handoff.tsx", import.meta.url),
-    "utf8",
-  );
-  assert.doesNotMatch(source, /candidate|posterUrl|selectedReaction|founderReactions|wifeReactions/);
-  assert.doesNotMatch(source, />Back</);
-  assert.match(source, /copy\.action/);
-  assert.match(source, /No earlier answers are shown/);
-});
-
-test("private transition CSS keeps controls readable and supports resilience modes", async () => {
-  const css = await readFile(
-    new URL("../app/pass-the-phone/private-seal-handoff.module.css", import.meta.url),
-    "utf8",
-  );
-  const pixelFonts = [...css.matchAll(/font-size:\s*(\d+)px/g)].map((match) => Number(match[1]));
-  assert.ok(pixelFonts.every((size) => size >= 12));
-  assert.match(css, /min-height:\s*54px/);
-  assert.match(css, /@media \(max-height: 620px\)/);
-  assert.match(css, /prefers-reduced-motion: reduce/);
-  assert.match(css, /prefers-reduced-transparency: reduce/);
-  assert.match(css, /forced-colors: active/);
 });

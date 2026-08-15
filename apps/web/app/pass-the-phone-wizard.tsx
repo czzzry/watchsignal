@@ -53,7 +53,15 @@ import {
   createPrivateTransitionRecoveryClient,
   type PrivateTransitionRecoveryClient,
 } from "./pass-the-phone/private-transition-recovery";
-import { privateTransitionRestorePlan } from "./pass-the-phone/private-transition-restore-plan";
+import {
+  privateTransitionRecipientPresentation,
+  privateTransitionRestorePlan,
+} from "./pass-the-phone/private-transition-restore-plan";
+import {
+  clearLocalPrivateTransition,
+  consumeLocalPrivateTransition,
+  markLocalPrivateTransition,
+} from "./pass-the-phone/local-private-transition";
 import {
   createPrivateTransitionCommandId,
   recoveryMovieDisplayFromCandidate,
@@ -185,7 +193,10 @@ export function PassThePhoneWizard({
     error: string | null;
     opener: HTMLElement | null;
   } | null>(null);
-  const [privacySeal, setPrivacySeal] = useState<{ ownerLabel: string } | null>(null);
+  const [privacySeal, setPrivacySeal] = useState<{
+    ownerLabel: string;
+    localOnly: boolean;
+  } | null>(null);
   const privacySealResolverRef = useRef<(() => void) | null>(null);
   const [matchingTransition, setMatchingTransition] = useState<{
     phase: MatchingTransitionPhase;
@@ -195,9 +206,14 @@ export function PassThePhoneWizard({
     actor: "founder" | "wife";
     reactions: ReactionState;
   } | null>(null);
-  const transitionRecoveryClientRef = useRef<PrivateTransitionRecoveryClient | null>(null);
+  const transitionRecoveryClientRef = useRef<PrivateTransitionRecoveryClient | null>(
+    null,
+  );
   const [transitionRecoveryStage, setTransitionRecoveryStage] = useState<
     PrivateTransitionResumeProjectionPayload["kind"] | "sealing" | null
+  >(null);
+  const [recoveredRecipientLabel, setRecoveredRecipientLabel] = useState<
+    string | null
   >(null);
   const recoveryAttemptedRef = useRef(false);
   const matchingFailureConsumedRef = useRef(false);
@@ -309,6 +325,17 @@ export function PassThePhoneWizard({
   const firstPassActor: "founder" | "wife" =
     peopleMode === "wife" ? "wife" : "founder";
   const firstPassLabel = peopleMode === "wife" ? wifeLabel : founderLabel;
+  const secondPassPresentation = privateTransitionRecipientPresentation(
+    recoveredRecipientLabel,
+    {
+      label: wifeLabel,
+      avatarKey: wifeAvatarKey,
+      colorKey: wifeColorKey,
+    },
+  );
+  const secondPassLabel = secondPassPresentation.label;
+  const secondPassAvatarKey = secondPassPresentation.avatarKey;
+  const secondPassColorKey = secondPassPresentation.colorKey;
   const firstPassCandidate =
     firstPassActor === "founder" ? founderCandidate : wifeCandidate;
   const activeStepOrder: WizardStep[] = isCoupleSession
@@ -391,6 +418,13 @@ export function PassThePhoneWizard({
   useEffect(() => {
     if (recoveryAttemptedRef.current) return;
     recoveryAttemptedRef.current = true;
+    try {
+      if (consumeLocalPrivateTransition(window.sessionStorage)) {
+        setShowLaunchSting(false);
+        updateSession({ apiError: "Session interrupted - start again." });
+        return;
+      }
+    } catch {}
     void transitionRecoveryClient().load()
       .then((projection) => {
         if (!projection) return;
@@ -438,6 +472,10 @@ export function PassThePhoneWizard({
 
   function resetSession() {
     clearTransitionRecovery();
+    try {
+      clearLocalPrivateTransition(window.sessionStorage);
+    } catch {}
+    setRecoveredRecipientLabel(null);
     dispatchNavigation({ type: "session.reset" });
     resetBatch();
     clearLocalReactionHistory();
@@ -449,6 +487,10 @@ export function PassThePhoneWizard({
 
   async function startSession() {
     clearTransitionRecovery();
+    try {
+      clearLocalPrivateTransition(window.sessionStorage);
+    } catch {}
+    setRecoveredRecipientLabel(null);
     clearLocalReactionHistory();
     const reviewParams = new URLSearchParams(window.location.search);
     const forceShortlistFailure =
@@ -595,7 +637,10 @@ export function PassThePhoneWizard({
         if (isCoupleSession) {
           if (sessionSource !== "api" || !sharedSession) {
             const persistence = submitActorPass("founder", nextReactions);
-            await beginPrivacySeal(firstPassLabel);
+            try {
+              markLocalPrivateTransition(window.sessionStorage);
+            } catch {}
+            await beginPrivacySeal(firstPassLabel, true);
             dispatchNavigation(
               passCompletedNavigationAction({
                 actor: "founder",
@@ -610,7 +655,7 @@ export function PassThePhoneWizard({
           const recoverySeal = saveAndResumePrivateTransition(
             recoverySealCommand("founder", nextReactions),
           );
-          await beginPrivacySeal(firstPassLabel);
+          await beginPrivacySeal(firstPassLabel, false);
           dispatchNavigation(
             passCompletedNavigationAction({
               actor: "founder",
@@ -739,10 +784,13 @@ export function PassThePhoneWizard({
     }
   }
 
-  function beginPrivacySeal(ownerLabel: string): Promise<void> {
+  function beginPrivacySeal(
+    ownerLabel: string,
+    localOnly: boolean,
+  ): Promise<void> {
     return new Promise((resolve) => {
       privacySealResolverRef.current = resolve;
-      setPrivacySeal({ ownerLabel });
+      setPrivacySeal({ ownerLabel, localOnly });
     });
   }
 
@@ -808,6 +856,9 @@ export function PassThePhoneWizard({
     dispatchNavigation(
       passCompletedNavigationAction({ actor, coupleSession: isCoupleSession }),
     );
+    try {
+      clearLocalPrivateTransition(window.sessionStorage);
+    } catch {}
     pendingFinalPassRef.current = null;
     setMatchingTransition(null);
   }
@@ -873,6 +924,9 @@ export function PassThePhoneWizard({
         coupleSession: isCoupleSession,
       }),
     );
+    try {
+      clearLocalPrivateTransition(window.sessionStorage);
+    } catch {}
     pendingFinalPassRef.current = null;
     setMatchingTransition(null);
     await clearTransitionRecovery();
@@ -887,7 +941,8 @@ export function PassThePhoneWizard({
     command: PrivateTransitionCommand,
   ): Promise<PrivateTransitionResumeProjectionPayload> {
     try {
-      await transitionRecoveryClient().save(command);
+      const directProjection = await transitionRecoveryClient().save(command);
+      if (directProjection) return directProjection;
     } catch {
       const reconciled = await transitionRecoveryClient().load();
       if (reconciled) return reconciled;
@@ -944,6 +999,7 @@ export function PassThePhoneWizard({
   ): Promise<void> {
     const plan = privateTransitionRestorePlan(projection);
     setTransitionRecoveryStage(plan.stage);
+    setRecoveredRecipientLabel(plan.recipientLabel);
     setPeopleMode("couple");
     if (plan.kind === "handoff") {
       dispatchNavigation({ type: "session.recovered", step: "handoff" });
@@ -1056,6 +1112,7 @@ export function PassThePhoneWizard({
       {privacySeal ? (
         <PrivacySealTransition
           ownerLabel={privacySeal.ownerLabel}
+          localOnly={privacySeal.localOnly}
           onSealComplete={completePrivacySeal}
         />
       ) : null}
@@ -1202,9 +1259,9 @@ export function PassThePhoneWizard({
       {step === "handoff" && isCoupleSession ? (
         <PrivateHandoffStep
           ownerLabel={firstPassLabel}
-          recipientLabel={wifeLabel}
-          recipientAvatarKey={wifeAvatarKey}
-          recipientColorKey={wifeColorKey}
+          recipientLabel={secondPassLabel}
+          recipientAvatarKey={secondPassAvatarKey}
+          recipientColorKey={secondPassColorKey}
           isSyncing={
             isSyncing
             || transitionRecoveryStage === "sealing"
@@ -1217,9 +1274,9 @@ export function PassThePhoneWizard({
       {step === "wife" && isCoupleSession ? (
         wifeCandidate ? (
           <ReactionStep
-            actorLabel={wifeLabel}
-            actorAvatarKey={wifeAvatarKey}
-            actorColorKey={wifeColorKey}
+            actorLabel={secondPassLabel}
+            actorAvatarKey={secondPassAvatarKey}
+            actorColorKey={secondPassColorKey}
             actor="wife"
             index={wifeIndex}
             total={sessionCandidates.length}

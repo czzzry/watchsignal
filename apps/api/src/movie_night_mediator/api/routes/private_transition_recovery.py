@@ -47,7 +47,7 @@ class PrivateTransitionRecoveryModule(Protocol):
         deployment_tenant: str,
         token: str,
         command: SealCommand,
-    ) -> RecoveryHandle:
+    ) -> RecoveryHandle | ResultReady:
         ...
 
     def resume(
@@ -204,15 +204,18 @@ class HandoffReadyPayload(StrictPayload):
 
 class SecondPassReadyPayload(StrictPayload):
     kind: Literal["second_pass_ready"]
+    recipientLabel: str = Field(min_length=1, max_length=100)
     displaySnapshot: list[RecoveryMovieDisplayPayload]
 
 
 class MatchingPendingPayload(StrictPayload):
     kind: Literal["matching_pending"]
+    recipientLabel: str = Field(min_length=1, max_length=100)
 
 
 class MatchingFailedPayload(StrictPayload):
     kind: Literal["matching_failed"]
+    recipientLabel: str = Field(min_length=1, max_length=100)
     canRetry: Literal[True]
     canUseLocal: Literal[True]
 
@@ -220,6 +223,7 @@ class MatchingFailedPayload(StrictPayload):
 class ResultReadyPayload(StrictPayload):
     kind: Literal["result_ready"]
     canonicalSessionId: str = Field(min_length=1, max_length=128)
+    recipientLabel: str = Field(min_length=1, max_length=100)
     resultSource: Literal["shared", "local"]
     finalReactions: list[RecoveryReactionPayload] = Field(min_length=5, max_length=5)
     displaySnapshot: list[RecoveryMovieDisplayPayload]
@@ -235,6 +239,10 @@ PrivateTransitionResumeProjectionPayload = Annotated[
     Field(discriminator="kind"),
 ]
 
+PrivateTransitionSealResponsePayload = (
+    PrivateTransitionRecoveryHandlePayload | ResultReadyPayload
+)
+
 
 def register_private_transition_recovery_routes(
     app: FastAPI,
@@ -243,27 +251,29 @@ def register_private_transition_recovery_routes(
 ) -> None:
     @app.post(
         "/private-transition-recovery/seal",
-        response_model=PrivateTransitionRecoveryHandlePayload,
+        response_model=PrivateTransitionSealResponsePayload,
         tags=["private-transition-recovery"],
     )
     def post_private_transition_seal(
         request: Request,
         payload: PrivateTransitionSealRequestPayload,
         response: Response,
-    ) -> PrivateTransitionRecoveryHandlePayload:
+    ) -> PrivateTransitionSealResponsePayload:
         _require_service_authorization(request)
         response.headers.update(NO_STORE_HEADERS)
         try:
-            handle = recovery.seal(
+            result = recovery.seal(
                 deployment_tenant=payload.deploymentTenant,
                 token=payload.token,
                 command=_seal_command(payload.command),
             )
         except Exception as error:
             raise _public_recovery_error(error) from None
+        if isinstance(result, ResultReady):
+            return _resume_projection(result)
         return PrivateTransitionRecoveryHandlePayload(
-            version=handle.version,
-            expiresAtMs=handle.expires_at_ms,
+            version=result.version,
+            expiresAtMs=result.expires_at_ms,
         )
 
     @app.post(
@@ -500,15 +510,20 @@ def _resume_projection(
     if isinstance(projection, SecondPassReady):
         return SecondPassReadyPayload(
             kind="second_pass_ready",
+            recipientLabel=projection.recipient_label,
             displaySnapshot=[
                 _movie_display_payload(movie) for movie in projection.display_snapshot
             ],
         )
     if isinstance(projection, MatchingPending):
-        return MatchingPendingPayload(kind="matching_pending")
+        return MatchingPendingPayload(
+            kind="matching_pending",
+            recipientLabel=projection.recipient_label,
+        )
     if isinstance(projection, MatchingFailed):
         return MatchingFailedPayload(
             kind="matching_failed",
+            recipientLabel=projection.recipient_label,
             canRetry=True,
             canUseLocal=True,
         )
@@ -516,6 +531,7 @@ def _resume_projection(
         return ResultReadyPayload(
             kind="result_ready",
             canonicalSessionId=projection.canonical_session_id,
+            recipientLabel=projection.recipient_label,
             resultSource=projection.result_source,
             finalReactions=[
                 RecoveryReactionPayload(

@@ -1,9 +1,9 @@
 # WatchSignal redesign acceptance matrix
 
-The current phase is **Full-product redesign gauntlet: 20/23 slices accepted**.
+The current phase is **Full-product redesign gauntlet: 23/23 slices accepted**.
 Each row is deliberately small enough to build, inspect, judge, and revise independently.
-S23 passes every current non-architecture gate: startup, public-error, route-boundary, footer, responsive, truthful-onboarding, confirmed-intent, superhero-avoidance, live-result, reaction-copy, outcome-transaction, the complete two-person production journey, 227 web tests, 355 API tests, API compilation, TypeScript, and the 33-page production build.
-Final promotion now waits only for the founder-owned S06/S07 refresh-recovery decision and its resulting implementation evidence.
+S23 passes the startup, public-error, route-boundary, footer, responsive, truthful-onboarding, confirmed-intent, superhero-avoidance, live-result, reaction-copy, outcome-transaction, private-recovery, complete two-person production journey, build, and focused behavior-test gates.
+S06 and S07 use the accepted durable database-recovery decision, while local-only rounds use the accepted interruption containment path.
 
 Both choices now have independently reviewed, implementation-ready gates: durable database recovery preserves API-backed couple refresh recovery, while safe restart removes that promise and explicitly abandons or excludes interrupted sessions without revealing a ballot.
 

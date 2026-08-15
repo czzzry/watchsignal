@@ -358,23 +358,54 @@ class HandoffReady:
 @dataclass(frozen=True)
 class SecondPassReady:
     display_snapshot: tuple[RecoveryMovieDisplay, ...]
+    recipient_label: str
 
     def __post_init__(self) -> None:
         if len(self.display_snapshot) != 5:
             raise ValueError("Second-pass recovery requires exactly five movies.")
+        object.__setattr__(
+            self,
+            "recipient_label",
+            _bounded_text(
+                self.recipient_label,
+                "Second-pass recovery recipient",
+                100,
+            ),
+        )
 
 
 @dataclass(frozen=True)
 class MatchingPending:
-    pass
+    recipient_label: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "recipient_label",
+            _bounded_text(
+                self.recipient_label,
+                "Matching recovery recipient",
+                100,
+            ),
+        )
 
 
 @dataclass(frozen=True)
 class MatchingFailed:
+    recipient_label: str
     can_retry: bool = True
     can_use_local: bool = True
 
     def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "recipient_label",
+            _bounded_text(
+                self.recipient_label,
+                "Matching recovery recipient",
+                100,
+            ),
+        )
         if self.can_retry is not True or self.can_use_local is not True:
             raise ValueError("Matching-failure recovery must expose both safe choices.")
 
@@ -384,6 +415,7 @@ class ResultReady:
     display_snapshot: tuple[RecoveryMovieDisplay, ...]
     canonical_session_id: str
     final_reactions: tuple[RecoveryBallotItem, ...]
+    recipient_label: str
     result_source: str = "shared"
 
     def __post_init__(self) -> None:
@@ -395,6 +427,15 @@ class ResultReady:
             MAX_RECOVERY_SESSION_ID_LENGTH,
         )
         object.__setattr__(self, "canonical_session_id", canonical_session_id)
+        object.__setattr__(
+            self,
+            "recipient_label",
+            _bounded_text(
+                self.recipient_label,
+                "Result recovery recipient",
+                100,
+            ),
+        )
         if len(self.final_reactions) != 5 or not all(
             isinstance(item, RecoveryBallotItem) for item in self.final_reactions
         ):

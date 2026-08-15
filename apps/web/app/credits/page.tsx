@@ -2,28 +2,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { WatchSignalIcon } from "../ui/watchsignal-icons";
 import { WatchSignalBrand } from "../ui/primitives";
+import {
+  creditsFooter,
+  creditsSourceRows,
+  tmdbAttribution,
+} from "./credits-contract";
 import styles from "./credits.module.css";
-
-const sourceRows = [
-  {
-    icon: "film" as const,
-    label: "Movies",
-    owner: "TMDB",
-    detail: "Titles, years, runtimes, genres, synopses, cast, posters, and backdrops.",
-  },
-  {
-    icon: "play" as const,
-    label: "Where to watch",
-    owner: "JustWatch",
-    detail: "Region-specific provider availability, retrieved through the TMDB API. Services and availability can change.",
-  },
-  {
-    icon: "sparkles" as const,
-    label: "Your matches",
-    owner: "WatchSignal",
-    detail: "Ranking, Match Index, score gaps, recommendation reasons, layout, and icons.",
-  },
-] as const;
 
 export default function CreditsPage() {
   return (
@@ -55,7 +39,7 @@ export default function CreditsPage() {
         </section>
 
         <section className={styles.sourceList} aria-label="Data source ownership">
-          {sourceRows.map((row) => (
+          {creditsSourceRows.map((row) => (
             <article className={styles.sourceRow} key={row.label}>
               <span className={styles.rowIcon} aria-hidden="true">
                 <WatchSignalIcon name={row.icon} />
@@ -73,10 +57,7 @@ export default function CreditsPage() {
 
         <section className={styles.attribution} aria-labelledby="tmdb-attribution-title">
           <h2 id="tmdb-attribution-title">TMDB attribution</h2>
-          <p>
-            This product uses the TMDB API but is not endorsed or certified by
-            TMDB.
-          </p>
+          <p>{tmdbAttribution}</p>
           <p>
             Demo mode uses a deterministic local catalog for product testing.
             Recognizable movie metadata and imagery remain attributed to TMDB
@@ -87,7 +68,7 @@ export default function CreditsPage() {
 
       <footer className={styles.pageFooter}>
         <span>WatchSignal</span>
-        <span>Movie data and imagery by TMDB · Provider availability by JustWatch</span>
+        <span>{creditsFooter}</span>
       </footer>
     </main>
   );

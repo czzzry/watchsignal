@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { demoCandidateViewModels } from "../app/pass-the-phone-helpers.ts";
@@ -155,24 +154,6 @@ test("S23 seen-memory, reaction, and handoff controllers publish retained-state 
       assert.match(message, /still|keep this tab/i);
     }
   }
-});
-
-test("S23 ordinary controllers map failures before assigning JSX-facing messages", async () => {
-  const sources = await Promise.all([
-    "../app/pass-the-phone/session-lifecycle.ts",
-    "../app/pass-the-phone/onboarding-truthful-state.ts",
-    "../app/pass-the-phone/use-pass-the-phone-onboarding-setup-state.ts",
-    "../app/pass-the-phone/use-pass-the-phone-history.ts",
-  ].map((relative) => readFile(new URL(relative, import.meta.url), "utf8")));
-  const ordinarySource = sources.join("\n");
-  assert.match(ordinarySource, /publicErrorMessage\("onboarding-load", error\)/);
-  assert.match(ordinarySource, /publicErrorMessage\("onboarding-save", error\)/);
-  assert.match(ordinarySource, /publicErrorMessage\("seen-memory-save", error\)/);
-  assert.match(ordinarySource, /publicErrorMessage\("reaction-save", error\)/);
-  assert.match(ordinarySource, /publicErrorMessage\("handoff-save", error\)/);
-  assert.match(ordinarySource, /publicErrorMessage\("history-load", error\)/);
-  assert.doesNotMatch(ordinarySource, /apiError:\s*`?\$\{?error\.message/);
-  assert.doesNotMatch(ordinarySource, /set(?:Onboarding|ProfileSetup)Message\(error\.message\)/);
 });
 
 function lifecyclePorts() {

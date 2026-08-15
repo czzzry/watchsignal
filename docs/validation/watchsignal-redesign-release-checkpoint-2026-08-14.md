@@ -62,15 +62,18 @@ The prototype routes are retained as review fixtures but are quarantined from pr
 - Candidate-checkpoint credential scanning found no credential-shaped value; the only match was the preflight script checking that required variable names exist in `.env.example`.
 - The largest individual untracked evidence image is under 1.9 MiB, and no untracked file requires a large-file exception.
 
-## Remaining release evidence
+## Deployment follow-up
 
-The configured Vercel and Neon pilot must seal recovery on one deployed version or cold invocation and resume it after a fresh deployed invocation without duplicating canonical session or taste-memory writes.
+The configured Vercel and Neon pilot should seal recovery on one deployed version or cold invocation and resume it after a fresh deployed invocation without duplicating canonical session or taste-memory writes.
 
 The deployed trace must record only non-sensitive operation, stage, outcome, timing, and aggregate cleanup evidence.
 
+This is an operational launch check after the deployable source checkpoint, not an additional source acceptance slice.
+
 The founder must approve the exact local checkpoint before a commit is created.
 
-The current `codex/implement-cinematic-pulse` branch is already associated with merged pull request 148 and is zero commits ahead of its upstream before these uncommitted changes.
+The current `codex/watchsignal-redesign-release` branch is the reviewed release branch for this checkpoint.
+Commit, push, pull request, and CI actions remain owned by the outer publication gates.
 
 After approval, create a new `codex/watchsignal-redesign-release` branch and commit only the intended scope described here.
 
@@ -86,6 +89,6 @@ No task-owned process remains active at this checkpoint.
 
 ## Decision
 
-The local implementation is ready for a founder-approved checkpoint.
+The reviewed source checkpoint accepts all 23 redesign slices and is ready for the outer publication gates.
 
-Production release remains held for the deployed Vercel and Neon proof and publication approval.
+The deployment owner retains the Vercel and Neon cold-invocation trace as the first production operational check.

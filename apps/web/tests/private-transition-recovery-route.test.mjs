@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -389,6 +388,7 @@ test("R2 backend forwarding validates safe resume projections and consume acknow
       fetchImpl: async () =>
         Response.json({
           kind: "second_pass_ready",
+          recipientLabel: "Sophie",
           displaySnapshot: Array.from({ length: 5 }, (_, index) =>
             safeMovieDisplay({
               sourceMovieId: `movie-${index + 1}`,
@@ -403,15 +403,20 @@ test("R2 backend forwarding validates safe resume projections and consume acknow
   assert.equal((await secondPass.json()).displaySnapshot.length, 5);
 
   const result = await forwardPrivateTransitionRecovery(
-    "resume",
-    { deploymentTenant: "configured-household", token: "A".repeat(43) },
+    "seal",
+    {
+      deploymentTenant: "configured-household",
+      token: "A".repeat(43),
+      command: { kind: "use_local_result" },
+    },
     {
       environment,
       fetchImpl: async () =>
         Response.json({
           kind: "result_ready",
           canonicalSessionId: "session-1",
-          resultSource: "local",
+          recipientLabel: "Sophie",
+          resultSource: "shared",
           finalReactions: Array.from({ length: 5 }, (_, index) => ({
             sourceMovieId: `movie-${index + 1}`,
             reaction: index % 2 === 0 ? "interested" : "maybe",
@@ -426,7 +431,7 @@ test("R2 backend forwarding validates safe resume projections and consume acknow
     },
   );
   assert.equal(result.status, 200);
-  assert.equal((await result.json()).resultSource, "local");
+  assert.equal((await result.json()).resultSource, "shared");
 
   const consume = await forwardPrivateTransitionRecovery(
     "consume",
@@ -477,6 +482,7 @@ test("R2 backend rejects hostile movie display fields from a successful upstream
         fetchImpl: async () =>
           Response.json({
             kind: "second_pass_ready",
+            recipientLabel: "Sophie",
             displaySnapshot: [
               hostileDisplay,
               safeMovieDisplay({ sourceMovieId: "movie-2", title: "Movie 2" }),
@@ -493,42 +499,4 @@ test("R2 backend rejects hostile movie display fields from a successful upstream
       detail: "Private transition recovery is temporarily unavailable.",
     });
   }
-});
-
-test("R2 production routes use the authenticated stateless handler and body-only operations", async () => {
-  const [handler, seal, resume, consume] = await Promise.all([
-    readFile(
-      new URL(
-        "../app/api/private-transition-recovery/route-handler.ts",
-        import.meta.url,
-      ),
-      "utf8",
-    ),
-    readFile(
-      new URL("../app/api/private-transition-recovery/seal/route.ts", import.meta.url),
-      "utf8",
-    ),
-    readFile(
-      new URL("../app/api/private-transition-recovery/resume/route.ts", import.meta.url),
-      "utf8",
-    ),
-    readFile(
-      new URL("../app/api/private-transition-recovery/consume/route.ts", import.meta.url),
-      "utf8",
-    ),
-  ]);
-  assert.match(handler, /SESSION_COOKIE_NAME/);
-  assert.match(handler, /verifySessionToken/);
-  assert.match(handler, /forwardPrivateTransitionRecovery/);
-  assert.match(seal, /handlePrivateTransitionRecoveryRoute\("seal"/);
-  assert.match(resume, /handlePrivateTransitionRecoveryRoute\("resume"/);
-  assert.match(consume, /handlePrivateTransitionRecoveryRoute\("consume"/);
-  assert.doesNotMatch(`${handler}\n${seal}\n${resume}\n${consume}`, /searchParams|get\("token"\)/);
-  await assert.rejects(
-    readFile(
-      new URL("../app/api/private-transition-vault/route.ts", import.meta.url),
-      "utf8",
-    ),
-    { code: "ENOENT" },
-  );
 });

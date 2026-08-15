@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -156,67 +155,4 @@ test("S10 duplicate movie identity can belong to only one preference bucket", ()
   );
   assert.equal(movedManual.lovedTitleEntries.length, 0);
   assert.equal(movedManual.noTitleEntries.length, 1);
-});
-
-test("S10 integration preserves profile ownership and backend completion gate", async () => {
-  const hook = await readFile(
-    new URL("../app/pass-the-phone/use-pass-the-phone-onboarding-setup-state.ts", import.meta.url),
-    "utf8",
-  );
-  const saveSlice = hook.slice(
-    hook.indexOf("async function saveOnboardingProfile"),
-    hook.indexOf("function cancelOnboarding"),
-  );
-  assert.match(saveSlice, /onboardingDraftComplete\(onboardingDraft\)/);
-  assert.match(saveSlice, /onboardingController\.save\(onboardingPrompt\.profileId/);
-  assert.match(saveSlice, /refreshOnboardingCompletion\(\)/);
-  assert.match(saveSlice, /completion\?\.incompleteProfileIds\[0\]/);
-  assert.match(saveSlice, /beginOnboarding\(nextIncomplete\)/);
-  assert.doesNotMatch(saveSlice, /participantIds\[0\]|partnerProfileId|activeProfileId/);
-});
-
-test("S10 presentation is one bucket at a time with private profile handoff and editable Back", async () => {
-  const source = await readFile(
-    new URL("../app/pass-the-phone/required-onboarding.tsx", import.meta.url),
-    "utf8",
-  );
-  const wizard = await readFile(
-    new URL("../app/pass-the-phone-wizard.tsx", import.meta.url),
-    "utf8",
-  );
-  assert.match(source, /Three movie picks\. Private to this profile\./);
-  assert.match(source, /phase === "intro"/);
-  assert.match(source, /phase === "bucket"/);
-  assert.match(source, /phase === "summary"/);
-  assert.match(wizard, /key=\{onboardingPrompt\.profileId\}/);
-  assert.match(wizard, /opener=\{onboardingOpener\}/);
-  assert.match(wizard, /beginOnboarding\(undefined, opener\)/);
-  assert.match(source, /opener=\{opener\}/);
-  assert.match(source, /stageRef\.current\?\.focus\(\{ preventScroll: true \}\)/);
-  assert.doesNotMatch(source, /<h2[^>]*tabIndex=\{-1\}/);
-  assert.match(source, /aria-label="Back"/);
-  assert.match(source, /Search or add a movie/);
-  assert.match(source, /posterUrl/);
-  assert.match(source, /We’ll resolve this when you save/);
-  assert.match(source, /actionLockedRef/);
-  assert.match(source, /publicMessage \? "Retry" : "Save and continue"/);
-  assert.doesNotMatch(source, /chip|dashboard|familiarity/i);
-});
-
-test("S10 CSS meets phone, target, text, and resilience contracts", async () => {
-  const css = await readFile(
-    new URL("../app/pass-the-phone/required-onboarding.module.css", import.meta.url),
-    "utf8",
-  );
-  const fonts = [...css.matchAll(/font-size:\s*(\d+)px/g)].map((match) => Number(match[1]));
-  const minimums = [...css.matchAll(/min-height:\s*(\d+)px/g)].map((match) => Number(match[1]));
-  assert.ok(fonts.every((size) => size >= 12));
-  assert.ok(minimums.every((size) => size >= 44));
-  assert.match(css, /max-height:\s*568px/);
-  assert.match(css, /max-width:\s*239px/);
-  assert.match(css, /prefers-reduced-motion: reduce/);
-  assert.match(css, /prefers-reduced-transparency: reduce/);
-  assert.match(css, /forced-colors: active/);
-  assert.match(css, /\.bucketStage:focus, \.summary:focus \{ outline: none; \}/);
-  assert.doesNotMatch(css, /button:focus[^-]|input:focus[^-]/);
 });

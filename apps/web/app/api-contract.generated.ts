@@ -208,10 +208,12 @@ export type MatchingFailedPayload = {
   canRetry: true;
   canUseLocal: true;
   kind: "matching_failed";
+  recipientLabel: string;
 };
 
 export type MatchingPendingPayload = {
   kind: "matching_pending";
+  recipientLabel: string;
 };
 
 export type MediaType = "movie" | "tv";
@@ -423,6 +425,7 @@ export type ResultReadyPayload = {
   displaySnapshot: RecoveryMovieDisplayPayload[];
   finalReactions: RecoveryReactionPayload[];
   kind: "result_ready";
+  recipientLabel: string;
   resultSource: "shared" | "local";
 };
 
@@ -476,6 +479,7 @@ export type SealFounderBallotPayload = {
 export type SecondPassReadyPayload = {
   displaySnapshot: RecoveryMovieDisplayPayload[];
   kind: "second_pass_ready";
+  recipientLabel: string;
 };
 
 export type SeedPreferenceLabel = "loved" | "fine" | "no";

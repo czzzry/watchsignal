@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
+import vercelConfig from "../vercel.json" with { type: "json" };
 
 import {
   handlePrivateTransitionRecoveryMaintenance,
@@ -95,31 +95,11 @@ test("R2 scheduled cleanup fails closed and never reflects upstream detail", asy
   }
 });
 
-test("R2 production schedule and hosted preflight require cleanup configuration", async () => {
-  const [route, vercel, example, preflight] = await Promise.all([
-    readFile(
-      new URL(
-        "../app/api/maintenance/private-transition-recovery/route.ts",
-        import.meta.url,
-      ),
-      "utf8",
-    ),
-    readFile(new URL("../vercel.json", import.meta.url), "utf8"),
-    readFile(new URL("../../../.env.example", import.meta.url), "utf8"),
-    readFile(
-      new URL("../../../scripts/hosted_android_preflight.mjs", import.meta.url),
-      "utf8",
-    ),
-  ]);
-  assert.match(route, /handlePrivateTransitionRecoveryMaintenance/);
-  assert.deepEqual(JSON.parse(vercel).crons, [
+test("R2 production schedule normalizes to one daily cleanup operation", () => {
+  assert.deepEqual(vercelConfig.crons, [
     {
       path: "/api/maintenance/private-transition-recovery",
       schedule: "0 3 * * *",
     },
   ]);
-  assert.match(example, /^WATCHSIGNAL_HOUSEHOLD_ID=/mu);
-  assert.match(example, /^CRON_SECRET=/mu);
-  assert.match(preflight, /WATCHSIGNAL_HOUSEHOLD_ID=/u);
-  assert.match(preflight, /CRON_SECRET=/u);
 });

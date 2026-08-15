@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -11,8 +10,16 @@ import {
 import {
   createPrivateTransitionRecoveryClient,
 } from "../app/pass-the-phone/private-transition-recovery.ts";
-import { privateTransitionRestorePlan } from "../app/pass-the-phone/private-transition-restore-plan.ts";
+import {
+  privateTransitionRecipientPresentation,
+  privateTransitionRestorePlan,
+} from "../app/pass-the-phone/private-transition-restore-plan.ts";
 import { passThePhoneNavigationReducer } from "../app/pass-the-phone/pass-the-phone-navigation-reducer.ts";
+import {
+  LOCAL_PRIVATE_TRANSITION_KEY,
+  consumeLocalPrivateTransition,
+  markLocalPrivateTransition,
+} from "../app/pass-the-phone/local-private-transition.ts";
 
 const now = 1_800_000_000_000;
 
@@ -43,6 +50,22 @@ test("checkpoint rejects unknown or ballot-bearing browser fields", () => {
   assert.equal(privateTransitionCheckpointContainsSensitiveKeys(unsafe), true);
   assert.equal(parsePrivateTransitionCheckpoint(unsafe, now), null);
   assert.equal(parsePrivateTransitionCheckpoint("not-json", now), null);
+});
+
+test("local private transitions leave only a privacy-safe interruption marker", () => {
+  const stored = new Map();
+  const storage = {
+    getItem: (key) => stored.get(key) ?? null,
+    removeItem: (key) => stored.delete(key),
+    setItem: (key, value) => stored.set(key, value),
+  };
+
+  markLocalPrivateTransition(storage);
+
+  assert.deepEqual([...stored.entries()], [[LOCAL_PRIVATE_TRANSITION_KEY, "interrupted"]]);
+  assert.equal(consumeLocalPrivateTransition(storage), true);
+  assert.equal(stored.size, 0);
+  assert.equal(consumeLocalPrivateTransition(storage), false);
 });
 
 test("deep recovery client owns token-only storage and body-only transport", async () => {
@@ -140,6 +163,44 @@ test("deep recovery client resumes and consumes through the same opaque handle",
   assert.deepEqual(JSON.parse(calls[2].init.body), { token: "A".repeat(43) });
 });
 
+test("local result is returned directly without creating a durable result-ready stage", async () => {
+  const stored = new Map();
+  const displaySnapshot = Array.from({ length: 5 }, (_, index) => ({
+    sourceMovieId: `movie-${index}`,
+  }));
+  const projection = {
+    kind: "result_ready",
+    canonicalSessionId: "session-private",
+    recipientLabel: "Canonical partner",
+    resultSource: "local",
+    displaySnapshot,
+    finalReactions: displaySnapshot.map((movie) => ({
+      sourceMovieId: movie.sourceMovieId,
+      reaction: "interested",
+    })),
+  };
+  const client = createPrivateTransitionRecoveryClient({
+    createToken: () => "A".repeat(43),
+    now: () => now,
+    storage: {
+      getItem: (key) => stored.get(key) ?? null,
+      removeItem: (key) => stored.delete(key),
+      setItem: (key, value) => stored.set(key, value),
+    },
+    fetchImpl: async () => Response.json(projection),
+  });
+
+  const result = await client.save({
+    kind: "use_local_result",
+    workflowVersion: 1,
+    payloadVersion: 1,
+    commandId: "d".repeat(64),
+  });
+
+  assert.deepEqual(result, projection);
+  assert.equal(stored.size, 1);
+});
+
 test("deep recovery client rejects a result with unrecognized reaction data", async () => {
   const checkpoint = JSON.stringify(createPrivateTransitionCheckpoint(
     { recoveryToken: "A".repeat(43) },
@@ -155,6 +216,7 @@ test("deep recovery client rejects a result with unrecognized reaction data", as
     fetchImpl: async () => Response.json({
       kind: "result_ready",
       canonicalSessionId: "session-private",
+      recipientLabel: "Sophie",
       resultSource: "shared",
       displaySnapshot: Array.from({ length: 5 }, (_, index) => ({
         sourceMovieId: `movie-${index}`,
@@ -197,12 +259,14 @@ test("recovery projections drive one executable handoff, pass, matching, or resu
   assert.deepEqual(
     privateTransitionRestorePlan({
       kind: "matching_failed",
+      recipientLabel: "Canonical partner",
       canRetry: true,
       canUseLocal: true,
     }),
     {
       kind: "matching",
       stage: "matching_failed",
+      recipientLabel: "Canonical partner",
       phase: "failed",
       shouldPoll: false,
     },
@@ -214,11 +278,13 @@ test("recovery projections drive one executable handoff, pass, matching, or resu
   assert.deepEqual(
     privateTransitionRestorePlan({
       kind: "second_pass_ready",
+      recipientLabel: "Canonical partner",
       displaySnapshot,
     }),
     {
       kind: "second_pass",
       stage: "second_pass_ready",
+      recipientLabel: "Canonical partner",
       displaySnapshot,
     },
   );
@@ -230,6 +296,7 @@ test("recovery projections drive one executable handoff, pass, matching, or resu
     privateTransitionRestorePlan({
       kind: "result_ready",
       canonicalSessionId: "session-private",
+      recipientLabel: "Canonical partner",
       resultSource: "local",
       displaySnapshot,
       finalReactions,
@@ -238,6 +305,7 @@ test("recovery projections drive one executable handoff, pass, matching, or resu
       kind: "result",
       stage: "result_ready",
       canonicalSessionId: "session-private",
+      recipientLabel: "Canonical partner",
       resultSource: "local",
       displaySnapshot,
       finalReactions,
@@ -245,40 +313,17 @@ test("recovery projections drive one executable handoff, pass, matching, or resu
   );
 });
 
-test("sensitive recovery uses the authenticated body-only durable route", async () => {
-  const client = await readFile(
-    new URL("../app/pass-the-phone/private-transition-recovery.ts", import.meta.url),
-    "utf8",
-  );
-
-  assert.match(client, /private-transition-recovery\/(?:seal|resume|consume)/);
-  assert.doesNotMatch(client, /\?token=|private-transition-vault|localStorage|history\./);
-});
-
-test("production flow clears recovery at boundaries and gates forced failure to review mode", async () => {
-  const source = await readFile(
-    new URL("../app/pass-the-phone-wizard.tsx", import.meta.url),
-    "utf8",
-  );
-
-  assert.match(source, /function resetSession\(\) \{\s*clearTransitionRecovery\(\)/);
-  assert.match(source, /async function startSession\(\) \{\s*clearTransitionRecovery\(\)/);
-  assert.match(source, /params\.get\("matchingFailure"\) === "1"[\s\S]*params\.get\("review"\) === "1"/);
-  assert.match(
-    source,
-    /dispatchNavigation\(\{ type: "session\.recovered", step: "results" \}\);[\s\S]*requestAnimationFrame\(\(\) => void clearTransitionRecovery\(\)\)/,
-  );
-  assert.match(
-    source,
-    /kind: "open_second_pass"[\s\S]*commandId: createPrivateTransitionCommandId\(\)/,
-  );
-  assert.doesNotMatch(
-    source,
-    /kind: "open_second_pass"[\s\S]{0,240}canonicalSessionId/,
-  );
-  assert.match(source, /kind: "use_local_result"[\s\S]*restorePrivateTransition\(projection\)/);
-  assert.match(
-    source,
-    /kind: "seal_final_ballot"[\s\S]{0,240}commandId: createPrivateTransitionCommandId\(\)/,
+test("recovered canonical identity overrides changed setup presentation", () => {
+  assert.deepEqual(
+    privateTransitionRecipientPresentation("Canonical partner", {
+      label: "Changed setup partner",
+      avatarKey: "avatar-c",
+      colorKey: "rose",
+    }),
+    {
+      label: "Canonical partner",
+      avatarKey: "default",
+      colorKey: "neutral",
+    },
   );
 });

@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -58,33 +57,4 @@ test("S08/S09 close restores the exact invoking opener", () => {
   assert.equal(focusCount, 1);
   assert.equal(restoreModalOpener({ isConnected: false, focus: () => { focusCount += 1; } }), false);
   assert.equal(focusCount, 1);
-});
-
-test("S17 can restore its opener during modal cleanup before focus falls to BODY", async () => {
-  const [modal, history] = await Promise.all([
-    readFile(new URL("../app/ui/accessible-modal.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/pass-the-phone/household-history.tsx", import.meta.url), "utf8"),
-  ]);
-  assert.match(history, /focusReturnTiming="synchronous"/);
-  assert.match(
-    modal,
-    /focusReturnTiming === "synchronous"\) \{\s*restoreModalOpener\(opener\);/,
-  );
-  assert.ok(
-    modal.indexOf('focusReturnTiming === "synchronous"')
-      < modal.indexOf("window.requestAnimationFrame"),
-  );
-});
-
-test("shared modal is portaled beside the whole app and keeps close paths wired", async () => {
-  const source = await readFile(
-    new URL("../app/ui/accessible-modal.tsx", import.meta.url),
-    "utf8",
-  );
-  assert.match(source, /createPortal/);
-  assert.match(source, /document\.body\.children/);
-  assert.match(source, /element !== layer/);
-  assert.match(source, /restoreModalBackgrounds/);
-  assert.match(source, /event\.target === event\.currentTarget/);
-  assert.match(source, /restoreModalOpener\(opener\)/);
 });

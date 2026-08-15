@@ -42,10 +42,15 @@ export type PrivacySealCopy = {
   detail: string;
 };
 
-export function privacySealCopy(ownerLabel: string): PrivacySealCopy {
+export function privacySealCopy(
+  ownerLabel: string,
+  localOnly = false,
+): PrivacySealCopy {
   return {
     title: "Sealing your picks",
-    detail: `${ownerLabel}'s answers stay private.`,
+    detail: localOnly
+      ? `${ownerLabel}'s answers stay private. Keep this tab open while we finish.`
+      : `${ownerLabel}'s answers stay private.`,
   };
 }
 

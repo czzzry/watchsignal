@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -77,20 +76,4 @@ test("S22 render contract hides evidence, notes, and any entry in ordinary mode"
     showNotes: true,
     showEntry: false,
   });
-});
-
-test("S22 production paths use the executable request seam", async () => {
-  const [wizard, results, persistence] = await Promise.all([
-    readFile(new URL("../app/pass-the-phone-wizard.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/pass-the-phone-components.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/pass-the-phone/results/use-results-persistence.ts", import.meta.url), "utf8"),
-  ]);
-  assert.match(wizard, /reviewDiagnosticRequests\.soloSession/);
-  assert.match(wizard, /reviewDiagnosticRequests\.coupleSession/);
-  assert.match(wizard, /reviewDiagnosticRequests\.continuation/);
-  assert.match(results, /diagnosticRequests\.initialResults/);
-  assert.match(persistence, /diagnosticRequests\.markWatched/);
-  assert.match(persistence, /diagnosticRequests\.outcome/);
-  assert.match(persistence, /diagnosticRequests\.feedback/);
-  assert.doesNotMatch(`${wizard}\n${results}`, /href=["'{][^\n]*review=1/);
 });

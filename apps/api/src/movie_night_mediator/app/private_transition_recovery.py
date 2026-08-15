@@ -190,20 +190,6 @@ class PrivateTransitionRecoveryStore(Protocol):
     ) -> StoredPrivateTransitionRecovery | None:
         ...
 
-    def finalize_local_result_ready(
-        self,
-        *,
-        token_hash: str,
-        household_id: str,
-        expected_revision: int,
-        command_id: str,
-        command_fingerprint: str,
-        payload_json: str,
-        payload_fingerprint: str,
-        now_ms: int,
-    ) -> StoredPrivateTransitionRecovery | None:
-        ...
-
     def delete_expired(self, *, now_ms: int, limit: int = 100) -> int:
         ...
 
@@ -233,7 +219,7 @@ class PrivateTransitionRecovery:
         deployment_tenant: str,
         token: str,
         command: SealCommand,
-    ) -> RecoveryHandle:
+    ) -> RecoveryHandle | ResultReady:
         if isinstance(command, UseLocalResult):
             return self._seal_local_result(
                 deployment_tenant=deployment_tenant,
@@ -497,30 +483,17 @@ class PrivateTransitionRecovery:
         deployment_tenant: str,
         token: str,
         command: UseLocalResult,
-    ) -> RecoveryHandle:
+    ) -> ResultReady:
         tenant = _required_text(deployment_tenant, "Deployment tenant")
         token_hash = _token_hash(token)
-        now_ms = self._now_ms()
         record = self._store.load(token_hash=token_hash, household_id=tenant)
         if record is None:
             raise LookupError("Private transition was not found.")
         if record.stage == RecoveryStage.RESULT_READY:
-            existing = self._store.load_command(
-                recovery_id=record.recovery_id,
-                command_id=command.command_id,
-            )
-            if (
-                existing is not None
-                and existing.command_kind == RecoveryCommandKind.USE_LOCAL_RESULT
-                and existing.status == RecoveryCommandStatus.COMPLETED
-            ):
-                return RecoveryHandle(
-                    version=record.workflow_version,
-                    expires_at_ms=record.expires_at_ms,
-                )
-            raise PrivateTransitionRecoveryConflict(
-                "Private transition already has a result."
-            )
+            projection = self.resume(deployment_tenant=tenant, token=token)
+            if isinstance(projection, ResultReady):
+                return projection
+            raise PrivateTransitionRecoveryConflict("Private transition has no result.")
         if record.stage not in {
             RecoveryStage.FINAL_SEALED,
             RecoveryStage.MATCHING_FAILED,
@@ -532,18 +505,11 @@ class PrivateTransitionRecovery:
         if session is None or session.household_id != tenant:
             raise LookupError("Private transition was not found.")
         if session.state == SharedSessionState.RERANKED:
-            self.resume(deployment_tenant=tenant, token=token)
-            refreshed = self._store.load(
-                token_hash=token_hash,
-                household_id=tenant,
-            )
-            if refreshed is None or refreshed.stage != RecoveryStage.RESULT_READY:
-                raise PrivateTransitionRecoveryConflict(
-                    "Private transition result could not be reconciled."
-                )
-            return RecoveryHandle(
-                version=refreshed.workflow_version,
-                expires_at_ms=refreshed.expires_at_ms,
+            projection = self.resume(deployment_tenant=tenant, token=token)
+            if isinstance(projection, ResultReady):
+                return projection
+            raise PrivateTransitionRecoveryConflict(
+                "Private transition result could not be reconciled."
             )
         if session.state != SharedSessionState.WIFE_REACTING:
             raise PrivateTransitionRecoveryConflict(
@@ -551,46 +517,21 @@ class PrivateTransitionRecovery:
             )
         final_payload = _parse_final_payload(record)
         _validate_ballot_payload_against_session(final_payload, session)
-        command_payload = {
-            "kind": RecoveryCommandKind.USE_LOCAL_RESULT,
-            "workflowVersion": 1,
-            "payloadVersion": 1,
-            "canonicalSessionId": session.session_id,
-            "commandId": command.command_id,
-        }
-        command_json = _canonical_json(command_payload)
-        command_fingerprint = hashlib.sha256(
-            command_json.encode("utf-8")
-        ).hexdigest()
-        result_payload = {
-            "kind": RecoveryStage.RESULT_READY,
-            "workflowVersion": 1,
-            "payloadVersion": 1,
-            "canonicalSessionId": session.session_id,
-            "resultSource": "local",
-            "displaySnapshot": final_payload["displaySnapshot"],
-            "finalBallot": final_payload["ballot"],
-        }
-        result_json = _canonical_json(result_payload)
-        advanced = self._store.finalize_local_result_ready(
-            token_hash=token_hash,
-            household_id=tenant,
-            expected_revision=record.revision,
-            command_id=command.command_id,
-            command_fingerprint=command_fingerprint,
-            payload_json=result_json,
-            payload_fingerprint=hashlib.sha256(
-                result_json.encode("utf-8")
-            ).hexdigest(),
-            now_ms=now_ms,
-        )
-        if advanced is None:
-            raise PrivateTransitionRecoveryConflict(
-                "Private transition is still finishing its saved result."
-            )
-        return RecoveryHandle(
-            version=advanced.workflow_version,
-            expires_at_ms=advanced.expires_at_ms,
+        return ResultReady(
+            display_snapshot=tuple(
+                _recovery_movie_display(item)
+                for item in final_payload["displaySnapshot"]
+            ),
+            canonical_session_id=session.session_id,
+            final_reactions=tuple(
+                RecoveryBallotItem(
+                    source_movie_id=item["sourceMovieId"],
+                    reaction_label=SessionReactionLabel(item["reaction"]),
+                )
+                for item in final_payload["ballot"]
+            ),
+            recipient_label=self._participant_label(session.wife_participant_id),
+            result_source="local",
         )
 
     def _seal_final_ballot(
@@ -758,16 +699,8 @@ class PrivateTransitionRecovery:
         session = self._session_reader.load_session(record.shared_session_id)
         if session is None or session.household_id != tenant:
             return None
+        recipient_label = self._participant_label(session.wife_participant_id)
         if record.stage == RecoveryStage.RESULT_READY:
-            local_result = _parse_local_result_payload(record, session)
-            if local_result is not None:
-                display_snapshot, final_reactions = local_result
-                return ResultReady(
-                    display_snapshot=display_snapshot,
-                    canonical_session_id=session.session_id,
-                    final_reactions=final_reactions,
-                    result_source="local",
-                )
             if session.state != SharedSessionState.RERANKED:
                 raise PrivateTransitionRecoveryIncompatible(
                     "Private transition is incompatible with this version."
@@ -787,6 +720,7 @@ class PrivateTransitionRecovery:
                     )
                     for reaction in session.wife_reactions
                 ),
+                recipient_label=recipient_label,
                 result_source="shared",
             )
         if record.stage in {
@@ -800,8 +734,12 @@ class PrivateTransitionRecovery:
                 and self._session_writer is None
             ):
                 if record.stage == RecoveryStage.MATCHING_FAILED:
-                    return MatchingFailed(can_retry=True, can_use_local=True)
-                return MatchingPending()
+                    return MatchingFailed(
+                        recipient_label=recipient_label,
+                        can_retry=True,
+                        can_use_local=True,
+                    )
+                return MatchingPending(recipient_label=recipient_label)
             try:
                 lease = self._store.claim_command(
                     token_hash=token_hash,
@@ -815,8 +753,12 @@ class PrivateTransitionRecovery:
                 raise PrivateTransitionRecoveryConflict(str(error)) from error
             if lease is None:
                 if record.stage == RecoveryStage.MATCHING_FAILED:
-                    return MatchingFailed(can_retry=True, can_use_local=True)
-                return MatchingPending()
+                    return MatchingFailed(
+                        recipient_label=recipient_label,
+                        can_retry=True,
+                        can_use_local=True,
+                    )
+                return MatchingPending(recipient_label=recipient_label)
             if (
                 session.state == SharedSessionState.WIFE_REACTING
                 and self._session_writer is not None
@@ -856,7 +798,11 @@ class PrivateTransitionRecovery:
                             raise PrivateTransitionRecoveryConflict(
                                 "Private transition changed while matching failed."
                             )
-                        return MatchingFailed(can_retry=True, can_use_local=True)
+                        return MatchingFailed(
+                            recipient_label=recipient_label,
+                            can_retry=True,
+                            can_use_local=True,
+                        )
                     session = refreshed
                 refreshed = self._session_reader.load_session(session.session_id)
                 if refreshed is None or refreshed.household_id != tenant:
@@ -864,8 +810,12 @@ class PrivateTransitionRecovery:
                 session = refreshed
             if session.state == SharedSessionState.WIFE_REACTING:
                 if record.stage == RecoveryStage.MATCHING_FAILED:
-                    return MatchingFailed(can_retry=True, can_use_local=True)
-                return MatchingPending()
+                    return MatchingFailed(
+                        recipient_label=recipient_label,
+                        can_retry=True,
+                        can_use_local=True,
+                    )
+                return MatchingPending(recipient_label=recipient_label)
             if session.state != SharedSessionState.RERANKED:
                 raise PrivateTransitionRecoveryIncompatible(
                     "Private transition is incompatible with this version."
@@ -930,6 +880,7 @@ class PrivateTransitionRecovery:
                     )
                     for reaction in session.wife_reactions
                 ),
+                recipient_label=recipient_label,
                 result_source="shared",
             )
         if record.stage == RecoveryStage.SECOND_PASS_READY:
@@ -945,7 +896,8 @@ class PrivateTransitionRecovery:
                     expected_source_movie_ids=tuple(
                         item.source_movie_id for item in session.shortlist
                     ),
-                )
+                ),
+                recipient_label=recipient_label,
             )
         if record.stage == RecoveryStage.HANDOFF_READY:
             if session.state != SharedSessionState.HANDOFF:
@@ -1402,67 +1354,6 @@ def _session_ballot_map(
         reaction.source_movie_id: reaction.reaction_label.value
         for reaction in reactions
     }
-
-
-def _parse_local_result_payload(
-    record: StoredPrivateTransitionRecovery,
-    session: SharedMovieNightSession,
-) -> tuple[tuple[RecoveryMovieDisplay, ...], tuple[RecoveryBallotItem, ...]] | None:
-    incompatible = "Private transition is incompatible with this version."
-    try:
-        payload = json.loads(record.payload_json)
-        if not isinstance(payload, dict) or "resultSource" not in payload:
-            return None
-        if set(payload) != {
-            "kind",
-            "workflowVersion",
-            "payloadVersion",
-            "canonicalSessionId",
-            "resultSource",
-            "displaySnapshot",
-            "finalBallot",
-        }:
-            raise PrivateTransitionRecoveryIncompatible(incompatible)
-        if (
-            payload["kind"] != RecoveryStage.RESULT_READY
-            or payload["workflowVersion"] != 1
-            or payload["payloadVersion"] != 1
-            or payload["canonicalSessionId"] != session.session_id
-            or payload["resultSource"] != "local"
-            or _canonical_json(payload) != record.payload_json
-            or hashlib.sha256(record.payload_json.encode("utf-8")).hexdigest()
-            != record.payload_fingerprint
-        ):
-            raise PrivateTransitionRecoveryIncompatible(incompatible)
-        display_items = payload["displaySnapshot"]
-        ballot_items = payload["finalBallot"]
-        if (
-            not isinstance(display_items, list)
-            or len(display_items) != 5
-            or not isinstance(ballot_items, list)
-            or len(ballot_items) != 5
-        ):
-            raise PrivateTransitionRecoveryIncompatible(incompatible)
-        display = tuple(_recovery_movie_display(item) for item in display_items)
-        ballot = tuple(
-            RecoveryBallotItem(
-                source_movie_id=item["sourceMovieId"],
-                reaction_label=SessionReactionLabel(item["reaction"]),
-            )
-            for item in ballot_items
-            if isinstance(item, dict)
-        )
-        expected_ids = tuple(item.source_movie_id for item in session.shortlist)
-        if (
-            tuple(item.source_movie_id for item in display) != expected_ids
-            or tuple(item.source_movie_id for item in ballot) != expected_ids
-        ):
-            raise PrivateTransitionRecoveryIncompatible(incompatible)
-        return display, ballot
-    except PrivateTransitionRecoveryIncompatible:
-        raise
-    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
-        raise PrivateTransitionRecoveryIncompatible(incompatible) from error
 
 
 def _parse_display_stage_payload(

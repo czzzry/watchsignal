@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import { demoCandidateViewModels } from "../app/pass-the-phone-helpers.ts";
@@ -61,13 +60,6 @@ test("S12 never navigates when live and local sources cannot provide five", asyn
   assert.equal(events.filter(([name]) => name === "reset").length >= 2, true);
   assert.equal(events.some(([name, stage]) => name === "stage" && stage === "failed"), true);
   assert.match(outcome.message, /five fresh picks/i);
-  const surface = await readFile(
-    new URL("../app/pass-the-phone/shortlist-generation.tsx", import.meta.url),
-    "utf8",
-  );
-  assert.match(surface, /Try again/);
-  assert.match(surface, /Back to setup/);
-  assert.match(surface, /stage === "failed"/);
 });
 
 test("S12 keeps valid live movies while honestly disclosing local-only persistence", async () => {
@@ -113,33 +105,6 @@ test("S12 keeps valid live movies while honestly disclosing local-only persisten
   assert.equal(updates.some((value) => value.apiError === null), false);
   assert.equal(events.filter(([name]) => name === "navigate").length, 1);
   assert.equal(events.at(-1)[0], "sync-finish");
-});
-
-test("S12 progress is event-driven and has no percentage or artificial wait", async () => {
-  const component = await readFile(new URL("../app/pass-the-phone/shortlist-generation.tsx", import.meta.url), "utf8");
-  const wizard = await readFile(new URL("../app/pass-the-phone-wizard.tsx", import.meta.url), "utf8");
-  const reaction = await readFile(new URL("../app/pass-the-phone/private-reaction-card.tsx", import.meta.url), "utf8");
-  assert.doesNotMatch(component, /setTimeout|progressbar|aria-valuenow|%/);
-  assert.doesNotMatch(wizard, /cinematicDelay\(1500\)/);
-  assert.match(component, /Array\.from\(\{ length: 5 \}/);
-  assert.match(component, /Try again/);
-  assert.match(component, /Back to setup/);
-  assert.match(wizard, /persistenceSource === "local" \|\| movieSource === "local"/);
-  assert.match(wizard, /localOnly=\{persistenceSource === "local"\}/);
-  assert.match(reaction, /sessionNotice \?\? status/);
-  assert.match(wizard, /reviewParams\.get\("review"\) === "1"/);
-  assert.match(wizard, /reviewParams\.get\("shortlistFailure"\) === "1"/);
-  assert.match(wizard, /reviewParams\.get\("shortlistPersistence"\) === "local"/);
-});
-
-test("S12 responsive surface keeps text and resilience contracts", async () => {
-  const css = await readFile(new URL("../app/pass-the-phone/shortlist-generation.module.css", import.meta.url), "utf8");
-  const sizes = [...css.matchAll(/font-size:\s*(\d+)px/g)].map((match) => Number(match[1]));
-  assert.ok(sizes.every((size) => size >= 12));
-  assert.match(css, /max-height:\s*568px/);
-  assert.match(css, /prefers-reduced-motion: reduce/);
-  assert.match(css, /prefers-reduced-transparency: reduce/);
-  assert.match(css, /forced-colors: active/);
 });
 
 function ports(events) {

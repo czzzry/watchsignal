@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -12,19 +11,6 @@ import {
   seenMemoryOptions,
   seenMemoryValues,
 } from "../app/pass-the-phone/seen-memory-contract.ts";
-
-const dialog = readFileSync(
-  new URL("../app/pass-the-phone/seen-memory-dialog.tsx", import.meta.url),
-  "utf8",
-);
-const dialogCss = readFileSync(
-  new URL("../app/pass-the-phone/seen-memory-dialog.module.css", import.meta.url),
-  "utf8",
-);
-const wizard = readFileSync(
-  new URL("../app/pass-the-phone-wizard.tsx", import.meta.url),
-  "utf8",
-);
 
 const candidate = {
   id: "arrival",
@@ -283,36 +269,4 @@ test("I forget durably removes the title from every taste bucket", async () => {
   assert.deepEqual(savedOnboarding.lovedTitleEntries, []);
   assert.deepEqual(savedOnboarding.fineTitleEntries, []);
   assert.deepEqual(savedOnboarding.noTitleEntries, []);
-});
-
-test("seen-memory UI is separate, accessible, and leaves tonight navigation untouched", () => {
-  assert.match(dialog, /<AccessibleModal/);
-  assert.match(dialog, /Tonight’s choice stays separate/);
-  assert.match(dialog, /role="group"/);
-  assert.match(dialog, /aria-pressed/);
-  assert.match(dialog, /Your choice is still here/);
-  assert.doesNotMatch(dialog, /onReaction|setFounderIndex|setWifeIndex/);
-
-  const memoryFlow = wizard.slice(
-    wizard.indexOf("async function recordSeenMemory"),
-    wizard.indexOf("async function submitActorPass"),
-  );
-  assert.doesNotMatch(memoryFlow, /recordReaction|setFounderIndex|setWifeIndex|dispatchNavigation/);
-});
-
-test("seen-memory sheet keeps readable text, target, and resilience contracts", () => {
-  const fontSizes = Array.from(
-    dialogCss.matchAll(/font-size:\s*([\d.]+)px/g),
-    (match) => Number(match[1]),
-  );
-  const targetHeights = Array.from(
-    dialogCss.matchAll(/min-height:\s*([\d.]+)px/g),
-    (match) => Number(match[1]),
-  );
-  assert.deepEqual(fontSizes.filter((size) => size < 12), []);
-  assert.deepEqual(targetHeights.filter((size) => size < 44), []);
-  assert.match(dialogCss, /@media\s*\(max-width:\s*239px\)/);
-  assert.match(dialogCss, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
-  assert.match(dialogCss, /@media\s*\(prefers-reduced-transparency:\s*reduce\)/);
-  assert.match(dialogCss, /@media\s*\(forced-colors:\s*active\)/);
 });

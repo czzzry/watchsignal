@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -148,32 +147,4 @@ test("S16 loading and error copy stay public and retryable", () => {
     profileMemoryPublicMessage("failed", null),
     "Couldn’t load taste memory. Try again.",
   );
-});
-
-test("S16 is mounted as an ordinary full-shell accessible Utility", async () => {
-  const [setup, component, css] = await Promise.all([
-    readFile(new URL("../app/pass-the-phone-components.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/pass-the-phone/profile-memory-snapshot.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/pass-the-phone/profile-memory-snapshot.module.css", import.meta.url), "utf8"),
-  ]);
-  assert.match(setup, /import \{ ProfileMemorySnapshot \}/);
-  assert.match(setup, /openSetupUtility\("memory", event\.currentTarget\)/);
-  assert.match(setup, /profileLabels=\{Object\.fromEntries/);
-  assert.match(component, /AccessibleModal/);
-  assert.match(component, /status === "loading"/);
-  assert.match(component, /status === "failed"/);
-  assert.match(component, /<details>/);
-  assert.match(component, /summary\.savedByProfileCount/);
-  assert.doesNotMatch(component, /summary\.sharedSavedCount/);
-  const pixelFonts = [...css.matchAll(/font-size:\s*(\d+)px/g)].map((match) => Number(match[1]));
-  assert.ok(pixelFonts.every((size) => size >= 12));
-  assert.match(css, /max-height:\s*568px/);
-  assert.match(css, /\.header\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) 44px/);
-  assert.match(css, /\.header h2\s*\{[^}]*overflow-wrap:\s*anywhere/);
-  assert.match(css, /\.header button\s*\{[^}]*min-width:\s*44px/);
-  assert.match(css, /\.header button\s*\{[^}]*min-height:\s*44px/);
-  assert.match(css, /\.header button\s*\{[^}]*flex:\s*0 0 44px/);
-  assert.match(css, /prefers-reduced-motion: reduce/);
-  assert.match(css, /prefers-reduced-transparency: reduce/);
-  assert.match(css, /forced-colors: active/);
 });

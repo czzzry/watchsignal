@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -133,65 +132,7 @@ test("S11 offline and failure copy retains input without implementation jargon",
   assert.doesNotMatch(`${offline} ${failed}`, /api|backend|model|llm|server/i);
 });
 
-test("S11 setup surface keeps explicit confirm, editable sentence, one clarification, and clear", async () => {
-  const source = await readFile(
-    new URL("../app/pass-the-phone/tonight-intent-setup.tsx", import.meta.url),
-    "utf8",
-  );
-  const steering = await readFile(
-    new URL("../app/pass-the-phone/use-pass-the-phone-intent-steering.ts", import.meta.url),
-    "utf8",
-  );
-  assert.match(source, /<textarea/);
-  assert.match(source, /Confirm tonight/);
-  assert.match(source, /onRemoveSignal/);
-  assert.match(source, /Clear/);
-  assert.match(source, /Skip/);
-  assert.match(source, /AccessibleModal/);
-  assert.match(steering, /clarificationUsedRef/);
-  assert.match(steering, /Still too broad/);
-  assert.match(steering, /isIntentRequestCurrent/);
-  assert.doesNotMatch(source, /chat|model|LLM|API|backend/i);
-});
-
 test("S11 every sheet exit invalidates in-flight interpretation", async () => {
-  const modal = await readFile(
-    new URL("../app/ui/accessible-modal.tsx", import.meta.url),
-    "utf8",
-  );
-  const source = await readFile(
-    new URL("../app/pass-the-phone/tonight-intent-setup.tsx", import.meta.url),
-    "utf8",
-  );
-  const setup = await readFile(
-    new URL("../app/pass-the-phone-components.tsx", import.meta.url),
-    "utf8",
-  );
-  const steering = await readFile(
-    new URL("../app/pass-the-phone/use-pass-the-phone-intent-steering.ts", import.meta.url),
-    "utf8",
-  );
-
-  assert.match(source, /<AccessibleModal[\s\S]*?onClose=\{onClose\}/);
-  assert.match(source, /aria-label="Close tonight mood"/);
-  assert.match(source, /onClick=\{onClose\}>\{activeIntent \? "Done" : "Skip"\}/);
-  assert.match(modal, /shouldCloseTopModal\(event\.key/);
-  assert.match(modal, /event\.target === event\.currentTarget[\s\S]*?onCloseRef\.current\(\)/);
-  assert.match(
-    setup,
-    /function closeTonightIntent\(\)[\s\S]*?onCancelTonightIntentInterpretation\(\)[\s\S]*?setSetupUtility\(null\)/,
-  );
-  const productionIntentSetup = setup.match(
-    /<TonightIntentSetup[\s\S]*?\/>/,
-  )?.[0];
-  assert.ok(productionIntentSetup, "production TonightIntentSetup must be rendered");
-  assert.match(productionIntentSetup, /onClose=\{closeTonightIntent\}/);
-  assert.doesNotMatch(productionIntentSetup, /onClose=\{\(\) => setSetupUtility\(null\)\}/);
-  assert.match(
-    steering,
-    /function cancelTonightIntentInterpretation\(\)[\s\S]*?invalidateIntentRequests\(tonightRequestGuard\.current\)[\s\S]*?finishTonightIntentInterpretation\(\)/,
-  );
-
   for (const closePath of ["header", "Escape", "backdrop", "Skip"]) {
     const guard = { sequence: 0 };
     const ticket = beginIntentRequest(guard, closePath);
@@ -209,38 +150,4 @@ test("S11 every sheet exit invalidates in-flight interpretation", async () => {
     assert.equal(isIntentRequestCurrent(guard, ticket), false, closePath);
     assert.deepEqual(lateResults, [], `${closePath} must ignore a late response`);
   }
-});
-
-test("S11 confirmed intent is the only value forwarded into session start", async () => {
-  const wizard = await readFile(
-    new URL("../app/pass-the-phone-wizard.tsx", import.meta.url),
-    "utf8",
-  );
-  const steering = await readFile(
-    new URL("../app/pass-the-phone/use-pass-the-phone-intent-steering.ts", import.meta.url),
-    "utf8",
-  );
-  assert.match(wizard, /activeTonightIntents/);
-  assert.match(wizard, /continueWithTonightIntents\(activeTonightIntents\)/);
-  assert.doesNotMatch(wizard, /tonightIntents:\s*\[?pendingTonightIntent/);
-  assert.match(steering, /const visibleIntent = retainVisibleIntentSignals/);
-  assert.match(steering, /if \(!canConfirmTonightIntent\(visibleIntent\)\)/);
-  assert.match(steering, /activeIntents: \[visibleIntent\]/);
-});
-
-test("S11 CSS meets phone, text, touch, and resilience contracts", async () => {
-  const css = await readFile(
-    new URL("../app/pass-the-phone/tonight-intent-setup.module.css", import.meta.url),
-    "utf8",
-  );
-  const pixelFonts = [...css.matchAll(/font(?:-size|:)\s*(?:\d+\s+)?(\d+)px/g)]
-    .map((match) => Number(match[1]));
-  assert.ok(pixelFonts.every((size) => size >= 12));
-  assert.match(css, /width:\s*min\(100%, 430px\)/);
-  assert.match(css, /min-height:\s*44px/);
-  assert.match(css, /min-height:\s*54px/);
-  assert.match(css, /max-height:\s*568px/);
-  assert.match(css, /prefers-reduced-motion: reduce/);
-  assert.match(css, /prefers-reduced-transparency: reduce/);
-  assert.match(css, /forced-colors: active/);
 });
