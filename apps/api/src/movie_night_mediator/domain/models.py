@@ -891,6 +891,8 @@ class ScoringRequest:
     users: tuple[UserProfile, ...]
     candidates: tuple[Candidate, ...]
     session_reactions: tuple[ScoringSessionReaction, ...] = ()
+    recently_rejected_source_movie_ids: tuple[str, ...] = ()
+    softly_rejected_source_movie_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -905,6 +907,7 @@ class RankedCandidate:
     why_short: str
     hard_filter_pass: bool
     is_interesting_pick: bool = False
+    ranking_score: float | None = None
     scoring_evidence: tuple[ScoringEvidence, ...] = ()
     dominant_positive_evidence: tuple[str, ...] = ()
     dominant_penalties: tuple[str, ...] = ()
@@ -1019,6 +1022,7 @@ class RecommendationSnapshotCandidate:
     why_short: str
     hard_filter_pass: bool
     is_interesting_pick: bool = False
+    ranking_score: float | None = None
     scoring_evidence: tuple[ScoringEvidence, ...] = ()
     dominant_positive_evidence: tuple[str, ...] = ()
     dominant_penalties: tuple[str, ...] = ()
@@ -1064,6 +1068,7 @@ class RecommendationSnapshot:
     confidence_label: str | None = None
     partial_support_notes: tuple[str, ...] = ()
     fallback_reason: str | None = None
+    applied_tonight_intents: tuple[str, ...] = ()
 
     @property
     def enrichment_coverage(self) -> tuple[int, int, int, float]:

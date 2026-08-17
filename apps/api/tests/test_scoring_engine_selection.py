@@ -6,6 +6,7 @@ from movie_night_mediator.domain.models import (
     HouseholdDefaults,
     MediaType,
     PersonCandidateConstraint,
+    OnboardingSeed,
     ProfileTasteEvidence,
     ScoringRequest,
     ScoringSessionReaction,
@@ -91,6 +92,63 @@ class ScoringEngineSelectionTest(unittest.TestCase):
             v2.ranked_candidates[0].dominant_positive_evidence,
         )
         self.assertEqual(v2.partial_support_notes, ())
+
+    def test_v2_display_scores_do_not_collapse_when_raw_fit_has_metadata_bonus(self) -> None:
+        request = ScoringRequest(
+            session=SessionContext(session_id="v2-display-score-spacing"),
+            household_defaults=HouseholdDefaults(),
+            users=(
+                UserProfile(
+                    user_id="solo",
+                    role="solo",
+                    display_label="Solo",
+                    taste_profile_evidence=(
+                        ProfileTasteEvidence(
+                            source="taste_lab",
+                            source_movie_id="fixture:action-favorite",
+                            title="Action Favorite",
+                            genres=("Action", "Drama", "Thriller"),
+                            preference_value=1.0,
+                        ),
+                        ProfileTasteEvidence(
+                            source="taste_lab",
+                            source_movie_id="fixture:mystery-favorite",
+                            title="Mystery Favorite",
+                            genres=("Mystery", "Drama"),
+                            preference_value=1.0,
+                        ),
+                    ),
+                ),
+            ),
+            candidates=(
+                Candidate(
+                    source_movie_id="fixture:rich",
+                    title="Rich Pick",
+                    media_type=MediaType.MOVIE,
+                    genres=("Action", "Drama", "Thriller"),
+                    overview=(
+                        "A tense procedural high-energy crime drama with a reflective arc."
+                    ),
+                    providers=("Prime Video",),
+                    enrichment_feature_scores={"high-energy": 0.9, "procedural": 0.9},
+                ),
+                Candidate(
+                    source_movie_id="fixture:sparse",
+                    title="Sparse Pick",
+                    media_type=MediaType.MOVIE,
+                    genres=("Fantasy",),
+                    providers=("Prime Video",),
+                ),
+            ),
+        )
+
+        result = build_recommendation_scorer().score(request)
+
+        display_scores = [candidate.group_score for candidate in result.ranked_candidates]
+        raw_scores = [candidate.ranking_score for candidate in result.ranked_candidates]
+        self.assertGreater(max(raw_scores) - min(raw_scores), 0.5)
+        self.assertGreater(max(display_scores) - min(display_scores), 0.05)
+        self.assertLess(max(display_scores), 1.0)
 
     def test_unknown_engine_falls_back_to_v1(self) -> None:
         scorer = build_recommendation_scorer("unknown")
@@ -269,6 +327,117 @@ class ScoringEngineSelectionTest(unittest.TestCase):
         self.assertIn("nudge_signal:avoid:family", animated.dominant_penalties)
         self.assertIn("nudge_signal:avoid:animation", animated.dominant_penalties)
         self.assertEqual(v2.partial_support_notes, ())
+
+    def test_confirmed_superhero_avoidance_is_an_eligibility_constraint(self) -> None:
+        request = ScoringRequest(
+            session=SessionContext(
+                session_id="v2-superhero-hard-exclusion",
+                audience_mode=AudienceMode.SOLO,
+                tonight_intents=(
+                    TonightIntentContract(
+                        raw_text="no superhero or comic-book movies",
+                        signals=(
+                            TonightIntentSignal(
+                                concept="superhero",
+                                polarity="negative",
+                                confidence="high",
+                            ),
+                        ),
+                        confidence="high",
+                    ),
+                ),
+            ),
+            household_defaults=HouseholdDefaults(),
+            users=(
+                UserProfile(
+                    user_id="solo",
+                    role="solo",
+                    display_label="Solo",
+                    onboarding_seeds=(
+                        OnboardingSeed(
+                            title="A strong action favorite",
+                            label="loved",
+                            genres=("Action", "Sci-Fi"),
+                        ),
+                    ),
+                ),
+            ),
+            candidates=(
+                Candidate(
+                    source_movie_id="tmdb:hero",
+                    title="Comic Hero",
+                    media_type=MediaType.MOVIE,
+                    genres=("Action", "Sci-Fi"),
+                    metadata_keywords=("superhero", "based on comic"),
+                    providers=("Prime Video",),
+                ),
+                Candidate(
+                    source_movie_id="tmdb:grounded",
+                    title="Grounded Action",
+                    media_type=MediaType.MOVIE,
+                    genres=("Action", "Thriller"),
+                    providers=("Prime Video",),
+                ),
+            ),
+        )
+
+        result = build_recommendation_scorer().score(request)
+
+        hero = next(
+            candidate
+            for candidate in result.ranked_candidates
+            if candidate.source_movie_id == "tmdb:hero"
+        )
+        self.assertFalse(hero.hard_filter_pass)
+
+    def test_recently_rejected_titles_are_not_rankable_again(self) -> None:
+        request = ScoringRequest(
+            session=SessionContext(
+                session_id="v2-recent-rejection",
+                audience_mode=AudienceMode.SOLO,
+            ),
+            household_defaults=HouseholdDefaults(),
+            users=(
+                UserProfile(
+                    user_id="solo",
+                    role="solo",
+                    display_label="Solo",
+                    onboarding_seeds=(
+                        OnboardingSeed(
+                            title="An action favorite",
+                            label="loved",
+                            genres=("Action",),
+                        ),
+                    ),
+                ),
+            ),
+            candidates=(
+                Candidate(
+                    source_movie_id="tmdb:rejected",
+                    title="Rejected Action",
+                    media_type=MediaType.MOVIE,
+                    genres=("Action",),
+                    providers=("Prime Video",),
+                ),
+                Candidate(
+                    source_movie_id="tmdb:new",
+                    title="New Action",
+                    media_type=MediaType.MOVIE,
+                    genres=("Action",),
+                    providers=("Prime Video",),
+                ),
+            ),
+            recently_rejected_source_movie_ids=("tmdb:rejected",),
+        )
+
+        result = build_recommendation_scorer().score(request)
+
+        rejected = next(
+            candidate
+            for candidate in result.ranked_candidates
+            if candidate.source_movie_id == "tmdb:rejected"
+        )
+        self.assertFalse(rejected.hard_filter_pass)
 
     def test_confirmed_superhero_exclusion_demotes_comic_metadata_without_harming_action_scifi(
         self,

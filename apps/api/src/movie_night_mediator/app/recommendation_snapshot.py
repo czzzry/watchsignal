@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Protocol
 
 from movie_night_mediator.domain import (
@@ -102,6 +103,7 @@ def build_recommendation_snapshot(
                 why_short=ranked_candidate.why_short,
                 hard_filter_pass=ranked_candidate.hard_filter_pass,
                 is_interesting_pick=ranked_candidate.is_interesting_pick,
+                ranking_score=ranked_candidate.ranking_score,
                 scoring_evidence=ranked_candidate.scoring_evidence,
                 dominant_positive_evidence=(
                     ranked_candidate.dominant_positive_evidence
@@ -146,6 +148,27 @@ def build_recommendation_snapshot(
         confidence_label=result.confidence_label,
         partial_support_notes=result.partial_support_notes,
         fallback_reason=result.fallback_reason,
+        applied_tonight_intents=tuple(
+            json.dumps(
+                {
+                    "rawText": intent.raw_text,
+                    "confidence": intent.confidence,
+                    "signals": [
+                        {
+                            "concept": signal.concept,
+                            "polarity": signal.polarity,
+                            "confidence": signal.confidence,
+                            "intensity": signal.intensity,
+                        }
+                        for signal in intent.signals
+                    ],
+                    "people": list(intent.person_names),
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            for intent in request.session.tonight_intents
+        ),
     )
 
 

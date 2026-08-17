@@ -121,6 +121,29 @@ class TmdbCandidateSourceTest(unittest.TestCase):
         self.assertEqual(candidates[1].safety_status, CandidateSafety.NEEDS_QUICK_CHECK)
         self.assertIsNone(candidates[1].backdrop_url)
 
+    def test_fetch_candidates_for_source_ids_hydrates_without_popularity_discovery(self) -> None:
+        source = TmdbCandidateSource(
+            client=FakeTmdbClient(movie_ids=(11, 22, 33)),
+            config=TmdbCandidateSourceConfig(api_key="test"),
+        )
+
+        candidates = source.fetch_candidates_for_source_ids(
+            source_movie_ids=("tmdb:22", "tmdb:11", "tmdb:999", "movielens:1"),
+            session=SessionContext(
+                session_id="explicit-ids",
+                audience_mode=AudienceMode.SOLO,
+                region="DE",
+                service_constraint="Prime Video",
+            ),
+            household_defaults=HouseholdDefaults(),
+            limit=3,
+        )
+
+        self.assertEqual(
+            tuple(candidate.source_movie_id for candidate in candidates),
+            ("tmdb:22", "tmdb:11", "tmdb:999"),
+        )
+
     def test_tmdb_candidates_can_be_scored_into_five_title_shortlist(self) -> None:
         source = TmdbCandidateSource(
             client=FakeTmdbClient(movie_ids=(11, 12, 13, 14, 15)),

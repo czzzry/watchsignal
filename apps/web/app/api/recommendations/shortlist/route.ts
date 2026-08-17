@@ -70,7 +70,11 @@ function configuredScoringEngine():
     return "v2_hybrid";
   }
 
-  return null;
+  // Live recommendations use the trained hybrid scorer by default.  An
+  // explicit environment override remains available for rollback and A/B
+  // comparison, while the API still reports uncertainty if its artifacts are
+  // unavailable rather than silently pretending the model is active.
+  return "v2_hybrid";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

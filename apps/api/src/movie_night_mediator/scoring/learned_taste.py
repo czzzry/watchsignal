@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import gzip
 import hashlib
 import json
 from pathlib import Path
@@ -78,7 +79,11 @@ class MovieLensLinkMap:
     @classmethod
     def load(cls, path: Path) -> MovieLensLinkMap:
         try:
-            payload = json.loads(path.read_text())
+            if path.suffix == ".gz":
+                with gzip.open(path, "rt", encoding="utf-8") as stream:
+                    payload = json.load(stream)
+            else:
+                payload = json.loads(path.read_text())
             if payload.get("artifact_version") != "movielens-tmdb-links-v1":
                 raise LearnedTasteProviderError(
                     "Unsupported MovieLens-to-TMDb link artifact."

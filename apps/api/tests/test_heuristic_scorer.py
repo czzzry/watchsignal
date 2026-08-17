@@ -58,6 +58,102 @@ class HeuristicScorerTest(unittest.TestCase):
         self.assertEqual(result.ranked_candidates[1].title, "Scary Choice")
         self.assertFalse(result.ranked_candidates[1].hard_filter_pass)
 
+    def test_subtitle_intolerance_is_a_real_profile_constraint(self) -> None:
+        user = UserProfile(
+            user_id="user_a",
+            role="solo",
+            display_label="Viewer",
+            subtitle_intolerance=True,
+            onboarding_seeds=(
+                OnboardingSeed(title="Arrival", label="loved"),
+            ),
+        )
+        request = ScoringRequest(
+            session=SessionContext(session_id="subtitle-constraint"),
+            household_defaults=HouseholdDefaults(),
+            users=(user,),
+            candidates=(
+                Candidate(
+                    source_movie_id="tmdb:foreign",
+                    title="Foreign Film",
+                    media_type=MediaType.MOVIE,
+                    original_language="fr",
+                    english_subtitles_verified=False,
+                    providers=("Prime Video",),
+                ),
+                Candidate(
+                    source_movie_id="tmdb:verified",
+                    title="Verified Film",
+                    media_type=MediaType.MOVIE,
+                    original_language="fr",
+                    english_subtitles_verified=True,
+                    providers=("Prime Video",),
+                ),
+            ),
+        )
+
+        result = HeuristicScorer().score(request)
+
+        foreign = next(
+            candidate
+            for candidate in result.ranked_candidates
+            if candidate.source_movie_id == "tmdb:foreign"
+        )
+        verified = next(
+            candidate
+            for candidate in result.ranked_candidates
+            if candidate.source_movie_id == "tmdb:verified"
+        )
+        self.assertFalse(foreign.hard_filter_pass)
+        self.assertTrue(verified.hard_filter_pass)
+
+    def test_all_current_no_reactions_report_no_acceptable_pick(self) -> None:
+        user = UserProfile(
+            user_id="user_a",
+            role="solo",
+            display_label="Viewer",
+            onboarding_seeds=(
+                OnboardingSeed(title="Arrival", label="loved"),
+            ),
+        )
+        request = ScoringRequest(
+            session=SessionContext(session_id="all-no"),
+            household_defaults=HouseholdDefaults(),
+            users=(user,),
+            candidates=(
+                Candidate(
+                    source_movie_id="tmdb:one",
+                    title="First Pick",
+                    media_type=MediaType.MOVIE,
+                    providers=("Prime Video",),
+                ),
+                Candidate(
+                    source_movie_id="tmdb:two",
+                    title="Second Pick",
+                    media_type=MediaType.MOVIE,
+                    providers=("Prime Video",),
+                ),
+            ),
+            session_reactions=(
+                ScoringSessionReaction(
+                    source_movie_id="tmdb:one",
+                    reaction_label="no",
+                ),
+                ScoringSessionReaction(
+                    source_movie_id="tmdb:two",
+                    reaction_label="no",
+                ),
+            ),
+        )
+
+        result = HeuristicScorer().score(request)
+
+        self.assertTrue(result.is_uncertain)
+        self.assertEqual(
+            result.uncertainty_reason,
+            "Every current candidate was rejected in this pass.",
+        )
+
     def test_scoring_reports_uncertainty_without_onboarding(self) -> None:
         user = UserProfile(user_id="user_a", role="solo", display_label="Demo viewer")
         request = ScoringRequest(
