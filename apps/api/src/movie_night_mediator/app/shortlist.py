@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+import re
 
 from movie_night_mediator.app.candidate_enrichment import CandidateEnrichmentService
 from movie_night_mediator.app.recommendation_snapshot import (
@@ -32,6 +33,9 @@ from movie_night_mediator.fixtures.candidate_adapter import (
     fixture_candidates_to_domain,
 )
 from movie_night_mediator.scoring import HeuristicScorer
+from movie_night_mediator.scoring.heuristic import (
+    candidate_has_confirmed_hard_negative_conflict,
+)
 
 
 @dataclass(frozen=True)
@@ -101,6 +105,8 @@ def get_offline_demo_shortlist(
     watched_source_movie_ids: tuple[str, ...] = (),
     enrichment_service: CandidateEnrichmentService | None = None,
     session_reactions: tuple[ScoringSessionReaction, ...] = (),
+    recently_rejected_source_movie_ids: tuple[str, ...] = (),
+    softly_rejected_source_movie_ids: tuple[str, ...] = (),
     scorer: HeuristicScorer | None = None,
 ) -> tuple[OfflineShortlistItem, ...]:
     excluded_ids = set(excluded_source_movie_ids)
@@ -147,6 +153,8 @@ def get_offline_demo_shortlist(
             scorer=scorer,
             snapshot_service=snapshot_service,
             session_reactions=session_reactions,
+            recently_rejected_source_movie_ids=recently_rejected_source_movie_ids,
+            softly_rejected_source_movie_ids=softly_rejected_source_movie_ids,
         )[:5]
 
     shortlist_items = []
@@ -231,6 +239,8 @@ def get_candidate_source_shortlist(
     watched_source_movie_ids: tuple[str, ...] = (),
     enrichment_service: CandidateEnrichmentService | None = None,
     session_reactions: tuple[ScoringSessionReaction, ...] = (),
+    recently_rejected_source_movie_ids: tuple[str, ...] = (),
+    softly_rejected_source_movie_ids: tuple[str, ...] = (),
 ) -> tuple[RankedCandidate, ...]:
     result = _run_candidate_pipeline(
         candidate_source,
@@ -244,8 +254,10 @@ def get_candidate_source_shortlist(
         watched_source_movie_ids=watched_source_movie_ids,
         enrichment_service=enrichment_service,
         session_reactions=session_reactions,
+        recently_rejected_source_movie_ids=recently_rejected_source_movie_ids,
+        softly_rejected_source_movie_ids=softly_rejected_source_movie_ids,
     )
-    return result.ranked_candidates[:limit]
+    return _select_diverse_shortlist(result.ranked_candidates, limit=limit)
 
 
 def get_candidate_source_shortlist_items(
@@ -262,6 +274,8 @@ def get_candidate_source_shortlist_items(
     watched_source_movie_ids: tuple[str, ...] = (),
     enrichment_service: CandidateEnrichmentService | None = None,
     session_reactions: tuple[ScoringSessionReaction, ...] = (),
+    recently_rejected_source_movie_ids: tuple[str, ...] = (),
+    softly_rejected_source_movie_ids: tuple[str, ...] = (),
 ) -> tuple[OfflineShortlistItem, ...]:
     result = _run_candidate_pipeline(
         candidate_source,
@@ -275,8 +289,10 @@ def get_candidate_source_shortlist_items(
         watched_source_movie_ids=watched_source_movie_ids,
         enrichment_service=enrichment_service,
         session_reactions=session_reactions,
+        recently_rejected_source_movie_ids=recently_rejected_source_movie_ids,
+        softly_rejected_source_movie_ids=softly_rejected_source_movie_ids,
     )
-    ranked_candidates = result.ranked_candidates[:limit]
+    ranked_candidates = _select_diverse_shortlist(result.ranked_candidates, limit=limit)
     candidates_by_source_id = {
         candidate.source_movie_id: candidate for candidate in result.candidates
     }
@@ -303,13 +319,29 @@ def _run_candidate_pipeline(
     watched_source_movie_ids: tuple[str, ...],
     enrichment_service: CandidateEnrichmentService | None,
     session_reactions: tuple[ScoringSessionReaction, ...],
+    recently_rejected_source_movie_ids: tuple[str, ...],
+    softly_rejected_source_movie_ids: tuple[str, ...],
 ) -> _CandidatePipelineResult:
     excluded_ids = set(excluded_source_movie_ids)
-    candidates = candidate_source.fetch_candidates(
-        session=session,
-        household_defaults=household_defaults,
-        limit=candidate_limit,
+    personalized_fetch = getattr(
+        candidate_source,
+        "fetch_personalized_candidates",
+        None,
     )
+    if callable(personalized_fetch):
+        candidates = personalized_fetch(
+            session=session,
+            household_defaults=household_defaults,
+            users=users,
+            limit=candidate_limit,
+            excluded_source_movie_ids=tuple(excluded_ids),
+        )
+    else:
+        candidates = candidate_source.fetch_candidates(
+            session=session,
+            household_defaults=household_defaults,
+            limit=candidate_limit,
+        )
     candidates = tuple(
         candidate
         for candidate in candidates
@@ -322,6 +354,25 @@ def _run_candidate_pipeline(
         candidates,
         watched_source_movie_ids=watched_source_movie_ids,
     )
+    scoring_request = ScoringRequest(
+        session=session,
+        household_defaults=household_defaults,
+        users=users,
+        candidates=candidates,
+        session_reactions=session_reactions,
+        recently_rejected_source_movie_ids=recently_rejected_source_movie_ids,
+        softly_rejected_source_movie_ids=softly_rejected_source_movie_ids,
+    )
+    candidates = tuple(
+        candidate
+        for candidate in candidates
+        if not candidate_has_confirmed_hard_negative_conflict(
+            scoring_request,
+            candidate,
+        )
+        and candidate.source_movie_id
+        not in set(recently_rejected_source_movie_ids)
+    )
     return _CandidatePipelineResult(
         candidates=candidates,
         ranked_candidates=_score_candidate_source_candidates(
@@ -332,6 +383,8 @@ def _run_candidate_pipeline(
             scorer=scorer,
             snapshot_service=snapshot_service,
             session_reactions=session_reactions,
+            recently_rejected_source_movie_ids=recently_rejected_source_movie_ids,
+            softly_rejected_source_movie_ids=softly_rejected_source_movie_ids,
         ),
     )
 
@@ -345,6 +398,8 @@ def _score_candidate_source_candidates(
     scorer: HeuristicScorer | None,
     snapshot_service: RecommendationSnapshotService | None,
     session_reactions: tuple[ScoringSessionReaction, ...] = (),
+    recently_rejected_source_movie_ids: tuple[str, ...] = (),
+    softly_rejected_source_movie_ids: tuple[str, ...] = (),
 ) -> tuple[RankedCandidate, ...]:
     request = ScoringRequest(
         session=session,
@@ -352,6 +407,8 @@ def _score_candidate_source_candidates(
         users=users,
         candidates=candidates,
         session_reactions=session_reactions,
+        recently_rejected_source_movie_ids=recently_rejected_source_movie_ids,
+        softly_rejected_source_movie_ids=softly_rejected_source_movie_ids,
     )
     resolved_scorer = scorer or HeuristicScorer()
     if snapshot_service is None:
@@ -362,6 +419,49 @@ def _score_candidate_source_candidates(
             snapshot_service=snapshot_service,
         ).score_and_save_snapshot(request)
     return result.ranked_candidates
+
+
+def _select_diverse_shortlist(
+    ranked_candidates: tuple[RankedCandidate, ...],
+    *,
+    limit: int,
+) -> tuple[RankedCandidate, ...]:
+    """Keep popularity pools from becoming an accidental franchise list."""
+    selected: list[RankedCandidate] = []
+    family_counts: dict[str, int] = {}
+    deferred: list[RankedCandidate] = []
+    for candidate in ranked_candidates:
+        family = _title_family_key(candidate.title)
+        if family and family_counts.get(family, 0) >= 2:
+            deferred.append(candidate)
+            continue
+        selected.append(candidate)
+        if family:
+            family_counts[family] = family_counts.get(family, 0) + 1
+        if len(selected) == limit:
+            return tuple(
+                replace(item, candidate_rank=index)
+                for index, item in enumerate(selected, start=1)
+            )
+
+    for candidate in deferred:
+        selected.append(candidate)
+        if len(selected) == limit:
+            break
+
+    return tuple(
+        replace(item, candidate_rank=index)
+        for index, item in enumerate(selected, start=1)
+    )
+
+
+def _title_family_key(title: str) -> str:
+    tokens = re.findall(r"[a-z0-9]+", title.casefold())
+    if len(tokens) < 2:
+        return ""
+    stop = {"the", "a", "an", "of", "and", "part", "chapter"}
+    meaningful = [token for token in tokens if token not in stop]
+    return " ".join(meaningful[:2])
 
 
 def _mark_already_watched(

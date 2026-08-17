@@ -233,6 +233,8 @@ def _build_app_services(
     )
     recommendation_service = RecommendationService(
         setup_store=resolved_setup_store,
+        onboarding_store=resolved_onboarding_store,
+        session_store=resolved_session_store,
         taste_lab_service=taste_lab_service,
         backfill_service=backfill_service,
         taste_memory_service=taste_memory_service,

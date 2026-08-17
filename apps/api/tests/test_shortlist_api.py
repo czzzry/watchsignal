@@ -74,7 +74,7 @@ class ShortlistApiTest(unittest.TestCase):
                 excluded_count=0,
                 watched_count=0,
             ),
-            10,
+            30,
         )
         self.assertEqual(
             _live_candidate_fetch_limit(
@@ -82,7 +82,7 @@ class ShortlistApiTest(unittest.TestCase):
                 excluded_count=20,
                 watched_count=0,
             ),
-            30,
+            35,
         )
 
     def test_offline_demo_shortlist_is_stable_and_web_shaped(self) -> None:

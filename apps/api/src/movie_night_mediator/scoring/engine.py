@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from functools import lru_cache
+import math
 import os
 from pathlib import Path
 
@@ -353,21 +354,19 @@ def _ranked_candidate_with_v2_concepts(
             )[:3]
         )
     )
+    adjusted_ranking_score = (
+        candidate.ranking_score
+        if candidate.ranking_score is not None
+        else candidate.group_score
+    ) + concept_score + nudge_score + metadata_score + reaction_score + shared_score
+    display_score = _display_score_from_ranking(adjusted_ranking_score)
+    if not candidate.hard_filter_pass:
+        display_score = 0.0
     return replace(
         candidate,
-        group_score=round(
-            min(
-                1.0,
-                max(
-                    0.0,
-                    candidate.group_score
-                    + concept_score
-                    + nudge_score
-                    + metadata_score
-                    + reaction_score
-                    + shared_score,
-                ),
-            ),
+        group_score=round(display_score, 4),
+        ranking_score=round(
+            adjusted_ranking_score,
             4,
         ),
         dominant_positive_evidence=positives,
@@ -415,6 +414,11 @@ def _candidate_with_learned_taste(
         1.0,
         max(0.0, candidate.group_score + learned_group_score - old_group_score),
     )
+    adjusted_ranking_score = (
+        candidate.ranking_score
+        if candidate.ranking_score is not None
+        else candidate.group_score
+    ) + learned_group_score - old_group_score
     if not candidate.hard_filter_pass:
         adjusted_group_score = 0.0
     learned_evidence = tuple(
@@ -431,6 +435,7 @@ def _candidate_with_learned_taste(
         user_a_score=new_scores[0] if new_scores else None,
         user_b_score=new_scores[1] if len(new_scores) > 1 else None,
         group_score=round(adjusted_group_score, 4),
+        ranking_score=round(adjusted_ranking_score, 4),
         fit_bucket=_fit_bucket(session_mode, new_scores),
         why_short=(
             f"{learned_batch.model_name.title()} learned taste informed the "
@@ -770,10 +775,25 @@ def _rerank_candidates(
     return tuple(
         replace(candidate, candidate_rank=index)
         for index, candidate in enumerate(
-            sorted(candidates, key=lambda item: item.group_score, reverse=True),
+            sorted(
+                candidates,
+                key=lambda item: (
+                    item.ranking_score
+                    if item.ranking_score is not None
+                    else item.group_score
+                ),
+                reverse=True,
+            ),
             start=1,
         )
     )
+
+
+def _display_score_from_ranking(ranking_score: float) -> float:
+    """Map the unbounded ranking signal to a readable, non-saturating score."""
+    if not math.isfinite(ranking_score):
+        return 0.0
+    return 1.0 / (1.0 + math.exp(-0.5 * (ranking_score - 0.5)))
 
 
 def _active_users(request: ScoringRequest) -> tuple[UserProfile, ...]:

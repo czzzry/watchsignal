@@ -36,6 +36,8 @@
     "eval:movielens:hybrid": "node scripts/run_api_uv.mjs run python ../../scripts/movielens_hybrid_baseline.py",
     "eval:movielens:hybrid:verify": "node scripts/run_api_uv.mjs run python ../../scripts/verify_hybrid_artifact.py",
     "model:prepare:movielens-links": "python3 scripts/prepare_movielens_runtime_links.py",
+    "model:prepare:movielens-catalog": "python3 scripts/prepare_movielens_runtime_catalog.py --archive .tools/datasets/movielens/ml-32m.zip --links .tools/models/movielens-tmdb-links-v1.json --output .tools/models/movielens-tmdb-catalog-v1.json",
+    "eval:personalized-retrieval": "node scripts/run_api_uv.mjs run python ../../scripts/personalized_retrieval_quality_probe.py --database ../../data/movie_night_mediator.sqlite3 --profile-id cezary-tester --output ../../artifacts/personalized-retrieval/cezary.json",
     "eval:household-models": "node scripts/run_api_uv.mjs run python ../../scripts/run_household_model_comparison.py",
     "eval:movielens:development-protocol": "node scripts/run_api_uv.mjs run python ../../scripts/movielens_model_improvement_manifests.py",
     "eval:movielens:development-protocol:verify": "node scripts/run_api_uv.mjs run python ../../scripts/movielens_model_improvement_manifests.py --verify",

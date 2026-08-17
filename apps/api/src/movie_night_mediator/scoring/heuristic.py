@@ -64,10 +64,70 @@ INTENT_GENERIC_TOKENS = frozenset(
     }
 )
 
+HARD_NEGATIVE_CONCEPTS = frozenset({"superhero"})
+SUPERHERO_METADATA_TERMS = frozenset(
+    {
+        "superhero",
+        "super hero",
+        "supervillain",
+        "super villain",
+        "comic book",
+        "comic-book",
+        "based on comic",
+        "marvel",
+        "marvel comics",
+        "dc comics",
+        "mcu",
+        "dceu",
+    }
+)
+
+
+def candidate_has_confirmed_hard_negative_conflict(
+    request: ScoringRequest,
+    candidate: Candidate,
+) -> bool:
+    """Return whether a confirmed concrete avoidance must remove a candidate.
+
+    This is intentionally narrower than every soft nudge.  A hard exclusion is
+    reserved for a verifiable category with stable metadata, so the shortlist
+    never silently violates an explicit, high-confidence superhero avoidance.
+    """
+    negative_concepts = {
+        signal.concept.casefold().strip()
+        for intent in request.session.tonight_intents
+        if intent.confidence.casefold() in {"high", "confirmed"}
+        for signal in intent.signals
+        if signal.polarity == "negative"
+        and signal.confidence.casefold() in {"high", "confirmed"}
+        and signal.intensity >= 0.8
+        and signal.concept.casefold().strip() in HARD_NEGATIVE_CONCEPTS
+    }
+    if not negative_concepts:
+        return False
+    candidate_tokens = {
+        _normalize(value)
+        for value in (
+            *candidate.metadata_keywords,
+            *candidate.genres,
+            candidate.title,
+            candidate.overview,
+        )
+        if value
+    }
+    if "superhero" not in negative_concepts:
+        return False
+    return any(
+        term in token
+        for token in candidate_tokens
+        for term in SUPERHERO_METADATA_TERMS
+    )
+
 
 @dataclass(frozen=True)
 class UserScoreBreakdown:
     score: float
+    raw_score: float
     contributions: tuple[SignalContribution, ...]
 
 
@@ -76,7 +136,7 @@ class HeuristicScorer:
 
     def score(self, request: ScoringRequest) -> RecommendationResult:
         ranked_candidates: list[RankedCandidate] = []
-        scored_rows: list[tuple[float, RankedCandidate]] = []
+        scored_rows: list[tuple[float, float, RankedCandidate]] = []
         active_users = self._active_users(request)
 
         for candidate in request.candidates:
@@ -86,12 +146,19 @@ class HeuristicScorer:
                 self._score_for_user(user, candidate) for user in active_users
             ]
             user_scores = [breakdown.score for breakdown in user_breakdowns]
-            group_score = self._group_score(request.session.session_mode, user_scores)
+            raw_user_scores = [breakdown.raw_score for breakdown in user_breakdowns]
+            ranking_score = self._group_score(
+                request.session.session_mode,
+                raw_user_scores,
+            )
             group_contributions = self._group_contributions(request, candidate)
+            ranking_score += sum(item.value for item in group_contributions)
+            group_score = self._group_score(request.session.session_mode, user_scores)
             group_score += sum(item.value for item in group_contributions)
             group_score = min(max(group_score, 0.0), 1.0)
             if not hard_filter_pass:
                 group_score = 0.0
+                ranking_score = float("-inf")
             if not rankable:
                 continue
             is_interesting_pick = (
@@ -119,6 +186,7 @@ class HeuristicScorer:
                 ),
                 hard_filter_pass=hard_filter_pass,
                 is_interesting_pick=is_interesting_pick,
+                ranking_score=ranking_score,
                 scoring_evidence=(
                     self._scoring_evidence(
                         candidate,
@@ -127,10 +195,10 @@ class HeuristicScorer:
                     ),
                 ),
             )
-            scored_rows.append((group_score, ranked))
+            scored_rows.append((group_score, ranking_score, ranked))
 
-        for index, (_, ranked) in enumerate(
-            sorted(scored_rows, key=lambda row: row[0], reverse=True),
+        for index, (_, _, ranked) in enumerate(
+            sorted(scored_rows, key=lambda row: (row[0], row[1]), reverse=True),
             start=1,
         ):
             ranked_candidates.append(
@@ -145,6 +213,7 @@ class HeuristicScorer:
                     why_short=ranked.why_short,
                     hard_filter_pass=ranked.hard_filter_pass,
                     is_interesting_pick=ranked.is_interesting_pick,
+                    ranking_score=ranked.ranking_score,
                     scoring_evidence=ranked.scoring_evidence,
                 )
             )
@@ -154,12 +223,33 @@ class HeuristicScorer:
             (candidate for candidate in ranked_candidates if candidate.is_interesting_pick),
             None,
         )
+        rejected_ids = {
+            reaction.source_movie_id
+            for reaction in request.session_reactions
+            if reaction.reaction_label == "no"
+        }
+        no_acceptable_pick = bool(ranked_candidates) and all(
+            candidate.source_movie_id in rejected_ids
+            for candidate in ranked_candidates[:5]
+        )
         return RecommendationResult(
             session_id=request.session.session_id,
             ranked_candidates=tuple(ranked_candidates),
-            is_uncertain=is_uncertain,
-            uncertainty_reason="One or more active users need onboarding seeds." if is_uncertain else None,
-            recommended_follow_up="Capture at least a few Loved, Fine, and No seed titles." if is_uncertain else None,
+            is_uncertain=is_uncertain or no_acceptable_pick,
+            uncertainty_reason=(
+                "One or more active users need onboarding seeds."
+                if is_uncertain
+                else "Every current candidate was rejected in this pass."
+                if no_acceptable_pick
+                else None
+            ),
+            recommended_follow_up=(
+                "Capture at least a few Loved, Fine, and No seed titles."
+                if is_uncertain
+                else "Try five more in a different direction."
+                if no_acceptable_pick
+                else None
+            ),
             interesting_safe_pick=interesting_safe_pick,
         )
 
@@ -183,6 +273,8 @@ class HeuristicScorer:
         candidate: Candidate,
         users: tuple[UserProfile, ...],
     ) -> bool:
+        if candidate.source_movie_id in set(request.recently_rejected_source_movie_ids):
+            return False
         if request.household_defaults.rewatch_avoidance_default and not request.session.allow_rewatch:
             if candidate.already_watched:
                 return False
@@ -195,6 +287,14 @@ class HeuristicScorer:
         if request.session.requested_media_type != candidate.media_type:
             return False
         if any(user.horror_exclusion for user in users) and "Horror" in candidate.genres:
+            return False
+        if any(user.subtitle_intolerance for user in users):
+            if (
+                candidate.original_language.casefold() != "en"
+                and not candidate.english_subtitles_verified
+            ):
+                return False
+        if candidate_has_confirmed_hard_negative_conflict(request, candidate):
             return False
         return True
 
@@ -229,7 +329,7 @@ class HeuristicScorer:
 
     def _score_for_user(self, user: UserProfile, candidate: Candidate) -> UserScoreBreakdown:
         if not user.onboarding_seeds and not user.taste_profile_evidence:
-            return UserScoreBreakdown(score=0.5, contributions=())
+            return UserScoreBreakdown(score=0.5, raw_score=0.5, contributions=())
 
         liked = self._genre_counter(user, "loved")
         fine = self._genre_counter(user, "fine")
@@ -267,6 +367,7 @@ class HeuristicScorer:
 
         return UserScoreBreakdown(
             score=_squash_score(score),
+            raw_score=score,
             contributions=tuple(contributions),
         )
 
@@ -428,6 +529,14 @@ class HeuristicScorer:
         candidate: Candidate,
     ) -> tuple[SignalContribution, ...]:
         contributions = []
+        if candidate.source_movie_id in set(request.softly_rejected_source_movie_ids):
+            contributions.append(
+                SignalContribution(
+                    family="persistent_rejection",
+                    label=candidate.title,
+                    value=-0.18,
+                )
+            )
         for reaction in request.session_reactions:
             if reaction.reaction_label == "seen":
                 continue

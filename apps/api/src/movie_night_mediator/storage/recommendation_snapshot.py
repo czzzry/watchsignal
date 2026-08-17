@@ -58,9 +58,10 @@ class SQLiteRecommendationSnapshotStore:
                         confidence_score,
                         confidence_label,
                         partial_support_notes,
-                        fallback_reason
+                        fallback_reason,
+                        applied_tonight_intents
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(session_id) DO UPDATE SET
                         is_uncertain = excluded.is_uncertain,
                         uncertainty_reason = excluded.uncertainty_reason,
@@ -71,6 +72,7 @@ class SQLiteRecommendationSnapshotStore:
                         confidence_label = excluded.confidence_label,
                         partial_support_notes = excluded.partial_support_notes,
                         fallback_reason = excluded.fallback_reason,
+                        applied_tonight_intents = excluded.applied_tonight_intents,
                         updated_at = CURRENT_TIMESTAMP
                     """,
                     (
@@ -84,6 +86,7 @@ class SQLiteRecommendationSnapshotStore:
                         snapshot.confidence_label,
                         _dump_string_list(snapshot.partial_support_notes),
                         snapshot.fallback_reason,
+                        _dump_string_list(snapshot.applied_tonight_intents),
                     ),
                 )
                 connection.execute(
@@ -161,6 +164,7 @@ class SQLiteRecommendationSnapshotStore:
                         candidate_rank,
                         fit_bucket,
                         group_score,
+                        ranking_score,
                         why_short,
                         hard_filter_pass,
                         is_interesting_pick,
@@ -168,7 +172,7 @@ class SQLiteRecommendationSnapshotStore:
                         dominant_positive_evidence,
                         dominant_penalties
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     [
                         (
@@ -178,6 +182,7 @@ class SQLiteRecommendationSnapshotStore:
                             candidate.candidate_rank,
                             candidate.fit_bucket,
                             candidate.group_score,
+                            candidate.ranking_score,
                             candidate.why_short,
                             int(candidate.hard_filter_pass),
                             int(candidate.is_interesting_pick),
@@ -236,7 +241,8 @@ class SQLiteRecommendationSnapshotStore:
                     confidence_score,
                     confidence_label,
                     partial_support_notes,
-                    fallback_reason
+                    fallback_reason,
+                    applied_tonight_intents
                 FROM recommendation_snapshots
                 WHERE session_id = ?
                 """,
@@ -254,6 +260,7 @@ class SQLiteRecommendationSnapshotStore:
                     candidate_rank,
                     fit_bucket,
                     group_score,
+                    ranking_score,
                     why_short,
                     hard_filter_pass,
                     is_interesting_pick,
@@ -338,6 +345,7 @@ class SQLiteRecommendationSnapshotStore:
                     candidate_rank=row["candidate_rank"],
                     fit_bucket=row["fit_bucket"],
                     group_score=row["group_score"],
+                    ranking_score=row["ranking_score"],
                     user_scores=tuple(
                         scores_by_source_movie_id.get(row["source_movie_id"], ())
                     ),
@@ -363,6 +371,9 @@ class SQLiteRecommendationSnapshotStore:
                 snapshot_row["partial_support_notes"]
             ),
             fallback_reason=snapshot_row["fallback_reason"],
+            applied_tonight_intents=_load_string_list(
+                snapshot_row["applied_tonight_intents"]
+            ),
         )
 
     def list_snapshots(self) -> tuple[RecommendationSnapshot, ...]:
@@ -401,6 +412,7 @@ class SQLiteRecommendationSnapshotStore:
                         confidence_label TEXT,
                         partial_support_notes TEXT NOT NULL DEFAULT '[]',
                         fallback_reason TEXT,
+                        applied_tonight_intents TEXT NOT NULL DEFAULT '[]',
                         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                         updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
                     );
@@ -439,6 +451,7 @@ class SQLiteRecommendationSnapshotStore:
                         candidate_rank INTEGER NOT NULL,
                         fit_bucket TEXT NOT NULL,
                         group_score REAL NOT NULL,
+                        ranking_score REAL,
                         why_short TEXT NOT NULL,
                         hard_filter_pass INTEGER NOT NULL CHECK (
                             hard_filter_pass IN (0, 1)
@@ -469,8 +482,10 @@ class SQLiteRecommendationSnapshotStore:
                     """
                 )
                 _ensure_snapshot_v2_columns(connection)
+                _ensure_snapshot_intent_column(connection)
                 _ensure_candidate_input_enrichment_columns(connection)
                 _ensure_recommendation_candidate_evidence_columns(connection)
+                _ensure_recommendation_candidate_ranking_column(connection)
 
     def _connect(self) -> DatabaseConnection:
         return connect_database(self.database_path)
@@ -552,6 +567,22 @@ def _ensure_snapshot_v2_columns(
     for column_name, statement in migrations.items():
         if column_name not in existing_columns:
             connection.execute(statement)
+
+
+def _ensure_snapshot_intent_column(
+    connection: sqlite3.Connection,
+) -> None:
+    existing_columns = {
+        row["name"]
+        for row in connection.execute(
+            "PRAGMA table_info(recommendation_snapshots)"
+        ).fetchall()
+    }
+    if "applied_tonight_intents" not in existing_columns:
+        connection.execute(
+            "ALTER TABLE recommendation_snapshots "
+            "ADD COLUMN applied_tonight_intents TEXT NOT NULL DEFAULT '[]'"
+        )
 
 
 def _ensure_candidate_input_enrichment_columns(
@@ -671,3 +702,19 @@ def _ensure_recommendation_candidate_evidence_columns(
     for column_name, statement in migrations.items():
         if column_name not in existing_columns:
             connection.execute(statement)
+
+
+def _ensure_recommendation_candidate_ranking_column(
+    connection: sqlite3.Connection,
+) -> None:
+    existing_columns = {
+        row["name"]
+        for row in connection.execute(
+            "PRAGMA table_info(recommendation_snapshot_candidates)"
+        ).fetchall()
+    }
+    if "ranking_score" not in existing_columns:
+        connection.execute(
+            "ALTER TABLE recommendation_snapshot_candidates "
+            "ADD COLUMN ranking_score REAL"
+        )

@@ -223,6 +223,65 @@ class TmdbCandidateSource:
 
         return tuple(candidates)
 
+    def fetch_candidates_for_source_ids(
+        self,
+        *,
+        source_movie_ids: tuple[str, ...],
+        session: SessionContext,
+        household_defaults: HouseholdDefaults,
+        limit: int = 20,
+    ) -> tuple[Candidate, ...]:
+        """Hydrate a learned retrieval pool without asking TMDb for popularity.
+
+        Only explicit TMDb ids are accepted.  Availability and the existing
+        safety classifier remain authoritative, so learned retrieval cannot
+        bypass the household's region or provider rules.
+        """
+        region = (
+            session.region
+            or household_defaults.default_region
+            or self._config.default_region
+        ).upper()
+        language = self._config.default_language
+        candidates: list[Candidate] = []
+        seen: set[str] = set()
+        for source_movie_id in source_movie_ids:
+            if len(candidates) >= limit:
+                break
+            provider, separator, provider_id = source_movie_id.partition(":")
+            if not separator or provider.casefold() != "tmdb" or not provider_id.isdigit():
+                continue
+            normalized_source_id = f"tmdb:{int(provider_id)}"
+            if normalized_source_id in seen:
+                continue
+            seen.add(normalized_source_id)
+            tmdb_id = int(provider_id)
+            try:
+                details = self._movie_details(
+                    tmdb_id,
+                    language=language,
+                    include_credits=True,
+                )
+                providers = self._movie_providers_for_details(
+                    tmdb_id,
+                    details,
+                    session=session,
+                    household_defaults=household_defaults,
+                )
+            except TmdbCandidateSourceError:
+                continue
+            candidate = self._candidate_from_payloads(
+                {"id": tmdb_id},
+                details,
+                providers,
+                region=region,
+                session=session,
+                household_defaults=household_defaults,
+            )
+            if candidate is not None:
+                candidates.append(candidate)
+        return tuple(candidates)
+
     def _append_discover_candidates(
         self,
         candidates: list[Candidate],
