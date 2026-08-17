@@ -14,6 +14,7 @@ build/
 *.tsbuildinfo
 .pnpm-store/
 .tools/
+artifacts/personalized-retrieval/
 .venv/
 apps/api/.venv/
 *.db
