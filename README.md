@@ -1,123 +1,129 @@
-# WatchSignal
+<h1 align="center">WatchSignal</h1>
 
-**Decide what to watch without showing your hand.**
+<p align="center"><strong>A private movie picker for two people sharing one phone.</strong></p>
 
-WatchSignal helps two people make one good movie choice through private reactions, a sealed handoff, and a ranked result they can inspect together.
+<p align="center">
+  Each person reacts to the same five movies without seeing the other's answers.
+  WatchSignal combines both taste profiles, tonight's needs, streaming availability, and those private reactions into one ranked result.
+</p>
 
-<p>
-  <a href="#see-the-night-unfold">See the flow</a>
+<p align="center">
+  <a href="#how-a-round-works">Product tour</a>
   ·
-  <a href="#start-in-one-command">Run it locally</a>
+  <a href="#how-the-recommender-was-trained-and-tested">Recommendation research</a>
+  ·
+  <a href="#run-it-locally">Run locally</a>
   ·
   <a href="docs/architecture/code-first-app-architecture.md">Architecture</a>
-  ·
-  <a href="docs/recommendation-evaluation.md">Evaluation</a>
-</p>
-
-> WatchSignal is an active, household-protected prototype.
-> There is no public demo because real profiles and movie-night choices stay behind household access.
-
-## See the night unfold
-
-A round moves from setup to private decisions, then through a sealed handoff to one ranked result.
-
-<p align="center">
-  <img src="docs/assets/readme/01-set-the-night.webp" alt="WatchSignal setup screen for confirming the two viewers and tonight's viewing limits" width="330">
-  <img src="docs/assets/readme/02-private-pick.webp" alt="Private WatchSignal movie card with Interested, Maybe, and No choices" width="330">
-  <br>
-  <sub>From left: <strong>1. Set the night</strong> by confirming the viewers and limits; <strong>2. Pick in private</strong> without seeing the other person's choices.</sub>
 </p>
 
 <p align="center">
-  <img src="docs/assets/readme/03-private-handoff.webp" alt="Sealed WatchSignal handoff ready for the second viewer" width="330">
-  <img src="docs/assets/readme/04-ranked-result.webp" alt="Ranked WatchSignal result showing one shared movie and the next-best options" width="330">
-  <br>
-  <sub>From left: <strong>3. Pass the phone</strong> after the first picks are sealed; <strong>4. Get one shared answer</strong> with a clear reason and strong alternatives.</sub>
+  <img src="docs/assets/readme/watchsignal-hero.jpg" alt="WatchSignal showing an Arrival private pick beside a plain-language summary of the private two-person flow">
 </p>
 
-## Why it exists
+## What WatchSignal does
 
-Choosing a movie together is rarely a search problem.
-It is a small negotiation shaped by different tastes, tiredness, streaming availability, and the fear that one person's enthusiasm will sway the other.
+Movie night is not usually blocked by a lack of titles.
+It is blocked by two people with different tastes trying to choose without steering each other's answers.
 
-WatchSignal makes that negotiation quieter.
-It gathers each person's honest reaction first, weighs both sets of choices, then shows the strongest shared option with a reason that can be checked.
+WatchSignal gives each person a private turn, remembers what each profile likes and rejects, and returns a short ranked answer instead of another endless feed.
+The result explains why the top movie fits, keeps four alternatives close by, and links to the right streaming service when provider data is available.
 
-The goal is not an endless feed.
-The goal is to reach a decision and start the movie.
+The current product includes:
+
+- A complete phone-first flow from setup to private picks, handoff, matching, ranked result, watchlist, and post-watch feedback.
+- Separate taste profiles built from onboarding, Taste Lab ratings, earlier movie-night reactions, watched history, and feedback.
+- Learned candidate retrieval from a MovieLens and TMDB-linked catalog, with TMDB popularity used only as an exploration fallback.
+- Hard checks for streaming availability, watched titles, media type, explicit exclusions, and confirmed tonight-specific requests.
+- A review mode with inspectable scoring evidence that stays out of the normal household experience.
 
 ## How a round works
 
-1. Confirm one or two viewer profiles and tonight's viewing limits.
-2. Add a few Loved, Ok, and No seeds when a profile still needs a starting point.
-3. React privately to five movies.
-4. Seal the first pass before handing over the phone.
-5. Weigh both viewers' reactions and rank the shared shortlist.
-6. Show the clearest shared pick, provider guidance, and a short explanation.
-7. Keep watchlist actions, seen-before memory, and post-watch feedback for future rounds.
-
-The flow supports compromise and person-first weighting, with Safe Pick rules protecting the main shortlist without turning the couch experience into a settings panel.
-
-## What is working
-
-- A phone-first round from setup through private picks, handoff, matching, and outcome feedback.
-- Keyboard support, focus-managed dialogs, reduced motion, safe areas, and 200 percent text zoom.
-- Filters for streaming availability, watched titles, media type, horror exclusions, and other hard limits.
-- Persistent profiles, sessions, reactions, results, watchlists, and recommendation snapshots.
-- Live TMDB candidates with a deterministic fixture fallback for local work and tests.
-- A review mode that exposes scoring inputs and signals without spilling diagnostics into the household flow.
-
-## Trust is part of the product
-
-### Private until both people finish
-
-One viewer never sees the other's reactions during the handoff.
-For API-backed couple rounds, the browser stores only an opaque recovery token while the private state stays behind the API boundary.
-
-### A no counts clearly
-
-WatchSignal gives every No reaction a negative weight before it ranks the shared options.
-In the current prototype, No is a strong ranking signal rather than a hard veto, so a high-scoring title can still remain in the results.
-
-### Explanations stay readable
-
-The result says what cleared the match and why it fits tonight.
-Deeper movie details, cast, availability, and recommendation evidence stay available without crowding the decision.
-
 <p align="center">
-  <img src="docs/assets/readme/05-result-details.webp" alt="Expanded details for the selected WatchSignal result with synopsis, cast, match reasons, and streaming availability" width="330">
-  <br>
-  <sub>The same winning title opens into its story, cast, match reasons, and viewing options.</sub>
+  <img src="docs/assets/readme/watchsignal-round.jpg" alt="Three WatchSignal screens showing a private choice, a phone handoff, and the ranked shared result">
 </p>
 
-### Refresh without revealing the first pass
+1. Both people confirm the night, including who is watching, the streaming service, and any firm limits.
+2. The first person reacts to five movies in private, then hands over the phone.
+3. The second person sees the same five without seeing the first answers.
+4. WatchSignal ranks the overlap, explains the strongest match, and keeps the next four options available.
 
-API-backed handoff and matching checkpoints survive a refresh.
-If durable recovery is unavailable, the app fails closed and gives a safe way to restart instead of exposing partial answers.
+There is also a solo mode.
+The two-person flow is the main product because it protects independent opinions before the result is shown.
 
-## Taste Lab learns the person, not the couple
+## How the live recommendation path works
 
-Taste Lab is an optional private calibration tool.
-Fast ratings add evidence to one profile without overwriting movie-night reactions or requiring the other person to share the same taste.
+The learned system does not begin with a short TMDB popularity page and hope the scorer can rescue it.
+It starts from the trained MovieLens item space and a compact MovieLens-to-TMDB catalog, retrieves candidates that resemble each active profile, then asks TMDB to hydrate those exact movies and confirm that they are watchable.
+
+Three layers have different jobs:
+
+1. **Personal retrieval** searches collaborative and content-informed movie spaces using each person's durable ratings.
+2. **Household ranking** weighs both people, the weaker-person floor, current reactions, confirmed requests, and hard constraints.
+3. **TMDB** supplies current metadata, artwork, and regional provider availability, with popularity retained as a bounded exploration fallback when learned retrieval or provider-eligible hydration cannot fill the pool.
+
+The live web route requests the hybrid learned scorer with the existing V2 household rules.
+If its model or link artifacts are unavailable, scoring explicitly falls back to V2 and marks the result uncertain.
+V1, V2, and collaborative-only paths remain available as explicit rollback and comparison routes.
+
+## How the recommender was trained and tested
 
 <p align="center">
-  <img src="docs/assets/readme/06-taste-lab.webp" alt="Private WatchSignal Taste Lab screen for rating a movie and recording whether it has been seen" width="330">
+  <img src="docs/assets/readme/recommendation-evidence.svg" alt="WatchSignal recommendation experiment from MovieLens data through chronological splits, model comparison, and a one-time 5,000-user test">
 </p>
 
-WatchSignal can also learn from watch history, shortlist reactions, and post-watch feedback.
-That evidence informs later candidate scoring while tonight's explicit choices remain in control.
+The training program used the official [MovieLens 32M dataset](https://files.grouplens.org/datasets/movielens/ml-32m-README.html): 32,000,204 ratings from 200,948 users across 87,585 movies.
+For the main task, the model received each person's earlier ratings and ranked 30 movies that person rated later.
+A separate evaluator revealed the later ratings only after every ranking was fixed.
 
-## Recommendation work, kept in its place
+Users were assigned to non-overlapping fit, tuning, internal-test, and one-time hidden-test roles.
+The split was chronological, future labels were excluded from training and feature construction, and the manifests and model artifacts were fingerprinted.
+Both hidden panels were opened once and are now treated as spent evidence.
 
-The household flow currently uses an inspectable heuristic scorer because tonight's mood, hard constraints, and compromise are not captured by a historical ratings dataset.
+The benchmark compared deterministic random order, popularity, two hand-written scorers, ratings-only matrix factorization, and a hybrid with genre, release-era, and tag features.
+Models were judged on NDCG@5, positive-versus-negative ordering, known dislikes in the top five, coverage, confidence intervals, and measured runtime costs.
+Training error was recorded but could not select the winner.
 
-The offline evaluation program compares heuristics, popularity, collaborative filtering, and hybrid models on chronological MovieLens holdouts.
-Its latest round selected a compact collaborative model over the hybrid through the protocol's simplicity route, with similar ranking quality and lower artifact, fit-time, and scoring costs.
-That model is the current offline individual-taste champion, not the automatic household default.
+The final 16-factor explicit ALS model was trained on 2,395,300 earlier profile ratings from 10,187 development-fit users.
+On a fresh panel of 5,000 previously unused users, it scored `0.615832` NDCG@5, compared with `0.615439` for the support-aware hybrid and `0.437816` for the V2 heuristic.
+The collaborative and hybrid results were effectively tied, so the collaborative model won the predeclared simplicity route: a 78.6 percent smaller artifact, 43.5 percent lower fit time, and 35.5 percent lower same-loop scoring time.
 
-Read the [evaluation narrative](docs/recommendation-evaluation.md), [locked benchmark protocol](docs/validation/movielens-benchmark-protocol.md), and [product integration decision](docs/validation/learned-taste-product-integration.md) for the full evidence trail.
+### The research behind the work
 
-## Start in one command
+The papers framed the dataset, model family, evaluation method, and product boundaries.
+WatchSignal's protected experiments, not the papers, selected the factor count, regularization, iteration count, features, and final model.
+
+| Research | Relevance to WatchSignal |
+| --- | --- |
+| [Harper and Konstan, *The MovieLens Datasets: History and Context*](https://doi.org/10.1145/2827872) | The provenance, scale, and limitations of the ratings corpus. |
+| [Koren, Bell, and Volinsky, *Matrix Factorization Techniques for Recommender Systems*](https://doi.org/10.1109/MC.2009.263) | The latent user-and-movie factor family used by the explicit-feedback collaborative model. |
+| [Järvelin and Kekäläinen, *Cumulated Gain-Based Evaluation of IR Techniques*](https://doi.org/10.1145/582415.582418) | The NDCG family used to reward highly rated movies near the top of a five-item ranking. |
+| [Meyer and colleagues, *Toward a New Protocol to Evaluate Recommender Systems*](https://arxiv.org/abs/1209.1983) | The decision to evaluate useful ranking by cohort rather than choose the lowest rating-prediction error. |
+| [Çano and Morisio, *Hybrid Recommender Systems*](https://doi.org/10.3233/IDA-163209) | The case for testing collaborative evidence together with content features for sparse movies. |
+| [Peška and Vojtáš, *Off-Line vs. On-Line Evaluation of Recommender Systems*](https://doi.org/10.1145/3372923.3404781) | The rule that an offline ranking gain cannot replace real product evidence. |
+| [Basu Roy, Lakshmanan, and Liu, *From Group Recommendations to Group Formation*](https://doi.org/10.1145/2723372.2749448) | The decision to treat two-person satisfaction as a separate household problem rather than average two personal scores and stop. |
+
+<details>
+  <summary><strong>Taste Lab and cold-start research</strong></summary>
+
+Taste Lab asks for quick, private ratings so a new profile can become useful before years of watch history exist.
+[Meng and colleagues](https://arxiv.org/abs/2010.14013), [Nguyen and colleagues](https://arxiv.org/abs/2406.00973), and [Pennock and colleagues](https://arxiv.org/abs/1301.3885) informed the idea that some questions reveal more about a person's preferences than an arbitrary queue.
+The current product uses an inspectable signal heuristic for that queue.
+It does not claim to reproduce any of those papers' algorithms.
+
+</details>
+
+### What the experiment proves, and what it does not
+
+The result identifies a strong offline model for one person's historical movie taste.
+It does not prove that two people will agree with the result tonight, that the catalog contains the right movie, or that an offline score predicts trust and satisfaction.
+
+That is why learned personal retrieval and scoring remain separate from household compromise, current mood, provider availability, explicit exclusions, and the final explanation.
+The next standard is repeated real movie nights, not another isolated benchmark number.
+
+The full evidence trail is in [Recommendation Evaluation at WatchSignal](docs/recommendation-evaluation.md), the [locked benchmark protocol](docs/validation/movielens-benchmark-protocol.md), the [replacement-panel result](docs/validation/movielens-replacement-sealed-benchmark.md), and the [live retrieval rollout](docs/validation/personalized-retrieval-rollout.md).
+
+## Run it locally
 
 The Docker path starts the Next.js app, FastAPI service, deterministic movie fixtures, and a persistent local SQLite volume.
 It does not need an API key.
@@ -129,27 +135,19 @@ docker compose up --build
 Open [http://localhost:3000](http://localhost:3000).
 The API health check is at [http://localhost:8000/health](http://localhost:8000/health).
 
-Stop the stack when you are done.
-
 ```bash
 docker compose down
 ```
 
 Use `docker compose down --volumes` only when you also want to remove the local demo database.
 
-## Native development
+<details>
+  <summary><strong>Native development</strong></summary>
 
 You will need Node.js 22.6 or newer, pnpm 10, Python 3.11 or newer, and [uv](https://docs.astral.sh/uv/).
 
-Install the JavaScript dependencies.
-
 ```bash
 pnpm install
-```
-
-Start the API.
-
-```bash
 cd apps/api
 uv run uvicorn movie_night_mediator.api.main:app --reload
 ```
@@ -160,68 +158,48 @@ In a second terminal, start the web app from the repository root.
 pnpm dev:web
 ```
 
-The default development path uses deterministic candidates and local SQLite storage.
-Copy `.env.example` to `.env` only when you want optional live services such as TMDB.
+Copy `.env.example` to `.env` only when you want optional live services and local learned-model artifacts.
 
-The synthetic review route is available locally at [http://localhost:3000/showcase](http://localhost:3000/showcase).
-Showcase and prototype routes are hidden in production.
+</details>
 
-## Architecture
+## Stack and boundaries
 
-```mermaid
-flowchart LR
-    A[Phone-first Next.js app] --> B[FastAPI routes]
-    B --> C[Application services]
-    C --> D[Recommendation scorer]
-    C --> E[SQLite or PostgreSQL]
-    C --> F[TMDB or fixtures]
-    G[Private Taste Lab] --> H[Profile evidence]
-    H --> D
-    D --> I[Inspectable result snapshot]
-```
+- **Interface:** Next.js and React, designed first for one shared phone.
+- **API:** FastAPI application services with explicit recommendation and recovery boundaries.
+- **Storage:** SQLite locally and PostgreSQL for hosted multi-instance persistence.
+- **Movie data:** TMDB for live metadata, artwork, and provider availability.
+- **Recommendation:** NumPy-based explicit ALS and hybrid artifacts, with V2 household scoring and inspectable snapshots.
 
 Recommendation logic is separate from transport, persistence, and the interface.
-That boundary keeps scoring testable without a browser and leaves room for another client without hiding product decisions in workflow state.
+The app does not load the full MovieLens 32M ratings dataset or any MovieLens user history at recommendation time.
+The runtime artifacts contain movie factors and mappings, not raw household histories or MovieLens user vectors.
 
-SQLite is the deliberately simple local default.
-Hosted deployments can use PostgreSQL without changing the core product boundary.
+## Validation and project status
 
-## Validation
-
-Run the main repository checks and production web build.
+Run the repository checks and production web build with:
 
 ```bash
 pnpm check
 pnpm build:web
 ```
 
-The main check covers tooling tests, the Python suite, compile checks, and web state tests.
-Continuous integration also builds both demo containers and probes the web and API health endpoints.
+WatchSignal is an actively developed, household-protected prototype.
+There is no public demo because real profiles and movie-night choices stay behind household access.
+The complete flow, private handoff, persistence, learned retrieval, ranked results, and feedback loops are implemented, while the recommendation quality claim remains deliberately open to real household use.
 
-The repository does not publish raw household data, downloaded MovieLens files, or detailed identifier-bearing user-level research artifacts.
-Pseudonymized evaluation summaries, committed protocols, and checksums keep the work inspectable without redistributing source ratings or private data.
-
-## Key documents
+Useful project documents:
 
 - [MVP decision summary](docs/architecture/mvp-decision-summary.md)
 - [Code-first architecture](docs/architecture/code-first-app-architecture.md)
 - [Shared session state machine](docs/architecture/shared-session-state-machine.md)
-- [Mode-aware shared scoring](docs/architecture/mode-aware-shared-scoring.md)
 - [Recommendation evaluation](docs/recommendation-evaluation.md)
 - [Taste Lab research brief](docs/taste-lab-research-brief.md)
 - [Public data policy](docs/public-data-policy.md)
-- [Fresh-checkout beta runbook](docs/beta-readiness/fresh-checkout-runbook.md)
 
-## Movie data
+## Movie data and licensing
 
 Live movie metadata and poster images come from [The Movie Database](https://www.themoviedb.org).
 This product uses the TMDB API but is not endorsed or certified by TMDB.
-The required attribution also appears on the app's credits page.
 
-## Status
-
-WatchSignal is an actively developed prototype for a real two-person household flow.
-The interface, private handoff, durable recovery, persistence, and recommendation evidence are working.
-Household access still protects the hosted product, and review-only routes remain development tools.
-
-The next proof is repeated real movie nights: whether both people trust the result, whether they reach it faster, and whether better personal taste evidence improves the shared decision.
+MovieLens 32M is used under its research terms for local training and evaluation.
+The repository does not redistribute the downloaded dataset, raw user rows, or detailed identifier-bearing evaluation artifacts.
