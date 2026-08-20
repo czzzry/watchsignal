@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="620" viewBox="0 0 1440 620" role="img" aria-labelledby="title description">
+  <title id="title">WatchSignal recommendation experiment</title>
+  <desc id="description">MovieLens ratings are split chronologically into earlier profile evidence and hidden future ratings, then several models are compared before one replacement test.</desc>
+  <rect width="1440" height="620" rx="28" fill="#0d1117"/>
+  <rect x="1" y="1" width="1438" height="618" rx="27" fill="none" stroke="#30363d" stroke-width="2"/>
+
+  <text x="64" y="72" fill="#f0f6fc" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="30" font-weight="700">How the recommender was tested</text>
+  <text x="64" y="108" fill="#8b949e" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="17">Earlier ratings go in. Future ratings stay hidden until every ranking is fixed.</text>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">
+    <rect x="64" y="156" width="270" height="166" rx="18" fill="#161b22" stroke="#30363d"/>
+    <text x="88" y="190" fill="#c9d1d9" font-size="14" font-weight="700" letter-spacing="1.2">DATA</text>
+    <text x="88" y="232" fill="#f0f6fc" font-size="34" font-weight="750">32,000,204</text>
+    <text x="88" y="258" fill="#8b949e" font-size="16">MovieLens ratings</text>
+    <text x="88" y="294" fill="#d2a8ff" font-size="16">200,948 users · 87,585 films</text>
+
+    <path d="M350 239H392" stroke="#8957e5" stroke-width="3"/>
+    <path d="M386 231L396 239L386 247" fill="none" stroke="#8957e5" stroke-width="3"/>
+
+    <rect x="412" y="156" width="304" height="166" rx="18" fill="#161b22" stroke="#30363d"/>
+    <text x="436" y="190" fill="#c9d1d9" font-size="14" font-weight="700" letter-spacing="1.2">CHRONOLOGICAL SPLIT</text>
+    <text x="436" y="231" fill="#f0f6fc" font-size="25" font-weight="720">Earlier profile ratings</text>
+    <text x="436" y="262" fill="#8b949e" font-size="16">Train and tune the models</text>
+    <line x1="436" y1="282" x2="692" y2="282" stroke="#30363d"/>
+    <text x="436" y="309" fill="#79c0ff" font-size="16">Later ratings stay hidden</text>
+
+    <path d="M732 239H774" stroke="#8957e5" stroke-width="3"/>
+    <path d="M768 231L778 239L768 247" fill="none" stroke="#8957e5" stroke-width="3"/>
+
+    <rect x="794" y="156" width="278" height="166" rx="18" fill="#161b22" stroke="#30363d"/>
+    <text x="818" y="190" fill="#c9d1d9" font-size="14" font-weight="700" letter-spacing="1.2">MODEL LADDER</text>
+    <text x="818" y="225" fill="#f0f6fc" font-size="18" font-weight="680">Random · Popularity</text>
+    <text x="818" y="256" fill="#f0f6fc" font-size="18" font-weight="680">V1 · V2 · Collaborative</text>
+    <text x="818" y="287" fill="#f0f6fc" font-size="18" font-weight="680">Content-collaborative hybrid</text>
+
+    <path d="M1088 239H1130" stroke="#8957e5" stroke-width="3"/>
+    <path d="M1124 231L1134 239L1124 247" fill="none" stroke="#8957e5" stroke-width="3"/>
+
+    <rect x="1150" y="156" width="226" height="166" rx="18" fill="#191222" stroke="#8957e5"/>
+    <text x="1174" y="190" fill="#d2a8ff" font-size="14" font-weight="700" letter-spacing="1.2">ONE-TIME TEST</text>
+    <text x="1174" y="234" fill="#f0f6fc" font-size="31" font-weight="750">5,000</text>
+    <text x="1174" y="261" fill="#c9d1d9" font-size="16">previously unused users</text>
+    <text x="1174" y="294" fill="#8b949e" font-size="15">Labels opened once</text>
+
+    <rect x="64" y="364" width="1312" height="190" rx="18" fill="#11161d" stroke="#30363d"/>
+    <text x="88" y="402" fill="#c9d1d9" font-size="14" font-weight="700" letter-spacing="1.2">REPLACEMENT PANEL · NDCG@5</text>
+
+    <text x="88" y="449" fill="#f0f6fc" font-size="19" font-weight="680">Collaborative</text>
+    <rect x="278" y="431" width="754" height="24" rx="12" fill="#6e40c9"/>
+    <text x="1050" y="450" fill="#f0f6fc" font-size="21" font-weight="750">0.615832</text>
+
+    <text x="88" y="493" fill="#f0f6fc" font-size="19" font-weight="680">Hybrid</text>
+    <rect x="278" y="475" width="753" height="24" rx="12" fill="#388bfd"/>
+    <text x="1050" y="494" fill="#f0f6fc" font-size="21" font-weight="750">0.615439</text>
+
+    <text x="88" y="537" fill="#f0f6fc" font-size="19" font-weight="680">V2 heuristic</text>
+    <rect x="278" y="519" width="536" height="24" rx="12" fill="#484f58"/>
+    <text x="832" y="538" fill="#f0f6fc" font-size="21" font-weight="750">0.437816</text>
+
+    <text x="1174" y="430" fill="#d2a8ff" font-size="15" font-weight="700">WHY COLLABORATIVE WON</text>
+    <text x="1174" y="464" fill="#c9d1d9" font-size="16">Ranking quality tied</text>
+    <text x="1174" y="493" fill="#c9d1d9" font-size="16">78.6% smaller artifact</text>
+    <text x="1174" y="522" fill="#c9d1d9" font-size="16">35.5% faster scoring</text>
+  </g>
+</svg>
