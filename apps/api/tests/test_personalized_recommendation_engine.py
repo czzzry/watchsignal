@@ -335,12 +335,32 @@ class PersonalizedRecommendationEngineTest(unittest.TestCase):
         )
 
         self.assertEqual(len(result.candidates), 15)
+        self.assertEqual(
+            result.mapped_anchor_source_movie_ids,
+            ("tmdb:539", "tmdb:1578", "tmdb:1949", "tmdb:36095"),
+        )
         self.assertTrue(
             all(row.lane == "curator_hybrid_fusion" for row in result.candidates)
         )
-        self.assertIn("Dog Day Afternoon (1975)", titles)
-        self.assertIn("Taxi Driver (1976)", titles)
-        self.assertIn("Nightcrawler (2014)", titles)
+        credible_cross_platform_core = {
+            "Dog Day Afternoon (1975)",
+            "Godfather: Part II, The (1974)",
+            "Goodfellas (1990)",
+            "Barton Fink (1991)",
+            "Amores Perros (Love's a Bitch) (2000)",
+            "Harakiri (Seppuku) (1962)",
+            "One Flew Over the Cuckoo's Nest (1975)",
+            "Europa (Zentropa) (1991)",
+            "Nightcrawler (2014)",
+            "Freaks (1932)",
+            "M (1931)",
+            "Silence of the Lambs, The (1991)",
+        }
+        self.assertGreaterEqual(
+            len(credible_cross_platform_core & set(titles)),
+            10,
+            titles,
+        )
         self.assertFalse(
             {
                 "Lez Bomb (2018)",
