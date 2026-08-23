@@ -1,4 +1,9 @@
 import type { DemoCandidate, SessionMode } from "../session-fixtures";
+import {
+  curatorLensTransportForSelection,
+  tasteLensNoFallbackMessage,
+  type TasteLensSelectionReference,
+} from "../taste-lens/index.ts";
 import type {
   CandidateViewModel,
   PeopleMode,
@@ -16,6 +21,7 @@ import {
   submitSessionReactions,
   toApiSessionMode,
   type RecommendationRunStatus,
+  type CuratorLensRequestPayload,
   type SharedSessionPayload,
   type TonightIntentInterpretationPayload,
 } from "../session-client.ts";
@@ -112,6 +118,7 @@ export type StartSessionInput = {
   fallbackCandidates: CandidateViewModel[];
   disconnectedMessage: string;
   sharedPersistenceAvailable?: boolean;
+  tasteLensSelection?: TasteLensSelectionReference | null;
 };
 
 export async function startPassThePhoneSession(
@@ -122,6 +129,11 @@ export async function startPassThePhoneSession(
   ports.resetBatch();
   ports.resetSessionProgress();
 
+  const curatorLens = curatorLensFor(input.tasteLensSelection);
+  if (input.tasteLensSelection && curatorLens === null) {
+    return failTasteLensShortlist(ports);
+  }
+
   if (input.shortlistSize !== REQUIRED_SHORTLIST_SIZE) {
     const message = publicShortlistFailure();
     ports.updateSession({ apiError: message });
@@ -130,6 +142,9 @@ export async function startPassThePhoneSession(
   }
 
   if (!input.apiConnected) {
+    if (curatorLens) {
+      return failTasteLensShortlist(ports);
+    }
     ports.updateShortlistStage?.("local");
     const fallbackCandidates = selectExactUsableShortlist(input.fallbackCandidates);
     if (!fallbackCandidates) {
@@ -174,11 +189,13 @@ export async function startPassThePhoneSession(
         ? appliedTonightIntentForTransport(input.activeTonightIntent)
         : null,
       tonightIntents: input.activeTonightIntents.map(appliedTonightIntentForTransport),
+      curatorLens,
     });
     ports.updateShortlistStage?.("checking");
     const candidates = exactUsableShortlist(
       shortlistResponse.shortlist.map(toSessionCandidate),
     );
+    assertTasteLensRunApplied(curatorLens, shortlistResponse.runStatus);
     ports.updateSession({
       recommendationSource: shortlistResponse.recommendationSource,
       recommendationRunStatus: shortlistResponse.runStatus,
@@ -227,6 +244,9 @@ export async function startPassThePhoneSession(
       persistenceSource,
     };
   } catch (error) {
+    if (curatorLens) {
+      return failTasteLensShortlist(ports);
+    }
     if (isPersonalizedModelAvailabilityFailure(error)) {
       const message = personalizedModelAvailabilityMessage();
       ports.resetBatch();
@@ -259,6 +279,7 @@ type ContinueSessionInput = {
   wifeReactions: ReactionState;
   localReactionHistory?: ReturnType<typeof scoringReactionSignalsFromLocal>;
   tonightIntents: TonightIntentInterpretationPayload[];
+  tasteLensSelection?: TasteLensSelectionReference | null;
 };
 
 export async function continuePassThePhoneSession(
@@ -267,9 +288,24 @@ export async function continuePassThePhoneSession(
   dependencies: SessionLifecycleDependencies = defaultDependencies,
 ): Promise<void> {
   ports.updateSession({ apiError: null });
+  const curatorLens = curatorLensFor(input.tasteLensSelection);
+  if (input.tasteLensSelection && curatorLens === null) {
+    ports.updateSession({
+      apiError: tasteLensNoFallbackMessage(),
+      recommendationRunStatus: null,
+    });
+    return;
+  }
   const movieSource = input.movieSource ?? (input.sessionSource === "api" ? "live" : "local");
   const persistenceSource = input.persistenceSource ?? (input.sharedSession ? "shared" : "local");
   if (!input.apiConnected || movieSource !== "live") {
+    if (curatorLens) {
+      ports.updateSession({
+        apiError: tasteLensNoFallbackMessage(),
+        recommendationRunStatus: null,
+      });
+      return;
+    }
     const candidates = localContinuationCandidates({
       catalog: input.fallbackCandidates,
       shownSourceMovieIds: input.shownSourceMovieIds,
@@ -329,12 +365,14 @@ export async function continuePassThePhoneSession(
       tonightIntents: input.tonightIntents.map(appliedTonightIntentForTransport),
       excludedSourceMovieIds: excludedMovieIds(input),
       sessionReactions: reactionSignals(input, dependencies),
+      curatorLens,
     });
     const excluded = excludedMovieIds(input);
     const candidates = exactUsableShortlist(
       shortlistResponse.shortlist.map(toSessionCandidate),
       excluded,
     );
+    assertTasteLensRunApplied(curatorLens, shortlistResponse.runStatus);
     ports.updateSession({
       recommendationSource: shortlistResponse.recommendationSource,
       recommendationRunStatus: shortlistResponse.runStatus,
@@ -367,9 +405,12 @@ export async function continuePassThePhoneSession(
     ports.navigateToStarted();
   } catch (error) {
     ports.updateSession({
-      apiError: isPersonalizedModelAvailabilityFailure(error)
+      apiError: curatorLens
+        ? tasteLensNoFallbackMessage()
+        : isPersonalizedModelAvailabilityFailure(error)
         ? personalizedModelAvailabilityMessage()
         : publicContinuationFailure(),
+      ...(curatorLens ? { recommendationRunStatus: null } : {}),
     });
   } finally {
     ports.finishSessionSync();
@@ -410,6 +451,7 @@ export function canContinuePassThePhoneSession({
   shownSourceMovieIds,
   sessionCandidates,
   shortlistSize,
+  tasteLensSelection,
 }: Pick<
   ContinueSessionInput,
   | "apiConnected"
@@ -419,7 +461,11 @@ export function canContinuePassThePhoneSession({
   | "shownSourceMovieIds"
   | "sessionCandidates"
   | "shortlistSize"
+  | "tasteLensSelection"
 >): boolean {
+  if (tasteLensSelection) {
+    return apiConnected && (movieSource ?? (sessionSource === "api" ? "live" : "local")) === "live";
+  }
   if (apiConnected && (movieSource ?? (sessionSource === "api" ? "live" : "local")) === "live") {
     return true;
   }
@@ -493,6 +539,9 @@ async function recoverWithFallbackCandidates(
   ports: SessionLifecyclePorts,
   dependencies: SessionLifecycleDependencies,
 ): Promise<ShortlistGenerationOutcome> {
+  if (input.tasteLensSelection) {
+    return failTasteLensShortlist(ports);
+  }
   ports.updateShortlistStage?.("local");
   const fallbackSessionId = dependencies.createId();
   const fallbackCandidates = selectExactUsableShortlist(input.fallbackCandidates);
@@ -559,6 +608,43 @@ async function recoverWithFallbackCandidates(
     movieSource: "local",
     persistenceSource: fallbackPersistenceSource,
   };
+}
+
+function curatorLensFor(
+  selection: TasteLensSelectionReference | null | undefined,
+): CuratorLensRequestPayload | null {
+  if (!selection) return null;
+  try {
+    return curatorLensTransportForSelection(selection);
+  } catch {
+    return null;
+  }
+}
+
+function assertTasteLensRunApplied(
+  requestedLens: CuratorLensRequestPayload | null,
+  runStatus: RecommendationRunStatus | null,
+): void {
+  if (!requestedLens) return;
+  const applied = runStatus?.curatorLens;
+  if (
+    !applied ||
+    applied.status !== "active" ||
+    applied.curatorId !== requestedLens.curatorId ||
+    applied.mode !== requestedLens.mode
+  ) {
+    throw new Error("Taste Lens status was not active for this recommendation run.");
+  }
+}
+
+function failTasteLensShortlist(
+  ports: SessionLifecyclePorts,
+): ShortlistGenerationOutcome {
+  const message = tasteLensNoFallbackMessage();
+  ports.resetBatch();
+  ports.updateSession({ apiError: message, recommendationRunStatus: null });
+  ports.updateShortlistStage?.("failed");
+  return { status: "failed", message };
 }
 
 function isPersonalizedModelAvailabilityFailure(error: unknown): boolean {

@@ -13,6 +13,7 @@ from movie_night_mediator.app.personalized_recommendation import (
     PersonalizedCandidateSource,
     PersonalizedCandidateRetriever,
     _semantic_rejection_penalties,
+    build_default_personalized_retriever,
 )
 from movie_night_mediator.domain import (
     AudienceMode,
@@ -41,6 +42,8 @@ class _Model:
     item_ids: np.ndarray
     item_biases: np.ndarray
     item_factors: np.ndarray
+    collaborative_support: np.ndarray | None = None
+    family_factors: dict[str, np.ndarray] | None = None
 
     @property
     def item_index(self) -> dict[int, int]:
@@ -55,6 +58,8 @@ class _Provider:
         *,
         factors: np.ndarray | None = None,
         item_ids: np.ndarray | None = None,
+        support: np.ndarray | None = None,
+        family_factors: dict[str, np.ndarray] | None = None,
     ) -> None:
         self.model = _Model(
             config=_ModelConfig(),
@@ -72,6 +77,8 @@ class _Provider:
                 [[0.95, 0.0], [0.05, 0.0], [0.0, 0.95], [0.0, 0.05]],
                 dtype=np.float32,
             ),
+            collaborative_support=support,
+            family_factors=family_factors,
         )
 
 
@@ -210,6 +217,138 @@ class PersonalizedRecommendationEngineTest(unittest.TestCase):
         )
         self.assertNotIn("tmdb:101", {row.source_movie_id for row in rows})
         self.assertTrue(rows)
+
+    def test_curator_inspiration_uses_verified_anchor_neighbours_not_support_popularity(
+        self,
+    ) -> None:
+        provider = _Provider(
+            item_ids=np.asarray([1, 2, 3, 4, 5], dtype=np.int32),
+            factors=np.asarray(
+                [
+                    [1.0, 0.0],
+                    [0.999, 0.0],
+                    [0.92, 0.0],
+                    [0.9, 0.1],
+                    [0.98, 0.0],
+                ],
+                dtype=np.float32,
+            ),
+            support=np.asarray([20, 10_000, 25, 20, 1], dtype=np.int32),
+        )
+        retriever = PersonalizedCandidateRetriever(
+            collaborative_provider=provider,
+            catalog=(
+                MovieLensCatalogEntry(1, "tmdb:101", "Verified anchor", genres=("Crime",)),
+                MovieLensCatalogEntry(2, "tmdb:102", "Highly supported decoy", genres=("Comedy",)),
+                MovieLensCatalogEntry(3, "tmdb:103", "Supported neighbour", genres=("Crime", "Drama")),
+                MovieLensCatalogEntry(4, "tmdb:104", "Second verified anchor", genres=("Drama",)),
+                MovieLensCatalogEntry(5, "tmdb:105", "Obscure tail", genres=("Crime", "Drama")),
+            ),
+            minimum_item_support=0,
+        )
+
+        result = retriever.retrieve_curator_inspiration(
+            anchor_source_movie_ids=("movielens:1", "tmdb:104", "tmdb:unmapped"),
+            limit=2,
+        )
+
+        self.assertEqual(
+            result.mapped_anchor_source_movie_ids,
+            ("tmdb:101", "tmdb:104"),
+        )
+        self.assertTrue(result.ran)
+        self.assertNotIn("tmdb:101", {row.source_movie_id for row in result.candidates})
+        self.assertEqual(result.candidates[0].source_movie_id, "tmdb:103")
+        self.assertNotIn("tmdb:102", {row.source_movie_id for row in result.candidates})
+        self.assertNotIn("tmdb:105", {row.source_movie_id for row in result.candidates})
+        self.assertIn("support_balanced", result.candidates[0].reasons)
+
+    def test_curator_inspiration_fuses_hybrid_content_over_a_collaborative_only_decoy(
+        self,
+    ) -> None:
+        item_ids = np.asarray([1, 2, 3, 4], dtype=np.int32)
+        collaborative = _Provider(
+            item_ids=item_ids,
+            factors=np.asarray(
+                [[1.0, 0.0], [0.9, 0.1], [0.99, 0.0], [0.8, 0.2]],
+                dtype=np.float32,
+            ),
+        )
+        content = _Provider(
+            item_ids=item_ids,
+            factors=np.asarray(
+                [[1.0, 0.0], [0.9, 0.1], [0.0, 1.0], [1.0, 0.0]],
+                dtype=np.float32,
+            ),
+            support=np.asarray([20, 20, 20, 20], dtype=np.int32),
+            family_factors={
+                "tag": np.asarray(
+                    [[1.0, 0.0], [0.9, 0.1], [0.0, 1.0], [1.0, 0.0]],
+                    dtype=np.float32,
+                ),
+                "genre": np.asarray(
+                    [[1.0, 0.0], [0.9, 0.1], [0.0, 1.0], [1.0, 0.0]],
+                    dtype=np.float32,
+                ),
+            },
+        )
+        retriever = PersonalizedCandidateRetriever(
+            collaborative_provider=collaborative,
+            content_provider=content,
+            catalog=(
+                MovieLensCatalogEntry(1, "tmdb:101", "Anchor one", genres=("Crime",)),
+                MovieLensCatalogEntry(2, "tmdb:102", "Anchor two", genres=("Drama",)),
+                MovieLensCatalogEntry(3, "tmdb:103", "Collaborative decoy", genres=("Crime", "Drama")),
+                MovieLensCatalogEntry(4, "tmdb:104", "Content bridge", genres=("Crime", "Drama")),
+            ),
+            minimum_item_support=0,
+        )
+
+        result = retriever.retrieve_curator_inspiration(
+            anchor_source_movie_ids=("tmdb:101", "tmdb:102"),
+            limit=2,
+        )
+
+        self.assertTrue(result.ran)
+        self.assertEqual(result.candidates[0].source_movie_id, "tmdb:104")
+        self.assertEqual(result.candidates[0].lane, "curator_hybrid_fusion")
+        self.assertIn("content_fusion:tag+genre", result.candidates[0].reasons)
+
+    def test_verified_runtime_artifacts_produce_a_credible_multi_anchor_curator_pool(
+        self,
+    ) -> None:
+        retriever = build_default_personalized_retriever()
+        self.assertIsNotNone(retriever)
+        assert retriever is not None
+
+        result = retriever.retrieve_curator_inspiration(
+            anchor_source_movie_ids=(
+                "tmdb:539",  # Psycho
+                "tmdb:1578",  # Raging Bull
+                "tmdb:1949",  # Zodiac
+                "tmdb:36095",  # Cure
+            ),
+            limit=15,
+        )
+        titles = tuple(
+            retriever._catalog[row.movie_id].title for row in result.candidates
+        )
+
+        self.assertEqual(len(result.candidates), 15)
+        self.assertTrue(
+            all(row.lane == "curator_hybrid_fusion" for row in result.candidates)
+        )
+        self.assertIn("Dog Day Afternoon (1975)", titles)
+        self.assertIn("Taxi Driver (1976)", titles)
+        self.assertIn("Nightcrawler (2014)", titles)
+        self.assertFalse(
+            {
+                "Lez Bomb (2018)",
+                "Chuck Berry Hail! Hail! Rock 'n' Roll (1987)",
+                "Mobile Suit Gundam F91 (1991)",
+            }
+            & set(titles)
+        )
 
     def test_source_adapter_hydrates_learned_ids(self) -> None:
         provider = _Provider()

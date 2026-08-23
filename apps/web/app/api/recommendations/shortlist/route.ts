@@ -1,4 +1,5 @@
 import { postBackendSession } from "../../session/backend";
+import { runStatusFromRecommendationHeaders } from "./run-status.ts";
 
 export async function POST(request: Request): Promise<Response> {
   const payload = (await request.json().catch(() => null)) as unknown;
@@ -18,7 +19,7 @@ export async function POST(request: Request): Promise<Response> {
   const shortlist = Array.isArray(backendPayload?.shortlist)
     ? backendPayload.shortlist
     : responsePayload;
-  const runStatus = runStatusFromHeaders(response.headers);
+  const runStatus = runStatusFromRecommendationHeaders(response.headers);
 
   return Response.json(
     {
@@ -86,28 +87,4 @@ function configuredScoringEngine():
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function runStatusFromHeaders(headers: Headers) {
-  const mode = headers.get("X-WatchSignal-Run-Mode");
-  const label = headers.get("X-WatchSignal-Run-Label");
-  const detail = headers.get("X-WatchSignal-Run-Detail");
-  const trainedCandidateRetrieval = headers.get("X-WatchSignal-Trained-Retrieval");
-  const trainedScoring = headers.get("X-WatchSignal-Trained-Scoring");
-  if (
-    !mode ||
-    !label ||
-    !detail ||
-    (trainedCandidateRetrieval !== "true" && trainedCandidateRetrieval !== "false") ||
-    (trainedScoring !== "true" && trainedScoring !== "false")
-  ) {
-    return null;
-  }
-  return {
-    mode,
-    label,
-    detail,
-    trainedCandidateRetrieval: trainedCandidateRetrieval === "true",
-    trainedScoring: trainedScoring === "true",
-  };
 }

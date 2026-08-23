@@ -88,6 +88,23 @@ export type RecommendationRunStatus = {
   detail: string;
   trainedCandidateRetrieval: boolean;
   trainedScoring: boolean;
+  curatorLens: CuratorLensRunStatus | null;
+};
+export type CuratorLensRunStatus = {
+  curatorId: string;
+  mode: "exact_list" | "inspiration" | string;
+  status: "active" | "contract_ready" | "not_applied" | string;
+  source: string;
+};
+export type CuratorLensRequestPayload = {
+  curatorId: string;
+  mode: "exact_list" | "inspiration";
+  anchorSourceMovieIds: string[];
+  provenance: {
+    sourceName: string;
+    sourceUrl: string;
+    retrievedAt: string;
+  };
 };
 export type SaveSessionOutcomeRequest = SaveSessionOutcomePayload;
 export type SavePostWatchFeedbackRequest = PostWatchFeedbackPayload;
@@ -148,6 +165,7 @@ export type LoadShortlistRequest = {
   tonightIntents?: AppliedTonightIntentPayload[];
   excludedSourceMovieIds?: string[];
   sessionReactions?: ScoringSessionReactionPayload[];
+  curatorLens?: CuratorLensRequestPayload | null;
 };
 
 export type LoadShortlistResponse = {
@@ -514,6 +532,9 @@ function parseRecommendationRunStatus(
     value.trainedCandidateRetrieval ?? value.trained_candidate_retrieval,
   );
   const trainedScoring = booleanValue(value.trainedScoring ?? value.trained_scoring);
+  const curatorLens = parseCuratorLensRunStatus(
+    value.curatorLens ?? value.curator_lens,
+  );
   if (
     !mode ||
     !label ||
@@ -529,7 +550,18 @@ function parseRecommendationRunStatus(
     detail,
     trainedCandidateRetrieval,
     trainedScoring,
+    curatorLens,
   };
+}
+
+function parseCuratorLensRunStatus(value: unknown): CuratorLensRunStatus | null {
+  if (!isRecord(value)) return null;
+  const curatorId = stringValue(value.curatorId ?? value.curator_id);
+  const mode = stringValue(value.mode);
+  const status = stringValue(value.status);
+  const source = stringValue(value.source);
+  if (!curatorId || !mode || !status || !source) return null;
+  return { curatorId, mode, status, source };
 }
 
 function parseShortlistCandidate(

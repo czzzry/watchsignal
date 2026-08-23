@@ -1185,10 +1185,7 @@ summary:focus-visible {
   position: relative;
   overflow: hidden;
   border-radius: 30px;
-  background:
-    radial-gradient(circle at 50% 46%, rgba(51, 81, 117, 0.16), transparent 28%),
-    linear-gradient(180deg, rgba(1, 4, 9, 0.42) 0%, rgba(2, 4, 8, 0.04) 33%, rgba(2, 4, 8, 0.86) 100%),
-    #04070c;
+  background: #04070c;
 }
 
 .startupCinematicHeader {
@@ -1217,8 +1214,7 @@ summary:focus-visible {
   width: 9px;
   height: 9px;
   border-radius: 999px;
-  background: linear-gradient(180deg, rgba(120,240,255,0.95), rgba(191,143,255,0.92));
-  box-shadow: 0 0 18px rgba(120,240,255,0.26);
+  background: #78f0ff;
 }
 
 .startupDisplayTitle {
@@ -1248,62 +1244,42 @@ summary:focus-visible {
   position: relative;
   display: grid;
   align-content: start;
-  margin: 6px 0 0;
+  width: calc(100% + 28px);
+  margin: 8px -14px 0;
   padding-top: 0;
   padding-bottom: 0;
-  overflow: hidden;
+  overflow: visible;
   background: transparent;
 }
 
 .startupSceneGlow {
-  position: absolute;
-  inset: 38px 34px auto;
-  height: 300px;
-  border-radius: 999px;
-  background:
-    radial-gradient(circle at 38% 54%, rgba(120, 240, 255, 0.11), transparent 25%),
-    radial-gradient(circle at 66% 52%, rgba(191, 143, 255, 0.12), transparent 31%),
-    radial-gradient(circle at center, rgba(255, 255, 255, 0.025), transparent 60%);
-  filter: blur(42px);
-  pointer-events: none;
+  display: none;
 }
 
 .startupSceneVignette {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(180deg, rgba(3, 6, 11, 0.02) 0%, rgba(3, 6, 11, 0.04) 42%, rgba(3, 6, 11, 0.62) 100%),
-    radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.025), transparent 38%);
-  pointer-events: none;
-  z-index: 1;
+  display: none;
 }
 
 .startupSceneHorizon {
-  position: absolute;
-  inset: auto 92px 174px;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(160, 224, 255, 0.2), transparent);
-  box-shadow: 0 0 20px rgba(120, 240, 255, 0.08);
-  pointer-events: none;
+  display: none;
 }
 
 .startupOrbWrap {
-  min-height: 326px;
+  width: 100%;
+  min-height: 374px;
   padding: 0;
   position: relative;
   display: grid;
   place-items: center;
-  background: none;
   border-radius: 0;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .startupOrbWrap.heroVisual,
 .startupOrbWrap.heroVisualReady {
-  background: none;
   border-radius: 0;
-  overflow: visible;
-  min-height: 326px;
+  overflow: hidden;
+  min-height: 374px;
 }
 
 .startupBoardShell {
@@ -1314,15 +1290,8 @@ summary:focus-visible {
   margin: -88px 0 0;
   padding: 0;
   border-radius: 17px;
-  border: 1px solid rgba(126, 150, 183, 0.16);
-  background:
-    linear-gradient(180deg, rgba(12, 18, 28, 0.74), rgba(7, 11, 18, 0.84)),
-    rgba(255, 255, 255, 0.015);
-  box-shadow:
-    0 14px 34px rgba(0, 0, 0, 0.34),
-    0 0 0 1px rgba(98, 128, 255, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(16px);
+  border: 1px solid #222d3b;
+  background: #0a111b;
 }
 
 .startupBoardHeader {
@@ -1372,13 +1341,10 @@ summary:focus-visible {
   border: 0;
   border-radius: 17px;
   padding: 6px 12px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.026), rgba(255,255,255,0.008)),
-    rgba(255,255,255,0.02);
+  background: #0d1622;
   display: grid;
   gap: 0;
   overflow: clip;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .startupControlRow {
@@ -1974,47 +1940,26 @@ summary:focus-visible {
 }
 
 .heroSignalReady {
-  width: min(100%, 352px);
-  height: 326px;
-  border-radius: 0;
-  position: relative;
-  background: none;
-  filter: drop-shadow(0 0 22px rgba(120, 240, 255, 0.15))
-    drop-shadow(0 0 52px rgba(191, 143, 255, 0.16));
+  display: contents;
 }
 
 .startupConceptHero {
   position: relative;
   width: 100%;
-  height: 326px;
+  height: 374px;
   display: grid;
   place-items: center;
   overflow: hidden;
-  animation: startupClusterFloat 7.2s ease-in-out infinite;
 }
 
 .startupConceptHeroImage {
   position: absolute;
-  top: -126px;
-  left: 50%;
-  z-index: 1;
-  width: 74%;
-  height: auto;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   display: block;
-  object-fit: contain;
-  object-position: center top;
-  transform: translateX(-50%);
-  opacity: 1;
-  filter: none;
-  image-rendering: auto;
-  -webkit-mask-image:
-    linear-gradient(180deg, #000 0%, #000 88%, transparent 100%),
-    linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%);
-  -webkit-mask-composite: source-in;
-  mask-image:
-    linear-gradient(180deg, #000 0%, #000 88%, transparent 100%),
-    linear-gradient(90deg, transparent 0%, #000 12%, #000 88%, transparent 100%);
-  mask-composite: intersect;
+  object-fit: cover;
+  object-position: center 57%;
 }
 
 @keyframes startupClusterFloat {

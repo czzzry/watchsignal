@@ -31,6 +31,17 @@ The source product intent and decision posture were carried over from the n8n co
 - **Recovery** - Resuming an interrupted private transition at a safe state without revealing a prior participant's ballot.
 - **Interruption** - A private transition that cannot be recovered safely and must return to a clean start.
 
+## Taste Lens language
+
+- **Taste Lens** - A session-only, explicitly selected source of film-selection signals used to shape one movie-night search. It never changes a household member's durable Taste Lab profile.
+- **Curator** - The person whose attributable film selections supply a Taste Lens. A curator is not assumed to have a complete or stable taste profile.
+- **Exact list** - A Taste Lens mode that restricts the candidate pool to the curator's attributed selections, then applies household fit, availability, and diversity ranking.
+- **Inspiration** - A Taste Lens mode that uses attributable curator selections as retrieval anchors for the wider catalogue. Results must be labelled as inspired by the selections, not as published picks.
+- **Browse** - A non-recommendation Taste Lens mode that shows attributable selections without household ranking.
+- **Source provenance** - The publisher, URL, date or version where known, signal meaning, rank meaning, and reuse status attached to a curator selection.
+- **Eligible selection** - An attributed selection that has a normalized movie identifier, remains unseen for the requested household context, and satisfies the current availability and hard constraints.
+- **Permission-cleared catalogue** - A catalogue whose selected titles may be stored and presented in the product under an affirmative license, written permission, or direct rightsholder provision. Public visibility alone is not permission to ingest.
+
 ## Private-transition recovery direction
 
 - [ADR-002](docs/adrs/ADR-002-private-transition-recovery.md) owns the selected recovery architecture, privacy, retention, and rollback contract.

@@ -60,4 +60,19 @@ def register_recommendation_routes(
             response.headers["X-WatchSignal-Trained-Scoring"] = str(
                 run.trained_scoring
             ).lower()
+            if run.curator_lens is not None:
+                response.headers["X-WatchSignal-Curator-Lens-Id"] = (
+                    run.curator_lens.curator_id
+                )
+                response.headers["X-WatchSignal-Curator-Lens-Mode"] = (
+                    run.curator_lens.mode.value
+                )
+                response.headers["X-WatchSignal-Curator-Lens-Status"] = (
+                    run.curator_lens_status.value
+                    if run.curator_lens_status is not None
+                    else "not_applied"
+                )
+                response.headers["X-WatchSignal-Curator-Lens-Source"] = (
+                    run.curator_lens.provenance.source_name
+                )
         return [offline_shortlist_item_to_payload(item) for item in run.shortlist]
