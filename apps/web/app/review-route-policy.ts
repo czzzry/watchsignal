@@ -1,4 +1,4 @@
-const reviewOnlyRoutePrefixes = ["/prototype", "/showcase"] as const;
+const reviewOnlyRoutePrefixes = ["/prototype"] as const;
 const reviewOnlyExactRoutes = new Set(["/redesign-gauntlet-status.json"]);
 
 export function isReviewOnlyRoute(pathname: string): boolean {

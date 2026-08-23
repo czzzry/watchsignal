@@ -17,14 +17,12 @@ test("S23 status normalizes to twenty-three accepted slices", () => {
   );
 });
 
-test("S23 production hides prototype, progress, and showcase routes", () => {
+test("S23 production hides prototype and progress routes", () => {
   for (const pathname of [
     "/prototype",
     "/prototype/redesign-gauntlet",
     "/prototype/north-star-result",
     "/redesign-gauntlet-status.json",
-    "/showcase",
-    "/showcase/flow",
   ]) {
     assert.equal(isReviewOnlyRoute(pathname), true);
     assert.equal(shouldHideReviewOnlyRoute(pathname, "production"), true);
@@ -41,6 +39,8 @@ test("S23 production route policy does not hide consumer or lookalike routes", (
     "/taste-lab",
     "/credits",
     "/api/session",
+    "/showcase",
+    "/showcase/flow",
     "/prototype-notes",
     "/showcaseable",
   ]) {
