@@ -188,7 +188,9 @@ class DeterministicTonightIntentProvider:
             filters["people"] = [intent.raw_name for intent in person_intents]
             soft_signals.append("person-request")
 
-        excluded_signals = list(_dedupe(excluded_signals))
+        excluded_signals = list(
+            _dedupe([_normalize_signal(signal) for signal in excluded_signals])
+        )
         soft_signals = [
             signal
             for signal in _dedupe(soft_signals)
@@ -538,7 +540,7 @@ def _directed_mood_signals(text: str) -> tuple[str, ...]:
 def _excluded_signals(text: str) -> tuple[str, ...]:
     exclusions: list[str] = []
     for match in re.finditer(
-        r"\b(?:not|no|nothing with|without)\s+([a-z][a-z-]+)\b",
+        r"\b(?:not|no|nothing with|without|less)\s+(?:of\s+)?([a-z][a-z-]+)\b",
         text,
     ):
         excluded_signal = match.group(1)
@@ -583,6 +585,9 @@ def _normalize_signal(value: str) -> str:
         "science fiction": "sci-fi",
         "sci fi": "sci-fi",
         "scifi": "sci-fi",
+        "superheo": "superhero",
+        "superheros": "superhero",
+        "superheroes": "superhero",
         "romantic": "romance",
         "comedies": "comedy",
         "subtitled": "subtitles",

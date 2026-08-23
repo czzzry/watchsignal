@@ -107,6 +107,43 @@ test("S12 keeps valid live movies while honestly disclosing local-only persisten
   assert.equal(events.at(-1)[0], "sync-finish");
 });
 
+test("trained-model failure never swaps in a demo or popularity substitute", async () => {
+  const events = [];
+  const outcome = await startPassThePhoneSession(
+    {
+      apiConnected: true,
+      isCoupleSession: true,
+      sessionMode: "compromise",
+      participantIds: ["husband", "wife"],
+      shortlistSize: 5,
+      availabilityRegion: "Prime Video Germany",
+      activeTonightIntent: null,
+      activeTonightIntents: [],
+      fallbackCandidates: demoCandidateViewModels,
+      disconnectedMessage: "offline",
+    },
+    ports(events),
+    {
+      createId: () => "trained-unavailable",
+      loadShortlist: async () => {
+        throw new Error(
+          "Personalized recommendations are temporarily unavailable because the trained model bundle could not be verified. WatchSignal did not use a popularity fallback for this run.",
+        );
+      },
+      createSession: async () => { throw new Error("must not create"); },
+      continueSession: async () => { throw new Error("must not continue"); },
+    },
+  );
+
+  assert.equal(outcome.status, "failed");
+  assert.equal(events.some(([name]) => name === "navigate"), false);
+  const failure = events
+    .filter(([name]) => name === "session")
+    .map(([, value]) => value.apiError)
+    .find((message) => /did not show a popularity-based substitute/i.test(message ?? ""));
+  assert.ok(failure);
+});
+
 function ports(events) {
   return {
     resetBatch: (candidates) => events.push(["reset", candidates]),

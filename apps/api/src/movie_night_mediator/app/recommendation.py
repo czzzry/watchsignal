@@ -42,6 +42,7 @@ from movie_night_mediator.fixtures.demo_couple import (
 )
 from movie_night_mediator.scoring import (
     ScoringEngineId,
+    V2ContractScorer,
     build_recommendation_scorer,
 )
 from movie_night_mediator.app.setup import SQLiteSetupStore
@@ -59,6 +60,22 @@ from movie_night_mediator.domain import (
 class RecommendationSource(StrEnum):
     DEMO = "demo"
     LIVE_TMDB = "live_tmdb"
+
+
+class RecommendationRunMode(StrEnum):
+    DEMO = "demo"
+    PERSONALIZED_HYBRID = "personalized_hybrid"
+    EXPLICIT_ROLLBACK = "explicit_rollback"
+
+
+@dataclass(frozen=True)
+class RecommendationRun:
+    shortlist: tuple[OfflineShortlistItem, ...]
+    mode: RecommendationRunMode
+    label: str
+    detail: str
+    trained_candidate_retrieval: bool
+    trained_scoring: bool
 
 
 @dataclass(frozen=True)
@@ -89,6 +106,12 @@ class RecommendationSourceUnavailableError(RecommendationServiceError):
 
 
 class IncompleteRecommendationError(RecommendationServiceError):
+    pass
+
+
+class PersonalizedRecommendationUnavailableError(RecommendationSourceUnavailableError):
+    """The requested trained run could not be verified, so no slate is made."""
+
     pass
 
 
@@ -127,6 +150,12 @@ class RecommendationService:
         self,
         request: RecommendationRequest,
     ) -> tuple[OfflineShortlistItem, ...]:
+        return self.recommend_run(request).shortlist
+
+    def recommend_run(
+        self,
+        request: RecommendationRequest,
+    ) -> RecommendationRun:
         users = self._users_for_request(request)
         watched_ids = self._watched_ids_for_request(request)
         recently_rejected_ids, softly_rejected_ids = self._historical_rejection_ids_for_request(
@@ -135,16 +164,23 @@ class RecommendationService:
         scorer = build_recommendation_scorer(request.scoring_engine)
 
         if request.source == RecommendationSource.DEMO:
-            return get_offline_demo_shortlist(
-                session=request.session,
-                users=users,
-                snapshot_service=self._snapshot_service,
-                excluded_source_movie_ids=request.excluded_source_movie_ids,
-                watched_source_movie_ids=watched_ids,
-                scorer=scorer,
-                session_reactions=request.session_reactions,
-                recently_rejected_source_movie_ids=recently_rejected_ids,
-                softly_rejected_source_movie_ids=softly_rejected_ids,
+            return RecommendationRun(
+                shortlist=get_offline_demo_shortlist(
+                    session=request.session,
+                    users=users,
+                    snapshot_service=self._snapshot_service,
+                    excluded_source_movie_ids=request.excluded_source_movie_ids,
+                    watched_source_movie_ids=watched_ids,
+                    scorer=scorer,
+                    session_reactions=request.session_reactions,
+                    recently_rejected_source_movie_ids=recently_rejected_ids,
+                    softly_rejected_source_movie_ids=softly_rejected_ids,
+                ),
+                mode=RecommendationRunMode.DEMO,
+                label="Built-in demo picks",
+                detail="This is the local demo catalog, not a personalized live recommendation.",
+                trained_candidate_retrieval=False,
+                trained_scoring=False,
             )
 
         candidate_source = self._candidate_source or self._candidate_source_factory()
@@ -156,11 +192,16 @@ class RecommendationService:
             self._default_candidate_retriever = build_default_personalized_retriever()
             self._default_candidate_retriever_loaded = True
         retriever = retriever or self._default_candidate_retriever
-        if (
-            retriever is not None
-            and retriever.available
-            and supports_explicit_hydration
-        ):
+        requires_trained_run = request.scoring_engine in {
+            ScoringEngineId.V2_COLLABORATIVE,
+            ScoringEngineId.V2_HYBRID,
+        }
+        if requires_trained_run:
+            self._require_verified_personalization(
+                retriever=retriever,
+                supports_explicit_hydration=supports_explicit_hydration,
+                scorer=scorer,
+            )
             candidate_source = PersonalizedCandidateSource(
                 base_source=candidate_source,
                 retriever=retriever,
@@ -201,7 +242,58 @@ class RecommendationService:
                 )
             raise IncompleteRecommendationError(detail)
 
-        return shortlist
+        if requires_trained_run:
+            return RecommendationRun(
+                shortlist=shortlist,
+                mode=RecommendationRunMode.PERSONALIZED_HYBRID,
+                label="Personalized model active",
+                detail=(
+                    "Candidates came from the trained taste model, then were "
+                    "checked for availability, safety, tonight's nudges, and variety."
+                ),
+                trained_candidate_retrieval=True,
+                trained_scoring=True,
+            )
+
+        return RecommendationRun(
+            shortlist=shortlist,
+            mode=RecommendationRunMode.EXPLICIT_ROLLBACK,
+            label="Rollback recommendation mode",
+            detail=(
+                "This run used the explicitly selected fallback scorer. It is not "
+                "a trained personalized-model test."
+            ),
+            trained_candidate_retrieval=False,
+            trained_scoring=False,
+        )
+
+    @staticmethod
+    def _require_verified_personalization(
+        *,
+        retriever: PersonalizedCandidateRetriever | None,
+        supports_explicit_hydration: bool,
+        scorer,
+    ) -> None:
+        unavailable_detail = (
+            "Personalized recommendations are temporarily unavailable because the "
+            "trained model bundle could not be verified. WatchSignal did not use a "
+            "popularity fallback for this run."
+        )
+        if not supports_explicit_hydration:
+            raise PersonalizedRecommendationUnavailableError(
+                unavailable_detail
+                + " The live movie provider cannot hydrate the model's candidate pool."
+            )
+        if retriever is None or not retriever.available:
+            raise PersonalizedRecommendationUnavailableError(unavailable_detail)
+        if not isinstance(scorer, V2ContractScorer) or not scorer.learned_taste_available:
+            reason = (
+                scorer.learned_taste_unavailable_reason
+                if isinstance(scorer, V2ContractScorer)
+                else None
+            )
+            suffix = f" Reason: {reason}" if reason else ""
+            raise PersonalizedRecommendationUnavailableError(unavailable_detail + suffix)
 
     def _users_for_request(
         self,

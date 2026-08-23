@@ -317,6 +317,19 @@ class TonightIntentInterpreterTest(unittest.TestCase):
         self.assertIn("family", nudge.excluded_signals)
         self.assertIn("pixar-like", nudge.excluded_signals)
 
+    def test_directed_nudge_covers_each_less_clause_and_corrects_domain_typo(
+        self,
+    ) -> None:
+        nudge = DeterministicTonightIntentProvider().interpret_directed_nudge(
+            "less kid friendly and less superheo movie"
+        )
+
+        self.assertEqual(nudge.resolution, DirectedNudgeResolution.EXACT)
+        self.assertIn("family", nudge.excluded_signals)
+        self.assertIn("animation", nudge.excluded_signals)
+        self.assertIn("superhero", nudge.excluded_signals)
+        self.assertIn("superhero", nudge.user_facing_summary or "")
+
     def test_directed_nudge_marks_unsupported_aesthetic_request(self) -> None:
         nudge = DeterministicTonightIntentProvider().interpret_directed_nudge(
             "i want a very green movie"

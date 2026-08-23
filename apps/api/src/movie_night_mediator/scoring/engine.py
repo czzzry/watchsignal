@@ -4,7 +4,6 @@ from dataclasses import dataclass, replace
 from enum import StrEnum
 from functools import lru_cache
 import math
-import os
 from pathlib import Path
 
 from movie_night_mediator.domain import (
@@ -32,6 +31,7 @@ from movie_night_mediator.scoring.learned_taste import (
     load_collaborative_taste_provider,
     load_hybrid_taste_provider,
 )
+from movie_night_mediator.scoring.runtime_artifacts import runtime_artifact_paths
 
 
 class ScoringEngineId(StrEnum):
@@ -57,6 +57,18 @@ class V2ContractScorer:
         self._learned_taste_provider = learned_taste_provider
         self._scorer_version = scorer_version
         self._learned_taste_fallback_reason = learned_taste_fallback_reason
+
+    @property
+    def learned_taste_available(self) -> bool:
+        """Whether the configured learned artifact actually loaded."""
+        return (
+            self._learned_taste_provider is not None
+            and self._learned_taste_fallback_reason is None
+        )
+
+    @property
+    def learned_taste_unavailable_reason(self) -> str | None:
+        return self._learned_taste_fallback_reason
 
     def score(self, request: ScoringRequest) -> RecommendationResult:
         result = self._delegate.score(request)
@@ -173,32 +185,16 @@ def build_recommendation_scorer(
 def _configured_learned_taste_provider(
     engine: ScoringEngineId,
 ) -> tuple[LearnedTasteProvider | None, str | None]:
-    project_root = Path(__file__).resolve().parents[5]
-    links_path = Path(
-        os.environ.get(
-            "MOVIE_NIGHT_LEARNED_TASTE_LINKS_PATH",
-            project_root / ".tools/models/movielens-tmdb-links-v1.json",
-        )
-    )
+    paths = runtime_artifact_paths()
     if engine == ScoringEngineId.V2_COLLABORATIVE:
-        artifact_path = Path(
-            os.environ.get(
-                "MOVIE_NIGHT_COLLABORATIVE_MODEL_PATH",
-                project_root / ".tools/models/collaborative-search-candidate.zip",
-            )
-        )
+        artifact_path = paths.collaborative_model
     else:
-        artifact_path = Path(
-            os.environ.get(
-                "MOVIE_NIGHT_HYBRID_MODEL_PATH",
-                project_root / ".tools/models/hybrid-v1.zip",
-            )
-        )
+        artifact_path = paths.hybrid_model
     try:
         return _load_learned_taste_provider(
             engine.value,
             str(artifact_path),
-            str(links_path),
+            str(paths.links),
         ), None
     except LearnedTasteProviderError as error:
         return None, str(error)

@@ -672,6 +672,7 @@ class TmdbCandidateSource:
             ),
             genres=_genre_names(details),
             metadata_keywords=_metadata_keywords(details),
+            collection_name=_collection_name(details),
             overview=_string_value(details.get("overview"))
             or _string_value(result.get("overview"))
             or "",
@@ -800,6 +801,13 @@ def _metadata_keywords(details: Mapping[str, object]) -> tuple[str, ...]:
             if (name := _string_value(keyword.get("name"))) is not None
         )
     )
+
+
+def _collection_name(details: Mapping[str, object]) -> str | None:
+    collection = details.get("belongs_to_collection")
+    if not isinstance(collection, Mapping):
+        return None
+    return _string_value(collection.get("name"))
 
 
 def _person_movie_credits(

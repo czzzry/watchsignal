@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 
 from movie_night_mediator.api.recommendation_contract import (
     RecommendationProviderAvailabilityPayload,
@@ -39,9 +39,10 @@ def register_recommendation_routes(
     )
     def post_recommendation_shortlist(
         payload: RecommendationShortlistRequestPayload,
+        response: Response = None,
     ) -> list[RecommendationShortlistItemPayload]:
         try:
-            shortlist = recommendation_service.recommend(
+            run = recommendation_service.recommend_run(
                 recommendation_request_from_payload(payload)
             )
         except RecommendationSourceUnavailableError as error:
@@ -49,4 +50,14 @@ def register_recommendation_routes(
         except IncompleteRecommendationError as error:
             raise HTTPException(status_code=502, detail=str(error)) from error
 
-        return [offline_shortlist_item_to_payload(item) for item in shortlist]
+        if response is not None:
+            response.headers["X-WatchSignal-Run-Mode"] = run.mode.value
+            response.headers["X-WatchSignal-Run-Label"] = run.label
+            response.headers["X-WatchSignal-Run-Detail"] = run.detail
+            response.headers["X-WatchSignal-Trained-Retrieval"] = str(
+                run.trained_candidate_retrieval
+            ).lower()
+            response.headers["X-WatchSignal-Trained-Scoring"] = str(
+                run.trained_scoring
+            ).lower()
+        return [offline_shortlist_item_to_payload(item) for item in run.shortlist]

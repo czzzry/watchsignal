@@ -789,6 +789,7 @@ class Candidate:
     backdrop_url: str | None = None
     genres: tuple[str, ...] = ()
     metadata_keywords: tuple[str, ...] = ()
+    collection_name: str | None = None
     overview: str = ""
     top_cast: tuple[str, ...] = ()
     cast_details: tuple[CandidateCastMember, ...] = ()
@@ -822,6 +823,11 @@ class Candidate:
                     if keyword.strip()
                 )
             ),
+        )
+        object.__setattr__(
+            self,
+            "collection_name",
+            self.collection_name.strip() if self.collection_name is not None else None,
         )
         object.__setattr__(
             self,

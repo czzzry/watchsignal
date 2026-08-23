@@ -8,6 +8,7 @@ from movie_night_mediator.adapters import TmdbCandidateSourceError
 from movie_night_mediator.app.backfill import ManualBackfillService
 from movie_night_mediator.app.recommendation import (
     IncompleteRecommendationError,
+    PersonalizedRecommendationUnavailableError,
     RecommendationRequest,
     RecommendationService,
     RecommendationSource,
@@ -37,6 +38,7 @@ from movie_night_mediator.domain import (
     SharedMovieNightSession,
     SharedSessionState,
 )
+from movie_night_mediator.scoring import ScoringEngineId
 from movie_night_mediator.storage import (
     SQLiteBackfillStore,
     SQLiteRecommendationSnapshotStore,
@@ -158,6 +160,27 @@ class RecommendationServiceTest(unittest.TestCase):
                         source=RecommendationSource.LIVE_TMDB,
                     )
                 )
+
+    def test_trained_live_request_fails_closed_when_personalized_pool_cannot_load(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            service, _ = recommendation_service(
+                Path(directory),
+                candidate_source=RepeatCandidateSource(),
+            )
+
+            with self.assertRaises(PersonalizedRecommendationUnavailableError) as raised:
+                service.recommend(
+                    RecommendationRequest(
+                        household_id="default-household",
+                        source=RecommendationSource.LIVE_TMDB,
+                        scoring_engine=ScoringEngineId.V2_HYBRID,
+                        session=SessionContext(session_id="requires-trained-run"),
+                    )
+                )
+
+            self.assertIn("did not use a popularity fallback", str(raised.exception))
 
     def test_fetch_budget_remains_bounded_and_accounts_for_filtered_titles(
         self,

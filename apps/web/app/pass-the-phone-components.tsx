@@ -44,6 +44,7 @@ import {
   type HouseholdHistorySummaryPayload,
   type OnboardingCompletionPayload,
   type ProfileMemorySummaryPayload,
+  type RecommendationRunStatus,
   type SharedSessionPayload,
   type TasteProfileSummaryPayload,
   type TasteMemoryEventPayload,
@@ -1729,6 +1730,7 @@ export function ResultsStep({
   sharedSession,
   activeTonightIntents,
   recommendationSource,
+  recommendationRunStatus,
   availabilityRegion,
   steerText,
   pendingSteerIntent,
@@ -1766,6 +1768,7 @@ export function ResultsStep({
   sharedSession: SharedSessionPayload | null;
   activeTonightIntents: TonightIntentInterpretationPayload[];
   recommendationSource: string;
+  recommendationRunStatus: RecommendationRunStatus | null;
   availabilityRegion: string;
   steerText: string;
   pendingSteerIntent: TonightIntentInterpretationPayload | null;
@@ -1927,6 +1930,12 @@ export function ResultsStep({
 
   const utilityContent = (
     <div className="resultUtilityStack">
+      {recommendationRunStatus ? (
+        <section className="recommendationRunStatus" role="status">
+          <strong>{recommendationRunStatus.label}</strong>
+          <p>{recommendationRunStatus.detail}</p>
+        </section>
+      ) : null}
       <ResultUtilityHub
         view={utilityView}
         winnerTitle={bestPick.title}

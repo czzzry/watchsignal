@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
 import numpy as np
 
@@ -9,6 +12,7 @@ from movie_night_mediator.app.personalized_recommendation import (
     MovieLensCatalogEntry,
     PersonalizedCandidateSource,
     PersonalizedCandidateRetriever,
+    _semantic_rejection_penalties,
 )
 from movie_night_mediator.domain import (
     AudienceMode,
@@ -16,9 +20,12 @@ from movie_night_mediator.domain import (
     HouseholdDefaults,
     MediaType,
     ProfileTasteEvidence,
+    ScoringSessionReaction,
     SessionContext,
     UserProfile,
 )
+from movie_night_mediator.scoring.learned_taste import MovieLensLinkMap
+from movie_night_mediator.scoring.runtime_artifacts import runtime_artifact_paths
 
 
 @dataclass(frozen=True)
@@ -79,18 +86,41 @@ class _HydratingSource:
             for source_id in source_movie_ids
         )
 
-    def fetch_candidates(self, *, limit, **_kwargs):
-        return tuple(
-            Candidate(
-                source_movie_id=f"tmdb:explore-{index}",
-                title=f"Exploration {index}",
-                media_type=MediaType.MOVIE,
-            )
-            for index in range(limit)
+
+class _PartialHydratingSource(_HydratingSource):
+    def fetch_candidates_for_source_ids(self, *, source_movie_ids, **_kwargs):
+        return super().fetch_candidates_for_source_ids(
+            source_movie_ids=source_movie_ids[:1]
         )
+
+    def fetch_candidates(self, *, limit, **_kwargs):
+        raise AssertionError("A personalized run must not ask for popularity exploration.")
 
 
 class PersonalizedRecommendationEngineTest(unittest.TestCase):
+    def test_vercel_function_explicitly_includes_runtime_model_bundle(self) -> None:
+        api_root = Path(__file__).resolve().parents[1]
+        config = json.loads((api_root / "vercel.json").read_text())
+
+        self.assertEqual(
+            config["functions"]["app.py"]["includeFiles"],
+            "runtime/models/**",
+        )
+
+    def test_runtime_bundle_paths_are_relative_to_deployed_api_root(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            api_root = Path(directory) / "api"
+            paths = runtime_artifact_paths(api_root=api_root)
+
+        self.assertEqual(
+            paths.hybrid_model,
+            api_root / "runtime" / "models" / "hybrid-v1.zip",
+        )
+        self.assertEqual(
+            paths.links,
+            api_root / "runtime" / "models" / "movielens-tmdb-links-v1.json.gz",
+        )
+
     def test_retrieval_is_profile_driven_and_merges_content_lane(self) -> None:
         provider = _Provider()
         content_provider = _Provider(
@@ -181,7 +211,7 @@ class PersonalizedRecommendationEngineTest(unittest.TestCase):
         self.assertNotIn("tmdb:101", {row.source_movie_id for row in rows})
         self.assertTrue(rows)
 
-    def test_source_adapter_hydrates_learned_ids_before_exploration(self) -> None:
+    def test_source_adapter_hydrates_learned_ids(self) -> None:
         provider = _Provider()
         retriever = PersonalizedCandidateRetriever(
             collaborative_provider=provider,
@@ -221,6 +251,65 @@ class PersonalizedRecommendationEngineTest(unittest.TestCase):
 
         self.assertTrue(candidates)
         self.assertTrue(candidates[0].source_movie_id.startswith("tmdb:10"))
+
+    def test_personalized_source_does_not_silently_fill_from_popularity(self) -> None:
+        provider = _Provider()
+        retriever = PersonalizedCandidateRetriever(
+            collaborative_provider=provider,
+            catalog=(
+                MovieLensCatalogEntry(1, "tmdb:101", "Profile bridge"),
+                MovieLensCatalogEntry(2, "tmdb:102", "Second bridge"),
+            ),
+            minimum_profile_matches=1,
+        )
+        source = PersonalizedCandidateSource(
+            base_source=_PartialHydratingSource(),
+            retriever=retriever,
+        )
+        user = UserProfile(
+            user_id="warm",
+            role="user_a",
+            display_label="Warm",
+            taste_profile_evidence=(
+                ProfileTasteEvidence(
+                    source="taste_lab",
+                    source_movie_id="movielens:1",
+                    title="Profile seed",
+                    preference_value=1.0,
+                ),
+            ),
+        )
+
+        candidates = source.fetch_personalized_candidates(
+            session=SessionContext(session_id="strict-source"),
+            household_defaults=HouseholdDefaults(),
+            users=(user,),
+            limit=2,
+        )
+
+        self.assertEqual(len(candidates), 1)
+        self.assertNotIn("Exploration", candidates[0].title)
+
+    def test_multiple_no_reactions_penalize_the_same_latent_lane(self) -> None:
+        provider = _Provider(
+            factors=np.asarray(
+                [[1.0, 0.0], [0.9, 0.0], [0.8, 0.0], [0.0, 1.0]],
+                dtype=np.float32,
+            )
+        )
+        provider.links = MovieLensLinkMap({"101": 1, "102": 2})
+
+        penalties = _semantic_rejection_penalties(
+            provider=provider,
+            candidate_movie_ids=np.asarray([3, 4], dtype=np.int32),
+            session_reactions=(
+                ScoringSessionReaction("tmdb:101", "no", "First rejected"),
+                ScoringSessionReaction("tmdb:102", "no", "Second rejected"),
+            ),
+        )
+
+        self.assertGreater(penalties.get(3, 0.0), 0.2)
+        self.assertNotIn(4, penalties)
 
 
 if __name__ == "__main__":

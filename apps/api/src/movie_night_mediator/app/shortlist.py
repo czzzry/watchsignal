@@ -257,7 +257,13 @@ def get_candidate_source_shortlist(
         recently_rejected_source_movie_ids=recently_rejected_source_movie_ids,
         softly_rejected_source_movie_ids=softly_rejected_source_movie_ids,
     )
-    return _select_diverse_shortlist(result.ranked_candidates, limit=limit)
+    return _select_diverse_shortlist(
+        result.ranked_candidates,
+        candidates_by_source_id={
+            candidate.source_movie_id: candidate for candidate in result.candidates
+        },
+        limit=limit,
+    )
 
 
 def get_candidate_source_shortlist_items(
@@ -292,10 +298,14 @@ def get_candidate_source_shortlist_items(
         recently_rejected_source_movie_ids=recently_rejected_source_movie_ids,
         softly_rejected_source_movie_ids=softly_rejected_source_movie_ids,
     )
-    ranked_candidates = _select_diverse_shortlist(result.ranked_candidates, limit=limit)
     candidates_by_source_id = {
         candidate.source_movie_id: candidate for candidate in result.candidates
     }
+    ranked_candidates = _select_diverse_shortlist(
+        result.ranked_candidates,
+        candidates_by_source_id=candidates_by_source_id,
+        limit=limit,
+    )
     return tuple(
         _candidate_source_shortlist_item(
             ranked,
@@ -335,6 +345,7 @@ def _run_candidate_pipeline(
             users=users,
             limit=candidate_limit,
             excluded_source_movie_ids=tuple(excluded_ids),
+            session_reactions=session_reactions,
         )
     else:
         candidates = candidate_source.fetch_candidates(
@@ -424,28 +435,26 @@ def _score_candidate_source_candidates(
 def _select_diverse_shortlist(
     ranked_candidates: tuple[RankedCandidate, ...],
     *,
+    candidates_by_source_id: dict[str, Candidate] | None = None,
     limit: int,
 ) -> tuple[RankedCandidate, ...]:
-    """Keep popularity pools from becoming an accidental franchise list."""
+    """Choose a slate, not five variations of the same franchise or theme."""
     selected: list[RankedCandidate] = []
     family_counts: dict[str, int] = {}
-    deferred: list[RankedCandidate] = []
+    theme_counts: dict[str, int] = {}
     for candidate in ranked_candidates:
-        family = _title_family_key(candidate.title)
-        if family and family_counts.get(family, 0) >= 2:
-            deferred.append(candidate)
+        source_candidate = (candidates_by_source_id or {}).get(candidate.source_movie_id)
+        family = _franchise_key(source_candidate, title=candidate.title)
+        theme = _slate_theme_key(source_candidate, title=candidate.title)
+        if family and family_counts.get(family, 0) >= 1:
+            continue
+        if theme and theme_counts.get(theme, 0) >= _theme_cap(theme):
             continue
         selected.append(candidate)
         if family:
             family_counts[family] = family_counts.get(family, 0) + 1
-        if len(selected) == limit:
-            return tuple(
-                replace(item, candidate_rank=index)
-                for index, item in enumerate(selected, start=1)
-            )
-
-    for candidate in deferred:
-        selected.append(candidate)
+        if theme:
+            theme_counts[theme] = theme_counts.get(theme, 0) + 1
         if len(selected) == limit:
             break
 
@@ -455,13 +464,83 @@ def _select_diverse_shortlist(
     )
 
 
-def _title_family_key(title: str) -> str:
+def _franchise_key(candidate: Candidate | None, *, title: str) -> str:
+    if candidate is not None and candidate.collection_name:
+        return f"collection:{candidate.collection_name.casefold()}"
+    return _known_title_franchise_key(title)
+
+
+def _known_title_franchise_key(title: str) -> str:
     tokens = re.findall(r"[a-z0-9]+", title.casefold())
-    if len(tokens) < 2:
+    if not tokens:
         return ""
     stop = {"the", "a", "an", "of", "and", "part", "chapter"}
     meaningful = [token for token in tokens if token not in stop]
-    return " ".join(meaningful[:2])
+    if not meaningful:
+        return ""
+    if meaningful[0] in {"x2", "x3"}:
+        return "x-men"
+    franchise_aliases = {
+        "wolverine": "x-men",
+        "logan": "x-men",
+        "spider": "spider-man",
+        "spiderverse": "spider-man",
+    }
+    if meaningful[0] in franchise_aliases:
+        return franchise_aliases[meaningful[0]]
+    known_prefixes = {
+        ("x", "men"): "x-men",
+        ("spider", "man"): "spider-man",
+        ("star", "wars"): "star-wars",
+        ("harry", "potter"): "harry-potter",
+        ("lord", "rings"): "lord-of-the-rings",
+        ("fast", "furious"): "fast-and-furious",
+        ("mission", "impossible"): "mission-impossible",
+        ("james", "bond"): "james-bond",
+        ("super", "mario"): "super-mario",
+    }
+    return known_prefixes.get(tuple(meaningful[:2]), "")
+
+
+def _slate_theme_key(candidate: Candidate | None, *, title: str) -> str | None:
+    values = [title]
+    if candidate is not None:
+        values.extend(candidate.genres)
+        values.extend(candidate.metadata_keywords)
+        values.append(candidate.overview)
+    text = " ".join(values).casefold()
+    if any(
+        marker in text
+        for marker in (
+            "superhero",
+            "super hero",
+            "comic book",
+            "comic-book",
+            "based on comic",
+            "marvel",
+            "dc comics",
+            "spider-man",
+            "spiderman",
+            "x-men",
+            "xmen",
+            "avengers",
+            "batman",
+            "superman",
+            "wonder woman",
+        )
+    ):
+        return "superhero"
+    if "animation" in text or "family" in text or "pixar" in text:
+        return "family-animation"
+    return None
+
+
+def _theme_cap(theme: str) -> int:
+    # A broad pool should never become a superhero or kids-film carousel.
+    # An explicit franchise request can later opt into a different cap.
+    if theme in {"superhero", "family-animation"}:
+        return 1
+    return 2
 
 
 def _mark_already_watched(

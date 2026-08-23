@@ -15,6 +15,7 @@ import {
   saveProfileOnboarding,
   submitSessionReactions,
   toApiSessionMode,
+  type RecommendationRunStatus,
   type SharedSessionPayload,
   type TonightIntentInterpretationPayload,
 } from "../session-client.ts";
@@ -51,6 +52,7 @@ type SessionUpdate = {
   liveSessionId?: string | null;
   shownSourceMovieIds?: string[];
   recommendationSource?: string;
+  recommendationRunStatus?: RecommendationRunStatus | null;
   sessionSource?: "api" | "demo";
   movieSource?: "live" | "local";
   persistenceSource?: "shared" | "local";
@@ -142,6 +144,7 @@ export async function startPassThePhoneSession(
       movieSource: "local",
       persistenceSource: "local",
       recommendationSource: "demo",
+      recommendationRunStatus: null,
       shownSourceMovieIds: fallbackCandidates.map((candidate) => candidate.id),
       apiError: localShortlistNotice(),
     });
@@ -178,6 +181,7 @@ export async function startPassThePhoneSession(
     );
     ports.updateSession({
       recommendationSource: shortlistResponse.recommendationSource,
+      recommendationRunStatus: shortlistResponse.runStatus,
     });
 
     if (!candidates) {
@@ -223,6 +227,13 @@ export async function startPassThePhoneSession(
       persistenceSource,
     };
   } catch (error) {
+    if (isPersonalizedModelAvailabilityFailure(error)) {
+      const message = personalizedModelAvailabilityMessage();
+      ports.resetBatch();
+      ports.updateSession({ apiError: message, recommendationRunStatus: null });
+      ports.updateShortlistStage?.("failed");
+      return { status: "failed", message };
+    }
     return recoverWithFallbackCandidates(error, input, ports, dependencies);
   } finally {
     ports.finishSessionSync();
@@ -275,6 +286,7 @@ export async function continuePassThePhoneSession(
       ports.addShownMovieIds(candidates.map((candidate) => candidate.id));
       ports.updateSession({
         recommendationSource: "demo",
+        recommendationRunStatus: null,
         movieSource: "local",
         persistenceSource: "local",
         apiError: "Using five built-in picks. This round stays on this phone.",
@@ -325,6 +337,7 @@ export async function continuePassThePhoneSession(
     );
     ports.updateSession({
       recommendationSource: shortlistResponse.recommendationSource,
+      recommendationRunStatus: shortlistResponse.runStatus,
     });
 
     if (!candidates) {
@@ -353,7 +366,11 @@ export async function continuePassThePhoneSession(
     });
     ports.navigateToStarted();
   } catch (error) {
-    ports.updateSession({ apiError: publicContinuationFailure() });
+    ports.updateSession({
+      apiError: isPersonalizedModelAvailabilityFailure(error)
+        ? personalizedModelAvailabilityMessage()
+        : publicContinuationFailure(),
+    });
   } finally {
     ports.finishSessionSync();
   }
@@ -492,6 +509,7 @@ async function recoverWithFallbackCandidates(
     liveSessionId: input.isCoupleSession ? null : fallbackSessionId,
     shownSourceMovieIds: fallbackCandidates.map((candidate) => candidate.id),
     recommendationSource: "demo",
+    recommendationRunStatus: null,
     movieSource: "local",
     persistenceSource: "local",
     sessionSource: input.isCoupleSession ? "demo" : "api",
@@ -541,6 +559,20 @@ async function recoverWithFallbackCandidates(
     movieSource: "local",
     persistenceSource: fallbackPersistenceSource,
   };
+}
+
+function isPersonalizedModelAvailabilityFailure(error: unknown): boolean {
+  return error instanceof Error && (
+    error.message.includes("Personalized recommendations are temporarily unavailable") ||
+    error.message.includes("did not use a popularity fallback")
+  );
+}
+
+function personalizedModelAvailabilityMessage(): string {
+  return (
+    "Personalized model is unavailable right now, so WatchSignal did not show " +
+    "a popularity-based substitute. Your setup is still here."
+  );
 }
 
 function excludedMovieIds(input: ContinueSessionInput): string[] {
