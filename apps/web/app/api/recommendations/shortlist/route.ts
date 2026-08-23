@@ -14,10 +14,17 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json(responsePayload, { status: response.status });
   }
 
+  const backendPayload = isRecord(responsePayload) ? responsePayload : null;
+  const shortlist = Array.isArray(backendPayload?.shortlist)
+    ? backendPayload.shortlist
+    : responsePayload;
+  const runStatus = runStatusFromHeaders(response.headers);
+
   return Response.json(
     {
       recommendationSource,
-      shortlist: responsePayload,
+      shortlist,
+      ...(runStatus ? { runStatus } : {}),
     },
     { status: response.status },
   );
@@ -79,4 +86,28 @@ function configuredScoringEngine():
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function runStatusFromHeaders(headers: Headers) {
+  const mode = headers.get("X-WatchSignal-Run-Mode");
+  const label = headers.get("X-WatchSignal-Run-Label");
+  const detail = headers.get("X-WatchSignal-Run-Detail");
+  const trainedCandidateRetrieval = headers.get("X-WatchSignal-Trained-Retrieval");
+  const trainedScoring = headers.get("X-WatchSignal-Trained-Scoring");
+  if (
+    !mode ||
+    !label ||
+    !detail ||
+    (trainedCandidateRetrieval !== "true" && trainedCandidateRetrieval !== "false") ||
+    (trainedScoring !== "true" && trainedScoring !== "false")
+  ) {
+    return null;
+  }
+  return {
+    mode,
+    label,
+    detail,
+    trainedCandidateRetrieval: trainedCandidateRetrieval === "true",
+    trainedScoring: trainedScoring === "true",
+  };
 }

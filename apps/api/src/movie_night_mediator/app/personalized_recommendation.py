@@ -11,7 +11,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 import gzip
 import json
-import os
 from pathlib import Path
 import re
 from functools import lru_cache
@@ -24,10 +23,12 @@ from movie_night_mediator.domain import (
     Candidate,
     CandidateSource,
     HouseholdDefaults,
+    ScoringSessionReaction,
     SessionContext,
     UserProfile,
 )
 from movie_night_mediator.scoring.learned_taste import _fold_in_user
+from movie_night_mediator.scoring.runtime_artifacts import runtime_artifact_paths
 
 
 @dataclass(frozen=True)
@@ -129,6 +130,7 @@ class PersonalizedCandidateRetriever:
         users: tuple[UserProfile, ...],
         limit: int = 50,
         excluded_source_movie_ids: tuple[str, ...] = (),
+        session_reactions: tuple[ScoringSessionReaction, ...] = (),
     ) -> tuple[RetrievedCandidate, ...]:
         if limit < 1 or not self.available:
             return ()
@@ -147,6 +149,7 @@ class PersonalizedCandidateRetriever:
                 users=users,
                 limit=max(limit * 3, 20),
                 excluded=excluded,
+                session_reactions=session_reactions,
             ):
                 lane_by_movie.setdefault(row.movie_id, {})[lane] = row
 
@@ -287,7 +290,7 @@ class PersonalizedCandidateRetriever:
         center = float(np.median(values))
         spread = max(float(np.std(values)), 0.25)
         top_rows = rows[:limit]
-        denominator = max(len(top_rows) - 1, 1)
+        denominator = max(len(rows) - 1, 1)
         return tuple(
             RetrievedCandidate(
                 source_movie_id=self._catalog[movie_id].source_movie_id,
@@ -324,6 +327,7 @@ class PersonalizedCandidateRetriever:
         users: tuple[UserProfile, ...],
         limit: int,
         excluded: set[str],
+        session_reactions: tuple[ScoringSessionReaction, ...],
     ) -> tuple[RetrievedCandidate, ...]:
         model = provider.model
         if not users:
@@ -376,6 +380,23 @@ class PersonalizedCandidateRetriever:
         if not eligible_predictions or eligible_movie_ids is None:
             return ()
         mean_predictions = np.mean(np.vstack(eligible_predictions), axis=0)
+        reaction_penalties = _semantic_rejection_penalties(
+            provider=provider,
+            candidate_movie_ids=eligible_movie_ids,
+            session_reactions=session_reactions,
+        )
+        if reaction_penalties:
+            mean_predictions = np.asarray(
+                [
+                    prediction - reaction_penalties.get(int(movie_id), 0.0)
+                    for movie_id, prediction in zip(
+                        eligible_movie_ids,
+                        mean_predictions,
+                        strict=True,
+                    )
+                ],
+                dtype=np.float64,
+            )
         order = np.argsort(-mean_predictions, kind="stable")
         raw_rows = [
             (int(eligible_movie_ids[index]), float(mean_predictions[index]))
@@ -388,7 +409,7 @@ class PersonalizedCandidateRetriever:
         rows: list[RetrievedCandidate] = []
         lane_weight = 1.0 if lane == "collaborative" else 0.82
         top_rows = raw_rows[:limit]
-        denominator = max(len(top_rows) - 1, 1)
+        denominator = max(len(raw_rows) - 1, 1)
         for rank, (movie_id, raw_prediction) in enumerate(top_rows):
             catalog_entry = self._catalog[movie_id]
             value_score = _relative_retrieval_score(raw_prediction, center, spread)
@@ -404,9 +425,18 @@ class PersonalizedCandidateRetriever:
                     retrieval_score=prediction,
                     lane=lane,
                     profile_match_count=min(profile_matches),
-                    reasons=(
-                        f"retrieved:{lane}",
-                        f"profile_matches:{min(profile_matches)}",
+                    reasons=tuple(
+                        item
+                        for item in (
+                            f"retrieved:{lane}",
+                            f"profile_matches:{min(profile_matches)}",
+                            (
+                                "session_reaction:semantic_no"
+                                if reaction_penalties.get(movie_id, 0.0) > 0
+                                else None
+                            ),
+                        )
+                        if item is not None
                     ),
                 )
             )
@@ -439,7 +469,7 @@ class PersonalizedCandidateRetriever:
 
 
 class PersonalizedCandidateSource:
-    """CandidateSource adapter that puts learned retrieval before exploration."""
+    """CandidateSource adapter that hydrates only learned-retrieval candidates."""
 
     def __init__(
         self,
@@ -471,11 +501,13 @@ class PersonalizedCandidateSource:
         users: tuple[UserProfile, ...],
         limit: int,
         excluded_source_movie_ids: tuple[str, ...] = (),
+        session_reactions: tuple[ScoringSessionReaction, ...] = (),
     ) -> tuple[Candidate, ...]:
         rows = self._retriever.retrieve(
             users=users,
             limit=max(limit * 2, 20),
             excluded_source_movie_ids=excluded_source_movie_ids,
+            session_reactions=session_reactions,
         )
         source_ids = tuple(row.source_movie_id for row in rows)
         hydrate = getattr(self._base_source, "fetch_candidates_for_source_ids", None)
@@ -491,21 +523,61 @@ class PersonalizedCandidateSource:
         )
         by_source_id = {candidate.source_movie_id: candidate for candidate in learned_candidates}
         ordered = [by_source_id[source_id] for source_id in source_ids if source_id in by_source_id]
-        if len(ordered) < limit:
-            exploration = self._base_source.fetch_candidates(
-                session=session,
-                household_defaults=household_defaults,
-                limit=max(limit * 2, 10),
-            )
-            seen = set(by_source_id)
-            for candidate in exploration:
-                if candidate.source_movie_id in excluded_source_movie_ids or candidate.source_movie_id in seen:
-                    continue
-                ordered.append(candidate)
-                seen.add(candidate.source_movie_id)
-                if len(ordered) >= limit:
-                    break
         return tuple(ordered[:limit])
+
+
+def _semantic_rejection_penalties(
+    *,
+    provider: LearnedRetrievalProvider,
+    candidate_movie_ids: np.ndarray,
+    session_reactions: tuple[ScoringSessionReaction, ...],
+) -> dict[int, float]:
+    """Push a continuation away from the shared latent space of recent No votes.
+
+    This is a temporary tonight-level direction, not a permanent profile update.
+    It only activates after multiple distinct rejections so one title cannot
+    accidentally rewrite a household's enduring taste.
+    """
+    rejected_ids = tuple(
+        dict.fromkeys(
+            reaction.source_movie_id
+            for reaction in session_reactions
+            if reaction.reaction_label.casefold() == "no"
+        )
+    )
+    if len(rejected_ids) < 2:
+        return {}
+    model = provider.model
+    links = getattr(provider, "links", None)
+    item_index = getattr(model, "item_index", {})
+    if links is None or not item_index:
+        return {}
+    reaction_indices = [
+        item_index[movie_id]
+        for source_movie_id in rejected_ids
+        if (movie_id := links.movie_id_for_source(source_movie_id)) is not None
+        and movie_id in item_index
+    ]
+    if len(reaction_indices) < 2:
+        return {}
+    rejection_vector = np.mean(model.item_factors[reaction_indices], axis=0)
+    rejection_norm = float(np.linalg.norm(rejection_vector))
+    if rejection_norm == 0:
+        return {}
+    penalties: dict[int, float] = {}
+    strength = 0.42 if len(reaction_indices) >= 4 else 0.28
+    for movie_id in candidate_movie_ids:
+        index = item_index.get(int(movie_id))
+        if index is None:
+            continue
+        vector = model.item_factors[index]
+        denominator = rejection_norm * float(np.linalg.norm(vector))
+        if denominator == 0:
+            continue
+        similarity = float(np.dot(rejection_vector, vector) / denominator)
+        if similarity > 0.15:
+            penalties[int(movie_id)] = round(strength * similarity, 6)
+    return penalties
 
 
 def _relative_retrieval_score(value: float, center: float, spread: float) -> float:
@@ -593,40 +665,21 @@ def build_default_personalized_retriever(
         load_hybrid_taste_provider,
     )
 
-    root = project_root or Path(__file__).resolve().parents[5]
-    packaged_models = root / "apps" / "api" / "runtime" / "models"
-    models = packaged_models if packaged_models.exists() else root / ".tools" / "models"
-    catalog_path = Path(
-        os.environ.get(
-            "MOVIE_NIGHT_RETRIEVAL_CATALOG_PATH",
-            models / "movielens-tmdb-catalog-v1.json.gz",
+    if project_root is None:
+        paths = runtime_artifact_paths()
+    else:
+        direct_api_root = project_root
+        nested_api_root = project_root / "apps" / "api"
+        paths = runtime_artifact_paths(
+            api_root=nested_api_root if nested_api_root.exists() else direct_api_root
         )
-    )
-    links_path = Path(
-        os.environ.get(
-            "MOVIE_NIGHT_LEARNED_TASTE_LINKS_PATH",
-            models / "movielens-tmdb-links-v1.json.gz",
-        )
-    )
-    collaborative_path = Path(
-        os.environ.get(
-            "MOVIE_NIGHT_COLLABORATIVE_MODEL_PATH",
-            models / "collaborative-search-candidate.zip",
-        )
-    )
-    hybrid_path = Path(
-        os.environ.get(
-            "MOVIE_NIGHT_HYBRID_MODEL_PATH",
-            models / "hybrid-v1.zip",
-        )
-    )
     try:
-        catalog = load_movielens_catalog(catalog_path)
+        catalog = load_movielens_catalog(paths.catalog)
         collaborative = load_collaborative_taste_provider(
-            collaborative_path,
-            links_path,
+            paths.collaborative_model,
+            paths.links,
         )
-        hybrid = load_hybrid_taste_provider(hybrid_path, links_path)
+        hybrid = load_hybrid_taste_provider(paths.hybrid_model, paths.links)
     except (LearnedTasteProviderError, OSError, ValueError):
         return None
     return PersonalizedCandidateRetriever(

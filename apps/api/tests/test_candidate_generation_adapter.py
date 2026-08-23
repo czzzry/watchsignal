@@ -134,6 +134,95 @@ class CandidateGenerationAdapterTest(unittest.TestCase):
             ("tmdb:2",),
         )
 
+    def test_shortlist_never_readds_the_same_tmdb_collection_to_fill_five(self) -> None:
+        candidates = tuple(
+            Candidate(
+                source_movie_id=f"tmdb:xmen-{index}",
+                title=title,
+                media_type=MediaType.MOVIE,
+                collection_name="X-Men Collection",
+                providers=("Prime Video",),
+            )
+            for index, title in enumerate(
+                (
+                    "X-Men",
+                    "X2",
+                    "X-Men: The Last Stand",
+                    "X-Men: First Class",
+                    "The Wolverine",
+                ),
+                start=1,
+            )
+        )
+
+        shortlist = get_candidate_source_shortlist(
+            StaticCandidateSource(candidates),
+            session=SessionContext(session_id="collection-guard"),
+            household_defaults=HouseholdDefaults(),
+            users=(DEMO_HUSBAND_PROFILE, DEMO_WIFE_PROFILE),
+            limit=5,
+        )
+
+        self.assertEqual(len(shortlist), 1)
+        self.assertEqual(shortlist[0].title, "X-Men")
+
+    def test_shortlist_never_turns_into_a_superhero_carousel(self) -> None:
+        superhero_candidates = tuple(
+            Candidate(
+                source_movie_id=f"tmdb:hero-{index}",
+                title=title,
+                media_type=MediaType.MOVIE,
+                genres=("Action",),
+                metadata_keywords=("superhero",),
+                providers=("Prime Video",),
+            )
+            for index, title in enumerate(
+                (
+                    "The Dark Defender",
+                    "Metal Suit Returns",
+                    "Masked City",
+                    "Mutant Uprising",
+                    "Galaxy Guardians",
+                ),
+                start=1,
+            )
+        )
+        grounded_candidates = tuple(
+            Candidate(
+                source_movie_id=f"tmdb:grounded-{index}",
+                title=title,
+                media_type=MediaType.MOVIE,
+                genres=("Drama", "Crime"),
+                providers=("Prime Video",),
+            )
+            for index, title in enumerate(
+                (
+                    "Night Driver",
+                    "The Quiet Witness",
+                    "City of Glass",
+                    "Cold Harbour",
+                ),
+                start=1,
+            )
+        )
+
+        shortlist = get_candidate_source_shortlist(
+            StaticCandidateSource(superhero_candidates + grounded_candidates),
+            session=SessionContext(session_id="superhero-guard"),
+            household_defaults=HouseholdDefaults(),
+            users=(DEMO_HUSBAND_PROFILE, DEMO_WIFE_PROFILE),
+            limit=5,
+        )
+
+        self.assertEqual(len(shortlist), 5)
+        self.assertLessEqual(
+            sum(
+                candidate.source_movie_id.startswith("tmdb:hero-")
+                for candidate in shortlist
+            ),
+            1,
+        )
+
     def test_demo_shortlist_has_stable_five_title_shape(self) -> None:
         shortlist = demo_candidate_shortlist()
 

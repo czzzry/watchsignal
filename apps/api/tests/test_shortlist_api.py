@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Response
 from fastapi.routing import APIRoute
 
 from movie_night_mediator.adapters import (
@@ -46,6 +46,21 @@ from movie_night_mediator.taste_lab import (
 
 
 class ShortlistApiTest(unittest.TestCase):
+    def test_shortlist_response_exposes_run_provenance_in_headers(self) -> None:
+        response = Response()
+        recommendation_shortlist_endpoint(
+            create_app(),
+            method="POST",
+        )(
+            RecommendationShortlistRequestPayload(sessionId="provenance-header"),
+            response,
+        )
+
+        self.assertEqual(response.headers["X-WatchSignal-Run-Mode"], "demo")
+        self.assertEqual(response.headers["X-WatchSignal-Run-Label"], "Built-in demo picks")
+        self.assertEqual(response.headers["X-WatchSignal-Trained-Retrieval"], "false")
+        self.assertEqual(response.headers["X-WatchSignal-Trained-Scoring"], "false")
+
     def test_confirmed_french_intent_reaches_the_recommendation_session(self) -> None:
         request = recommendation_request_from_payload(
             RecommendationShortlistRequestPayload(

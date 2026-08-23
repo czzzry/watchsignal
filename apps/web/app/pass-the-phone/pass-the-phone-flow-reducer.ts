@@ -7,6 +7,7 @@ import type {
   DebugHistorySessionPayload,
   HouseholdHistoryDetailPayload,
   HouseholdHistorySummaryPayload,
+  RecommendationRunStatus,
   SharedSessionPayload,
   TasteProfileSummaryPayload,
   TonightIntentInterpretationPayload,
@@ -17,6 +18,7 @@ export type SessionFlowState = {
   movieSource: "live" | "local";
   persistenceSource: "shared" | "local";
   recommendationSource: string;
+  recommendationRunStatus: RecommendationRunStatus | null;
   syncStatus: SyncStatus;
   apiError: string | null;
   sharedSession: SharedSessionPayload | null;
@@ -193,6 +195,7 @@ function initialSessionFlowState(apiConnected: boolean): SessionFlowState {
     movieSource: apiConnected ? "live" : "local",
     persistenceSource: "local",
     recommendationSource: "demo",
+    recommendationRunStatus: null,
     syncStatus: "ready",
     apiError: apiConnected ? null : DISCONNECTED_SESSION_MESSAGE,
     sharedSession: null,

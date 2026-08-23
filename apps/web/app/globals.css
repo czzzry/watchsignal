@@ -3986,6 +3986,27 @@ summary:focus-visible {
   gap: 10px;
 }
 
+.recommendationRunStatus {
+  display: grid;
+  gap: 5px;
+  padding: 12px 14px;
+  border: 1px solid rgba(120, 240, 255, 0.22);
+  border-radius: 14px;
+  background: rgba(120, 240, 255, 0.07);
+}
+
+.recommendationRunStatus strong {
+  color: var(--cyan);
+  font-size: 0.8rem;
+}
+
+.recommendationRunStatus p {
+  margin: 0;
+  color: rgba(244, 247, 251, 0.78);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
 .recommendationEvidencePanel h3,
 .recommendationEvidencePanel p {
   margin: 0;

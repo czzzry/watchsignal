@@ -242,6 +242,7 @@ export function PassThePhoneWizard({
     movieSource,
     persistenceSource,
     recommendationSource,
+    recommendationRunStatus,
     syncStatus,
     apiError,
     sharedSession,
@@ -1326,6 +1327,7 @@ export function PassThePhoneWizard({
           sharedSession={sharedSession}
           activeTonightIntents={activeTonightIntents}
           recommendationSource={recommendationSource}
+          recommendationRunStatus={recommendationRunStatus}
           availabilityRegion={effectiveSetupLoad.setup.defaults.availabilityRegion}
           steerText={steerText}
           pendingSteerIntent={pendingSteerIntent}

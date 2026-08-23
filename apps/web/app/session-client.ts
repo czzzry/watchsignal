@@ -82,6 +82,13 @@ export type AppliedTonightIntentPayload = TonightIntentInterpretationPayload & {
 export type ShortlistCandidatePayload = RecommendationShortlistItemPayload & {
   providerUrl?: string | null;
 };
+export type RecommendationRunStatus = {
+  mode: string;
+  label: string;
+  detail: string;
+  trainedCandidateRetrieval: boolean;
+  trainedScoring: boolean;
+};
 export type SaveSessionOutcomeRequest = SaveSessionOutcomePayload;
 export type SavePostWatchFeedbackRequest = PostWatchFeedbackPayload;
 export type SaveWatchlistEntryRequest = SaveWatchlistEntryPayload;
@@ -146,6 +153,7 @@ export type LoadShortlistRequest = {
 export type LoadShortlistResponse = {
   recommendationSource: "demo" | "live_tmdb" | string;
   shortlist: ShortlistCandidatePayload[];
+  runStatus: RecommendationRunStatus | null;
 };
 
 export type SubmitReactionsRequest = {
@@ -194,12 +202,19 @@ export async function loadRecommendationShortlist(
   const recommendationSource = isRecord(payload)
     ? stringValue(payload.recommendationSource) ?? stringValue(payload.recommendation_source)
     : null;
+  const runStatus = isRecord(payload)
+    ? parseRecommendationRunStatus(payload.runStatus ?? payload.run_status)
+    : null;
 
   if (shortlist.length === 0) {
     throw new Error("Recommendation API returned an empty shortlist.");
   }
 
-  return { recommendationSource: recommendationSource ?? "demo", shortlist };
+  return {
+    recommendationSource: recommendationSource ?? "demo",
+    shortlist,
+    runStatus,
+  };
 }
 
 export async function submitSessionReactions(
@@ -484,6 +499,37 @@ function parseShortlistPayload(payload: unknown): ShortlistCandidatePayload[] {
       (item): item is ShortlistCandidatePayload => item !== null,
     )
     .sort((first, second) => first.candidateRank - second.candidateRank);
+}
+
+function parseRecommendationRunStatus(
+  value: unknown,
+): RecommendationRunStatus | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const mode = stringValue(value.mode);
+  const label = stringValue(value.label);
+  const detail = stringValue(value.detail);
+  const trainedCandidateRetrieval = booleanValue(
+    value.trainedCandidateRetrieval ?? value.trained_candidate_retrieval,
+  );
+  const trainedScoring = booleanValue(value.trainedScoring ?? value.trained_scoring);
+  if (
+    !mode ||
+    !label ||
+    !detail ||
+    trainedCandidateRetrieval === null ||
+    trainedScoring === null
+  ) {
+    return null;
+  }
+  return {
+    mode,
+    label,
+    detail,
+    trainedCandidateRetrieval,
+    trainedScoring,
+  };
 }
 
 function parseShortlistCandidate(

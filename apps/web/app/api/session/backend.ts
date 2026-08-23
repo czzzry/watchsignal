@@ -48,7 +48,10 @@ async function sendBackendSession(
       return new Response(null, { status: 204 });
     }
 
-    return Response.json(payload, { status: response.status });
+    return Response.json(payload, {
+      status: response.status,
+      headers: forwardedRecommendationRunHeaders(response.headers),
+    });
   } catch {
     return Response.json(
       {
@@ -90,6 +93,23 @@ function backendHeaders(includeContentType = true): HeadersInit {
   }
   if (process.env.BACKEND_SERVICE_TOKEN) {
     headers.Authorization = `Bearer ${process.env.BACKEND_SERVICE_TOKEN}`;
+  }
+  return headers;
+}
+
+function forwardedRecommendationRunHeaders(source: Headers): Headers {
+  const headers = new Headers();
+  for (const name of [
+    "X-WatchSignal-Run-Mode",
+    "X-WatchSignal-Run-Label",
+    "X-WatchSignal-Run-Detail",
+    "X-WatchSignal-Trained-Retrieval",
+    "X-WatchSignal-Trained-Scoring",
+  ]) {
+    const value = source.get(name);
+    if (value) {
+      headers.set(name, value);
+    }
   }
   return headers;
 }
