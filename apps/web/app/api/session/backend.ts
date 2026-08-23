@@ -97,7 +97,7 @@ function backendHeaders(includeContentType = true): HeadersInit {
   return headers;
 }
 
-function forwardedRecommendationRunHeaders(source: Headers): Headers {
+export function forwardedRecommendationRunHeaders(source: Headers): Headers {
   const headers = new Headers();
   for (const name of [
     "X-WatchSignal-Run-Mode",
@@ -105,6 +105,10 @@ function forwardedRecommendationRunHeaders(source: Headers): Headers {
     "X-WatchSignal-Run-Detail",
     "X-WatchSignal-Trained-Retrieval",
     "X-WatchSignal-Trained-Scoring",
+    "X-WatchSignal-Curator-Lens-Id",
+    "X-WatchSignal-Curator-Lens-Mode",
+    "X-WatchSignal-Curator-Lens-Status",
+    "X-WatchSignal-Curator-Lens-Source",
   ]) {
     const value = source.get(name);
     if (value) {

@@ -92,6 +92,7 @@ import type {
   WizardStep,
 } from "./pass-the-phone-model";
 import type { SeenMemorySaveResult } from "./pass-the-phone/seen-memory-contract";
+import type { TasteLensSelection } from "./pass-the-phone/taste-lens-experience";
 import {
   commitTonightDefaultsTransaction,
   type TonightDefaultsDraft,
@@ -125,6 +126,7 @@ export function PassThePhoneWizard({
   const [sessionMode, setSessionMode] = useState<SessionMode>("compromise");
   const [peopleMode, setPeopleMode] = useState<PeopleMode>("couple");
   const [languageMode, setLanguageMode] = useState<LanguageMode>("english");
+  const [tasteLensSelection, setTasteLensSelection] = useState<TasteLensSelection | null>(null);
   const {
     effectiveSetupLoad,
     founderLabel,
@@ -376,6 +378,7 @@ export function PassThePhoneWizard({
     shownSourceMovieIds,
     sessionCandidates,
     shortlistSize: effectiveSetupLoad.setup.defaults.shortlistSize,
+    tasteLensSelection,
   });
   const tonightIntentBusy = tonightIntentStatus !== "ready";
   const sessionDateLabel = formatSessionDate(new Date());
@@ -481,6 +484,7 @@ export function PassThePhoneWizard({
     resetBatch();
     clearLocalReactionHistory();
     resetAllFlowState();
+    setTasteLensSelection(null);
     if (apiHealth.connected) {
       void loadProfileMemorySummaries();
     }
@@ -533,6 +537,7 @@ export function PassThePhoneWizard({
             : demoCandidateViewModels,
           disconnectedMessage: flowMessages.disconnectedSession,
           sharedPersistenceAvailable: !forceLocalPersistence,
+          tasteLensSelection,
         },
         {
           ...sessionLifecyclePorts(),
@@ -590,6 +595,7 @@ export function PassThePhoneWizard({
         wifeReactions,
         localReactionHistory,
         tonightIntents: nextTonightIntents,
+        tasteLensSelection,
       },
       sessionLifecyclePorts(),
     );
@@ -1185,6 +1191,8 @@ export function PassThePhoneWizard({
           onApplyTonightIntent={applyTonightIntent}
           onClearTonightIntent={clearTonightIntent}
           onCancelTonightIntentInterpretation={cancelTonightIntentInterpretation}
+          tasteLensSelection={tasteLensSelection}
+          onTasteLensSelectionChange={setTasteLensSelection}
           onStart={startSession}
           onBeginOnboarding={(opener) => beginOnboarding(undefined, opener)}
           recentSessions={recentSessions}

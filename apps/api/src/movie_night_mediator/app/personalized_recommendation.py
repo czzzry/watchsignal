@@ -65,6 +65,23 @@ class RetrievedCandidate:
     reasons: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True)
+class CuratorInspirationRetrieval:
+    """An inspectable learned-space expansion of a curator's published picks.
+
+    ``mapped_anchor_source_movie_ids`` deliberately records only the titles that
+    could be verified in the local MovieLens item space.  Callers must not
+    describe an unmapped source title as part of the learned retrieval.
+    """
+
+    mapped_anchor_source_movie_ids: tuple[str, ...]
+    candidates: tuple[RetrievedCandidate, ...]
+
+    @property
+    def ran(self) -> bool:
+        return bool(self.mapped_anchor_source_movie_ids and self.candidates)
+
+
 class LearnedRetrievalProvider(Protocol):
     model_name: str
     model: Any
@@ -209,6 +226,275 @@ class PersonalizedCandidateRetriever:
         reserved_ids = {row.movie_id for row in reserved}
         primary = [row for row in rows if row.movie_id not in reserved_ids]
         return tuple((primary[: limit - reserve_count] + reserved)[:limit])
+
+    def retrieve_curator_inspiration(
+        self,
+        *,
+        anchor_source_movie_ids: tuple[str, ...],
+        limit: int = 50,
+        excluded_source_movie_ids: tuple[str, ...] = (),
+    ) -> CuratorInspirationRetrieval:
+        """Expand verified curator anchors through the learned item space.
+
+        This is intentionally separate from profile retrieval.  Published
+        curator picks are a request-scoped positive context, not ratings that
+        should be written into a household's durable Taste Lab profile.  The
+        result contains only non-anchor neighbours.  A later boundary hydrates
+        those exact ids and lets the normal household scorer decide the slate.
+        """
+        if limit < 1 or not self.available:
+            return CuratorInspirationRetrieval((), ())
+
+        excluded = set(excluded_source_movie_ids)
+        lane_rows: list[tuple[str, LearnedRetrievalProvider]] = []
+        if self._collaborative_provider is not None:
+            lane_rows.append(("collaborative", self._collaborative_provider))
+        if self._content_provider is not None:
+            lane_rows.append(("content", self._content_provider))
+
+        mapped_anchor_pairs = self._verified_curator_anchor_pairs(
+            anchor_source_movie_ids=anchor_source_movie_ids,
+            providers=tuple(provider for _, provider in lane_rows),
+        )
+        mapped_anchor_ids = tuple(source_id for source_id, _ in mapped_anchor_pairs)
+        anchor_movie_ids = tuple(movie_id for _, movie_id in mapped_anchor_pairs)
+        if len(anchor_movie_ids) < 2:
+            return CuratorInspirationRetrieval(mapped_anchor_ids, ())
+
+        collaborative_signals = self._curator_model_signals(
+            provider=self._collaborative_provider,
+            anchor_movie_ids=anchor_movie_ids,
+            factor_family=None,
+        )
+        content_signals = self._curator_content_signals(
+            anchor_movie_ids=anchor_movie_ids,
+        )
+        if not collaborative_signals and not content_signals:
+            return CuratorInspirationRetrieval(mapped_anchor_ids, ())
+
+        anchor_entries = tuple(
+            self._catalog[movie_id] for movie_id in anchor_movie_ids
+        )
+        anchor_genre_weights = _anchor_genre_weights(anchor_entries)
+        support_by_movie = self._curator_support_by_movie()
+        has_support_data = bool(support_by_movie)
+        candidate_rows: list[dict[str, float | int | MovieLensCatalogEntry]] = []
+        anchor_movie_id_set = set(anchor_movie_ids)
+        for movie_id, entry in self._catalog.items():
+            if movie_id in anchor_movie_id_set or entry.source_movie_id in excluded:
+                continue
+            genre_affinity = _curator_genre_affinity(entry, anchor_genre_weights)
+            if anchor_genre_weights and genre_affinity < 0.35:
+                continue
+            support = support_by_movie.get(movie_id, 0)
+            if has_support_data and support < 10:
+                continue
+            signals = {
+                name: values[movie_id]
+                for name, values in (
+                    ("collaborative", collaborative_signals),
+                    *content_signals.items(),
+                )
+                if movie_id in values
+            }
+            if not signals or max(signals.values()) <= 0:
+                continue
+            candidate_rows.append(
+                {
+                    "movie_id": movie_id,
+                    "entry": entry,
+                    "support": support,
+                    "genre_affinity": genre_affinity,
+                    **signals,
+                }
+            )
+
+        if not candidate_rows:
+            return CuratorInspirationRetrieval(mapped_anchor_ids, ())
+
+        signal_names = tuple(
+            name
+            for name in ("collaborative", *content_signals)
+            if any(name in row for row in candidate_rows)
+        )
+        _add_signal_percentiles(candidate_rows, signal_names)
+        content_signal_names = tuple(
+            name for name in signal_names if name != "collaborative"
+        )
+        for row in candidate_rows:
+            model_score = _fused_curator_model_score(
+                row=row,
+                content_signal_names=content_signal_names,
+            )
+            support_score = _support_confidence_score(int(row["support"]))
+            row["score"] = (
+                model_score
+                + 0.17 * float(row["genre_affinity"])
+                + 0.08 * support_score
+            )
+
+        candidate_rows.sort(
+            key=lambda row: (-float(row["score"]), int(row["movie_id"]))
+        )
+        selected = _diverse_curator_candidate_rows(
+            candidate_rows,
+            anchor_genre_weights=anchor_genre_weights,
+            limit=limit,
+        )
+        content_label = "+".join(content_signal_names) or "catalog_genre"
+        rows = tuple(
+            RetrievedCandidate(
+                source_movie_id=entry.source_movie_id,
+                movie_id=int(row["movie_id"]),
+                retrieval_score=round(float(row["score"]), 6),
+                lane="curator_hybrid_fusion",
+                profile_match_count=len(anchor_movie_ids),
+                reasons=(
+                    "retrieved:curator_hybrid_fusion",
+                    f"verified_curator_anchors:{len(anchor_movie_ids)}",
+                    f"content_fusion:{content_label}",
+                    "support_balanced",
+                ),
+            )
+            for row in selected
+            for entry in (row["entry"],)
+            if isinstance(entry, MovieLensCatalogEntry)
+        )
+        return CuratorInspirationRetrieval(mapped_anchor_ids, rows)
+
+    def _verified_curator_anchor_pairs(
+        self,
+        *,
+        anchor_source_movie_ids: tuple[str, ...],
+        providers: tuple[LearnedRetrievalProvider, ...],
+    ) -> tuple[tuple[str, int], ...]:
+        pairs: list[tuple[str, int]] = []
+        seen_movie_ids: set[int] = set()
+        for source_movie_id in anchor_source_movie_ids:
+            entry = self._catalog_entry_for_source_id(source_movie_id)
+            if entry is None:
+                for provider in providers:
+                    movie_id = self._movie_id_for_source_id(
+                        provider,
+                        source_movie_id,
+                        None,
+                    )
+                    if movie_id is not None:
+                        entry = self._catalog.get(movie_id)
+                    if entry is not None:
+                        break
+            if entry is None or entry.movie_id in seen_movie_ids:
+                continue
+            seen_movie_ids.add(entry.movie_id)
+            pairs.append((entry.source_movie_id, entry.movie_id))
+        return tuple(pairs)
+
+    @staticmethod
+    def _curator_model_signals(
+        *,
+        provider: LearnedRetrievalProvider | None,
+        anchor_movie_ids: tuple[int, ...],
+        factor_family: str | None,
+    ) -> dict[int, float]:
+        if provider is None:
+            return {}
+        model = provider.model
+        item_index = getattr(model, "item_index", {})
+        if factor_family is None:
+            factors = getattr(model, "item_factors", None)
+        else:
+            factors = getattr(model, "family_factors", {}).get(factor_family)
+        if factors is None or not item_index:
+            return {}
+        anchor_indices = [
+            item_index[movie_id]
+            for movie_id in anchor_movie_ids
+            if movie_id in item_index
+        ]
+        if len(anchor_indices) < 2:
+            return {}
+        aggregate = _robust_anchor_vector(
+            np.asarray(factors[anchor_indices], dtype=np.float64)
+        )
+        if aggregate is None:
+            return {}
+        rows: dict[int, float] = {}
+        for movie_id, index in item_index.items():
+            factor = factors[index]
+            similarity = _cosine_similarity(aggregate, factor)
+            if similarity is not None:
+                rows[int(movie_id)] = similarity
+        return rows
+
+    def _curator_content_signals(
+        self,
+        *,
+        anchor_movie_ids: tuple[int, ...],
+    ) -> dict[str, dict[int, float]]:
+        provider = self._content_provider
+        if provider is None:
+            return {}
+        family_factors = getattr(provider.model, "family_factors", {}) or {}
+        family_names = tuple(
+            name for name in ("tag", "genre") if name in family_factors
+        )
+        if family_names:
+            rows = {
+                name: self._curator_model_signals(
+                    provider=provider,
+                    anchor_movie_ids=anchor_movie_ids,
+                    factor_family=name,
+                )
+                for name in family_names
+            }
+            return {name: values for name, values in rows.items() if values}
+        fallback = self._curator_model_signals(
+            provider=provider,
+            anchor_movie_ids=anchor_movie_ids,
+            factor_family=None,
+        )
+        return {"content_vector": fallback} if fallback else {}
+
+    def _curator_support_by_movie(self) -> Mapping[int, int]:
+        if self._content_provider is not None:
+            support = self._support_for_provider(self._content_provider)
+            if support:
+                return support
+        if self._collaborative_provider is not None:
+            return self._support_for_provider(self._collaborative_provider)
+        return {}
+
+    def _movie_id_for_source_id(
+        self,
+        provider: LearnedRetrievalProvider,
+        source_movie_id: str,
+        entry: MovieLensCatalogEntry | None,
+    ) -> int | None:
+        if entry is not None:
+            return entry.movie_id
+        links = getattr(provider, "links", None)
+        if links is not None:
+            mapped = links.movie_id_for_source(source_movie_id)
+            if mapped is not None:
+                return mapped
+        provider_name, separator, provider_id = source_movie_id.partition(":")
+        if separator and provider_name.casefold() == "movielens" and provider_id.isdigit():
+            return int(provider_id)
+        return None
+
+    def _support_for_provider(
+        self,
+        provider: LearnedRetrievalProvider,
+    ) -> Mapping[int, int]:
+        model = provider.model
+        support_values = getattr(model, "collaborative_support", None)
+        item_ids = getattr(model, "item_ids", None)
+        if support_values is not None and item_ids is not None:
+            return {
+                int(movie_id): int(support_values[index])
+                for index, movie_id in enumerate(item_ids)
+            }
+        return self._item_support
 
     def _retrieve_catalog_content_lane(
         self,
@@ -578,6 +864,156 @@ def _semantic_rejection_penalties(
         if similarity > 0.15:
             penalties[int(movie_id)] = round(strength * similarity, 6)
     return penalties
+
+
+def _robust_anchor_vector(vectors: np.ndarray) -> np.ndarray | None:
+    """Create a stable direction from a curator's positive item anchors.
+
+    A medoid gate prevents one tangential published favourite from pulling the
+    aggregate toward an unrelated part of the learned catalogue.  We keep all
+    anchors for tiny source lists because there is not enough evidence to call
+    one an outlier, then use their unit vectors so factor magnitude cannot act
+    as an accidental popularity boost.
+    """
+    if vectors.ndim != 2 or len(vectors) == 0:
+        return None
+    norms = np.linalg.norm(vectors, axis=1)
+    normalized = vectors[norms > 0] / norms[norms > 0, np.newaxis]
+    if len(normalized) == 0:
+        return None
+    if len(normalized) >= 3:
+        similarity_matrix = normalized @ normalized.T
+        medoid_index = int(np.argmax(np.mean(similarity_matrix, axis=1)))
+        medoid_similarities = similarity_matrix[medoid_index]
+        threshold = max(0.0, float(np.median(medoid_similarities)))
+        inliers = normalized[medoid_similarities >= threshold]
+        if len(inliers) >= 2:
+            normalized = inliers
+    aggregate = np.mean(normalized, axis=0)
+    aggregate_norm = float(np.linalg.norm(aggregate))
+    if aggregate_norm == 0:
+        return None
+    return aggregate / aggregate_norm
+
+
+def _cosine_similarity(left: np.ndarray, right: np.ndarray) -> float | None:
+    denominator = float(np.linalg.norm(left) * np.linalg.norm(right))
+    if denominator == 0:
+        return None
+    return float(np.dot(left, right) / denominator)
+
+
+def _anchor_genre_weights(
+    anchors: tuple[MovieLensCatalogEntry, ...],
+) -> dict[str, float]:
+    """A small content representation that is independent of rating support."""
+    if not anchors:
+        return {}
+    counts: dict[str, int] = {}
+    for anchor in anchors:
+        for genre in anchor.genres:
+            normalized = genre.casefold()
+            counts[normalized] = counts.get(normalized, 0) + 1
+    return {
+        genre: count / len(anchors)
+        for genre, count in counts.items()
+    }
+
+
+def _curator_genre_affinity(
+    entry: MovieLensCatalogEntry,
+    anchor_genre_weights: Mapping[str, float],
+) -> float:
+    if not entry.genres or not anchor_genre_weights:
+        return 0.0
+    return sum(
+        anchor_genre_weights.get(genre.casefold(), 0.0)
+        for genre in entry.genres
+    ) / len(entry.genres)
+
+
+def _add_signal_percentiles(
+    rows: list[dict[str, float | int | MovieLensCatalogEntry]],
+    signal_names: tuple[str, ...],
+) -> None:
+    """Calibrate factor spaces by rank before combining distinct models."""
+    for name in signal_names:
+        values = sorted(
+            float(row[name])
+            for row in rows
+            if name in row
+        )
+        if not values:
+            continue
+        denominator = max(len(values) - 1, 1)
+        for row in rows:
+            value = row.get(name)
+            if not isinstance(value, (float, int)):
+                row[f"{name}_percentile"] = 0.0
+                continue
+            rank = int(np.searchsorted(values, float(value), side="right")) - 1
+            row[f"{name}_percentile"] = rank / denominator
+
+
+def _fused_curator_model_score(
+    *,
+    row: Mapping[str, float | int | MovieLensCatalogEntry],
+    content_signal_names: tuple[str, ...],
+) -> float:
+    """Fuse learned collaborative and content lanes without a popularity prior."""
+    collaborative = row.get("collaborative_percentile")
+    collaborative_score = (
+        float(collaborative) if isinstance(collaborative, (float, int)) else None
+    )
+    content_scores = [
+        float(value)
+        for name in content_signal_names
+        if isinstance(value := row.get(f"{name}_percentile"), (float, int))
+    ]
+    if collaborative_score is not None and content_scores:
+        return 0.35 * collaborative_score + 0.40 * (
+            sum(content_scores) / len(content_scores)
+        )
+    if content_scores:
+        return 0.75 * (sum(content_scores) / len(content_scores))
+    return 0.75 * (collaborative_score or 0.0)
+
+
+def _support_confidence_score(support: int) -> float:
+    """Reward enough evidence, then saturate instead of ranking by popularity."""
+    if support < 10:
+        return 0.0
+    return min(1.0, float(np.log1p(support) / np.log1p(50)))
+
+
+def _diverse_curator_candidate_rows(
+    rows: list[dict[str, float | int | MovieLensCatalogEntry]],
+    *,
+    anchor_genre_weights: Mapping[str, float],
+    limit: int,
+) -> tuple[dict[str, float | int | MovieLensCatalogEntry], ...]:
+    """Keep a learned pool broad enough for the household scorer to choose from."""
+    selected: list[dict[str, float | int | MovieLensCatalogEntry]] = []
+    signature_counts: dict[tuple[str, ...], int] = {}
+    cap = max(3, limit // 4)
+    for row in rows:
+        entry = row["entry"]
+        if not isinstance(entry, MovieLensCatalogEntry):
+            continue
+        signature = tuple(
+            sorted(
+                genre.casefold()
+                for genre in entry.genres
+                if genre.casefold() in anchor_genre_weights
+            )
+        ) or ("other",)
+        if signature_counts.get(signature, 0) >= cap:
+            continue
+        selected.append(row)
+        signature_counts[signature] = signature_counts.get(signature, 0) + 1
+        if len(selected) == limit:
+            break
+    return tuple(selected)
 
 
 def _relative_retrieval_score(value: float, center: float, spread: float) -> float:

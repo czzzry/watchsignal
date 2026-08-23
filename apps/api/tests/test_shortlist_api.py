@@ -46,6 +46,125 @@ from movie_night_mediator.taste_lab import (
 
 
 class ShortlistApiTest(unittest.TestCase):
+    def test_exact_curator_lens_api_exposes_active_provenance_and_never_discovers(
+        self,
+    ) -> None:
+        source = ExactHydratingCandidateSource()
+        response = Response()
+        payload = RecommendationShortlistRequestPayload(
+            sessionId="curator-api",
+            source="live_tmdb",
+            curatorLens={
+                "curatorId": "bong-joon-ho",
+                "mode": "exact_list",
+                "anchorSourceMovieIds": [
+                    "tmdb:301",
+                    "tmdb:302",
+                    "tmdb:303",
+                    "tmdb:304",
+                    "tmdb:305",
+                ],
+                "provenance": {
+                    "sourceName": "LaCinetek",
+                    "sourceUrl": "https://www.lacinetek.com/",
+                    "retrievedAt": "2026-08-23",
+                },
+            },
+        )
+
+        items = recommendation_shortlist_endpoint(
+            create_app(candidate_source=source),
+            method="POST",
+        )(payload, response)
+
+        self.assertEqual(source.discovery_calls, 0)
+        self.assertEqual(
+            source.hydrated_source_ids,
+            ("tmdb:301", "tmdb:302", "tmdb:303", "tmdb:304", "tmdb:305"),
+        )
+        self.assertEqual(
+            {item.sourceMovieId for item in items},
+            set(source.hydrated_source_ids),
+        )
+        self.assertEqual(response.headers["X-WatchSignal-Run-Mode"], "curator_exact_list")
+        self.assertEqual(response.headers["X-WatchSignal-Curator-Lens-Id"], "bong-joon-ho")
+        self.assertEqual(response.headers["X-WatchSignal-Curator-Lens-Mode"], "exact_list")
+        self.assertEqual(response.headers["X-WatchSignal-Curator-Lens-Status"], "active")
+        self.assertEqual(response.headers["X-WatchSignal-Curator-Lens-Source"], "LaCinetek")
+
+    def test_inspiration_api_fails_closed_without_explicit_title_hydration(
+        self,
+    ) -> None:
+        source = FakeCandidateSource()
+        payload = RecommendationShortlistRequestPayload(
+            sessionId="curator-inspiration-unavailable",
+            source="live_tmdb",
+            scoringEngine="v1_heuristic",
+            curatorLens={
+                "curatorId": "bong-joon-ho",
+                "mode": "inspiration",
+                "anchorSourceMovieIds": [
+                    "tmdb:539",
+                    "tmdb:1578",
+                    "tmdb:1949",
+                    "tmdb:36095",
+                ],
+                "provenance": {"sourceName": "LaCinetek"},
+            },
+        )
+
+        with self.assertRaises(HTTPException) as raised:
+            recommendation_shortlist_endpoint(
+                create_app(candidate_source=source),
+                method="POST",
+            )(payload, Response())
+
+        self.assertEqual(raised.exception.status_code, 400)
+        self.assertIn("did not use a popularity fallback", raised.exception.detail)
+        self.assertIn("cannot hydrate", raised.exception.detail)
+
+    def test_inspiration_api_exposes_active_learned_retrieval_provenance(
+        self,
+    ) -> None:
+        source = ExactHydratingCandidateSource()
+        response = Response()
+        payload = RecommendationShortlistRequestPayload(
+            sessionId="curator-inspiration-api",
+            source="live_tmdb",
+            scoringEngine="v1_heuristic",
+            curatorLens={
+                "curatorId": "bong-joon-ho",
+                "mode": "inspiration",
+                "anchorSourceMovieIds": [
+                    "tmdb:539",
+                    "tmdb:1578",
+                    "tmdb:1949",
+                    "tmdb:36095",
+                ],
+                "provenance": {"sourceName": "LaCinetek"},
+            },
+        )
+
+        items = recommendation_shortlist_endpoint(
+            create_app(candidate_source=source),
+            method="POST",
+        )(payload, response)
+
+        self.assertEqual(source.discovery_calls, 0)
+        self.assertEqual(len(items), 5)
+        self.assertEqual(
+            response.headers["X-WatchSignal-Run-Mode"],
+            "curator_inspiration",
+        )
+        self.assertEqual(
+            response.headers["X-WatchSignal-Curator-Lens-Status"],
+            "active",
+        )
+        self.assertEqual(
+            response.headers["X-WatchSignal-Trained-Retrieval"],
+            "true",
+        )
+
     def test_shortlist_response_exposes_run_provenance_in_headers(self) -> None:
         response = Response()
         recommendation_shortlist_endpoint(
@@ -1131,6 +1250,39 @@ class FakeCandidateSource:
                 ),
             )
             for index in range(1, min(limit, 5) + 1)
+        )
+
+
+class ExactHydratingCandidateSource:
+    def __init__(self) -> None:
+        self.discovery_calls = 0
+        self.hydrated_source_ids: tuple[str, ...] = ()
+
+    def fetch_candidates(self, **_kwargs):
+        self.discovery_calls += 1
+        raise AssertionError("Exact curator mode must not discover popularity candidates.")
+
+    def fetch_candidates_for_source_ids(
+        self,
+        *,
+        source_movie_ids: tuple[str, ...],
+        limit: int = 20,
+        **_kwargs,
+    ) -> tuple[Candidate, ...]:
+        self.hydrated_source_ids = source_movie_ids
+        return tuple(
+            Candidate(
+                source_movie_id=source_movie_id,
+                title=f"Curator API Pick {index}",
+                media_type=MediaType.MOVIE,
+                release_year=2020 + index,
+                runtime_min=90 + index,
+                genres=("Drama",),
+                providers=("Amazon Prime Video",),
+                original_language="en",
+                spoken_languages=("en",),
+            )
+            for index, source_movie_id in enumerate(source_movie_ids[:limit], start=1)
         )
 
 

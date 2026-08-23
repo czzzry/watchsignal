@@ -108,12 +108,15 @@ def get_offline_demo_shortlist(
     recently_rejected_source_movie_ids: tuple[str, ...] = (),
     softly_rejected_source_movie_ids: tuple[str, ...] = (),
     scorer: HeuristicScorer | None = None,
+    candidate_source_movie_ids: tuple[str, ...] | None = None,
 ) -> tuple[OfflineShortlistItem, ...]:
     excluded_ids = set(excluded_source_movie_ids)
+    allowed_ids = set(candidate_source_movie_ids or ())
     candidate_fixtures = tuple(
         fixture
         for fixture in DEMO_CANDIDATE_FIXTURES
         if fixture.source_movie_id not in excluded_ids
+        and (candidate_source_movie_ids is None or fixture.source_movie_id in allowed_ids)
     )
     fixtures_by_source_id = {fixture.source_movie_id: fixture for fixture in candidate_fixtures}
     resolved_session = session or replace(
@@ -142,6 +145,7 @@ def get_offline_demo_shortlist(
         and users is None
         and snapshot_service is None
         and not excluded_source_movie_ids
+        and candidate_source_movie_ids is None
     ):
         ranked_candidates = demo_candidate_shortlist(limit=5)
     else:
@@ -241,6 +245,7 @@ def get_candidate_source_shortlist(
     session_reactions: tuple[ScoringSessionReaction, ...] = (),
     recently_rejected_source_movie_ids: tuple[str, ...] = (),
     softly_rejected_source_movie_ids: tuple[str, ...] = (),
+    candidate_source_movie_ids: tuple[str, ...] | None = None,
 ) -> tuple[RankedCandidate, ...]:
     result = _run_candidate_pipeline(
         candidate_source,
@@ -256,6 +261,7 @@ def get_candidate_source_shortlist(
         session_reactions=session_reactions,
         recently_rejected_source_movie_ids=recently_rejected_source_movie_ids,
         softly_rejected_source_movie_ids=softly_rejected_source_movie_ids,
+        candidate_source_movie_ids=candidate_source_movie_ids,
     )
     return _select_diverse_shortlist(
         result.ranked_candidates,
@@ -282,6 +288,7 @@ def get_candidate_source_shortlist_items(
     session_reactions: tuple[ScoringSessionReaction, ...] = (),
     recently_rejected_source_movie_ids: tuple[str, ...] = (),
     softly_rejected_source_movie_ids: tuple[str, ...] = (),
+    candidate_source_movie_ids: tuple[str, ...] | None = None,
 ) -> tuple[OfflineShortlistItem, ...]:
     result = _run_candidate_pipeline(
         candidate_source,
@@ -297,6 +304,7 @@ def get_candidate_source_shortlist_items(
         session_reactions=session_reactions,
         recently_rejected_source_movie_ids=recently_rejected_source_movie_ids,
         softly_rejected_source_movie_ids=softly_rejected_source_movie_ids,
+        candidate_source_movie_ids=candidate_source_movie_ids,
     )
     candidates_by_source_id = {
         candidate.source_movie_id: candidate for candidate in result.candidates
@@ -331,14 +339,25 @@ def _run_candidate_pipeline(
     session_reactions: tuple[ScoringSessionReaction, ...],
     recently_rejected_source_movie_ids: tuple[str, ...],
     softly_rejected_source_movie_ids: tuple[str, ...],
+    candidate_source_movie_ids: tuple[str, ...] | None,
 ) -> _CandidatePipelineResult:
     excluded_ids = set(excluded_source_movie_ids)
-    personalized_fetch = getattr(
+    explicit_hydration = getattr(
         candidate_source,
-        "fetch_personalized_candidates",
+        "fetch_candidates_for_source_ids",
         None,
     )
-    if callable(personalized_fetch):
+    personalized_fetch = getattr(candidate_source, "fetch_personalized_candidates", None)
+    if candidate_source_movie_ids is not None:
+        if not callable(explicit_hydration):
+            raise ValueError("Candidate source cannot hydrate an explicit candidate pool.")
+        candidates = explicit_hydration(
+            source_movie_ids=candidate_source_movie_ids,
+            session=session,
+            household_defaults=household_defaults,
+            limit=candidate_limit,
+        )
+    elif callable(personalized_fetch):
         candidates = personalized_fetch(
             session=session,
             household_defaults=household_defaults,
@@ -353,10 +372,15 @@ def _run_candidate_pipeline(
             household_defaults=household_defaults,
             limit=candidate_limit,
         )
+    allowed_ids = set(candidate_source_movie_ids or ())
     candidates = tuple(
         candidate
         for candidate in candidates
         if candidate.source_movie_id not in excluded_ids
+        and (
+            candidate_source_movie_ids is None
+            or candidate.source_movie_id in allowed_ids
+        )
     )
     candidates = (enrichment_service or CandidateEnrichmentService()).enrich_candidates(
         candidates

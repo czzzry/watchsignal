@@ -75,6 +75,10 @@ import { ProfileMemorySnapshot } from "./pass-the-phone/profile-memory-snapshot"
 import { HouseholdHistory } from "./pass-the-phone/household-history";
 import { WatchSignalIcon } from "./ui/watchsignal-icons";
 import {
+  TasteLensExperience,
+  type TasteLensSelection,
+} from "./pass-the-phone/taste-lens-experience";
+import {
   tonightDefaultsSummary,
   type TonightDefaultsDraft,
   type TonightDefaultsSaveResult,
@@ -275,6 +279,8 @@ export function SetupStep({
   onApplyTonightIntent,
   onClearTonightIntent,
   onCancelTonightIntentInterpretation,
+  tasteLensSelection,
+  onTasteLensSelectionChange,
   onStart,
   onBeginOnboarding,
   recentSessions,
@@ -331,6 +337,8 @@ export function SetupStep({
   onApplyTonightIntent: () => void;
   onClearTonightIntent: () => void;
   onCancelTonightIntentInterpretation: () => void;
+  tasteLensSelection: TasteLensSelection | null;
+  onTasteLensSelectionChange: (selection: TasteLensSelection | null) => void;
   onStart: () => void;
   onBeginOnboarding: (opener: HTMLElement) => void | Promise<void>;
   recentSessions: HouseholdHistorySummaryPayload[];
@@ -346,6 +354,7 @@ export function SetupStep({
   const [setupUtility, setSetupUtility] = useState<
     "people" | "defaults" | "intent" | "memory" | "history" | null
   >(null);
+  const [tasteLensOpen, setTasteLensOpen] = useState(false);
   const [setupUtilityOpener, setSetupUtilityOpener] = useState<HTMLElement | null>(null);
   const setupBackgroundRef = useRef<HTMLDivElement>(null);
   const sessionDateLabel = formatSessionDate(new Date());
@@ -426,9 +435,7 @@ export function SetupStep({
       : isCoupleSession
       ? "Before tonight, tune both tastes."
       : `Before tonight, tune ${selectedPeopleLabel.toLowerCase()}.`
-    : isCoupleSession
-      ? "Tonight,\nwe pick together."
-      : `Tonight,\n${selectedPeopleLabel.toLowerCase()} picks clean.`;
+    : "Find one you'll\nboth want to watch.";
   const footerLine = onboardingRequired
     ? "Three quick choices unlock a better shortlist."
     : isCoupleSession
@@ -438,7 +445,7 @@ export function SetupStep({
     ? onboardingCheckPending
       ? "Checking your household's taste setup."
       : heroLead
-    : "Let's find the perfect movie for a great night in.";
+    : "Set tonight. WatchSignal will do the digging.";
   function openSetupUtility(
     utility: "people" | "defaults" | "intent" | "memory" | "history",
     opener: HTMLElement,
@@ -465,7 +472,7 @@ export function SetupStep({
           <h2 id="setup-heading" className="startupDisplayTitle">
             {heroTitle.split("\n").map((line) => (
               <span key={line} className="startupDisplayLine">
-                {line.includes("together.") || line.includes("clean.") ? (
+                {line.includes("together.") || line.includes("clean.") || line.includes("watch.") ? (
                   <>
                     {line.split(" ").slice(0, -1).join(" ")}{" "}
                     <em>{line.split(" ").slice(-1)[0]}</em>
@@ -480,16 +487,11 @@ export function SetupStep({
         </div>
 
         <div className="startupHeroScene">
-          <div className="startupSceneGlow" aria-hidden="true" />
-          <div className="startupSceneVignette" aria-hidden="true" />
-          <div className="startupSceneHorizon" aria-hidden="true" />
           <div
-            className="heroVisual startupOrbWrap heroVisualReady"
+            className="startupOrbWrap"
             aria-hidden="true"
           >
-            <div className="heroSignal heroSignalReady">
-              <StartupConceptHero />
-            </div>
+            <StartupConceptHero />
           </div>
 
           <div className="startupBoardShell">
@@ -553,6 +555,28 @@ export function SetupStep({
                   </span>
                 </button>
               </div>
+
+              <div className="startupControlRow startupTasteLensRow">
+                <button
+                  type="button"
+                  className="startupRowSummaryButton"
+                  onClick={() => setTasteLensOpen(true)}
+                  aria-haspopup="dialog"
+                  aria-expanded={tasteLensOpen}
+                >
+                  <span className="startupRowSummaryMain">
+                    <SetupControlIcon kind="lens" />
+                    <span className="startupControlLabelGroup"><span>Taste lens</span></span>
+                  </span>
+                  <span className="startupRowSummarySecondary">
+                    <strong className="startupControlValue startupControlValueLong">
+                      {tasteLensSelection
+                        ? `${tasteLensSelection.curatorName} · ${tasteLensSelection.mode === "exact-list" ? "Published shelf" : "Inspiration"}`
+                        : "Try a filmmaker"}
+                    </strong>
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -592,7 +616,13 @@ export function SetupStep({
             </button>
 
             <p className="startupFooterNote">
-              {onboardingRequired ? footerLine : utilityLine}
+              {onboardingRequired
+                ? footerLine
+                : tasteLensSelection
+                  ? tasteLensSelection.mode === "exact-list"
+                    ? `Only ${tasteLensSelection.curatorName}'s published shelf will be considered. No popularity fallback.`
+                    : `Using ${tasteLensSelection.curatorName}'s films as inspiration. No popularity fallback.`
+                  : utilityLine}
             </p>
           </div>
         </div>
@@ -778,6 +808,13 @@ export function SetupStep({
           onClose={() => setSetupUtility(null)}
         />
       ) : null}
+
+      <TasteLensExperience
+        open={tasteLensOpen}
+        selection={tasteLensSelection}
+        onClose={() => setTasteLensOpen(false)}
+        onSelect={onTasteLensSelectionChange}
+      />
     </section>
   );
 }
@@ -1078,7 +1115,7 @@ function eventStatusLabel(status: string): string {
 function SetupControlIcon({
   kind,
 }: {
-  kind: "people" | "language" | "availability" | "intent";
+  kind: "people" | "language" | "availability" | "intent" | "lens";
 }) {
   if (kind === "people") {
     return (
@@ -1118,6 +1155,18 @@ function SetupControlIcon({
     );
   }
 
+  if (kind === "lens") {
+    return (
+      <span className="startupControlIcon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="6.3" />
+          <path d="m16 16 3.8 3.8" />
+          <path d="M8.4 11h5.2M11 8.4v5.2" />
+        </svg>
+      </span>
+    );
+  }
+
   return (
     <span className="startupControlIcon" aria-hidden="true">
       <svg viewBox="0 0 24 24">
@@ -1130,14 +1179,14 @@ function SetupControlIcon({
 
 function StartupConceptHero() {
   return (
-    <div className="startupConceptHero" role="img" aria-label="Glowing particle sculpture">
+    <div className="startupConceptHero" role="img" aria-label="WatchSignal television signal">
       <Image
         className="startupConceptHeroImage"
-        src="/watchsignal-startup-signal.webp"
+        src="/watchsignal-tv-hero-v3.webp"
         alt=""
-        width={864}
-        height={1821}
-        sizes="(max-width: 430px) 74vw, 260px"
+        width={1024}
+        height={1536}
+        sizes="(max-width: 430px) 100vw, 430px"
         priority
       />
     </div>
@@ -1934,6 +1983,12 @@ export function ResultsStep({
         <section className="recommendationRunStatus" role="status">
           <strong>{recommendationRunStatus.label}</strong>
           <p>{recommendationRunStatus.detail}</p>
+          {recommendationRunStatus.curatorLens ? (
+            <p>
+              Taste Lens {recommendationRunStatus.curatorLens.status === "active" ? "ACTIVE" : "NOT APPLIED"}
+              {" · "}{recommendationRunStatus.curatorLens.source}
+            </p>
+          ) : null}
         </section>
       ) : null}
       <ResultUtilityHub

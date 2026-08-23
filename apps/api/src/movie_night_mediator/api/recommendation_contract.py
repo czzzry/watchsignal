@@ -5,6 +5,9 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from movie_night_mediator.app.recommendation import (
+    CuratorLens,
+    CuratorLensMode,
+    CuratorLensProvenance,
     RecommendationRequest,
     RecommendationSource,
 )
@@ -77,6 +80,21 @@ class ScoringSessionReactionPayload(BaseModel):
     title: str | None = None
 
 
+class CuratorLensProvenancePayload(BaseModel):
+    sourceName: str = Field(min_length=1, max_length=200)
+    sourceUrl: str | None = Field(default=None, max_length=2_000)
+    retrievedAt: str | None = Field(default=None, max_length=100)
+
+
+class CuratorLensPayload(BaseModel):
+    """A request-scoped lens, never a durable Taste Lab update."""
+
+    curatorId: str = Field(min_length=1, max_length=200)
+    mode: CuratorLensMode
+    anchorSourceMovieIds: list[str] = Field(min_length=1, max_length=500)
+    provenance: CuratorLensProvenancePayload
+
+
 class RecommendationShortlistRequestPayload(BaseModel):
     sessionId: str = Field(min_length=1)
     householdId: str = Field(default=DEFAULT_HOUSEHOLD_ID, min_length=1)
@@ -95,6 +113,7 @@ class RecommendationShortlistRequestPayload(BaseModel):
     excludedSourceMovieIds: list[str] = Field(default_factory=list)
     sessionReactions: list[ScoringSessionReactionPayload] = Field(default_factory=list)
     scoringEngine: ScoringEngineId = ScoringEngineId.V2_CONTRACT
+    curatorLens: CuratorLensPayload | None = None
 
 
 def recommendation_request_from_payload(
@@ -108,6 +127,24 @@ def recommendation_request_from_payload(
         excluded_source_movie_ids=tuple(payload.excludedSourceMovieIds),
         session_reactions=_shortlist_session_reactions_from_payload(payload),
         scoring_engine=payload.scoringEngine,
+        curator_lens=_curator_lens_from_payload(payload.curatorLens),
+    )
+
+
+def _curator_lens_from_payload(
+    payload: CuratorLensPayload | None,
+) -> CuratorLens | None:
+    if payload is None:
+        return None
+    return CuratorLens(
+        curator_id=payload.curatorId,
+        mode=payload.mode,
+        anchor_source_movie_ids=tuple(payload.anchorSourceMovieIds),
+        provenance=CuratorLensProvenance(
+            source_name=payload.provenance.sourceName,
+            source_url=payload.provenance.sourceUrl,
+            retrieved_at=payload.provenance.retrievedAt,
+        ),
     )
 
 def _shortlist_session_from_payload(
