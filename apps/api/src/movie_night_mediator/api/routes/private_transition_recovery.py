@@ -32,7 +32,6 @@ from movie_night_mediator.domain.private_transition_recovery import (
     SealCommand,
     SealFinalBallot,
     SealFounderBallot,
-    UseLocalResult,
     SecondPassReady,
 )
 
@@ -47,7 +46,7 @@ class PrivateTransitionRecoveryModule(Protocol):
         deployment_tenant: str,
         token: str,
         command: SealCommand,
-    ) -> RecoveryHandle | ResultReady:
+    ) -> RecoveryHandle:
         ...
 
     def resume(
@@ -149,18 +148,10 @@ class SealFinalBallotPayload(StrictPayload):
     )
 
 
-class UseLocalResultPayload(StrictPayload):
-    kind: Literal["use_local_result"]
-    workflowVersion: Literal[1] = 1
-    payloadVersion: Literal[1] = 1
-    commandId: str = Field(pattern=r"^[0-9a-f]{64}$")
-
-
 RecoverySealCommandPayload = Annotated[
     SealFounderBallotPayload
     | OpenSecondPassPayload
-    | SealFinalBallotPayload
-    | UseLocalResultPayload,
+    | SealFinalBallotPayload,
     Field(discriminator="kind"),
 ]
 
@@ -204,6 +195,7 @@ class HandoffReadyPayload(StrictPayload):
 
 class SecondPassReadyPayload(StrictPayload):
     kind: Literal["second_pass_ready"]
+    canonicalSessionId: str = Field(min_length=1, max_length=128)
     recipientLabel: str = Field(min_length=1, max_length=100)
     displaySnapshot: list[RecoveryMovieDisplayPayload]
 
@@ -217,14 +209,14 @@ class MatchingFailedPayload(StrictPayload):
     kind: Literal["matching_failed"]
     recipientLabel: str = Field(min_length=1, max_length=100)
     canRetry: Literal[True]
-    canUseLocal: Literal[True]
+    canUseLocal: Literal[False]
 
 
 class ResultReadyPayload(StrictPayload):
     kind: Literal["result_ready"]
     canonicalSessionId: str = Field(min_length=1, max_length=128)
     recipientLabel: str = Field(min_length=1, max_length=100)
-    resultSource: Literal["shared", "local"]
+    resultSource: Literal["shared"]
     finalReactions: list[RecoveryReactionPayload] = Field(min_length=5, max_length=5)
     displaySnapshot: list[RecoveryMovieDisplayPayload]
 
@@ -239,9 +231,7 @@ PrivateTransitionResumeProjectionPayload = Annotated[
     Field(discriminator="kind"),
 ]
 
-PrivateTransitionSealResponsePayload = (
-    PrivateTransitionRecoveryHandlePayload | ResultReadyPayload
-)
+PrivateTransitionSealResponsePayload = PrivateTransitionRecoveryHandlePayload
 
 
 def register_private_transition_recovery_routes(
@@ -269,8 +259,6 @@ def register_private_transition_recovery_routes(
             )
         except Exception as error:
             raise _public_recovery_error(error) from None
-        if isinstance(result, ResultReady):
-            return _resume_projection(result)
         return PrivateTransitionRecoveryHandlePayload(
             version=result.version,
             expiresAtMs=result.expires_at_ms,
@@ -387,8 +375,6 @@ def _require_maintenance_authorization(request: Request) -> None:
 
 
 def _seal_command(payload: RecoverySealCommandPayload) -> SealCommand:
-    if isinstance(payload, UseLocalResultPayload):
-        return UseLocalResult(command_id=payload.commandId)
     if isinstance(payload, OpenSecondPassPayload):
         return OpenSecondPass(
             command_id=payload.commandId,
@@ -510,6 +496,7 @@ def _resume_projection(
     if isinstance(projection, SecondPassReady):
         return SecondPassReadyPayload(
             kind="second_pass_ready",
+            canonicalSessionId=projection.canonical_session_id,
             recipientLabel=projection.recipient_label,
             displaySnapshot=[
                 _movie_display_payload(movie) for movie in projection.display_snapshot
@@ -525,7 +512,7 @@ def _resume_projection(
             kind="matching_failed",
             recipientLabel=projection.recipient_label,
             canRetry=True,
-            canUseLocal=True,
+            canUseLocal=False,
         )
     if isinstance(projection, ResultReady):
         return ResultReadyPayload(

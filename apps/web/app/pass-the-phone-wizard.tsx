@@ -58,6 +58,11 @@ import {
   privateTransitionRestorePlan,
 } from "./pass-the-phone/private-transition-restore-plan";
 import {
+  canonicalResultInputs,
+  canonicalSecondPassInputs,
+  canonicalSharedResultReady,
+} from "./pass-the-phone/canonical-result-contract";
+import {
   clearLocalPrivateTransition,
   consumeLocalPrivateTransition,
   markLocalPrivateTransition,
@@ -81,7 +86,6 @@ import {
   formatSessionDate,
   rankCandidates,
   stepHeadline,
-  toRecoverySessionCandidate,
 } from "./pass-the-phone-helpers";
 import type {
   ApiHealth,
@@ -370,6 +374,12 @@ export function PassThePhoneWizard({
 
   const currentStepIndex = activeStepOrder.indexOf(step);
   const isSyncing = syncStatus !== "ready";
+  const verifiedResultsReady = !isCoupleSession
+    || (
+      sessionSource === "api"
+      && canonicalSharedResultReady(sharedSession)
+    )
+    || reviewMode;
   const canShowMore = canContinuePassThePhoneSession({
     apiConnected: apiHealth.connected,
     sessionSource,
@@ -893,52 +903,6 @@ export function PassThePhoneWizard({
     await runFinalMatching(pending.actor, pending.reactions);
   }
 
-  async function showLocalResult(): Promise<void> {
-    if (
-      transitionRecoveryStage === "matching_pending"
-      || transitionRecoveryStage === "matching_failed"
-    ) {
-      setMatchingTransition({ phase: "saving" });
-      try {
-        const projection = await saveAndResumePrivateTransition({
-          kind: "use_local_result",
-          workflowVersion: 1,
-          payloadVersion: 1,
-          commandId: createPrivateTransitionCommandId(),
-        });
-        await restorePrivateTransition(projection);
-      } catch {
-        setTransitionRecoveryStage("matching_failed");
-        setMatchingTransition({ phase: "failed" });
-        updateSession({
-          apiError: "The saved result is still finishing. Try again in a moment.",
-        });
-      }
-      return;
-    }
-    const pending = pendingFinalPassRef.current;
-    if (!pending) {
-      return;
-    }
-    setDemoDebugFallback();
-    updateSession({
-      apiError: "Live matching paused. Showing the result from the picks already on this phone.",
-    });
-    await beginMatchConvergence();
-    dispatchNavigation(
-      passCompletedNavigationAction({
-        actor: pending.actor,
-        coupleSession: isCoupleSession,
-      }),
-    );
-    try {
-      clearLocalPrivateTransition(window.sessionStorage);
-    } catch {}
-    pendingFinalPassRef.current = null;
-    setMatchingTransition(null);
-    await clearTransitionRecovery();
-  }
-
   function transitionRecoveryClient(): PrivateTransitionRecoveryClient {
     transitionRecoveryClientRef.current ??= createPrivateTransitionRecoveryClient();
     return transitionRecoveryClientRef.current;
@@ -1021,14 +985,23 @@ export function PassThePhoneWizard({
       return;
     }
     if (plan.kind === "second_pass") {
-      const candidates = plan.displaySnapshot.map(toRecoverySessionCandidate);
-      resetBatch(candidates);
+      const recoveredSession = await getSharedSession(plan.canonicalSessionId);
+      const inputs = canonicalSecondPassInputs({
+        displaySnapshot: plan.displaySnapshot,
+        session: recoveredSession,
+      });
+      resetBatch(inputs.candidates);
+      setSessionMode(sessionModeFromSharedSession(recoveredSession));
+      setFounderReactions(inputs.founderReactions);
+      setWifeReactions({});
       updateSession({
         sessionSource: "api",
         movieSource: "live",
         persistenceSource: "shared",
-        shownSourceMovieIds: candidates.map((candidate) => candidate.id),
-        apiError: "Private session restored on this tab.",
+        liveSessionId: recoveredSession.sessionId,
+        sharedSession: recoveredSession,
+        shownSourceMovieIds: recoveredSession.shownSourceMovieIds,
+        apiError: null,
       });
       dispatchNavigation({ type: "session.recovered", step: "wife" });
       return;
@@ -1044,22 +1017,23 @@ export function PassThePhoneWizard({
     }
 
     const recoveredSession = await getSharedSession(plan.canonicalSessionId);
-    const candidates = plan.displaySnapshot.map(toRecoverySessionCandidate);
-    resetBatch(candidates);
+    const inputs = canonicalResultInputs({
+      displaySnapshot: plan.displaySnapshot,
+      finalReactions: plan.finalReactions,
+      session: recoveredSession,
+    });
+    resetBatch(inputs.candidates);
     setSessionMode(sessionModeFromSharedSession(recoveredSession));
-    setFounderReactions(reactionStateFromSharedSession(recoveredSession.founderReactions));
-    setWifeReactions(reactionStateFromSharedSession(plan.finalReactions));
-    const localResult = plan.resultSource === "local";
+    setFounderReactions(inputs.founderReactions);
+    setWifeReactions(inputs.wifeReactions);
     updateSession({
-      sessionSource: localResult ? "demo" : "api",
+      sessionSource: "api",
       movieSource: "live",
-      persistenceSource: localResult ? "local" : "shared",
+      persistenceSource: "shared",
       liveSessionId: recoveredSession.sessionId,
-      sharedSession: localResult ? null : recoveredSession,
+      sharedSession: recoveredSession,
       shownSourceMovieIds: recoveredSession.shownSourceMovieIds,
-      apiError: localResult
-        ? "Live matching paused. Showing the result from the picks already on this phone."
-        : "Private result restored on this tab.",
+      apiError: null,
     });
     await beginMatchConvergence();
     dispatchNavigation({ type: "session.recovered", step: "results" });
@@ -1129,7 +1103,7 @@ export function PassThePhoneWizard({
           coupleSession={isCoupleSession}
           onConvergenceComplete={completeMatchConvergence}
           onRetry={retryFinalMatching}
-          onUseLocal={showLocalResult}
+          onCancel={resetSession}
         />
       ) : null}
 
@@ -1276,6 +1250,7 @@ export function PassThePhoneWizard({
             || transitionRecoveryStage === "sealing"
             || transitionRecoveryStage === "handoff_pending"
           }
+          onReset={resetSession}
           onContinue={continueAfterHandoff}
         />
       ) : null}
@@ -1321,7 +1296,7 @@ export function PassThePhoneWizard({
       ) : null}
 
       {step === "results" ? (
-        <ResultsStep
+        verifiedResultsReady ? <ResultsStep
           founderLabel={founderLabel}
           wifeLabel={wifeLabel}
           participantIds={participantIds}
@@ -1361,6 +1336,11 @@ export function PassThePhoneWizard({
           onApplySteer={applySteerAndShowMore}
           isSyncing={isSyncing}
           reviewMode={reviewMode}
+        /> : <SessionRecoveryStep
+          title="Result not verified"
+          detail="WatchSignal did not receive two complete saved ballots and a server-ranked result. No result was created."
+          actionLabel="Back to home"
+          onAction={resetSession}
         />
       ) : null}
 
@@ -1394,19 +1374,4 @@ function sessionModeFromSharedSession(
   if (session.activeMode === "husband_first") return "founder-first";
   if (session.activeMode === "wife_first") return "wife-first";
   return "compromise";
-}
-
-function reactionStateFromSharedSession(
-  reactions: Array<{
-    sourceMovieId: string;
-    reactionLabel?: "interested" | "maybe" | "no" | "seen";
-    reaction?: "interested" | "maybe" | "no" | "seen";
-  }>,
-): ReactionState {
-  return Object.fromEntries(
-    reactions.map((reaction) => {
-      const value = reaction.reactionLabel ?? reaction.reaction ?? "maybe";
-      return [reaction.sourceMovieId, value === "seen" ? "maybe" : value];
-    }),
-  );
 }

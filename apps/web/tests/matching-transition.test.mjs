@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   MATCH_CONVERGENCE_DURATION_MS,
   MATCH_REVEAL_MAX_MS,
+  matchingFailureActions,
   matchingTransitionCopy,
   matchRevealMeetsBudget,
 } from "../app/pass-the-phone/matching-transition-contract.ts";
@@ -20,7 +21,7 @@ test("matching copy follows real saving, ready, and failed states", () => {
   );
   assert.deepEqual(
     matchingTransitionCopy({ phase: "failed", coupleSession: true }),
-    { title: "Matching paused", detail: "Your picks are safe on this phone." },
+    { title: "Matching paused", detail: "No result was created. Try again to verify both ballots." },
   );
 });
 
@@ -61,4 +62,20 @@ test("a matching failure can retain the ballot for retry instead of silently adv
   assert.equal(events.some(([name]) => name === "fallback"), false);
   assert.deepEqual(events.at(0), ["start", "saving"]);
   assert.deepEqual(events.at(-1), ["finish"]);
+});
+
+test("matching failure exposes only working retry and home actions", async () => {
+  const events = [];
+  const actions = matchingFailureActions({
+    onRetry: async () => events.push("retry"),
+    onCancel: () => events.push("home"),
+  });
+
+  assert.deepEqual(actions.map(({ id, label }) => ({ id, label })), [
+    { id: "retry", label: "Try again" },
+    { id: "home", label: "Back home" },
+  ]);
+  await actions[0].activate();
+  await actions[1].activate();
+  assert.deepEqual(events, ["retry", "home"]);
 });

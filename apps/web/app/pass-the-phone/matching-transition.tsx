@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { WatchSignalIcon } from "../ui/watchsignal-icons";
 import {
+  matchingFailureActions,
   matchingTransitionCopy,
   type MatchingTransitionPhase,
 } from "./matching-transition-contract";
@@ -14,18 +15,20 @@ export function MatchingTransition({
   coupleSession,
   onConvergenceComplete,
   onRetry,
-  onUseLocal,
+  onCancel,
 }: {
   phase: MatchingTransitionPhase;
   coupleSession: boolean;
   onConvergenceComplete: () => void;
   onRetry: () => void | Promise<void>;
-  onUseLocal: () => void | Promise<void>;
+  onCancel: () => void;
 }) {
   const overlayRef = useRef<HTMLElement>(null);
   const retryRef = useRef<HTMLButtonElement>(null);
+  const homeRef = useRef<HTMLButtonElement>(null);
   const completedRef = useRef(false);
   const copy = matchingTransitionCopy({ phase, coupleSession });
+  const failureActions = matchingFailureActions({ onRetry, onCancel });
 
   useEffect(() => {
     const restoreBackground = isolateTransitionBackground(overlayRef.current);
@@ -70,7 +73,7 @@ export function MatchingTransition({
           event.preventDefault();
         }
         if (phase === "failed" && event.key === "Tab") {
-          const controls = [retryRef.current, overlayRef.current?.querySelector<HTMLButtonElement>("[data-local-result]")].filter(Boolean) as HTMLButtonElement[];
+          const controls = [retryRef.current, homeRef.current].filter(Boolean) as HTMLButtonElement[];
           const activeIndex = controls.indexOf(document.activeElement as HTMLButtonElement);
           if ((!event.shiftKey && activeIndex === controls.length - 1) || (event.shiftKey && activeIndex <= 0)) {
             event.preventDefault();
@@ -98,12 +101,16 @@ export function MatchingTransition({
 
       {phase === "failed" ? (
         <div className={styles.recoveryActions}>
-          <button ref={retryRef} type="button" onClick={() => void onRetry()}>
-            Try again
-          </button>
-          <button data-local-result type="button" onClick={() => void onUseLocal()}>
-            Show local result
-          </button>
+          {failureActions.map((action) => (
+            <button
+              key={action.id}
+              ref={action.id === "retry" ? retryRef : homeRef}
+              type="button"
+              onClick={() => void action.activate()}
+            >
+              {action.label}
+            </button>
+          ))}
         </div>
       ) : null}
     </section>

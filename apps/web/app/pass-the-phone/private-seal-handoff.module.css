@@ -111,12 +111,34 @@
 }
 
 .handoff {
+  position: relative;
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto auto auto minmax(0, 1fr);
   align-items: center;
   justify-items: center;
   gap: 20px;
   overflow: auto;
+}
+
+.resetButton {
+  position: absolute;
+  top: max(12px, var(--ws-safe-top));
+  left: max(var(--ws-page-gutter), var(--ws-safe-left));
+  min-height: 44px;
+  border: 0;
+  border-radius: 10px;
+  padding: 0 8px;
+  background: transparent;
+  color: var(--ws-text-muted);
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.resetButton:hover:enabled {
+  transform: none;
+  background: var(--ws-surface);
+  color: var(--ws-text);
 }
 
 .handoffSignal {

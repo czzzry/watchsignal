@@ -163,44 +163,6 @@ test("deep recovery client resumes and consumes through the same opaque handle",
   assert.deepEqual(JSON.parse(calls[2].init.body), { token: "A".repeat(43) });
 });
 
-test("local result is returned directly without creating a durable result-ready stage", async () => {
-  const stored = new Map();
-  const displaySnapshot = Array.from({ length: 5 }, (_, index) => ({
-    sourceMovieId: `movie-${index}`,
-  }));
-  const projection = {
-    kind: "result_ready",
-    canonicalSessionId: "session-private",
-    recipientLabel: "Canonical partner",
-    resultSource: "local",
-    displaySnapshot,
-    finalReactions: displaySnapshot.map((movie) => ({
-      sourceMovieId: movie.sourceMovieId,
-      reaction: "interested",
-    })),
-  };
-  const client = createPrivateTransitionRecoveryClient({
-    createToken: () => "A".repeat(43),
-    now: () => now,
-    storage: {
-      getItem: (key) => stored.get(key) ?? null,
-      removeItem: (key) => stored.delete(key),
-      setItem: (key, value) => stored.set(key, value),
-    },
-    fetchImpl: async () => Response.json(projection),
-  });
-
-  const result = await client.save({
-    kind: "use_local_result",
-    workflowVersion: 1,
-    payloadVersion: 1,
-    commandId: "d".repeat(64),
-  });
-
-  assert.deepEqual(result, projection);
-  assert.equal(stored.size, 1);
-});
-
 test("deep recovery client rejects a result with unrecognized reaction data", async () => {
   const checkpoint = JSON.stringify(createPrivateTransitionCheckpoint(
     { recoveryToken: "A".repeat(43) },
@@ -261,7 +223,7 @@ test("recovery projections drive one executable handoff, pass, matching, or resu
       kind: "matching_failed",
       recipientLabel: "Canonical partner",
       canRetry: true,
-      canUseLocal: true,
+      canUseLocal: false,
     }),
     {
       kind: "matching",
@@ -278,12 +240,14 @@ test("recovery projections drive one executable handoff, pass, matching, or resu
   assert.deepEqual(
     privateTransitionRestorePlan({
       kind: "second_pass_ready",
+      canonicalSessionId: "session-private",
       recipientLabel: "Canonical partner",
       displaySnapshot,
     }),
     {
       kind: "second_pass",
       stage: "second_pass_ready",
+      canonicalSessionId: "session-private",
       recipientLabel: "Canonical partner",
       displaySnapshot,
     },
@@ -297,7 +261,7 @@ test("recovery projections drive one executable handoff, pass, matching, or resu
       kind: "result_ready",
       canonicalSessionId: "session-private",
       recipientLabel: "Canonical partner",
-      resultSource: "local",
+      resultSource: "shared",
       displaySnapshot,
       finalReactions,
     }),
@@ -306,7 +270,7 @@ test("recovery projections drive one executable handoff, pass, matching, or resu
       stage: "result_ready",
       canonicalSessionId: "session-private",
       recipientLabel: "Canonical partner",
-      resultSource: "local",
+      resultSource: "shared",
       displaySnapshot,
       finalReactions,
     },

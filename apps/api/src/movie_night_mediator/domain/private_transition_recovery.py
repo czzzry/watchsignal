@@ -31,7 +31,6 @@ class RecoveryCommandKind(StrEnum):
     SEAL_FOUNDER_BALLOT = "seal_founder_ballot"
     OPEN_SECOND_PASS = "open_second_pass"
     SEAL_FINAL_BALLOT = "seal_final_ballot"
-    USE_LOCAL_RESULT = "use_local_result"
 
 
 class RecoveryCommandStatus(StrEnum):
@@ -309,19 +308,6 @@ class SealFinalBallot:
 
 
 @dataclass(frozen=True)
-class UseLocalResult:
-    command_id: str
-
-    def __post_init__(self) -> None:
-        if not isinstance(self.command_id, str):
-            raise ValueError("Recovery command ids must be text.")
-        command_id = self.command_id.strip()
-        if not re.fullmatch(r"[0-9a-f]{64}", command_id):
-            raise ValueError("Recovery command ids must be lowercase 256-bit hex.")
-        object.__setattr__(self, "command_id", command_id)
-
-
-@dataclass(frozen=True)
 class RecoveryHandle:
     version: int
     expires_at_ms: int
@@ -358,11 +344,21 @@ class HandoffReady:
 @dataclass(frozen=True)
 class SecondPassReady:
     display_snapshot: tuple[RecoveryMovieDisplay, ...]
+    canonical_session_id: str
     recipient_label: str
 
     def __post_init__(self) -> None:
         if len(self.display_snapshot) != 5:
             raise ValueError("Second-pass recovery requires exactly five movies.")
+        object.__setattr__(
+            self,
+            "canonical_session_id",
+            _bounded_text(
+                self.canonical_session_id,
+                "Second-pass recovery session id",
+                MAX_RECOVERY_SESSION_ID_LENGTH,
+            ),
+        )
         object.__setattr__(
             self,
             "recipient_label",
@@ -394,7 +390,7 @@ class MatchingPending:
 class MatchingFailed:
     recipient_label: str
     can_retry: bool = True
-    can_use_local: bool = True
+    can_use_local: bool = False
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -406,8 +402,8 @@ class MatchingFailed:
                 100,
             ),
         )
-        if self.can_retry is not True or self.can_use_local is not True:
-            raise ValueError("Matching-failure recovery must expose both safe choices.")
+        if self.can_retry is not True or self.can_use_local is not False:
+            raise ValueError("Matching-failure recovery must allow retry only.")
 
 
 @dataclass(frozen=True)
@@ -440,11 +436,11 @@ class ResultReady:
             isinstance(item, RecoveryBallotItem) for item in self.final_reactions
         ):
             raise ValueError("Result recovery requires exactly five final reactions.")
-        if self.result_source not in {"shared", "local"}:
+        if self.result_source != "shared":
             raise ValueError("Result recovery source is invalid.")
 
 
-SealCommand = SealFounderBallot | OpenSecondPass | SealFinalBallot | UseLocalResult
+SealCommand = SealFounderBallot | OpenSecondPass | SealFinalBallot
 ResumeProjection = (
     HandoffPending
     | HandoffReady

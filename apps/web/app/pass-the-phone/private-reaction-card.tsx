@@ -172,7 +172,7 @@ export function PrivateReactionCard({
               <p className={styles.meta}>
                 {[candidate.year, candidate.runtime, ...candidate.genres.slice(0, 3)].filter(Boolean).join(" · ")}
               </p>
-              <p className={styles.fitLine}>{fitLine}</p>
+              {fitLine ? <p className={styles.fitLine}>{fitLine}</p> : null}
               <div className={styles.movieActions}>
                 <button type="button" onClick={(event) => openDetails(event.currentTarget)}>
                   <WatchSignalIcon name="info" />Details

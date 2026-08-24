@@ -19,6 +19,9 @@ import { AccessibleModal } from "../../ui/accessible-modal";
 import { WatchSignalIcon } from "../../ui/watchsignal-icons";
 import { WatchSignalBrand } from "../../ui/primitives";
 import {
+  completedResultNavigationActions,
+} from "./completed-result-navigation";
+import {
   personInitials,
   publicResultSynopsis,
   resultDetailsCast,
@@ -40,6 +43,7 @@ export function RankedResultStage({
   continuationContent,
   continuationAvailable = true,
   utilityContent,
+  onReset,
   onToggleContinuation,
   onPosterFallback,
 }: {
@@ -52,10 +56,12 @@ export function RankedResultStage({
   continuationContent: ReactNode;
   continuationAvailable?: boolean;
   utilityContent: ReactNode;
+  onReset: () => void;
   onToggleContinuation: () => void;
   onPosterFallback: PosterFallbackHandler;
 }) {
   const movies = useMemo(() => rankedCandidates.slice(0, 5), [rankedCandidates]);
+  const navigationActions = completedResultNavigationActions(onReset);
   const [activeId, setActiveId] = useState(movies[0]?.id ?? "");
   const [localDialog, setLocalDialog] = useState<"details" | "utility" | null>(null);
   const [availabilityOpen, setAvailabilityOpen] = useState(false);
@@ -151,11 +157,16 @@ export function RankedResultStage({
         <div className={styles.scrim} aria-hidden="true" />
 
         <header className={styles.header}>
-          <WatchSignalBrand />
+          <button className={styles.homeButton} type="button" onClick={navigationActions.home.activate} aria-label={navigationActions.home.ariaLabel}>
+            <WatchSignalBrand compact />
+          </button>
           <div className={styles.headerEnd}>
             <div className={styles.rank} aria-label={`Rank ${activeIndex + 1} of ${movies.length}`}>
               <strong>{activeIndex + 1}</strong><span>of {movies.length}</span>
             </div>
+            <button className={styles.newNightButton} type="button" onClick={navigationActions.newNight.activate}>
+              {navigationActions.newNight.label}
+            </button>
             <button
               className={styles.moreButton}
               type="button"

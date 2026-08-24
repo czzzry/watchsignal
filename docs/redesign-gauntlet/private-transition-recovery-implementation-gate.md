@@ -211,7 +211,10 @@ The browser checkpoint contains only version, opaque token, and expiry.
 
 The deep browser client owns body-only recovery transport and session storage.
 
-Production evidence covers handoff reload, second-pass reload, retained matching failure, local result, shared result, post-mount consume, and removal of the old query-token route.
+Production evidence originally covered handoff reload, second-pass reload, retained matching failure, local result, shared result, post-mount consume, and removal of the old query-token route.
+
+The 2026-08-24 trust amendment supersedes the local-result behavior.
+Current production behavior permits only a verified shared result and exposes an explicit failure when canonical matching is unavailable.
 
 The independent critic found no material R4 blocker.
 
@@ -232,6 +235,8 @@ The complete WatchSignal journey survives the deployment failures the recovery f
 - A real 390 by 844 two-person journey completes through result, utilities, outcome, and restart.
 - Two independent API processes and stateless web adapters against PostgreSQL resume a sealed handoff from the same database.
 - The real Postgres schema migration and initialization pass under simultaneous startup.
+- The opt-in hosted PostgreSQL command `RUN_PRIVATE_TRANSITION_POSTGRES_TESTS=1 DATABASE_URL=... node scripts/run_api_uv.mjs run python -m unittest tests.test_private_transition_recovery_postgres` passes against a fresh release-test database.
+- That hosted command verifies that both recovery command-kind CHECK constraints allow only the three supported commands and reject `use_local_result` writes.
 - A simulated cold start during matching reaches result or actionable recovery without duplicate persistence.
 - A deployed Vercel and Neon pilot trace creates recovery on one cold function invocation and resumes it after another invocation.
 - Expired recovery returns a safe restart path.

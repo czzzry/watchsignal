@@ -677,6 +677,7 @@ export function toSessionCandidate(
 export function toRecoverySessionCandidate(
   candidate: RecoveryMovieDisplayPayload,
   index: number,
+  canonicalProfileScore: number,
 ): CandidateViewModel {
   return {
     id: candidate.sourceMovieId,
@@ -703,11 +704,14 @@ export function toRecoverySessionCandidate(
     tone: candidate.tone ?? "Balanced pick",
     reason: "Recovered from tonight’s private shortlist.",
     overview: candidate.synopsis || undefined,
-    groupScore: 0.72,
+    groupScore: canonicalProfileScore,
     dominantPositiveEvidence: candidate.positiveEvidence,
     dominantPenalties: candidate.penalties,
     baseRank: index + 1,
-    taste: { founder: 72, wife: 72 },
+    taste: {
+      founder: canonicalProfileScore * 100,
+      wife: canonicalProfileScore * 100,
+    },
     provenance: {
       poster: candidate.posterUrl ? "api-payload" : "fallback-placeholder",
       criticScore: "not-provided",

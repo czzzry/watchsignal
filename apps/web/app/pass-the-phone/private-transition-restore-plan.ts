@@ -16,6 +16,7 @@ export type PrivateTransitionRestorePlan =
       kind: "second_pass";
       stage: "second_pass_ready";
       recipientLabel: string;
+      canonicalSessionId: string;
       displaySnapshot: RecoveryMovieDisplayPayload[];
     }
   | {
@@ -32,7 +33,7 @@ export type PrivateTransitionRestorePlan =
       canonicalSessionId: string;
       displaySnapshot: RecoveryMovieDisplayPayload[];
       finalReactions: RecoveryReactionPayload[];
-      resultSource: "shared" | "local";
+      resultSource: "shared";
     };
 
 export type PrivateTransitionRecipientPresentation = {
@@ -73,6 +74,7 @@ export function privateTransitionRestorePlan(
       kind: "second_pass",
       stage: projection.kind,
       recipientLabel: projection.recipientLabel,
+      canonicalSessionId: projection.canonicalSessionId,
       displaySnapshot: projection.displaySnapshot,
     };
   }

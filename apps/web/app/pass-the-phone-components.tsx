@@ -2091,6 +2091,7 @@ export function ResultsStep({
         continuationContent={continuationContent}
         continuationAvailable
         utilityContent={utilityContent}
+        onReset={onReset}
         onToggleContinuation={() => setContinuationOpen((current) => !current)}
         onPosterFallback={handlePosterFallback}
       />

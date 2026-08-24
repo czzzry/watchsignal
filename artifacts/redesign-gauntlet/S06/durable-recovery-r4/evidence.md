@@ -1,5 +1,7 @@
 # Durable private-transition recovery R4 evidence
 
+The local-result behavior and `local-result-after-failure-390x844.png` screenshot below are pre-2026-08-24 historical evidence and do not represent current production behavior.
+
 ## Claim
 
 An API-backed couple can refresh during the private handoff, second pass, or matching transition without exposing the first ballot or losing the final ballot.
@@ -31,6 +33,8 @@ Beginning the next pass advanced the durable record and a reload restored the se
 An induced recovery transport failure after the fifth final reaction retained that reaction and showed both Try again and Show local result.
 
 Show local result mounted the five-title result, consumed the durable record, removed the checkpoint, and left the canonical shared session in its pre-rerank state.
+
+Current behavior offers Retry or Back home and displays no result until canonical shared rerank succeeds.
 
 A second clean run reached the shared ranked result, consumed the durable record, removed the checkpoint, and persisted exactly five reactions for each participant.
 

@@ -84,6 +84,7 @@ export function PrivateHandoffStep({
   recipientAvatarKey,
   recipientColorKey,
   isSyncing,
+  onReset,
   onContinue,
 }: {
   ownerLabel: string;
@@ -91,6 +92,7 @@ export function PrivateHandoffStep({
   recipientAvatarKey: string;
   recipientColorKey: string;
   isSyncing: boolean;
+  onReset: () => void;
   onContinue: () => void | Promise<void>;
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -106,6 +108,9 @@ export function PrivateHandoffStep({
       data-private-handoff
       aria-labelledby="private-handoff-title"
     >
+      <button type="button" className={styles.resetButton} onClick={onReset} disabled={isSyncing}>
+        Start over
+      </button>
       <div className={styles.handoffSignal} aria-hidden="true">
         <span className={styles.sealedMark}><WatchSignalIcon name="check" /></span>
         <i />

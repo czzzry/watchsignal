@@ -21,6 +21,43 @@ from movie_night_mediator.scoring import (
 
 
 class ScoringConceptRegistryTest(unittest.TestCase):
+    def test_family_in_a_synopsis_is_not_treated_as_family_friendly(self) -> None:
+        gaslight = Candidate(
+            source_movie_id="fixture:gaslight",
+            title="Gaslight",
+            media_type=MediaType.MOVIE,
+            genres=("Thriller", "Drama", "Mystery"),
+            overview=(
+                "A newlywed fears she is going mad when strange things start "
+                "happening at the family mansion."
+            ),
+            providers=("Prime Video",),
+        )
+
+        concepts = {
+            item.concept
+            for item in ScoringConceptRegistry().concepts_for_candidate(gaslight)
+        }
+
+        self.assertNotIn("family", concepts)
+
+    def test_family_genre_remains_an_explicit_family_signal(self) -> None:
+        family_movie = Candidate(
+            source_movie_id="fixture:family",
+            title="Family Movie",
+            media_type=MediaType.MOVIE,
+            genres=("Family",),
+            overview="A household faces an unexpected adventure.",
+            providers=("Prime Video",),
+        )
+
+        concepts = {
+            item.concept
+            for item in ScoringConceptRegistry().concepts_for_candidate(family_movie)
+        }
+
+        self.assertIn("family", concepts)
+
     def test_maps_metadata_to_stable_concept_labels(self) -> None:
         candidate = Candidate(
             source_movie_id="fixture:arrival",
