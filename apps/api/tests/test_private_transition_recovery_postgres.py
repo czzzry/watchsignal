@@ -10,6 +10,8 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from multiprocessing import get_context
 
+from psycopg.errors import CheckViolation
+
 from movie_night_mediator.api.main import create_app
 from movie_night_mediator.app.private_transition_recovery import (
     PrivateTransitionRecovery,
@@ -101,6 +103,87 @@ class _BlockingCanonicalWriter:
     "Real PostgreSQL recovery tests require explicit opt-in and DATABASE_URL.",
 )
 class PrivateTransitionRecoveryPostgresTest(unittest.TestCase):
+    def test_fresh_schema_rejects_retired_local_result_command_kind(self) -> None:
+        store = SQLitePrivateTransitionRecoveryStore()
+        store.initialize_schema()
+
+        def kind_constraint_definitions(table_name: str, column_name: str) -> tuple[str, ...]:
+            with closing(connect_database(DEFAULT_SQLITE_PATH)) as connection:
+                rows = connection.execute(
+                    """
+                    SELECT pg_get_constraintdef(c.oid) AS definition
+                    FROM pg_constraint c
+                    JOIN pg_class t ON t.oid = c.conrelid
+                    WHERE t.relname = ?
+                      AND c.contype = 'c'
+                    """,
+                    (table_name,),
+                ).fetchall()
+            return tuple(
+                str(row["definition"])
+                for row in rows
+                if column_name in str(row["definition"])
+            )
+
+        for table_name, column_name in (
+            ("private_transition_recoveries", "active_command_kind"),
+            ("private_transition_recovery_commands", "command_kind"),
+        ):
+            definitions = kind_constraint_definitions(table_name, column_name)
+            self.assertEqual(len(definitions), 1)
+            self.assertNotIn("use_local_result", definitions[0])
+            for supported_kind in (
+                "seal_founder_ballot",
+                "open_second_pass",
+                "seal_final_ballot",
+            ):
+                self.assertIn(supported_kind, definitions[0])
+
+        marker = secrets.token_hex(16)
+        record = StoredPrivateTransitionRecovery(
+            recovery_id=f"postgres-retired-kind-recovery-{marker}",
+            token_hash=secrets.token_hex(32),
+            household_id=f"postgres-retired-kind-household-{marker}",
+            shared_session_id=f"postgres-retired-kind-session-{marker}",
+            workflow_version=1,
+            payload_version=1,
+            stage=RecoveryStage.FOUNDER_SEALED,
+            actor=RecoveryActor.FOUNDER,
+            revision=1,
+            payload_json="{}",
+            payload_fingerprint=secrets.token_hex(32),
+            expires_at_ms=9_000_000_000_000,
+            created_at_ms=1,
+            updated_at_ms=1,
+        )
+        try:
+            self.assertIsNotNone(
+                store.save_founder_seal(record, command_id=secrets.token_hex(32))
+            )
+            with self.assertRaises(CheckViolation):
+                with closing(connect_database(DEFAULT_SQLITE_PATH)) as connection:
+                    with connection:
+                        connection.execute(
+                            """
+                            INSERT INTO private_transition_recovery_commands (
+                                recovery_id,
+                                command_id,
+                                command_kind,
+                                starting_revision,
+                                status,
+                                created_at_ms,
+                                updated_at_ms
+                            )
+                            VALUES (?, ?, 'use_local_result', 1, 'sealed', 1, 1)
+                            """,
+                            (record.recovery_id, secrets.token_hex(32)),
+                        )
+        finally:
+            store.consume(
+                token_hash=record.token_hash,
+                household_id=record.household_id,
+            )
+
     def test_two_connections_initialize_and_one_compare_and_swap_wins(self) -> None:
         first = SQLitePrivateTransitionRecoveryStore()
         second = SQLitePrivateTransitionRecoveryStore()

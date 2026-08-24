@@ -31,7 +31,6 @@ class RecoveryCommandKind(StrEnum):
     SEAL_FOUNDER_BALLOT = "seal_founder_ballot"
     OPEN_SECOND_PASS = "open_second_pass"
     SEAL_FINAL_BALLOT = "seal_final_ballot"
-    USE_LOCAL_RESULT = "use_local_result"
 
 
 class RecoveryCommandStatus(StrEnum):

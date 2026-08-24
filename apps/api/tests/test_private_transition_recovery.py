@@ -2235,42 +2235,50 @@ class PrivateTransitionRecoveryStoreTest(unittest.TestCase):
             self.assertEqual(command_columns["updated_at_ms"], "BIGINT")
             self.assertTrue(any(row[6] == "CASCADE" for row in foreign_keys))
 
-    def test_schema_upgrades_the_legacy_command_allowlist_for_local_result(self) -> None:
+    def test_fresh_postgres_schema_definitions_exclude_local_result(self) -> None:
+        class RecordingPostgresConnection:
+            def __init__(self) -> None:
+                self.schema_script = ""
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc_value, traceback) -> bool:
+                return False
+
+            def close(self) -> None:
+                return None
+
+            def executescript(self, script: str) -> None:
+                self.schema_script = script
+
+        connection = RecordingPostgresConnection()
+        store = SQLitePrivateTransitionRecoveryStore(database_path=":memory:")
+        store._connect = lambda: connection  # type: ignore[method-assign]
+
+        store.initialize_schema()
+
+        self.assertIn("active_command_kind IN", connection.schema_script)
+        self.assertIn("command_kind IN", connection.schema_script)
+        self.assertIn("'seal_founder_ballot'", connection.schema_script)
+        self.assertIn("'open_second_pass'", connection.schema_script)
+        self.assertIn("'seal_final_ballot'", connection.schema_script)
+        self.assertNotIn("use_local_result", connection.schema_script)
+
+    def test_fresh_schema_rejects_the_retired_local_result_command(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             database_path = Path(directory) / "recovery.sqlite3"
             store = SQLitePrivateTransitionRecoveryStore(database_path=database_path)
             store.initialize_schema()
             with closing(sqlite3.connect(database_path)) as connection, connection:
-                connection.executescript(
+                recovery_sql = connection.execute(
                     """
-                    DROP TABLE private_transition_recovery_commands;
-                    CREATE TABLE private_transition_recovery_commands (
-                        recovery_id TEXT NOT NULL REFERENCES private_transition_recoveries(recovery_id)
-                            ON DELETE CASCADE,
-                        command_id TEXT NOT NULL CHECK (length(command_id) = 64),
-                        command_kind TEXT NOT NULL CHECK (
-                            command_kind IN (
-                                'seal_founder_ballot',
-                                'open_second_pass',
-                                'seal_final_ballot'
-                            )
-                        ),
-                        request_fingerprint TEXT CHECK (
-                            request_fingerprint IS NULL OR length(request_fingerprint) = 64
-                        ),
-                        starting_revision INTEGER NOT NULL,
-                        result_revision INTEGER,
-                        status TEXT NOT NULL CHECK (status IN ('sealed', 'completed')),
-                        created_at_ms BIGINT NOT NULL,
-                        updated_at_ms BIGINT NOT NULL,
-                        PRIMARY KEY (recovery_id, command_id)
-                    );
+                    SELECT sql
+                    FROM sqlite_master
+                    WHERE type = 'table'
+                      AND name = 'private_transition_recoveries'
                     """
-                )
-
-            store.initialize_schema()
-
-            with closing(sqlite3.connect(database_path)) as connection:
+                ).fetchone()[0]
                 command_sql = connection.execute(
                     """
                     SELECT sql
@@ -2279,7 +2287,118 @@ class PrivateTransitionRecoveryStoreTest(unittest.TestCase):
                       AND name = 'private_transition_recovery_commands'
                     """
                 ).fetchone()[0]
-            self.assertIn("use_local_result", command_sql)
+                connection.execute(
+                    """
+                    INSERT INTO private_transition_recoveries (
+                        recovery_id, token_hash, household_id, shared_session_id,
+                        workflow_version, payload_version, stage, actor, revision,
+                        lease_generation, expires_at_ms, created_at_ms, updated_at_ms
+                    )
+                    VALUES (?, ?, 'household-1', 'session-1', 1, 1,
+                        'founder_sealed', 'founder', 1, 0, 10, 1, 1)
+                    """,
+                    ("recovery-1", "a" * 64),
+                )
+                with self.assertRaises(sqlite3.IntegrityError):
+                    connection.execute(
+                        """
+                        UPDATE private_transition_recoveries
+                        SET active_command_kind = 'use_local_result'
+                        WHERE recovery_id = 'recovery-1'
+                        """
+                    )
+                with self.assertRaises(sqlite3.IntegrityError):
+                    connection.execute(
+                        """
+                        INSERT INTO private_transition_recovery_commands (
+                            recovery_id, command_id, command_kind, starting_revision,
+                            status, created_at_ms, updated_at_ms
+                        )
+                        VALUES ('recovery-1', ?, 'use_local_result', 1, 'sealed', 1, 1)
+                        """,
+                        ("b" * 64,),
+                    )
+                for command_id, command_kind in (
+                    ("c" * 64, "seal_founder_ballot"),
+                    ("d" * 64, "open_second_pass"),
+                    ("e" * 64, "seal_final_ballot"),
+                ):
+                    connection.execute(
+                        """
+                        INSERT INTO private_transition_recovery_commands (
+                            recovery_id, command_id, command_kind, starting_revision,
+                            status, created_at_ms, updated_at_ms
+                        )
+                        VALUES ('recovery-1', ?, ?, 1, 'sealed', 1, 1)
+                        """,
+                        (command_id, command_kind),
+                    )
+
+            self.assertNotIn("use_local_result", recovery_sql)
+            self.assertNotIn("use_local_result", command_sql)
+            store.initialize_schema()
+            with closing(sqlite3.connect(database_path)) as connection:
+                supported_kinds = tuple(
+                    row[0]
+                    for row in connection.execute(
+                        """
+                        SELECT command_kind
+                        FROM private_transition_recovery_commands
+                        ORDER BY command_id
+                        """
+                    ).fetchall()
+                )
+            self.assertEqual(
+                supported_kinds,
+                ("seal_founder_ballot", "open_second_pass", "seal_final_ballot"),
+            )
+
+    def test_legacy_unsupported_command_is_preserved_but_read_as_absent(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            database_path = Path(directory) / "recovery.sqlite3"
+            store = SQLitePrivateTransitionRecoveryStore(database_path=database_path)
+            store.initialize_schema()
+            with closing(sqlite3.connect(database_path)) as connection, connection:
+                connection.execute("PRAGMA ignore_check_constraints = ON")
+                connection.execute(
+                    """
+                    INSERT INTO private_transition_recoveries (
+                        recovery_id, token_hash, household_id, shared_session_id,
+                        workflow_version, payload_version, stage, actor, revision,
+                        lease_generation, expires_at_ms, created_at_ms, updated_at_ms
+                    )
+                    VALUES (?, ?, 'household-1', 'session-1', 1, 1,
+                        'founder_sealed', 'founder', 1, 0, 10, 1, 1)
+                    """,
+                    ("legacy-recovery", "a" * 64),
+                )
+                connection.execute(
+                    """
+                    INSERT INTO private_transition_recovery_commands (
+                        recovery_id, command_id, command_kind, starting_revision,
+                        status, created_at_ms, updated_at_ms
+                    )
+                    VALUES ('legacy-recovery', ?, 'use_local_result', 1, 'sealed', 1, 1)
+                    """,
+                    ("b" * 64,),
+                )
+
+            self.assertIsNone(
+                store.load_command(
+                    recovery_id="legacy-recovery",
+                    command_id="b" * 64,
+                )
+            )
+            with closing(sqlite3.connect(database_path)) as connection:
+                legacy_row = connection.execute(
+                    """
+                    SELECT command_kind
+                    FROM private_transition_recovery_commands
+                    WHERE recovery_id = 'legacy-recovery' AND command_id = ?
+                    """,
+                    ("b" * 64,),
+                ).fetchone()
+            self.assertEqual(legacy_row, ("use_local_result",))
 
     def test_access_expires_at_the_exact_boundary_without_read_extension(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
