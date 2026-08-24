@@ -19,7 +19,7 @@ class ApiContractExportTest(unittest.TestCase):
         self.assertIn("export type TonightIntentInterpretRequestPayload = {", contract)
         self.assertIn("export type TonightIntentInterpretationPayload = {", contract)
         self.assertIn(
-            "export type PrivateTransitionSealCommandPayload = SealFounderBallotPayload | OpenSecondPassPayload | SealFinalBallotPayload | UseLocalResultPayload;",
+            "export type PrivateTransitionSealCommandPayload = SealFounderBallotPayload | OpenSecondPassPayload | SealFinalBallotPayload;",
             contract,
         )
         self.assertIn(

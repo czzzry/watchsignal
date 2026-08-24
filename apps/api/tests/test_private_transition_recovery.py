@@ -43,7 +43,6 @@ from movie_night_mediator.domain.private_transition_recovery import (
     SealFinalBallot,
     ResultReady,
     SecondPassReady,
-    UseLocalResult,
 )
 from movie_night_mediator.storage import SQLiteSessionStore, SQLiteTasteMemoryStore
 from movie_night_mediator.storage.private_transition_recovery import (
@@ -650,6 +649,7 @@ class PrivateTransitionRecoveryTest(unittest.TestCase):
                 recovery.resume(deployment_tenant="household-1", token=token),
                 SecondPassReady(
                     display_snapshot=display_snapshot(),
+                    canonical_session_id="session-1",
                     recipient_label="Wife",
                 ),
             )
@@ -867,6 +867,7 @@ class PrivateTransitionRecoveryTest(unittest.TestCase):
                 recovery.resume(deployment_tenant="household-1", token=token),
                 SecondPassReady(
                     display_snapshot=display_snapshot(),
+                    canonical_session_id="session-1",
                     recipient_label="Wife",
                 ),
             )
@@ -1398,6 +1399,7 @@ class PrivateTransitionRecoveryTest(unittest.TestCase):
                 ),
                 SecondPassReady(
                     display_snapshot=display_snapshot(),
+                    canonical_session_id="session-1",
                     recipient_label="Wife",
                 ),
             )
@@ -1482,6 +1484,7 @@ class PrivateTransitionRecoveryTest(unittest.TestCase):
                 ),
                 SecondPassReady(
                     display_snapshot=display,
+                    canonical_session_id="session-1",
                     recipient_label="Wife",
                 ),
             )
@@ -1816,13 +1819,13 @@ class PrivateTransitionRecoveryTest(unittest.TestCase):
                 MatchingFailed(
                     recipient_label="Wife",
                     can_retry=True,
-                    can_use_local=True,
+                    can_use_local=False,
                 ),
             )
             self.assertFalse(hasattr(projection, "ballot"))
             self.assertFalse(hasattr(projection, "display_snapshot"))
 
-    def test_final_write_failure_is_immediately_recoverable_with_local_result(
+    def test_final_write_failure_keeps_the_ballot_for_retry_without_a_local_result(
         self,
     ) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1884,22 +1887,7 @@ class PrivateTransitionRecoveryTest(unittest.TestCase):
                 MatchingFailed(
                     recipient_label="Wife",
                     can_retry=True,
-                    can_use_local=True,
-                ),
-            )
-            local_result = recovery.seal(
-                deployment_tenant="household-1",
-                token=token,
-                command=UseLocalResult(command_id="d" * 64),
-            )
-            self.assertEqual(
-                local_result,
-                ResultReady(
-                    display_snapshot=display_snapshot(),
-                    canonical_session_id="session-1",
-                    final_reactions=recovery_ballot(wife_ballot()),
-                    recipient_label="Wife",
-                    result_source="local",
+                    can_use_local=False,
                 ),
             )
             with closing(sqlite3.connect(database_path)) as connection:
@@ -2112,83 +2100,6 @@ class PrivateTransitionRecoveryTest(unittest.TestCase):
                     token=token,
                 ),
                 HandoffPending(recipient_label="Wife", can_begin=False),
-            )
-
-    def test_local_result_command_uses_the_sealed_final_ballot_without_submitting_it(
-        self,
-    ) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            database_path = Path(directory) / "recovery.sqlite3"
-            session_store = SQLiteSessionStore(database_path=database_path)
-            session_store.save_session(founder_session())
-            memory_store = SQLiteTasteMemoryStore(database_path=database_path)
-            session_service = SharedSessionService(
-                session_store=session_store,
-                onboarding_store=SQLiteOnboardingStore(database_path=database_path),
-                memory_sink=TasteMemoryService(memory_store),
-            )
-            recovery = PrivateTransitionRecovery(
-                store=SQLitePrivateTransitionRecoveryStore(
-                    database_path=database_path,
-                    database_now_ms=lambda _connection: 1_800_000_000_000,
-                ),
-                session_reader=session_service,
-                session_writer=session_service,
-                participant_label=lambda _participant_id: "Wife",
-                now_ms=lambda: 1_800_000_000_000,
-            )
-            token = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
-            recovery.seal(
-                deployment_tenant="household-1",
-                token=token,
-                command=SealFounderBallot(
-                    command_id="a" * 64,
-                    canonical_session_id="session-1",
-                    ballot=founder_ballot(),
-                    display_snapshot=display_snapshot(),
-                ),
-            )
-            recovery.resume(deployment_tenant="household-1", token=token)
-            recovery.seal(
-                deployment_tenant="household-1",
-                token=token,
-                command=OpenSecondPass(command_id="b" * 64),
-            )
-            recovery.seal(
-                deployment_tenant="household-1",
-                token=token,
-                command=SealFinalBallot(
-                    command_id="c" * 64,
-                    ballot=wife_ballot(),
-                    display_snapshot=display_snapshot(),
-                ),
-            )
-
-            projection = recovery.seal(
-                deployment_tenant="household-1",
-                token=token,
-                command=UseLocalResult(command_id="d" * 64),
-            )
-
-            self.assertEqual(
-                projection,
-                ResultReady(
-                    display_snapshot=display_snapshot(),
-                    canonical_session_id="session-1",
-                    final_reactions=recovery_ballot(wife_ballot()),
-                    recipient_label="Wife",
-                    result_source="local",
-                ),
-            )
-            with closing(sqlite3.connect(database_path)) as connection:
-                stage, payload_json = connection.execute(
-                    "SELECT stage, payload_json FROM private_transition_recoveries"
-                ).fetchone()
-            self.assertEqual(stage, "final_sealed")
-            self.assertIn("ballot", json.loads(payload_json))
-            self.assertEqual(
-                session_store.load_session("session-1").state,
-                SharedSessionState.WIFE_REACTING,
             )
 
     def test_recovery_token_rejects_surrounding_whitespace(self) -> None:

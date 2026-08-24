@@ -388,6 +388,7 @@ test("R2 backend forwarding validates safe resume projections and consume acknow
       fetchImpl: async () =>
         Response.json({
           kind: "second_pass_ready",
+          canonicalSessionId: "session-1",
           recipientLabel: "Sophie",
           displaySnapshot: Array.from({ length: 5 }, (_, index) =>
             safeMovieDisplay({
@@ -403,11 +404,10 @@ test("R2 backend forwarding validates safe resume projections and consume acknow
   assert.equal((await secondPass.json()).displaySnapshot.length, 5);
 
   const result = await forwardPrivateTransitionRecovery(
-    "seal",
+    "resume",
     {
       deploymentTenant: "configured-household",
       token: "A".repeat(43),
-      command: { kind: "use_local_result" },
     },
     {
       environment,
@@ -481,8 +481,9 @@ test("R2 backend rejects hostile movie display fields from a successful upstream
         environment,
         fetchImpl: async () =>
           Response.json({
-            kind: "second_pass_ready",
-            recipientLabel: "Sophie",
+          kind: "second_pass_ready",
+          canonicalSessionId: "session-1",
+          recipientLabel: "Sophie",
             displaySnapshot: [
               hostileDisplay,
               safeMovieDisplay({ sourceMovieId: "movie-2", title: "Movie 2" }),

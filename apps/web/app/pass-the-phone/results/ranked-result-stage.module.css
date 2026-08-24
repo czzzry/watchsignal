@@ -22,9 +22,13 @@
 
 .header { position: relative; z-index: 3; min-height: 66px; display: flex; align-items: center; justify-content: space-between; padding: max(12px, var(--ws-safe-top)) max(18px, var(--ws-safe-right)) 8px max(18px, var(--ws-safe-left)); text-shadow: 0 1px 8px rgba(0,0,0,.7); }
 .headerEnd { display: flex; align-items: center; gap: 8px; }
+.homeButton { min-width: 44px; min-height: 44px; display: grid; place-items: center; border: 0; border-radius: 10px; padding: 0; background: transparent; color: white; box-shadow: none; }
+.homeButton:hover:enabled { transform: none; background: rgba(8,5,12,.3); }
 .rank { display: flex; align-items: baseline; gap: 4px; font-variant-numeric: tabular-nums; }
 .rank strong { font-size: 14px; }
 .rank span { color: rgba(255,255,255,.67); font-size: 12px; }
+.newNightButton { min-height: 44px; border: 0; border-radius: 10px; padding: 0 8px; background: rgba(8,5,12,.3); color: white; box-shadow: none; font-size: 12px; font-weight: 720; }
+.newNightButton:hover:enabled { transform: none; background: rgba(8,5,12,.48); }
 .moreButton { width: 44px; min-height: 44px; display: grid; place-items: center; border: 0; border-radius: 50%; padding: 0; background: rgba(8,5,12,.28); color: white; box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); font-size: 12px; letter-spacing: 2px; }
 
 .body { position: absolute; z-index: 3; right: max(16px, var(--ws-safe-right)); bottom: max(16px, var(--ws-safe-bottom)); left: max(16px, var(--ws-safe-left)); }
@@ -145,6 +149,7 @@
 
 @media (max-width: 350px) {
   .body { right: 12px; left: 12px; }
+  .rank { display: none; }
   .dock button, .dock a { gap: 4px; padding-inline: 5px; }
   .filmstrip { gap: 5px; }
   .detailsHeader, .detailsScroll { padding-right: 12px; padding-left: 12px; }

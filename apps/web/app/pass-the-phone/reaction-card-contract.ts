@@ -20,7 +20,7 @@ export function publicReactionSynopsis(
 
 export function publicReactionFitLine(
   candidate: PublicReactionFitEvidence,
-): string {
+): string | null {
   const evidence = candidate.dominantPositiveEvidence ?? [];
   const requestedPerson = candidate.matchedPersonNames
     ?.map((name) => cleanPublicEvidenceValue(name))
@@ -41,31 +41,7 @@ export function publicReactionFitLine(
     return `${sentenceCase(confirmedIntent)} matches what you asked for in a movie tonight.`;
   }
 
-  const savedTaste = firstPublicEvidenceValue(
-    evidence,
-    ["profile_concept:likes:"],
-  );
-  if (savedTaste) {
-    return `Your saved taste for ${savedTaste} supports this choice tonight.`;
-  }
-
-  if (evidence.some(
-    (item) => item === "shared:overlap_strength" || item === "shared:bridge_value",
-  )) {
-    return "Your shared taste gives this movie a clear reason to consider.";
-  }
-
-  const genres = candidate.genres
-    .map((genre) => cleanPublicEvidenceValue(genre))
-    .filter((genre): genre is string => Boolean(genre))
-    .slice(0, 2);
-  if (genres.length === 2) {
-    return `A ${genres[0]} and ${genres[1]} option for your private pick tonight.`;
-  }
-  if (genres.length === 1) {
-    return `A ${genres[0]} option for your private pick tonight.`;
-  }
-  return "One of tonight’s shortlisted movies for your private pick.";
+  return null;
 }
 
 function firstPublicEvidenceValue(

@@ -15,7 +15,7 @@ test("private reaction contract preserves the three exact API values", () => {
   assert.deepEqual(privateReactionValues, ["interested", "maybe", "no"]);
 });
 
-test("public fit copy ignores hostile raw prose and falls back to verified genres", () => {
+test("public fit copy omits weak genre prose instead of inventing a reason", () => {
   const fitLine = publicReactionFitLine({
     whyNow: "Fits compromise mode with signal from Comedy, Drama. ; .",
     reason: "Evidence: Taste Lab signals: 19; score 99.",
@@ -24,15 +24,7 @@ test("public fit copy ignores hostile raw prose and falls back to verified genre
     dominantPositiveEvidence: [],
   });
 
-  assert.equal(
-    fitLine,
-    "A Comedy and Drama option for your private pick tonight.",
-  );
-  assert.doesNotMatch(
-    fitLine,
-    /mode|score|signal|evidence|taste lab|count|;\s*\.|\.\s*\./i,
-  );
-  assert.ok(wordCount(fitLine) >= 8 && wordCount(fitLine) <= 16);
+  assert.equal(fitLine, null);
 });
 
 test("public fit copy prioritizes verified structured evidence without exposing raw fields", () => {
@@ -60,12 +52,23 @@ test("public fit copy prioritizes verified structured evidence without exposing 
       "shared:overlap_strength",
     ],
   });
-  assert.equal(savedTaste, "Your saved taste for mystery supports this choice tonight.");
+  assert.equal(savedTaste, null);
 
-  for (const line of [personMatch, savedTaste]) {
+  for (const line of [personMatch]) {
     assert.ok(wordCount(line) >= 8 && wordCount(line) <= 16);
     assert.doesNotMatch(line, /mode|score|signal|evidence|taste lab|count|;\s*\./i);
   }
+});
+
+test("weak profile concepts are omitted instead of turning synopsis words into taste claims", () => {
+  assert.equal(
+    publicReactionFitLine({
+      genres: ["Thriller", "Drama", "Mystery"],
+      matchedPersonNames: [],
+      dominantPositiveEvidence: ["profile_concept:likes:family"],
+    }),
+    null,
+  );
 });
 
 test("movie details never fall back to raw scoring prose when overview is missing", () => {

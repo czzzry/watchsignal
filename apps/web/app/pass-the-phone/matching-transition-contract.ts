@@ -29,7 +29,7 @@ export function matchingTransitionCopy({
   }
   return {
     title: "Matching paused",
-    detail: "Your picks are safe on this phone.",
+    detail: "No result was created. Try again to verify both ballots.",
   };
 }
 

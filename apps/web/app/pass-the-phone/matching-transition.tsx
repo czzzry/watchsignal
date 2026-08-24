@@ -14,16 +14,17 @@ export function MatchingTransition({
   coupleSession,
   onConvergenceComplete,
   onRetry,
-  onUseLocal,
+  onCancel,
 }: {
   phase: MatchingTransitionPhase;
   coupleSession: boolean;
   onConvergenceComplete: () => void;
   onRetry: () => void | Promise<void>;
-  onUseLocal: () => void | Promise<void>;
+  onCancel: () => void;
 }) {
   const overlayRef = useRef<HTMLElement>(null);
   const retryRef = useRef<HTMLButtonElement>(null);
+  const homeRef = useRef<HTMLButtonElement>(null);
   const completedRef = useRef(false);
   const copy = matchingTransitionCopy({ phase, coupleSession });
 
@@ -70,7 +71,7 @@ export function MatchingTransition({
           event.preventDefault();
         }
         if (phase === "failed" && event.key === "Tab") {
-          const controls = [retryRef.current, overlayRef.current?.querySelector<HTMLButtonElement>("[data-local-result]")].filter(Boolean) as HTMLButtonElement[];
+          const controls = [retryRef.current, homeRef.current].filter(Boolean) as HTMLButtonElement[];
           const activeIndex = controls.indexOf(document.activeElement as HTMLButtonElement);
           if ((!event.shiftKey && activeIndex === controls.length - 1) || (event.shiftKey && activeIndex <= 0)) {
             event.preventDefault();
@@ -101,8 +102,8 @@ export function MatchingTransition({
           <button ref={retryRef} type="button" onClick={() => void onRetry()}>
             Try again
           </button>
-          <button data-local-result type="button" onClick={() => void onUseLocal()}>
-            Show local result
+          <button ref={homeRef} type="button" onClick={onCancel}>
+            Back home
           </button>
         </div>
       ) : null}

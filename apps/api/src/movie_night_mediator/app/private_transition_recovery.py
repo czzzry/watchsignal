@@ -35,7 +35,6 @@ from movie_night_mediator.domain.private_transition_recovery import (
     SealCommand,
     SealFinalBallot,
     SealFounderBallot,
-    UseLocalResult,
     ResultReady,
     SecondPassReady,
 )
@@ -219,13 +218,7 @@ class PrivateTransitionRecovery:
         deployment_tenant: str,
         token: str,
         command: SealCommand,
-    ) -> RecoveryHandle | ResultReady:
-        if isinstance(command, UseLocalResult):
-            return self._seal_local_result(
-                deployment_tenant=deployment_tenant,
-                token=token,
-                command=command,
-            )
+    ) -> RecoveryHandle:
         if isinstance(command, OpenSecondPass):
             return self._seal_open_second_pass(
                 deployment_tenant=deployment_tenant,
@@ -477,63 +470,6 @@ class PrivateTransitionRecovery:
             expires_at_ms=advanced.expires_at_ms,
         )
 
-    def _seal_local_result(
-        self,
-        *,
-        deployment_tenant: str,
-        token: str,
-        command: UseLocalResult,
-    ) -> ResultReady:
-        tenant = _required_text(deployment_tenant, "Deployment tenant")
-        token_hash = _token_hash(token)
-        record = self._store.load(token_hash=token_hash, household_id=tenant)
-        if record is None:
-            raise LookupError("Private transition was not found.")
-        if record.stage == RecoveryStage.RESULT_READY:
-            projection = self.resume(deployment_tenant=tenant, token=token)
-            if isinstance(projection, ResultReady):
-                return projection
-            raise PrivateTransitionRecoveryConflict("Private transition has no result.")
-        if record.stage not in {
-            RecoveryStage.FINAL_SEALED,
-            RecoveryStage.MATCHING_FAILED,
-        }:
-            raise PrivateTransitionRecoveryConflict(
-                "Private transition is not ready for a local result."
-            )
-        session = self._session_reader.load_session(record.shared_session_id)
-        if session is None or session.household_id != tenant:
-            raise LookupError("Private transition was not found.")
-        if session.state == SharedSessionState.RERANKED:
-            projection = self.resume(deployment_tenant=tenant, token=token)
-            if isinstance(projection, ResultReady):
-                return projection
-            raise PrivateTransitionRecoveryConflict(
-                "Private transition result could not be reconciled."
-            )
-        if session.state != SharedSessionState.WIFE_REACTING:
-            raise PrivateTransitionRecoveryConflict(
-                "Private transition cannot show a local result."
-            )
-        final_payload = _parse_final_payload(record)
-        _validate_ballot_payload_against_session(final_payload, session)
-        return ResultReady(
-            display_snapshot=tuple(
-                _recovery_movie_display(item)
-                for item in final_payload["displaySnapshot"]
-            ),
-            canonical_session_id=session.session_id,
-            final_reactions=tuple(
-                RecoveryBallotItem(
-                    source_movie_id=item["sourceMovieId"],
-                    reaction_label=SessionReactionLabel(item["reaction"]),
-                )
-                for item in final_payload["ballot"]
-            ),
-            recipient_label=self._participant_label(session.wife_participant_id),
-            result_source="local",
-        )
-
     def _seal_final_ballot(
         self,
         *,
@@ -737,7 +673,7 @@ class PrivateTransitionRecovery:
                     return MatchingFailed(
                         recipient_label=recipient_label,
                         can_retry=True,
-                        can_use_local=True,
+                        can_use_local=False,
                     )
                 return MatchingPending(recipient_label=recipient_label)
             try:
@@ -756,7 +692,7 @@ class PrivateTransitionRecovery:
                     return MatchingFailed(
                         recipient_label=recipient_label,
                         can_retry=True,
-                        can_use_local=True,
+                        can_use_local=False,
                     )
                 return MatchingPending(recipient_label=recipient_label)
             if (
@@ -801,7 +737,7 @@ class PrivateTransitionRecovery:
                         return MatchingFailed(
                             recipient_label=recipient_label,
                             can_retry=True,
-                            can_use_local=True,
+                            can_use_local=False,
                         )
                     session = refreshed
                 refreshed = self._session_reader.load_session(session.session_id)
@@ -813,7 +749,7 @@ class PrivateTransitionRecovery:
                     return MatchingFailed(
                         recipient_label=recipient_label,
                         can_retry=True,
-                        can_use_local=True,
+                        can_use_local=False,
                     )
                 return MatchingPending(recipient_label=recipient_label)
             if session.state != SharedSessionState.RERANKED:
@@ -897,6 +833,7 @@ class PrivateTransitionRecovery:
                         item.source_movie_id for item in session.shortlist
                     ),
                 ),
+                canonical_session_id=session.session_id,
                 recipient_label=recipient_label,
             )
         if record.stage == RecoveryStage.HANDOFF_READY:

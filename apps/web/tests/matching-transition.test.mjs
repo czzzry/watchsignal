@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -20,7 +21,7 @@ test("matching copy follows real saving, ready, and failed states", () => {
   );
   assert.deepEqual(
     matchingTransitionCopy({ phase: "failed", coupleSession: true }),
-    { title: "Matching paused", detail: "Your picks are safe on this phone." },
+    { title: "Matching paused", detail: "No result was created. Try again to verify both ballots." },
   );
 });
 
@@ -61,4 +62,13 @@ test("a matching failure can retain the ballot for retry instead of silently adv
   assert.equal(events.some(([name]) => name === "fallback"), false);
   assert.deepEqual(events.at(0), ["start", "saving"]);
   assert.deepEqual(events.at(-1), ["finish"]);
+});
+
+test("matching failure exposes an error and retry without a local-result escape hatch", async () => {
+  const source = await readFile(
+    new URL("../app/pass-the-phone/matching-transition.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(source, /Show local result|data-local-result|onUseLocal/);
+  assert.match(source, /Try again/);
 });

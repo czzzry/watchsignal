@@ -67,6 +67,7 @@ function CinemaExample() {
       continuationOpen={continuationOpen}
       continuationContent={<PreviewContinuation />}
       utilityContent={<PreviewUtilityOptions />}
+      onReset={() => setContinuationOpen(false)}
       onToggleContinuation={() => setContinuationOpen((current) => !current)}
       onPosterFallback={(event) => { event.currentTarget.style.visibility = "hidden"; }}
     />

@@ -12,15 +12,10 @@ from movie_night_mediator.app.private_transition_recovery import (
     PrivateTransitionRecoveryConflict,
     PrivateTransitionRecoveryIncompatible,
 )
-from movie_night_mediator.domain import SessionReactionLabel
 from movie_night_mediator.domain.private_transition_recovery import (
     HandoffReady,
     OpenSecondPass,
-    RecoveryBallotItem,
     RecoveryHandle,
-    RecoveryMovieDisplay,
-    ResultReady,
-    UseLocalResult,
 )
 
 
@@ -62,29 +57,8 @@ class PrivateTransitionRecoveryApiTest(unittest.TestCase):
         self.assertNotIn("household-private-marker", serialized)
         self.assertNotIn("A" * 43, serialized)
 
-    def test_local_result_is_returned_directly_without_a_persisted_ballot_shape(
-        self,
-    ) -> None:
-        result = ResultReady(
-            display_snapshot=tuple(
-                RecoveryMovieDisplay(
-                    source_movie_id=f"movie-{index}",
-                    title=f"Movie {index}",
-                )
-                for index in range(5)
-            ),
-            canonical_session_id="session-1",
-            final_reactions=tuple(
-                RecoveryBallotItem(
-                    source_movie_id=f"movie-{index}",
-                    reaction_label=SessionReactionLabel.INTERESTED,
-                )
-                for index in range(5)
-            ),
-            recipient_label="Canonical partner",
-            result_source="local",
-        )
-        recovery = RecordingRecovery(seal_result=result)
+    def test_local_result_command_is_rejected_before_reaching_recovery(self) -> None:
+        recovery = RecordingRecovery()
         with patch.dict(os.environ, {"BACKEND_SERVICE_TOKEN": "service-secret"}):
             status, headers, payload = asyncio.run(
                 asgi_json_request(
@@ -103,13 +77,9 @@ class PrivateTransitionRecoveryApiTest(unittest.TestCase):
                 )
             )
 
-        self.assertEqual(status, 200)
-        self.assertEqual(headers.get("cache-control"), "no-store")
-        self.assertEqual(payload["kind"], "result_ready")
-        self.assertEqual(payload["recipientLabel"], "Canonical partner")
-        self.assertEqual(payload["resultSource"], "local")
-        self.assertNotIn("finalBallot", payload)
-        self.assertEqual(recovery.command, UseLocalResult(command_id="2" * 64))
+        self.assertEqual(status, 400)
+        self.assertIsNone(recovery.command)
+        self.assertNotIn("result_ready", json.dumps(payload))
 
     def test_resume_and_consume_use_public_projections_and_no_store(self) -> None:
         recovery = RecordingRecovery(

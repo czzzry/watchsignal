@@ -66,12 +66,6 @@ export function createPrivateTransitionRecoveryClient(
         throw new Error("Private recovery could not be saved.");
       }
       const handle = await response.json() as unknown;
-      if (isRecoveryProjection(handle)) {
-        if (command.kind !== "use_local_result" || handle.kind !== "result_ready") {
-          throw new Error("Private recovery returned an invalid response.");
-        }
-        return handle;
-      }
       if (!isRecoveryHandle(handle)) {
         throw new Error("Private recovery returned an invalid response.");
       }
@@ -169,7 +163,7 @@ function isRecoveryProjection(
       hasExactKeys(value, ["canRetry", "canUseLocal", "kind", "recipientLabel"])
       && isRecipientLabel(value.recipientLabel)
       && value.canRetry === true
-      && value.canUseLocal === true
+      && value.canUseLocal === false
     );
   }
   if (value.kind === "second_pass_ready" || value.kind === "result_ready") {
@@ -182,16 +176,22 @@ function isRecoveryProjection(
           "recipientLabel",
           "resultSource",
         ] as const
-      : ["displaySnapshot", "kind", "recipientLabel"] as const;
+      : ["canonicalSessionId", "displaySnapshot", "kind", "recipientLabel"] as const;
     return (
       hasExactKeys(value, expectedKeys)
       && isRecipientLabel(value.recipientLabel)
+      && (value.kind !== "second_pass_ready"
+        || (
+          typeof value.canonicalSessionId === "string"
+          && value.canonicalSessionId.length > 0
+          && value.canonicalSessionId.length <= 128
+        ))
       && (value.kind !== "result_ready"
         || (
           typeof value.canonicalSessionId === "string"
           && value.canonicalSessionId.length > 0
           && value.canonicalSessionId.length <= 128
-          && (value.resultSource === "shared" || value.resultSource === "local")
+          && value.resultSource === "shared"
           && Array.isArray(value.finalReactions)
           && value.finalReactions.length === 5
           && value.finalReactions.every(isRecoveryBallotItem)

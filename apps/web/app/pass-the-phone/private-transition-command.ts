@@ -63,13 +63,7 @@ export type FinalSealCommand = Omit<
 export type PrivateTransitionCommand =
   | FounderSealCommand
   | OpenSecondPassCommand
-  | FinalSealCommand
-  | {
-      kind: "use_local_result";
-      workflowVersion: 1;
-      payloadVersion: 1;
-      commandId: string;
-    };
+  | FinalSealCommand;
 
 export function createPrivateTransitionToken(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
@@ -234,10 +228,7 @@ export function stableRecoveryCommandJson(
 function recoveryCommandFingerprintPayload(
   command: PrivateTransitionCommand,
 ): unknown {
-  if (
-    command.kind === "open_second_pass"
-    || command.kind === "use_local_result"
-  ) return command;
+  if (command.kind === "open_second_pass") return command;
   return {
     ...command,
     displaySnapshot: command.displaySnapshot.map((movie) => ({

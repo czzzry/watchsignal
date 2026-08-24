@@ -134,6 +134,8 @@ KEYWORD_CONCEPTS = {
     "dc extended universe": ("superhero",),
 }
 
+OVERVIEW_EXCLUDED_KEYWORDS = frozenset({"family", "kid", "kids"})
+
 NEGATIVE_NUDGE_PATTERNS = (
     (re.compile(r"\b(?:no|avoid|not|without)\s+(?:kids?|children|family)\b"), "family"),
     (re.compile(r"\b(?:no|avoid|not|without)\s+(?:cartoonish|cartoons?|animation|animated)\b"), "animation"),
@@ -257,7 +259,9 @@ def _text_concepts(
     normalized = _normalize(text)
     evidence = []
     for keyword, concepts in KEYWORD_CONCEPTS.items():
-        if keyword in normalized:
+        if source == "overview" and keyword in OVERVIEW_EXCLUDED_KEYWORDS:
+            continue
+        if _contains_keyword(normalized, keyword):
             for concept in concepts:
                 evidence.append(
                     ScoringConceptEvidence(
@@ -269,6 +273,13 @@ def _text_concepts(
                     )
                 )
     return tuple(evidence)
+
+
+def _contains_keyword(normalized_text: str, keyword: str) -> bool:
+    return re.search(
+        rf"(?<!\w){re.escape(keyword)}(?!\w)",
+        normalized_text,
+    ) is not None
 
 
 def _runtime_concepts(runtime_min: int | None) -> tuple[ScoringConceptEvidence, ...]:
@@ -376,7 +387,7 @@ def _concepts_for_keyword(keyword: str) -> tuple[str, ...]:
     normalized = _normalize(keyword)
     concepts = []
     for known_keyword, known_concepts in KEYWORD_CONCEPTS.items():
-        if known_keyword in normalized:
+        if _contains_keyword(normalized, known_keyword):
             concepts.extend(known_concepts)
     return tuple(dict.fromkeys(concepts))
 

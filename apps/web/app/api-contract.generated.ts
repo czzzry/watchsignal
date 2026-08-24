@@ -41,6 +41,21 @@ export type CreateSharedSessionPayload = {
   shortlist: SessionShortlistItemPayload[];
 };
 
+export type CuratorLensMode = "exact_list" | "inspiration";
+
+export type CuratorLensPayload = {
+  anchorSourceMovieIds: string[];
+  curatorId: string;
+  mode: CuratorLensMode;
+  provenance: CuratorLensProvenancePayload;
+};
+
+export type CuratorLensProvenancePayload = {
+  retrievedAt?: string | null;
+  sourceName: string;
+  sourceUrl?: string | null;
+};
+
 export type DebugHistoryCandidateInputPayload = {
   alreadyWatched: boolean;
   enrichmentFeatureScores: {
@@ -206,7 +221,7 @@ export type IntentInterpretationStatus = "confirmation_required" | "clarificatio
 
 export type MatchingFailedPayload = {
   canRetry: true;
-  canUseLocal: true;
+  canUseLocal: false;
   kind: "matching_failed";
   recipientLabel: string;
 };
@@ -287,7 +302,7 @@ export type PrivateTransitionResumeRequestPayload = {
 };
 
 export type PrivateTransitionSealRequestPayload = {
-  command: SealFounderBallotPayload | OpenSecondPassPayload | SealFinalBallotPayload | UseLocalResultPayload;
+  command: SealFounderBallotPayload | OpenSecondPassPayload | SealFinalBallotPayload;
   deploymentTenant: string;
   token: string;
 };
@@ -365,6 +380,7 @@ export type RecommendationShortlistItemPayload = {
 export type RecommendationShortlistRequestPayload = {
   activeMode?: SessionMode;
   availabilityRegion?: string | null;
+  curatorLens?: CuratorLensPayload | null;
   excludedSourceMovieIds?: string[];
   householdId?: string;
   participantIds?: string[];
@@ -426,7 +442,7 @@ export type ResultReadyPayload = {
   finalReactions: RecoveryReactionPayload[];
   kind: "result_ready";
   recipientLabel: string;
-  resultSource: "shared" | "local";
+  resultSource: "shared";
 };
 
 export type SaveSessionOutcomePayload = {
@@ -477,6 +493,7 @@ export type SealFounderBallotPayload = {
 };
 
 export type SecondPassReadyPayload = {
+  canonicalSessionId: string;
   displaySnapshot: RecoveryMovieDisplayPayload[];
   kind: "second_pass_ready";
   recipientLabel: string;
@@ -720,13 +737,6 @@ export type UpdateSharedSessionPayload = {
   activeMode: SessionMode;
 };
 
-export type UseLocalResultPayload = {
-  commandId: string;
-  kind: "use_local_result";
-  payloadVersion?: 1;
-  workflowVersion?: 1;
-};
-
 export type ValidationError = {
   ctx?: Record<string, unknown>;
   input?: unknown;
@@ -764,6 +774,6 @@ export type WatchlistEntryPayload = {
   title: string;
 };
 
-export type PrivateTransitionSealCommandPayload = SealFounderBallotPayload | OpenSecondPassPayload | SealFinalBallotPayload | UseLocalResultPayload;
+export type PrivateTransitionSealCommandPayload = SealFounderBallotPayload | OpenSecondPassPayload | SealFinalBallotPayload;
 
 export type PrivateTransitionResumeProjectionPayload = HandoffPendingPayload | HandoffReadyPayload | SecondPassReadyPayload | MatchingPendingPayload | MatchingFailedPayload | ResultReadyPayload;

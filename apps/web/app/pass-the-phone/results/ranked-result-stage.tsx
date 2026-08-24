@@ -40,6 +40,7 @@ export function RankedResultStage({
   continuationContent,
   continuationAvailable = true,
   utilityContent,
+  onReset,
   onToggleContinuation,
   onPosterFallback,
 }: {
@@ -52,6 +53,7 @@ export function RankedResultStage({
   continuationContent: ReactNode;
   continuationAvailable?: boolean;
   utilityContent: ReactNode;
+  onReset: () => void;
   onToggleContinuation: () => void;
   onPosterFallback: PosterFallbackHandler;
 }) {
@@ -151,11 +153,16 @@ export function RankedResultStage({
         <div className={styles.scrim} aria-hidden="true" />
 
         <header className={styles.header}>
-          <WatchSignalBrand />
+          <button className={styles.homeButton} type="button" onClick={onReset} aria-label="WatchSignal home, start a new night">
+            <WatchSignalBrand compact />
+          </button>
           <div className={styles.headerEnd}>
             <div className={styles.rank} aria-label={`Rank ${activeIndex + 1} of ${movies.length}`}>
               <strong>{activeIndex + 1}</strong><span>of {movies.length}</span>
             </div>
+            <button className={styles.newNightButton} type="button" onClick={onReset}>
+              New night
+            </button>
             <button
               className={styles.moreButton}
               type="button"

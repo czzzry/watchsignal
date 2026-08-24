@@ -99,18 +99,10 @@ function isSafeSuccess(
 ): boolean {
   if (operation === "seal") {
     return (
-      (
-        hasExactKeys(body, ["expiresAtMs", "version"])
-        && body.version === 1
-        && Number.isSafeInteger(body.expiresAtMs)
-        && Number(body.expiresAtMs) > 0
-      )
-      || (
-        isObject(payload.command)
-        && payload.command.kind === "use_local_result"
-        && isSafeProjection(body)
-        && body.kind === "result_ready"
-      )
+      hasExactKeys(body, ["expiresAtMs", "version"])
+      && body.version === 1
+      && Number.isSafeInteger(body.expiresAtMs)
+      && Number(body.expiresAtMs) > 0
     );
   }
   if (operation === "resume") {
@@ -142,7 +134,7 @@ function isSafeProjection(body: unknown): body is Record<string, unknown> {
       hasExactKeys(body, ["canRetry", "canUseLocal", "kind", "recipientLabel"])
       && isBoundedString(body.recipientLabel, 100)
       && body.canRetry === true
-      && body.canUseLocal === true
+      && body.canUseLocal === false
     );
   }
   if (body.kind === "second_pass_ready" || body.kind === "result_ready") {
@@ -155,14 +147,16 @@ function isSafeProjection(body: unknown): body is Record<string, unknown> {
           "recipientLabel",
           "resultSource",
         ] as const
-      : ["displaySnapshot", "kind", "recipientLabel"] as const;
+      : ["canonicalSessionId", "displaySnapshot", "kind", "recipientLabel"] as const;
     return (
       hasExactKeys(body, expectedKeys)
       && isBoundedString(body.recipientLabel, 100)
+      && (body.kind !== "second_pass_ready"
+        || isBoundedString(body.canonicalSessionId, 128))
       && (body.kind !== "result_ready"
         || (
           isBoundedString(body.canonicalSessionId, 128)
-          && (body.resultSource === "shared" || body.resultSource === "local")
+          && body.resultSource === "shared"
           && isSafeFinalReactions(body.finalReactions)
         ))
       && Array.isArray(body.displaySnapshot)
