@@ -35,15 +35,19 @@ import { usePassThePhoneOnboardingSetupState } from "./pass-the-phone/use-pass-t
 import {
   LaunchSting,
   ReactionStep,
-  ResultsStep,
   ReviewNotesWidget,
-  SessionRecoveryStep,
 } from "./pass-the-phone-components";
+import { SessionRecoveryStep } from "./pass-the-phone/session-recovery-step";
 import {
   SetupScreen,
   type SetupScreenModel,
 } from "./pass-the-phone/setup/setup-screen";
 import { createSetupScreenWiring } from "./pass-the-phone/setup/setup-screen-wiring";
+import {
+  ResultsScreen,
+  type ResultsScreenModel,
+} from "./pass-the-phone/results/results-screen";
+import { createResultsScreenWiring } from "./pass-the-phone/results/results-screen-wiring";
 import { RequiredOnboarding } from "./pass-the-phone/required-onboarding";
 import {
   PrivateHandoffStep,
@@ -1089,6 +1093,58 @@ export function PassThePhoneWizard({
       selectHistory: loadRecentSessionDetail,
     },
   });
+  const resultsScreenModel: ResultsScreenModel = {
+    household: {
+      founderLabel,
+      wifeLabel,
+      participantIds,
+      peopleMode,
+    },
+    result: {
+      rankedCandidates,
+      founderReactions,
+      wifeReactions,
+      sessionSource,
+      sharedSession,
+      recommendationSource,
+      recommendationRunStatus,
+      availabilityRegion: effectiveSetupLoad.setup.defaults.availabilityRegion,
+    },
+    continuation: {
+      activeTonightIntents,
+      movieSource,
+      steerText,
+      pendingSteerIntent,
+      steerClarificationText,
+      steerMessage,
+      error: apiError,
+      canShowMore,
+      isSyncing,
+    },
+    diagnostics: {
+      reviewMode,
+      debugHistory,
+      tasteProfileSummaries,
+      debugHistoryStatus,
+      debugHistoryMessage,
+    },
+  };
+  const resultsScreen = createResultsScreenWiring({
+    model: resultsScreenModel,
+    actionSources: {
+      startNewNight: resetSession,
+      refreshProfileMemory: loadProfileMemorySummaries,
+      changeContinuationText: (value) => updateResults({ steerText: value }),
+      interpretContinuation: interpretSteerText,
+      changeContinuationClarificationText: (value) =>
+        updateResults({ steerClarificationText: value }),
+      answerContinuationClarification: answerSteerClarification,
+      addContinuation: addSteerToNextFive,
+      applyContinuation: applySteerAndShowMore,
+      showMore: showFiveMore,
+      loadDebugHistory,
+    },
+  });
 
   return (
     <main ref={appShellRef} className="appShell">
@@ -1255,46 +1311,9 @@ export function PassThePhoneWizard({
       ) : null}
 
       {step === "results" ? (
-        verifiedResultsReady ? <ResultsStep
-          founderLabel={founderLabel}
-          wifeLabel={wifeLabel}
-          participantIds={participantIds}
-          peopleMode={peopleMode}
-          rankedCandidates={rankedCandidates}
-          founderReactions={founderReactions}
-          wifeReactions={wifeReactions}
-          sessionMode={sessionMode}
-          sessionSource={sessionSource}
-          movieSource={movieSource}
-          sharedSession={sharedSession}
-          activeTonightIntents={activeTonightIntents}
-          recommendationSource={recommendationSource}
-          recommendationRunStatus={recommendationRunStatus}
-          availabilityRegion={effectiveSetupLoad.setup.defaults.availabilityRegion}
-          steerText={steerText}
-          pendingSteerIntent={pendingSteerIntent}
-          steerClarificationText={steerClarificationText}
-          steerMessage={steerMessage}
-          apiError={apiError}
-          debugHistory={debugHistory}
-          tasteProfileSummaries={tasteProfileSummaries}
-          debugHistoryStatus={debugHistoryStatus}
-          debugHistoryMessage={debugHistoryMessage}
-          onLoadDebugHistory={loadDebugHistory}
-          onRefreshProfileMemory={loadProfileMemorySummaries}
-          onReset={resetSession}
-          onShowMore={showFiveMore}
-          canShowMore={canShowMore}
-          onSteerTextChange={(value) => updateResults({ steerText: value })}
-          onInterpretSteer={interpretSteerText}
-          onSteerClarificationTextChange={(value) =>
-            updateResults({ steerClarificationText: value })
-          }
-          onAnswerSteerClarification={answerSteerClarification}
-          onAddSteer={addSteerToNextFive}
-          onApplySteer={applySteerAndShowMore}
-          isSyncing={isSyncing}
-          reviewMode={reviewMode}
+        verifiedResultsReady ? <ResultsScreen
+          model={resultsScreen.model}
+          actions={resultsScreen.actions}
         /> : <SessionRecoveryStep
           title="Result not verified"
           detail="WatchSignal did not receive two complete saved ballots and a server-ranked result. No result was created."

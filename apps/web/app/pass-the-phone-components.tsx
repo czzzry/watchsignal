@@ -5,21 +5,15 @@ import {
   reactionLabels,
   type DemoCandidate,
   type ReactionValue,
-  type SessionMode,
 } from "./session-fixtures";
 import {
   bucketHint,
   createSessionId,
-  describeSharedWhy,
   entryKey,
-  fallbackPosterUrl,
   suggestedSeedsForBucket,
 } from "./pass-the-phone-helpers";
 import type {
-  DebugHistoryStatus,
   OnboardingDraft,
-  PeopleMode,
-  RankedCandidate,
   ReactionState,
   ReviewNote,
   ReviewTag,
@@ -34,34 +28,11 @@ import {
   type DebugHistoryReactionPayload,
   type DebugHistorySessionPayload,
   type ProfileMemorySummaryPayload,
-  type RecommendationRunStatus,
-  type SharedSessionPayload,
-  type TasteProfileSummaryPayload,
   type TasteMemoryEventPayload,
-  type TonightIntentInterpretationPayload,
 } from "./session-client";
-import {
-  DebugHistoryPanel as ResultsDebugHistoryPanel,
-  RecommendationEvidencePanel,
-  type ResultsParticipantEntry,
-  SessionEvidencePanel,
-} from "./pass-the-phone/results/results-panels";
-import { useResultsPersistence } from "./pass-the-phone/results/use-results-persistence";
-import { RankedResultStage } from "./pass-the-phone/results/ranked-result-stage";
-import { WatchlistUtility } from "./pass-the-phone/results/watchlist-utility";
-import { OutcomeUtility } from "./pass-the-phone/results/outcome-utility";
-import {
-  ResultUtilityHub,
-  type ResultUtilityView,
-} from "./pass-the-phone/results/result-utility-hub";
 import { PrivateReactionCard } from "./pass-the-phone/private-reaction-card";
 import type { SeenMemorySaveResult } from "./pass-the-phone/seen-memory-contract";
-import { ContinuationSteerPanel } from "./pass-the-phone/continuation-steer-panel";
 import { WatchSignalIcon } from "./ui/watchsignal-icons";
-import {
-  createReviewDiagnosticRequests,
-  reviewSurfaceContract,
-} from "./pass-the-phone/review-mode-contract";
 
 const stepLabels: Record<WizardStep, string> = {
   setup: "Setup",
@@ -189,16 +160,6 @@ export function CinematicTransitionOverlay({ kind }: { kind: CinematicWaitKind }
     </section>
   );
 }
-
-function handlePosterFallback(event: {
-  currentTarget: HTMLImageElement;
-}): void {
-  if (event.currentTarget.src !== fallbackPosterUrl) {
-    event.currentTarget.src = fallbackPosterUrl;
-  }
-}
-
-
 
 export function ReactionStep({
   actorLabel,
@@ -554,31 +515,6 @@ export function HandoffStep({
   );
 }
 
-export function SessionRecoveryStep({
-  title,
-  detail,
-  actionLabel,
-  onAction,
-}: {
-  title: string;
-  detail: string;
-  actionLabel: string;
-  onAction: () => void;
-}) {
-  return (
-    <section className="wizardPanel sessionPanel" aria-labelledby="recovery-heading">
-      <div className="sectionHeading">
-        <p className="eyebrow">Session check</p>
-        <h2 id="recovery-heading">{title}</h2>
-        <p>{detail}</p>
-      </div>
-      <button type="button" className="primaryAction" onClick={onAction}>
-        {actionLabel}
-      </button>
-    </section>
-  );
-}
-
 function SessionSyncStrip({
   source,
   status,
@@ -770,349 +706,6 @@ export function ReviewNotesWidget({
       ) : null}
     </div>
   );
-}
-
-export function ResultsStep({
-  founderLabel,
-  wifeLabel,
-  participantIds,
-  peopleMode,
-  rankedCandidates,
-  founderReactions,
-  wifeReactions,
-  sessionMode,
-  sessionSource,
-  movieSource,
-  sharedSession,
-  activeTonightIntents,
-  recommendationSource,
-  recommendationRunStatus,
-  availabilityRegion,
-  steerText,
-  pendingSteerIntent,
-  steerClarificationText,
-  steerMessage,
-  apiError,
-  debugHistory,
-  tasteProfileSummaries,
-  debugHistoryStatus,
-  debugHistoryMessage,
-  onLoadDebugHistory,
-  onRefreshProfileMemory,
-  onReset,
-  onShowMore,
-  canShowMore,
-  onSteerTextChange,
-  onInterpretSteer,
-  onSteerClarificationTextChange,
-  onAnswerSteerClarification,
-  onAddSteer,
-  onApplySteer,
-  isSyncing,
-  reviewMode,
-}: {
-  founderLabel: string;
-  wifeLabel: string;
-  participantIds: string[];
-  peopleMode: PeopleMode;
-  rankedCandidates: RankedCandidate[];
-  founderReactions: ReactionState;
-  wifeReactions: ReactionState;
-  sessionMode: SessionMode;
-  sessionSource: SessionSource;
-  movieSource: "live" | "local";
-  sharedSession: SharedSessionPayload | null;
-  activeTonightIntents: TonightIntentInterpretationPayload[];
-  recommendationSource: string;
-  recommendationRunStatus: RecommendationRunStatus | null;
-  availabilityRegion: string;
-  steerText: string;
-  pendingSteerIntent: TonightIntentInterpretationPayload | null;
-  steerClarificationText: string;
-  steerMessage: string | null;
-  apiError: string | null;
-  debugHistory: DebugHistorySessionPayload | null;
-  tasteProfileSummaries: TasteProfileSummaryPayload[];
-  debugHistoryStatus: DebugHistoryStatus;
-  debugHistoryMessage: string | null;
-  onLoadDebugHistory: () => void | Promise<void>;
-  onRefreshProfileMemory: () => void | Promise<void>;
-  onReset: () => void;
-  onShowMore: () => void | Promise<void>;
-  canShowMore: boolean;
-  onSteerTextChange: (text: string) => void;
-  onInterpretSteer: () => void | Promise<void>;
-  onSteerClarificationTextChange: (text: string) => void;
-  onAnswerSteerClarification: () => void | Promise<void>;
-  onAddSteer: () => void;
-  onApplySteer: () => void | Promise<void>;
-  isSyncing: boolean;
-  reviewMode: boolean;
-}) {
-  const bestPick = rankedCandidates[0];
-  const [continuationOpen, setContinuationOpen] = useState(false);
-  const [utilityView, setUtilityView] = useState<ResultUtilityView>("home");
-  const reviewSurface = reviewSurfaceContract(reviewMode);
-  const diagnosticRequests = createReviewDiagnosticRequests(reviewMode, {
-    loadDebugHistory: onLoadDebugHistory,
-    loadSessionTasteEvidence: async () => {},
-    loadSoloTasteEvidence: async () => {},
-  });
-  const participantEntries: ResultsParticipantEntry[] =
-    peopleMode === "couple"
-      ? [
-          { id: participantIds[0], label: founderLabel, actor: "founder" as const },
-          { id: participantIds[1], label: wifeLabel, actor: "wife" as const },
-        ]
-      : peopleMode === "founder"
-        ? [{ id: participantIds[0], label: founderLabel, actor: "founder" as const }]
-        : [{ id: participantIds[0], label: wifeLabel, actor: "wife" as const }];
-  const persistence = useResultsPersistence({
-    sessionSource,
-    sharedSession,
-    participantIds,
-    participantEntries,
-    rankedCandidates,
-    bestPick,
-    diagnosticRequests,
-    onRefreshProfileMemory,
-  });
-  const {
-    canPersist,
-    canSaveWatchlist,
-    outcomeType,
-    otherPickId,
-    outcomeNote,
-    savedOutcome,
-    outcomeError,
-    feedbackState,
-    feedbackNotes,
-    savedFeedback,
-    feedbackError,
-    feedbackReady,
-    watchedTitle,
-    watchlistEntries,
-    watchlistStatus,
-    watchlistMessage,
-    watchlistEntryBusy,
-    watchlistWatchedState,
-    watchlistRatingState,
-    bestPickWatchlistEntry,
-    outcomeBusy,
-    outcomeConfirmed,
-    feedbackBusy,
-    refreshWatchlist,
-    handleOutcomeTypeChange,
-    handleOtherPickChange,
-    handleOutcomeNoteChange,
-    handleFeedbackChange,
-    handleFeedbackNoteChange,
-    handleWatchlistRatingChange,
-    handleSaveBestPick,
-    handleRemoveWatchlistEntry,
-    handleMarkWatchlistEntryWatched,
-    handleSaveOutcome,
-    handleSaveFeedback,
-  } = persistence;
-
-  useEffect(() => {
-    if (
-      !canPersist ||
-      sharedSession === null ||
-      debugHistory !== null ||
-      debugHistoryStatus !== "idle"
-    ) {
-      return;
-    }
-
-    void diagnosticRequests.initialResults();
-  }, [
-    canPersist,
-    sharedSession?.sessionId,
-    sharedSession?.state,
-    debugHistory,
-    debugHistoryStatus,
-    diagnosticRequests,
-  ]);
-
-  if (!bestPick) {
-    return (
-      <SessionRecoveryStep
-        title="No ranked pick yet"
-        detail="This session finished without a shortlist to rank. Start another session to load a fresh set of picks."
-        actionLabel="Start another session"
-        onAction={onReset}
-      />
-    );
-  }
-
-  const canSaveOutcome = persistence.canSaveOutcome;
-  const sharedReasons = Object.fromEntries(
-    rankedCandidates.slice(0, 5).map((candidate) => [
-      candidate.id,
-      compactResultReason(
-        describeSharedWhy({
-          candidate,
-          founderReaction: founderReactions[candidate.id],
-          wifeReaction: wifeReactions[candidate.id],
-          peopleMode,
-          founderLabel,
-          wifeLabel,
-        }),
-      ),
-    ]),
-  );
-
-  const continuationContent = (
-    <ContinuationSteerPanel
-      activeIntents={activeTonightIntents}
-      text={steerText}
-      pendingIntent={pendingSteerIntent}
-      clarificationText={steerClarificationText}
-      message={steerMessage}
-      continuationError={apiError}
-      busy={isSyncing}
-      canContinue={canShowMore}
-      canSteer={movieSource === "live"}
-      onTextChange={onSteerTextChange}
-      onInterpret={onInterpretSteer}
-      onClarificationTextChange={onSteerClarificationTextChange}
-      onAnswerClarification={onAnswerSteerClarification}
-      onAdd={onAddSteer}
-      onApply={onApplySteer}
-      onContinue={onShowMore}
-    />
-  );
-
-  const utilityContent = (
-    <div className="resultUtilityStack">
-      {recommendationRunStatus ? (
-        <section className="recommendationRunStatus" role="status">
-          <strong>{recommendationRunStatus.label}</strong>
-          <p>{recommendationRunStatus.detail}</p>
-          {recommendationRunStatus.curatorLens ? (
-            <p>
-              Taste Lens {recommendationRunStatus.curatorLens.status === "active" ? "ACTIVE" : "NOT APPLIED"}
-              {" · "}{recommendationRunStatus.curatorLens.source}
-            </p>
-          ) : null}
-        </section>
-      ) : null}
-      <ResultUtilityHub
-        view={utilityView}
-        winnerTitle={bestPick.title}
-        saved={Boolean(bestPickWatchlistEntry)}
-        saveBusy={watchlistStatus === "saving" || Boolean(watchlistEntryBusy[bestPick.id])}
-        saveMessage={watchlistMessage}
-        canSave={canSaveWatchlist}
-        watchlistCount={watchlistEntries.length}
-        onView={setUtilityView}
-        onToggleSave={() => bestPickWatchlistEntry
-          ? handleRemoveWatchlistEntry(bestPick.id)
-          : handleSaveBestPick()}
-        onReset={onReset}
-      >
-        {utilityView === "watchlist" ? (
-          <WatchlistUtility
-            entries={watchlistEntries}
-            participants={participantEntries}
-            available={canSaveWatchlist}
-            loading={watchlistStatus === "loading"}
-            message={watchlistMessage}
-            ratingState={watchlistRatingState}
-            entryBusy={watchlistEntryBusy}
-            watchedState={watchlistWatchedState}
-            onBack={() => setUtilityView("home")}
-            onRetry={refreshWatchlist}
-            onRating={handleWatchlistRatingChange}
-            onWatched={handleMarkWatchlistEntryWatched}
-            onRemove={handleRemoveWatchlistEntry}
-          />
-        ) : utilityView === "outcome" ? (
-          <OutcomeUtility
-            rankedCandidates={rankedCandidates}
-            participants={participantEntries}
-            outcomeType={outcomeType}
-            otherPickId={otherPickId}
-            note={outcomeNote}
-            savedOutcome={savedOutcome}
-            watchedTitle={watchedTitle}
-            outcomeError={outcomeError}
-            feedbackError={feedbackError}
-            feedbackState={feedbackState}
-            feedbackNotes={feedbackNotes}
-            outcomeBusy={outcomeBusy}
-            outcomeConfirmed={outcomeConfirmed}
-            feedbackBusy={feedbackBusy}
-            canPersist={canPersist}
-            canSaveOutcome={canSaveOutcome}
-            feedbackReady={feedbackReady}
-            savedFeedbackProfileIds={savedFeedback.map((item) => item.userId)}
-            onBack={() => setUtilityView("home")}
-            onOutcomeType={handleOutcomeTypeChange}
-            onOtherPick={handleOtherPickChange}
-            onNote={handleOutcomeNoteChange}
-            onSaveOutcome={handleSaveOutcome}
-            onFeedback={handleFeedbackChange}
-            onFeedbackNote={handleFeedbackNoteChange}
-            onSaveFeedback={handleSaveFeedback}
-            onPosterFallback={handlePosterFallback}
-          />
-        ) : null}
-      </ResultUtilityHub>
-      {reviewSurface.showEvidence ? (
-        <SessionEvidencePanel>
-          <RecommendationEvidencePanel
-            bestPick={bestPick}
-            activeIntents={activeTonightIntents}
-            recommendationSource={recommendationSource}
-            availabilityRegion={availabilityRegion}
-            peopleMode={peopleMode}
-            participantEntries={participantEntries}
-            tasteProfileSummaries={tasteProfileSummaries}
-            debugHistory={debugHistory}
-          />
-          <ResultsDebugHistoryPanel
-            source={sessionSource}
-            session={sharedSession}
-            history={debugHistory}
-            tasteProfileSummaries={tasteProfileSummaries}
-            status={debugHistoryStatus}
-            message={debugHistoryMessage}
-            onLoad={onLoadDebugHistory}
-          />
-        </SessionEvidencePanel>
-      ) : null}
-    </div>
-  );
-
-  return (
-    <>
-      <RankedResultStage
-        rankedCandidates={rankedCandidates}
-        peopleMode={peopleMode}
-        founderReactions={founderReactions}
-        wifeReactions={wifeReactions}
-        sharedReasons={sharedReasons}
-        continuationOpen={continuationOpen}
-        continuationContent={continuationContent}
-        continuationAvailable
-        utilityContent={utilityContent}
-        onReset={onReset}
-        onToggleContinuation={() => setContinuationOpen((current) => !current)}
-        onPosterFallback={handlePosterFallback}
-      />
-
-    </>
-  );
-}
-
-function compactResultReason(value: string): string {
-  const normalized = value.trim().replace(/\s+/g, " ");
-  if (normalized.length <= 96) {
-    return normalized.replace(/[.!?]?$/, ".");
-  }
-  return `${normalized.slice(0, 93).trimEnd()}…`;
 }
 
 function DebugReactionList({
