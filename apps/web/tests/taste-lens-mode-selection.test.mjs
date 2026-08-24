@@ -137,9 +137,9 @@ test("browse remains a direct source-list view when recommendation candidates ar
   });
 });
 
-test("a personal-research seed cannot become a product fallback", async () => {
-  const { tasteLensLaunchRoster, tasteLensSourceById } = await import("../app/taste-lens/index.ts");
-  const bong = tasteLensLaunchRoster.find((profile) => profile.id === "curator:bong-joon-ho");
+test("the private catalogue cannot become a public product fallback", async () => {
+  const { tasteLensCuratorDirectory, tasteLensSourceById } = await import("../app/taste-lens/index.ts");
+  const bong = tasteLensCuratorDirectory.find((profile) => profile.id === "curator:bong-joon-ho");
 
   assert.ok(bong);
   const selected = selectTasteLensMode({
@@ -150,92 +150,72 @@ test("a personal-research seed cannot become a product fallback", async () => {
   });
 
   assert.equal(selected.status, "unavailable");
-  assert.equal(selected.reason, "catalogue-not-verified");
-  assert.equal(bong.normalizedSelectionCount, 4);
+  assert.equal(selected.reason, "permission-not-cleared");
+  assert.equal(bong.normalizedSelectionCount > 40, true);
+  assert.equal(bong.publishedSelectionCount, 50);
 });
 
-test("Bong Joon-ho's manual BFI seed keeps published depth separate from locally verified titles", async () => {
+test("the generated Bong Joon-ho catalogue keeps published depth and mapped titles separate", async () => {
   const {
-    bongJoonHoBfiLocalSeed,
-    localSeedEligibilityFor,
-    tasteLensLaunchRoster,
+    tasteLensEligibilityFor,
+    tasteLensCuratorDirectory,
     tasteLensSourceById,
   } = await import("../app/taste-lens/index.ts");
-  const bong = tasteLensLaunchRoster.find((profile) => profile.id === "curator:bong-joon-ho");
-  const source = tasteLensSourceById.get("source:bfi-bong-joon-ho-2022-directors-ballot");
+  const bong = tasteLensCuratorDirectory.find((profile) => profile.id === "curator:bong-joon-ho");
 
   assert.ok(bong);
+  const source = tasteLensSourceById.get(bong.sourceIds[0]);
   assert.ok(source);
-  assert.equal(source.reportedDepth.count, 10);
-  assert.equal(bong.normalizedSelectionCount, 4);
-  assert.equal(bong.localSeed?.individuallyVerifiedSelectionCount, 4);
+  assert.equal(source.publisher, "LaCinetek");
+  assert.equal(source.reportedDepth.count, 50);
+  assert.equal(bong.publishedSelectionCount, 50);
+  assert.equal(bong.mappedMovieIds.includes("tmdb:36095"), true);
+  assert.equal(bong.privateCatalogue?.mappedSelectionCount, bong.normalizedSelectionCount);
   assert.equal(source.permissionStatus, "permission-required");
-  assert.equal(source.personalResearchTesting?.productUse, "not-cleared");
-  assert.deepEqual(bong.portrait, {
-    imageUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Bong_Joon-Ho.jpg?width=960",
-    sourceUrl: "https://commons.wikimedia.org/wiki/File:Bong_Joon-Ho.jpg",
-    author: "Greg Dunlap",
-    license: "CC BY 2.0",
-    attribution: "Photo by Greg Dunlap, CC BY 2.0, via Wikimedia Commons.",
-  });
-  assert.deepEqual(
-    bongJoonHoBfiLocalSeed.map(({ title, releaseYear, director, movieId, sourceMovieId, sourceRank }) => ({
-      title,
-      releaseYear,
-      director,
-      movieId,
-      sourceMovieId,
-      sourceRank,
-    })),
-    [
-      { title: "Psycho", releaseYear: 1960, director: "Alfred Hitchcock", movieId: "tmdb:539", sourceMovieId: "bfi:18313136-53d5-53d4-a89b-1d19d24a30f2", sourceRank: undefined },
-      { title: "Raging Bull", releaseYear: 1980, director: "Martin Scorsese", movieId: "tmdb:1578", sourceMovieId: "bfi:0caff9bf-8c22-568b-b70e-c211b22dba41", sourceRank: undefined },
-      { title: "Zodiac", releaseYear: 2007, director: "David Fincher", movieId: "tmdb:1949", sourceMovieId: "bfi:30eb8575-275c-5ee4-9317-9011611ca8ad", sourceRank: undefined },
-      { title: "CURE", releaseYear: 1998, director: "Kiyoshi Kurosawa", movieId: "tmdb:36095", sourceMovieId: "bfi:90bfc8ac-5303-5c99-89fa-111336353832", sourceRank: undefined },
-    ],
-  );
-  assert.deepEqual(localSeedEligibilityFor(bong.id), {
-    eligibleExactSelectionCount: 4,
-    inspirationAnchorCount: 4,
-    browseSelectionCount: 4,
+  assert.equal(source.privateHouseholdResearch?.productUse, "not-cleared");
+  assert.match(bong.portrait?.imageUrl ?? "", /lacinetek|cloudfront/);
+  assert.deepEqual(tasteLensEligibilityFor(bong.id), {
+    eligibleExactSelectionCount: bong.normalizedSelectionCount,
+    inspirationAnchorCount: bong.normalizedSelectionCount,
+    browseSelectionCount: 50,
   });
 });
 
-test("the explicit personal-research scope exposes only verified seed anchors", async () => {
+test("the explicit private-household scope exposes mapped anchors without a fallback", async () => {
   const {
-    localSeedEligibilityFor,
     selectTasteLensMode,
-    tasteLensLaunchRoster,
+    tasteLensEligibilityFor,
+    tasteLensCuratorDirectory,
     tasteLensSourceById,
   } = await import("../app/taste-lens/index.ts");
-  const bong = tasteLensLaunchRoster.find((profile) => profile.id === "curator:bong-joon-ho");
+  const bong = tasteLensCuratorDirectory.find((profile) => profile.id === "curator:bong-joon-ho");
   assert.ok(bong);
-  const eligibilityForSeed = localSeedEligibilityFor(bong.id);
+  const catalogueEligibility = tasteLensEligibilityFor(bong.id);
 
   const exact = selectTasteLensMode({
     curator: bong,
     sources: tasteLensSourceById,
-    eligibility: eligibilityForSeed,
+    eligibility: catalogueEligibility,
     requestedMode: "exact-list",
-    usageScope: "local-personal-research-testing",
+    usageScope: "private-household-research",
   });
   const inspiration = selectTasteLensMode({
     curator: bong,
     sources: tasteLensSourceById,
-    eligibility: eligibilityForSeed,
+    eligibility: catalogueEligibility,
     requestedMode: "inspiration",
-    usageScope: "local-personal-research-testing",
+    usageScope: "private-household-research",
   });
   const browse = selectTasteLensMode({
     curator: bong,
     sources: tasteLensSourceById,
-    eligibility: eligibilityForSeed,
+    eligibility: catalogueEligibility,
     requestedMode: "browse",
-    usageScope: "local-personal-research-testing",
+    usageScope: "private-household-research",
   });
 
-  assert.equal(exact.status, "unavailable");
-  assert.equal(exact.reason, "too-few-exact-candidates");
+  assert.equal(exact.status, "selected");
+  assert.equal(exact.mode, "exact-list");
   assert.equal(inspiration.status, "selected");
   assert.equal(inspiration.mode, "inspiration");
   assert.equal(browse.status, "selected");

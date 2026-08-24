@@ -1,6 +1,6 @@
 import {
   catalogueReadiness,
-  localResearchSeedReadiness,
+  privateHouseholdCatalogueReadiness,
   MINIMUM_EXACT_LIST_CANDIDATES,
   MINIMUM_INSPIRATION_ANCHORS,
   RECOMMENDED_EXACT_LIST_CANDIDATES,
@@ -50,8 +50,8 @@ export function selectTasteLensMode({
   /** Product is the safe default. Personal-research testing must be explicit. */
   usageScope?: TasteLensUsageScope;
 }): TasteLensModeSelection {
-  const readiness = usageScope === "local-personal-research-testing"
-    ? localResearchSeedReadiness(curator, sources)
+  const readiness = usageScope === "private-household-research"
+    ? privateHouseholdCatalogueReadiness(curator, sources)
     : catalogueReadiness(curator, sources);
   if (!readiness.ready) return unavailable(requestedMode, readiness);
 
