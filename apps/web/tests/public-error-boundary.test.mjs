@@ -146,6 +146,16 @@ test("S23 seen-memory, reaction, and handoff controllers publish retained-state 
     handoff.value,
     { advanceHandoff: async () => { throw rawFailure; } },
   );
+  assert.equal(
+    handoff.events.some(([name]) => name === "completeHandoff"),
+    false,
+    "a failed API handoff must not expose the next private pass",
+  );
+  assert.equal(
+    handoff.events.some(([name]) => name === "setDemoDebugFallback"),
+    false,
+    "a failed API handoff must not silently switch to a local fallback",
+  );
 
   for (const event of [...seen.events, ...reaction.events, ...handoff.events]) {
     const message = event[1]?.apiError;

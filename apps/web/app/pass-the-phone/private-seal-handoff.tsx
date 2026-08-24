@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { WatchSignalIcon } from "../ui/watchsignal-icons";
 import {
   createPrivacySealCompletionController,
+  privateHandoffActionCopy,
   privateHandoffCopy,
   privacySealCopy,
   type PrivacySealCompletionController,
@@ -84,6 +85,7 @@ export function PrivateHandoffStep({
   recipientAvatarKey,
   recipientColorKey,
   isSyncing,
+  retry = false,
   onReset,
   onContinue,
 }: {
@@ -92,11 +94,13 @@ export function PrivateHandoffStep({
   recipientAvatarKey: string;
   recipientColorKey: string;
   isSyncing: boolean;
+  retry?: boolean;
   onReset: () => void;
   onContinue: () => void | Promise<void>;
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const copy = privateHandoffCopy(ownerLabel, recipientLabel);
+  const actionCopy = privateHandoffActionCopy(retry);
 
   useEffect(() => {
     headingRef.current?.focus();
@@ -109,7 +113,7 @@ export function PrivateHandoffStep({
       aria-labelledby="private-handoff-title"
     >
       <button type="button" className={styles.resetButton} onClick={onReset} disabled={isSyncing}>
-        Start over
+        {actionCopy.back}
       </button>
       <div className={styles.handoffSignal} aria-hidden="true">
         <span className={styles.sealedMark}><WatchSignalIcon name="check" /></span>
@@ -132,11 +136,11 @@ export function PrivateHandoffStep({
         disabled={isSyncing}
         aria-describedby="private-handoff-assurance"
       >
-        {isSyncing ? "Opening private picks" : copy.action}
+        {isSyncing ? "Opening private picks" : retry ? actionCopy.action : copy.action}
         <WatchSignalIcon name="chevron-right" />
       </button>
       <small id="private-handoff-assurance" className={styles.assurance} role="status" aria-live="polite">
-        {isSyncing ? "Preparing a clean screen" : "No earlier answers are shown"}
+        {isSyncing ? "Preparing a clean screen" : actionCopy.assurance}
       </small>
     </section>
   );

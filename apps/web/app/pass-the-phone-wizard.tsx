@@ -35,11 +35,19 @@ import { usePassThePhoneOnboardingSetupState } from "./pass-the-phone/use-pass-t
 import {
   LaunchSting,
   ReactionStep,
-  ResultsStep,
   ReviewNotesWidget,
-  SessionRecoveryStep,
-  SetupStep,
 } from "./pass-the-phone-components";
+import { SessionRecoveryStep } from "./pass-the-phone/session-recovery-step";
+import {
+  SetupScreen,
+  type SetupScreenModel,
+} from "./pass-the-phone/setup/setup-screen";
+import { createSetupScreenWiring } from "./pass-the-phone/setup/setup-screen-wiring";
+import {
+  ResultsScreen,
+  type ResultsScreenModel,
+} from "./pass-the-phone/results/results-screen";
+import { createResultsScreenWiring } from "./pass-the-phone/results/results-screen-wiring";
 import { RequiredOnboarding } from "./pass-the-phone/required-onboarding";
 import {
   PrivateHandoffStep,
@@ -50,28 +58,17 @@ import type { MatchingTransitionPhase } from "./pass-the-phone/matching-transiti
 import { ShortlistGeneration } from "./pass-the-phone/shortlist-generation";
 import type { ShortlistGenerationStage } from "./pass-the-phone/shortlist-generation-contract";
 import {
-  createPrivateTransitionRecoveryClient,
-  type PrivateTransitionRecoveryClient,
-} from "./pass-the-phone/private-transition-recovery";
-import {
+  createPrivateTransitionRecoveryCoordinator,
   privateTransitionRecipientPresentation,
-  privateTransitionRestorePlan,
-} from "./pass-the-phone/private-transition-restore-plan";
-import {
-  canonicalResultInputs,
-  canonicalSecondPassInputs,
-  canonicalSharedResultReady,
-} from "./pass-the-phone/canonical-result-contract";
+  type PrivateTransitionRecoveryCoordinator,
+  type PrivateTransitionRecoveryOutcome,
+} from "./pass-the-phone/private-transition-recovery-coordinator";
+import { canonicalSharedResultReady } from "./pass-the-phone/canonical-result-contract";
 import {
   clearLocalPrivateTransition,
   consumeLocalPrivateTransition,
   markLocalPrivateTransition,
 } from "./pass-the-phone/local-private-transition";
-import {
-  createPrivateTransitionCommandId,
-  recoveryMovieDisplayFromCandidate,
-  type PrivateTransitionCommand,
-} from "./pass-the-phone/private-transition-command";
 import {
   createReviewDiagnosticRequests,
   reviewModeFromSearch,
@@ -103,11 +100,9 @@ import {
   type TonightDefaultsSaveResult,
 } from "./pass-the-phone/tonight-defaults-contract";
 import {
-  getSharedSession,
   type SharedSessionPayload,
   type TonightIntentInterpretationPayload,
 } from "./session-client";
-import type { PrivateTransitionResumeProjectionPayload } from "./api-contract.generated";
 
 type PassThePhoneWizardProps = {
   apiHealth: ApiHealth;
@@ -212,11 +207,11 @@ export function PassThePhoneWizard({
     actor: "founder" | "wife";
     reactions: ReactionState;
   } | null>(null);
-  const transitionRecoveryClientRef = useRef<PrivateTransitionRecoveryClient | null>(
+  const transitionRecoveryCoordinatorRef = useRef<PrivateTransitionRecoveryCoordinator | null>(
     null,
   );
   const [transitionRecoveryStage, setTransitionRecoveryStage] = useState<
-    PrivateTransitionResumeProjectionPayload["kind"] | "sealing" | null
+    "handoff_pending" | "handoff_ready" | "handoff_retry" | "second_pass_ready" | "matching_pending" | "matching_failed" | "sealing" | null
   >(null);
   const [recoveredRecipientLabel, setRecoveredRecipientLabel] = useState<
     string | null
@@ -439,11 +434,11 @@ export function PassThePhoneWizard({
         return;
       }
     } catch {}
-    void transitionRecoveryClient().load()
-      .then((projection) => {
-        if (!projection) return;
+    void transitionRecoveryCoordinator().resume()
+      .then((outcome) => {
+        if (outcome.kind === "absent") return;
         setShowLaunchSting(false);
-        return restorePrivateTransition(projection);
+        return applyPrivateTransitionOutcome(outcome);
       })
       .catch(() => {
         updateSession({
@@ -669,9 +664,11 @@ export function PassThePhoneWizard({
             return;
           }
           setTransitionRecoveryStage("sealing");
-          const recoverySeal = saveAndResumePrivateTransition(
-            recoverySealCommand("founder", nextReactions),
-          );
+          const recoverySeal = transitionRecoveryCoordinator().sealFirstPass({
+            canonicalSessionId: sharedSession.sessionId,
+            candidates: sessionCandidates,
+            reactions: nextReactions,
+          });
           await beginPrivacySeal(firstPassLabel, false);
           dispatchNavigation(
             passCompletedNavigationAction({
@@ -681,13 +678,14 @@ export function PassThePhoneWizard({
           );
           setPrivacySeal(null);
           try {
-            const projection = await recoverySeal;
-            await restorePrivateTransition(projection);
+            const outcome = await recoverySeal;
+            if (outcome.kind === "absent") throw new Error("Private recovery was not found.");
+            await applyPrivateTransitionOutcome(outcome);
           } catch {
             updateSession({
-              apiError: "This handoff is private, but reload recovery is unavailable. Keep this tab open.",
+              apiError: "The private handoff could not be verified. Retry or go back home.",
             });
-            setTransitionRecoveryStage(null);
+            setTransitionRecoveryStage("handoff_retry");
           }
           return;
         }
@@ -762,22 +760,39 @@ export function PassThePhoneWizard({
   }
 
   async function continueAfterHandoff(): Promise<void> {
+    if (transitionRecoveryStage === "handoff_retry") {
+      try {
+        setTransitionRecoveryStage("handoff_pending");
+        const outcome = await transitionRecoveryCoordinator().resume();
+        if (outcome.kind === "absent") throw new Error("Private recovery was not found.");
+        await applyPrivateTransitionOutcome(outcome);
+      } catch {
+        setTransitionRecoveryStage("handoff_retry");
+        updateSession({
+          apiError: "The private handoff is still safe. Retry when you are ready.",
+        });
+      }
+      return;
+    }
     if (transitionRecoveryStage === "handoff_ready") {
       try {
         setTransitionRecoveryStage("handoff_pending");
-        const projection = await saveAndResumePrivateTransition({
-          kind: "open_second_pass",
-          workflowVersion: 1,
-          payloadVersion: 1,
-          commandId: createPrivateTransitionCommandId(),
-        });
-        await restorePrivateTransition(projection);
+        const outcome = await transitionRecoveryCoordinator().openSecondPass();
+        if (outcome.kind === "absent") throw new Error("Private recovery was not found.");
+        await applyPrivateTransitionOutcome(outcome);
       } catch {
         setTransitionRecoveryStage("handoff_ready");
         updateSession({
           apiError: "The private handoff is still safe. Try opening the next pass again.",
         });
       }
+      return;
+    }
+    if (sessionSource === "api" && sharedSession !== null) {
+      setTransitionRecoveryStage("handoff_retry");
+      updateSession({
+        apiError: "The private handoff could not be verified. Retry or go back home.",
+      });
       return;
     }
     let handoffReady = false;
@@ -846,16 +861,19 @@ export function PassThePhoneWizard({
       && transitionRecoveryStage === "second_pass_ready"
     ) {
       try {
-        const command = recoverySealCommand("wife", reactions);
         if (forceFailure) {
-          await transitionRecoveryClient().save(command);
+          // Review mode simulates the failure surface without changing durable recovery.
           setTransitionRecoveryStage("matching_failed");
           setMatchingTransition({ phase: "failed" });
           return;
         }
-        const projection = await saveAndResumePrivateTransition(command);
+        const outcome = await transitionRecoveryCoordinator().sealFinalPass({
+          candidates: sessionCandidates,
+          reactions,
+        });
         setTransitionRecoveryStage("matching_pending");
-        await restorePrivateTransition(projection);
+        if (outcome.kind === "absent") throw new Error("Private recovery was not found.");
+        await applyPrivateTransitionOutcome(outcome);
       } catch {
         setTransitionRecoveryStage("matching_failed");
         setMatchingTransition({ phase: "failed" });
@@ -887,9 +905,9 @@ export function PassThePhoneWizard({
     ) {
       setMatchingTransition({ phase: "saving" });
       try {
-        const projection = await transitionRecoveryClient().load();
-        if (!projection) throw new Error("Private recovery was not found.");
-        await restorePrivateTransition(projection);
+        const outcome = await transitionRecoveryCoordinator().resume();
+        if (outcome.kind === "absent") throw new Error("Private recovery was not found.");
+        await applyPrivateTransitionOutcome(outcome);
       } catch {
         setTransitionRecoveryStage("matching_failed");
         setMatchingTransition({ phase: "failed" });
@@ -903,136 +921,69 @@ export function PassThePhoneWizard({
     await runFinalMatching(pending.actor, pending.reactions);
   }
 
-  function transitionRecoveryClient(): PrivateTransitionRecoveryClient {
-    transitionRecoveryClientRef.current ??= createPrivateTransitionRecoveryClient();
-    return transitionRecoveryClientRef.current;
-  }
-
-  async function saveAndResumePrivateTransition(
-    command: PrivateTransitionCommand,
-  ): Promise<PrivateTransitionResumeProjectionPayload> {
-    try {
-      const directProjection = await transitionRecoveryClient().save(command);
-      if (directProjection) return directProjection;
-    } catch {
-      const reconciled = await transitionRecoveryClient().load();
-      if (reconciled) return reconciled;
-      throw new Error("Private recovery could not be reconciled.");
-    }
-    const projection = await transitionRecoveryClient().load();
-    if (!projection) throw new Error("Private recovery was not found.");
-    return projection;
-  }
-
-  function recoverySealCommand(
-    actor: "founder" | "wife",
-    reactions: ReactionState,
-  ): PrivateTransitionCommand {
-    const ballot = sessionCandidates.map((candidate) => {
-      const reaction = reactions[candidate.id];
-      if (!reaction) {
-        throw new Error("Every movie needs a private reaction before sealing.");
-      }
-      return { sourceMovieId: candidate.id, reaction };
-    });
-    const displaySnapshot = sessionCandidates.map(recoveryMovieDisplayFromCandidate);
-    if (actor === "founder") {
-      if (!sharedSession) {
-        throw new Error("A shared session is required for durable handoff recovery.");
-      }
-      return {
-        kind: "seal_founder_ballot",
-        workflowVersion: 1,
-        payloadVersion: 1,
-        canonicalSessionId: sharedSession.sessionId,
-        commandId: createPrivateTransitionCommandId(),
-        ballot,
-        displaySnapshot,
-      };
-    }
-    return {
-      kind: "seal_final_ballot",
-      workflowVersion: 1,
-      payloadVersion: 1,
-      commandId: createPrivateTransitionCommandId(),
-      ballot,
-      displaySnapshot,
-    };
+  function transitionRecoveryCoordinator(): PrivateTransitionRecoveryCoordinator {
+    transitionRecoveryCoordinatorRef.current ??= createPrivateTransitionRecoveryCoordinator();
+    return transitionRecoveryCoordinatorRef.current;
   }
 
   async function clearTransitionRecovery(): Promise<void> {
     setTransitionRecoveryStage(null);
-    await transitionRecoveryClient().clear().catch(() => undefined);
+    await transitionRecoveryCoordinator().clear().catch(() => undefined);
   }
 
-  async function restorePrivateTransition(
-    projection: PrivateTransitionResumeProjectionPayload,
+  async function applyPrivateTransitionOutcome(
+    outcome: Exclude<PrivateTransitionRecoveryOutcome, { kind: "absent" }>,
   ): Promise<void> {
-    const plan = privateTransitionRestorePlan(projection);
-    setTransitionRecoveryStage(plan.stage);
-    setRecoveredRecipientLabel(plan.recipientLabel);
+    setRecoveredRecipientLabel(outcome.recipientLabel);
     setPeopleMode("couple");
-    if (plan.kind === "handoff") {
+    if (outcome.kind === "handoff") {
+      setTransitionRecoveryStage(
+        outcome.ready ? "handoff_ready" : "handoff_retry",
+      );
       dispatchNavigation({ type: "session.recovered", step: "handoff" });
       updateSession({
         sessionSource: "api",
         persistenceSource: "shared",
         apiError: "Private session restored on this tab.",
       });
-      if (plan.shouldPoll) {
-        window.setTimeout(() => void resumePrivateTransition(), 750);
-      }
       return;
     }
-    if (plan.kind === "second_pass") {
-      const recoveredSession = await getSharedSession(plan.canonicalSessionId);
-      const inputs = canonicalSecondPassInputs({
-        displaySnapshot: plan.displaySnapshot,
-        session: recoveredSession,
-      });
-      resetBatch(inputs.candidates);
-      setSessionMode(sessionModeFromSharedSession(recoveredSession));
-      setFounderReactions(inputs.founderReactions);
+    if (outcome.kind === "matching-failed") {
+      setTransitionRecoveryStage("matching_failed");
+      dispatchNavigation({ type: "session.recovered", step: "wife" });
+      setMatchingTransition({ phase: "failed" });
+      matchingFailureConsumedRef.current = true;
+      return;
+    }
+    if (outcome.kind === "second-pass") {
+      setTransitionRecoveryStage("second_pass_ready");
+      resetBatch(outcome.session.candidates);
+      setSessionMode(sessionModeFromSharedSession(outcome.session.sharedSession));
+      setFounderReactions(outcome.session.founderReactions);
       setWifeReactions({});
       updateSession({
         sessionSource: "api",
         movieSource: "live",
         persistenceSource: "shared",
-        liveSessionId: recoveredSession.sessionId,
-        sharedSession: recoveredSession,
-        shownSourceMovieIds: recoveredSession.shownSourceMovieIds,
+        liveSessionId: outcome.session.sharedSession.sessionId,
+        sharedSession: outcome.session.sharedSession,
+        shownSourceMovieIds: outcome.session.sharedSession.shownSourceMovieIds,
         apiError: null,
       });
       dispatchNavigation({ type: "session.recovered", step: "wife" });
       return;
     }
-    if (plan.kind === "matching") {
-      dispatchNavigation({ type: "session.recovered", step: "wife" });
-      setMatchingTransition({ phase: plan.phase });
-      if (plan.phase === "failed") matchingFailureConsumedRef.current = true;
-      if (plan.shouldPoll) {
-        window.setTimeout(() => void resumePrivateTransition(), 750);
-      }
-      return;
-    }
-
-    const recoveredSession = await getSharedSession(plan.canonicalSessionId);
-    const inputs = canonicalResultInputs({
-      displaySnapshot: plan.displaySnapshot,
-      finalReactions: plan.finalReactions,
-      session: recoveredSession,
-    });
-    resetBatch(inputs.candidates);
-    setSessionMode(sessionModeFromSharedSession(recoveredSession));
-    setFounderReactions(inputs.founderReactions);
-    setWifeReactions(inputs.wifeReactions);
+    resetBatch(outcome.session.candidates);
+    setSessionMode(sessionModeFromSharedSession(outcome.session.sharedSession));
+    setFounderReactions(outcome.session.founderReactions);
+    setWifeReactions(outcome.session.wifeReactions);
     updateSession({
       sessionSource: "api",
       movieSource: "live",
       persistenceSource: "shared",
-      liveSessionId: recoveredSession.sessionId,
-      sharedSession: recoveredSession,
-      shownSourceMovieIds: recoveredSession.shownSourceMovieIds,
+      liveSessionId: outcome.session.sharedSession.sessionId,
+      sharedSession: outcome.session.sharedSession,
+      shownSourceMovieIds: outcome.session.sharedSession.shownSourceMovieIds,
       apiError: null,
     });
     await beginMatchConvergence();
@@ -1040,17 +991,6 @@ export function PassThePhoneWizard({
     pendingFinalPassRef.current = null;
     setMatchingTransition(null);
     window.requestAnimationFrame(() => void clearTransitionRecovery());
-  }
-
-  async function resumePrivateTransition(): Promise<void> {
-    try {
-      const projection = await transitionRecoveryClient().load();
-      if (!projection) throw new Error("Private recovery was not found.");
-      await restorePrivateTransition(projection);
-    } catch {
-      setTransitionRecoveryStage("matching_failed");
-      setMatchingTransition({ phase: "failed" });
-    }
   }
 
   function sessionProgressPorts() {
@@ -1076,6 +1016,135 @@ export function PassThePhoneWizard({
     );
   }
 
+  const setupScreenModel: SetupScreenModel = {
+    household: {
+      founderLabel,
+      wifeLabel,
+      profiles: effectiveSetupLoad.setup.profiles,
+      availabilityRegion: effectiveSetupLoad.setup.defaults.availabilityRegion,
+      canPersist: effectiveSetupLoad.canPersist,
+      peopleMode,
+      activeProfileId: effectiveSetupLoad.setup.activeProfileId,
+      partnerProfileId: effectiveSetupLoad.setup.partnerProfileId,
+      profileSetupBusy,
+      profileSetupMessage,
+    },
+    tonight: {
+      sessionMode,
+      languageMode,
+      intent: {
+        text: tonightIntentText,
+        pending: pendingTonightIntent,
+        active: activeTonightIntent,
+        clarificationText: tonightIntentClarificationText,
+        busy: tonightIntentBusy,
+        message: tonightIntentMessage,
+      },
+      tasteLensSelection,
+    },
+    readiness: {
+      isSyncing,
+      onboardingStatus,
+      onboardingRequired: isOnboardingRequired,
+      onboardingCompletion,
+      onboardingMessage,
+      onboardingPrompt,
+    },
+    memory: {
+      summaries: profileMemorySummaries,
+      events: profileMemoryEvents,
+      message: profileMemoryMessage,
+      status: profileMemoryStatus,
+    },
+    history: {
+      sessions: recentSessions,
+      sessionsStatus: recentSessionsStatus,
+      sessionsMessage: recentSessionsMessage,
+      selected: selectedHistory,
+      selectedStatus: selectedHistoryStatus,
+      selectedMessage: selectedHistoryMessage,
+    },
+    review: {
+      apiConnected: apiHealth.connected,
+      enabled: reviewMode,
+    },
+  };
+  const setupScreen = createSetupScreenWiring({
+    model: setupScreenModel,
+    actionSources: {
+      changePeopleMode: setPeopleMode,
+      chooseActiveProfile,
+      choosePartnerProfile,
+      createProfile,
+      saveDefaults: saveTonightDefaults,
+      changeIntentText: updateTonightIntentText,
+      changeIntentClarificationText: (clarificationText) => updateTonightIntent({ clarificationText }),
+      interpretIntent: interpretTonightIntentText,
+      answerIntentClarification: answerTonightIntentClarification,
+      removeIntentSignal: removeTonightIntentSignal,
+      applyIntent: applyTonightIntent,
+      clearIntent: clearTonightIntent,
+      cancelIntent: cancelTonightIntentInterpretation,
+      selectTasteLens: setTasteLensSelection,
+      start: startSession,
+      beginOnboarding: (opener) => beginOnboarding(undefined, opener),
+      loadMemory: loadProfileMemorySummaries,
+      loadHistory: loadRecentSessions,
+      selectHistory: loadRecentSessionDetail,
+    },
+  });
+  const resultsScreenModel: ResultsScreenModel = {
+    household: {
+      founderLabel,
+      wifeLabel,
+      participantIds,
+      peopleMode,
+    },
+    result: {
+      rankedCandidates,
+      founderReactions,
+      wifeReactions,
+      sessionSource,
+      sharedSession,
+      recommendationSource,
+      recommendationRunStatus,
+      availabilityRegion: effectiveSetupLoad.setup.defaults.availabilityRegion,
+    },
+    continuation: {
+      activeTonightIntents,
+      movieSource,
+      steerText,
+      pendingSteerIntent,
+      steerClarificationText,
+      steerMessage,
+      error: apiError,
+      canShowMore,
+      isSyncing,
+    },
+    diagnostics: {
+      reviewMode,
+      debugHistory,
+      tasteProfileSummaries,
+      debugHistoryStatus,
+      debugHistoryMessage,
+    },
+  };
+  const resultsScreen = createResultsScreenWiring({
+    model: resultsScreenModel,
+    actionSources: {
+      startNewNight: resetSession,
+      refreshProfileMemory: loadProfileMemorySummaries,
+      changeContinuationText: (value) => updateResults({ steerText: value }),
+      interpretContinuation: interpretSteerText,
+      changeContinuationClarificationText: (value) =>
+        updateResults({ steerClarificationText: value }),
+      answerContinuationClarification: answerSteerClarification,
+      addContinuation: addSteerToNextFive,
+      applyContinuation: applySteerAndShowMore,
+      showMore: showFiveMore,
+      loadDebugHistory,
+    },
+  });
 
   return (
     <main ref={appShellRef} className="appShell">
@@ -1120,64 +1189,9 @@ export function PassThePhoneWizard({
       ) : null}
 
       {step === "setup" ? (
-        <SetupStep
-          founderLabel={founderLabel}
-          wifeLabel={wifeLabel}
-          setupLoad={effectiveSetupLoad}
-          apiHealth={apiHealth}
-          sessionMode={sessionMode}
-          peopleMode={peopleMode}
-          onPeopleModeChange={setPeopleMode}
-          activeProfileId={effectiveSetupLoad.setup.activeProfileId}
-          partnerProfileId={effectiveSetupLoad.setup.partnerProfileId}
-          profileSetupBusy={profileSetupBusy}
-          profileSetupMessage={profileSetupMessage}
-          onActiveProfileChange={chooseActiveProfile}
-          onPartnerProfileChange={choosePartnerProfile}
-          onCreateProfile={createProfile}
-          languageMode={languageMode}
-          onSaveTonightDefaults={saveTonightDefaults}
-          isSyncing={isSyncing}
-          onboardingBusy={onboardingBusy}
-          onboardingStatus={onboardingStatus}
-          onboardingRequired={isOnboardingRequired}
-          onboardingCompletion={onboardingCompletion}
-          onboardingMessage={onboardingMessage}
-          onboardingPrompt={onboardingPrompt}
-          profileMemorySummaries={profileMemorySummaries}
-          profileMemoryEvents={profileMemoryEvents}
-          profileMemoryMessage={profileMemoryMessage}
-          profileMemoryStatus={profileMemoryStatus}
-          onLoadProfileMemory={loadProfileMemorySummaries}
-          tonightIntentText={tonightIntentText}
-          onTonightIntentTextChange={updateTonightIntentText}
-          pendingTonightIntent={pendingTonightIntent}
-          activeTonightIntent={activeTonightIntent}
-          tonightIntentClarificationText={tonightIntentClarificationText}
-          onTonightIntentClarificationTextChange={(value) =>
-            updateTonightIntent({ clarificationText: value })
-          }
-          tonightIntentBusy={tonightIntentBusy}
-          tonightIntentMessage={tonightIntentMessage}
-          onInterpretTonightIntent={interpretTonightIntentText}
-          onAnswerTonightIntentClarification={answerTonightIntentClarification}
-          onRemoveTonightIntentSignal={removeTonightIntentSignal}
-          onApplyTonightIntent={applyTonightIntent}
-          onClearTonightIntent={clearTonightIntent}
-          onCancelTonightIntentInterpretation={cancelTonightIntentInterpretation}
-          tasteLensSelection={tasteLensSelection}
-          onTasteLensSelectionChange={setTasteLensSelection}
-          onStart={startSession}
-          onBeginOnboarding={(opener) => beginOnboarding(undefined, opener)}
-          recentSessions={recentSessions}
-          recentSessionsStatus={recentSessionsStatus}
-          recentSessionsMessage={recentSessionsMessage}
-          selectedHistory={selectedHistory}
-          selectedHistoryStatus={selectedHistoryStatus}
-          selectedHistoryMessage={selectedHistoryMessage}
-          onLoadRecentSessions={loadRecentSessions}
-          onSelectRecentSession={loadRecentSessionDetail}
-          reviewMode={reviewMode}
+        <SetupScreen
+          model={setupScreen.model}
+          actions={setupScreen.actions}
         />
       ) : null}
 
@@ -1250,6 +1264,7 @@ export function PassThePhoneWizard({
             || transitionRecoveryStage === "sealing"
             || transitionRecoveryStage === "handoff_pending"
           }
+          retry={transitionRecoveryStage === "handoff_retry"}
           onReset={resetSession}
           onContinue={continueAfterHandoff}
         />
@@ -1296,46 +1311,9 @@ export function PassThePhoneWizard({
       ) : null}
 
       {step === "results" ? (
-        verifiedResultsReady ? <ResultsStep
-          founderLabel={founderLabel}
-          wifeLabel={wifeLabel}
-          participantIds={participantIds}
-          peopleMode={peopleMode}
-          rankedCandidates={rankedCandidates}
-          founderReactions={founderReactions}
-          wifeReactions={wifeReactions}
-          sessionMode={sessionMode}
-          sessionSource={sessionSource}
-          movieSource={movieSource}
-          sharedSession={sharedSession}
-          activeTonightIntents={activeTonightIntents}
-          recommendationSource={recommendationSource}
-          recommendationRunStatus={recommendationRunStatus}
-          availabilityRegion={effectiveSetupLoad.setup.defaults.availabilityRegion}
-          steerText={steerText}
-          pendingSteerIntent={pendingSteerIntent}
-          steerClarificationText={steerClarificationText}
-          steerMessage={steerMessage}
-          apiError={apiError}
-          debugHistory={debugHistory}
-          tasteProfileSummaries={tasteProfileSummaries}
-          debugHistoryStatus={debugHistoryStatus}
-          debugHistoryMessage={debugHistoryMessage}
-          onLoadDebugHistory={loadDebugHistory}
-          onRefreshProfileMemory={loadProfileMemorySummaries}
-          onReset={resetSession}
-          onShowMore={showFiveMore}
-          canShowMore={canShowMore}
-          onSteerTextChange={(value) => updateResults({ steerText: value })}
-          onInterpretSteer={interpretSteerText}
-          onSteerClarificationTextChange={(value) =>
-            updateResults({ steerClarificationText: value })
-          }
-          onAnswerSteerClarification={answerSteerClarification}
-          onAddSteer={addSteerToNextFive}
-          onApplySteer={applySteerAndShowMore}
-          isSyncing={isSyncing}
-          reviewMode={reviewMode}
+        verifiedResultsReady ? <ResultsScreen
+          model={resultsScreen.model}
+          actions={resultsScreen.actions}
         /> : <SessionRecoveryStep
           title="Result not verified"
           detail="WatchSignal did not receive two complete saved ballots and a server-ranked result. No result was created."

@@ -21,7 +21,12 @@ The page still loads setup state and API health through the existing server-side
 The session lifecycle loads each shortlist through the Next.js recommendation proxy and converts the response into UI candidate view models.
 The five seed titles in `apps/web/app/session-fixtures.ts` are the fallback catalog when recommendation loading fails or the backend is unavailable.
 The wizard composes the flow in `apps/web/app/pass-the-phone-wizard.tsx`, while pure reducers under `apps/web/app/pass-the-phone/` own flow and navigation transitions.
+The Setup and Results screens receive explicit screen models and grouped named actions through small wiring adapters.
+Those interfaces keep rendering and screen-local interaction state out of the wizard without hiding orchestration behind a generic dispatcher.
 Focused hooks in that directory own onboarding and setup state, tonight-intent steering, history loading, and results persistence.
+`PrivateTransitionRecoveryCoordinator` owns recovery tokens, command identity, bounded polling, canonical result verification, and cancellation.
+The wizard maps coordinator outcomes to navigation and consumer-facing recovery copy.
+Recovery cannot manufacture or display a local result when the server-backed shared result is missing or unverified.
 The session lifecycle module owns shortlist loading, shared-session synchronization, fallback recovery, reaction persistence, and handoff advancement through explicit state snapshots and output ports.
 Browser interactions call `apps/web/app/session-client.ts`, which talks to focused Next route handlers under `apps/web/app/api/`.
 Those handlers proxy to FastAPI through `API_BASE_URL` and avoid making the mobile UI depend on auth, deployment, or browser CORS setup.
