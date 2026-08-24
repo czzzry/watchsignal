@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   canonicalRecoveryCandidates,
   canonicalResultInputs,
+  canonicalSharedResultReady,
 } from "../app/pass-the-phone/canonical-result-contract.ts";
 import { rankCandidates } from "../app/pass-the-phone-helpers.ts";
 
@@ -133,4 +134,18 @@ test("results are rejected when the sealed final ballot duplicates a movie", () 
     }),
     /final ballot does not match/i,
   );
+});
+
+test("a shared result is ready only when its canonical rerank is complete and ordered", () => {
+  assert.equal(canonicalSharedResultReady(sharedSession()), true);
+  assert.equal(canonicalSharedResultReady(sharedSession({ rerankedShortlist: [] })), false);
+  assert.equal(canonicalSharedResultReady(sharedSession({
+    rerankedShortlist: shortlist().toReversed(),
+  })), false);
+  assert.equal(canonicalSharedResultReady(sharedSession({
+    rerankedShortlist: shortlist().map((item, index) => ({
+      ...item,
+      profileScore: index === 0 ? Number.NaN : item.profileScore,
+    })),
+  })), false);
 });

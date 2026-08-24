@@ -3,6 +3,25 @@ export const MATCH_REVEAL_MAX_MS = 850;
 
 export type MatchingTransitionPhase = "saving" | "matching" | "failed";
 
+export type MatchingFailureAction = {
+  id: "retry" | "home";
+  label: string;
+  activate: () => void | Promise<void>;
+};
+
+export function matchingFailureActions({
+  onRetry,
+  onCancel,
+}: {
+  onRetry: () => void | Promise<void>;
+  onCancel: () => void;
+}): readonly [MatchingFailureAction, MatchingFailureAction] {
+  return [
+    { id: "retry", label: "Try again", activate: onRetry },
+    { id: "home", label: "Back home", activate: onCancel },
+  ];
+}
+
 export type MatchingTransitionCopy = {
   title: string;
   detail: string;

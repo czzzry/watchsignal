@@ -211,7 +211,10 @@ The browser checkpoint contains only version, opaque token, and expiry.
 
 The deep browser client owns body-only recovery transport and session storage.
 
-Production evidence covers handoff reload, second-pass reload, retained matching failure, local result, shared result, post-mount consume, and removal of the old query-token route.
+Production evidence originally covered handoff reload, second-pass reload, retained matching failure, local result, shared result, post-mount consume, and removal of the old query-token route.
+
+The 2026-08-24 trust amendment supersedes the local-result behavior.
+Current production behavior permits only a verified shared result and exposes an explicit failure when canonical matching is unavailable.
 
 The independent critic found no material R4 blocker.
 

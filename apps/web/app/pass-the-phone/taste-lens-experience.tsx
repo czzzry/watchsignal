@@ -15,6 +15,10 @@ import {
 } from "../taste-lens";
 import { WatchSignalIcon } from "../ui/watchsignal-icons";
 import styles from "./taste-lens-experience.module.css";
+import {
+  selectableTasteLensAction,
+  tasteLensProfilePresentation,
+} from "./taste-lens-presentation-contract";
 
 export type TasteLensSelection = {
   curatorId: string;
@@ -180,29 +184,33 @@ function Profile({
   onBrowse: () => void;
 }) {
   const exactAvailable = isAvailable(availability, "exact-list");
-  const inspirationAvailable = isAvailable(availability, "inspiration");
-  const browseAvailable = isAvailable(availability, "browse");
-  const profileDescription = isPersonalResearchPreview(curator)
-    ? "Bong Joon Ho's Sight and Sound ballot, with four picks available here."
-    : curator.sourceDescription;
+  const presentation = tasteLensProfilePresentation({
+    curator,
+    source: sourceFor(curator),
+    availability,
+    personalResearchPreview: isPersonalResearchPreview(curator),
+  });
+  const inspirationAction = presentation.actions.find((action) => action.mode === "inspiration");
+  const browseAction = presentation.actions.find((action) => action.mode === "browse");
+  const exactAction = presentation.actions.find((action) => action.mode === "exact-list");
 
   return (
     <div className={styles.content}>
       <div className={styles.profile}>
         <Portrait curator={curator} large />
-        <div><h2 id="taste-lens-title">{curator.displayName}</h2><span>{profileDescription}</span></div>
+        <div><h2 id="taste-lens-title">{curator.displayName}</h2><span>{presentation.profileDescription}</span></div>
       </div>
       <div className={styles.choices}>
-        {inspirationAvailable ? <button className={styles.primaryChoice} type="button" onClick={() => onApply("inspiration")}>
-          <span><strong>Use as inspiration</strong><small>Find movies connected to these picks and your taste.</small></span>
+        {inspirationAction && selectableTasteLensAction(inspirationAction) ? <button className={styles.primaryChoice} type="button" onClick={() => onApply(inspirationAction.mode)}>
+          <span><strong>{inspirationAction.label}</strong><small>{inspirationAction.detail}</small></span>
           <WatchSignalIcon name="chevron-right" />
         </button> : null}
-        {browseAvailable ? <button type="button" onClick={onBrowse}>
-          <span><strong>See their picks</strong><small>Skip matching and browse the source list.</small></span>
+        {browseAction ? <button type="button" onClick={onBrowse}>
+          <span><strong>{browseAction.label}</strong><small>{browseAction.detail}</small></span>
           <WatchSignalIcon name="chevron-right" />
         </button> : null}
-        {exactAvailable ? <button type="button" onClick={() => onApply("exact-list")}>
-          <span><strong>Choose only from this list</strong><small>Keep tonight&apos;s search inside the published picks.</small></span>
+        {exactAvailable && exactAction && selectableTasteLensAction(exactAction) ? <button type="button" onClick={() => onApply(exactAction.mode)}>
+          <span><strong>{exactAction.label}</strong><small>{exactAction.detail}</small></span>
           <WatchSignalIcon name="chevron-right" />
         </button> : null}
       </div>
@@ -237,14 +245,19 @@ function Browse({ curator, availability }: { curator: CuratorProfile; availabili
 }
 
 function SourceCredit({ curator }: { curator: CuratorProfile }) {
-  const source = sourceFor(curator);
-  if (!source) return null;
+  const sourceCredit = tasteLensProfilePresentation({
+    curator,
+    source: sourceFor(curator),
+    availability: [],
+    personalResearchPreview: isPersonalResearchPreview(curator),
+  }).sourceCredit;
+  if (!sourceCredit) return null;
   return (
     <div className={styles.sourceCredit}>
-      <p>Source: <a href={source.sourceUrl} target="_blank" rel="noreferrer">{source.publisher}</a> · {curator.normalizedSelectionCount} picks checked</p>
+      <p>Source: <a href={sourceCredit.sourceUrl} target="_blank" rel="noreferrer">{sourceCredit.publisher}</a> · {sourceCredit.checkedCountLabel}</p>
       <details>
-        <summary>About this source</summary>
-        <p>{source.reportedDepth.label}. WatchSignal uses only the titles checked against the published list.</p>
+        <summary>{sourceCredit.aboutLabel}</summary>
+        <p>{sourceCredit.detail}</p>
         {curator.portrait ? <a href={curator.portrait.sourceUrl} target="_blank" rel="noreferrer">{curator.portrait.attribution}</a> : null}
       </details>
     </div>
