@@ -96,8 +96,23 @@ function normalizedName(value) {
   return slugify(value).replace(/-/g, " ");
 }
 
-function unique(values) {
+function classifySourceList(value) {
+  const normalized = normalizedName(value);
+  if (normalized.includes("formative")) return "formative";
+  if (normalized.includes("alternative")) return "alternative";
+  return "published";
+}
+
+function uniquePresent(values) {
   return values.filter((value, index) => value && values.indexOf(value) === index);
+}
+
+function chunkValues(values, size) {
+  const chunks = [];
+  for (let offset = 0; offset < values.length; offset += size) {
+    chunks.push(values.slice(offset, offset + size));
+  }
+  return chunks;
 }
 
 function bioFilmTitles(html) {
@@ -105,7 +120,7 @@ function bioFilmTitles(html) {
     .map((match) => stripHtml(match[1]));
   const emphasized = [...html.matchAll(/<em\b[^>]*>([\s\S]*?)<\/em>/gi)]
     .map((match) => stripHtml(match[1]));
-  const candidates = unique([...linked, ...emphasized])
+  const candidates = uniquePresent([...linked, ...emphasized])
     .filter((title) => title.length > 1 && title.length < 80)
     .filter((title) => !/^(cannes|venice|berlin|academy|festival)$/i.test(title));
   return candidates.slice(-3);
@@ -118,10 +133,10 @@ function naturalList(items) {
   return `${items.slice(0, -1).join(", ")}, and ${items.at(-1)}`;
 }
 
-function fallbackDescription(director, knownForTitles) {
+function fallbackDescription(director, knownForTitles, roleLabel) {
   if (knownForTitles.length > 0) {
     const titles = naturalList(knownForTitles);
-    return `Filmmaker known for ${titles}${/[.!?…]$/.test(titles) ? "" : "."}`;
+    return `${roleLabel} known for ${titles}${/[.!?…]$/.test(titles) ? "" : "."}`;
   }
   const firstSentence = stripHtml(director.description ?? "").split(/(?<=[.!?])\s+/)[0] ?? "";
   return firstSentence || "Filmmaker with a published LaCinetek list.";
@@ -166,8 +181,7 @@ async function mapLimit(items, limit, mapper) {
 }
 
 async function fetchKinowProducts(ids) {
-  const chunks = [];
-  for (let offset = 0; offset < ids.length; offset += 50) chunks.push(ids.slice(offset, offset + 50));
+  const chunks = chunkValues(ids, 50);
   const responses = await mapLimit(chunks, 2, async (chunk) => {
     const response = await fetchWithRetry(KINOW_GRAPHQL_URL, {
       method: "POST",
@@ -187,8 +201,7 @@ async function fetchKinowProducts(ids) {
 }
 
 async function fetchProducts(ids) {
-  const chunks = [];
-  for (let offset = 0; offset < ids.length; offset += 40) chunks.push(ids.slice(offset, offset + 40));
+  const chunks = chunkValues(ids, 40);
   const firstPartyResponses = await mapLimit(chunks, 2, async (chunk) => {
     const encodedIds = encodeURIComponent(JSON.stringify(chunk));
     const response = await fetchWithRetry(`${LACINETEK_FILMS_URL}/${encodedIds}`, {
@@ -216,7 +229,7 @@ function directorNames(product) {
     return [product.director.trim()];
   }
   const people = product.extension?.directors?.items ?? [];
-  return unique(people
+  return uniquePresent(people
     .filter((item) => (item.roles ?? []).some((role) => normalizedName(role).includes("realisateur")))
     .map((item) => item.director?.name?.trim())
     .filter(Boolean));
@@ -270,7 +283,7 @@ function mappedTmdbId(product, imdbToTmdb, titleYearToIds) {
   const imdbId = metadataValue(product, ["imdb"]);
   if (imdbId && imdbToTmdb.has(imdbId)) return imdbToTmdb.get(imdbId);
   const releaseYear = product.year ?? metadataValue(product, ["année", "year"]);
-  const possibleTitles = unique([
+  const possibleTitles = uniquePresent([
     product.name,
     product.original_title,
     metadataValue(product, ["nom original", "original title"]),
@@ -295,8 +308,10 @@ async function readEnv(filePath) {
   }
 }
 
-async function tmdbKnownFor(name, credentials) {
-  if (!credentials.TMDB_READ_ACCESS_TOKEN && !credentials.TMDB_API_KEY) return [];
+async function tmdbPersonContext(name, credentials) {
+  if (!credentials.TMDB_READ_ACCESS_TOKEN && !credentials.TMDB_API_KEY) {
+    return { roleLabel: "Filmmaker", titles: [] };
+  }
   const url = new URL("https://api.themoviedb.org/3/search/person");
   url.searchParams.set("query", name);
   url.searchParams.set("include_adult", "false");
@@ -313,11 +328,34 @@ async function tmdbKnownFor(name, credentials) {
     normalizedName(candidate.name ?? "") === exactName && candidate.known_for_department === "Directing"
   ) ?? candidates.find((candidate) => candidate.known_for_department === "Directing")
     ?? candidates.find((candidate) => normalizedName(candidate.name ?? "") === exactName);
-  return unique((person?.known_for ?? [])
+  if (!person?.id) return { roleLabel: "Filmmaker", titles: [] };
+
+  const creditsUrl = new URL(`https://api.themoviedb.org/3/person/${person.id}/movie_credits`);
+  creditsUrl.searchParams.set("language", "en-US");
+  if (credentials.TMDB_API_KEY) creditsUrl.searchParams.set("api_key", credentials.TMDB_API_KEY);
+  const creditsResponse = await fetchWithRetry(creditsUrl, { headers });
+  const credits = await creditsResponse.json();
+  const directed = (credits.crew ?? [])
+    .filter((credit) => credit.job === "Director" && (credit.title || credit.original_title));
+  const directedIds = new Set(directed.map((credit) => credit.id));
+  const knownDirected = (person.known_for ?? [])
+    .filter((credit) => credit.media_type === "movie" && directedIds.has(credit.id));
+  const recognizableDirected = [...directed].sort((left, right) =>
+    (right.vote_count ?? 0) - (left.vote_count ?? 0) ||
+    (right.popularity ?? 0) - (left.popularity ?? 0)
+  );
+  const directedTitles = uniquePresent([...knownDirected, ...recognizableDirected]
+    .map((credit) => credit.title ?? credit.original_title)
+    .filter(Boolean));
+  if (directedTitles.length > 0) {
+    return { roleLabel: "Director", titles: directedTitles.slice(0, 3) };
+  }
+
+  const knownMovieTitles = uniquePresent((person.known_for ?? [])
     .filter((credit) => credit.media_type === "movie")
     .map((credit) => credit.title ?? credit.original_title)
-    .filter(Boolean))
-    .slice(0, 3);
+    .filter(Boolean));
+  return { roleLabel: "Filmmaker", titles: knownMovieTitles.slice(0, 3) };
 }
 
 async function main() {
@@ -347,21 +385,31 @@ async function main() {
       ...list.products.map((productId, sourcePosition) => ({
         productId: String(productId),
         sourceListName: list.name?.trim() || entry.name.trim(),
+        sourceListKind: "published",
         sourcePosition,
       })),
       ...(list.otherLists ?? []).flatMap((sourceList) =>
         (sourceList.products?.items ?? []).map((item, sourcePosition) => ({
           productId: String(item.id),
           sourceListName: sourceList.name?.trim() || "Published list",
+          sourceListKind: classifySourceList(sourceList.name ?? ""),
           sourcePosition,
         }))
       ),
     ];
-    const sourceProductIds = unique(selectionReferences.map((reference) => reference.productId));
+    const sourceProductIds = uniquePresent(selectionReferences.map((reference) => reference.productId));
     const products = await fetchProducts(sourceProductIds);
     const productsById = new Map(products.map((product) => [String(product.id), product]));
-    const missingSourceProductIds = sourceProductIds.filter((productId) => !productsById.has(productId));
-    const selections = selectionReferences.flatMap(({ productId, sourceListName, sourcePosition }) => {
+    const unresolvedSourceEntries = selectionReferences
+      .filter(({ productId }) => !productsById.has(productId))
+      .map(({ productId, sourceListName, sourceListKind, sourcePosition }) => ({
+        sourceMovieId: `lacinetek:${productId}`,
+        sourceListName,
+        sourceListKind,
+        sourcePosition,
+        reason: "source-product-unavailable",
+      }));
+    const selections = selectionReferences.flatMap(({ productId, sourceListName, sourceListKind, sourcePosition }) => {
       const product = productsById.get(productId);
       if (!product) return [];
       const releaseYear = Number.parseInt(product.year ?? metadataValue(product, ["année", "year"]) ?? "", 10);
@@ -372,6 +420,7 @@ async function main() {
         sourceMovieId: `lacinetek:${productId}`,
         sourceMovieUrl: `https://www.lacinetek.com/fr-en/film/${product.linkRewrite}`,
         sourceListName,
+        sourceListKind,
         sourcePosition,
         title: product.name.trim(),
         releaseYear: Number.isFinite(releaseYear) ? releaseYear : null,
@@ -381,7 +430,8 @@ async function main() {
       }];
     });
 
-    let knownForTitles = await tmdbKnownFor(displayName, credentials);
+    const tmdbContext = await tmdbPersonContext(displayName, credentials);
+    let knownForTitles = tmdbContext.titles;
     if (knownForTitles.length < 2) knownForTitles = bioFilmTitles(list.director.description ?? "");
     const portraitUrl = list.director.images?.find((image) => image.type === "avatar_large")?.source
       ?? entry.director?.images?.find((image) => image.type === "avatar_large")?.source
@@ -394,7 +444,7 @@ async function main() {
       id: curatorId,
       displayName,
       knownForTitles,
-      sourceDescription: fallbackDescription(list.director, knownForTitles),
+      sourceDescription: fallbackDescription(list.director, knownForTitles, tmdbContext.roleLabel),
       portrait: portraitUrl ? {
         imageUrl: portraitUrl,
         sourceUrl: url,
@@ -414,7 +464,7 @@ async function main() {
         reportedDepth: {
           kind: "exact",
           count: selectionReferences.length,
-          label: missingSourceProductIds.length === 0
+          label: unresolvedSourceEntries.length === 0
             ? `${selections.length} published picks`
             : `${selections.length} available picks from ${selectionReferences.length} source entries`,
         },
@@ -424,7 +474,7 @@ async function main() {
           note: "Stored locally for the owner's private, noncommercial household use.",
         },
       },
-      missingSourceProductIds,
+      unresolvedSourceEntries,
       selections,
     };
   });
@@ -440,7 +490,7 @@ async function main() {
     0,
   );
   const missingProductCount = curators.reduce(
-    (sum, curator) => sum + curator.missingSourceProductIds.length,
+    (sum, curator) => sum + curator.unresolvedSourceEntries.length,
     0,
   );
   const document = {
@@ -473,7 +523,6 @@ async function main() {
   await mkdir(path.dirname(outputPath), { recursive: true });
   await mkdir(path.dirname(rosterOutputPath), { recursive: true });
   await writeFile(outputPath, `${JSON.stringify(document, null, 2)}\n`);
-  const activeCurators = curators.filter((curator) => curator.selections.length > 0);
   const rosterDocument = {
     schemaVersion: document.schemaVersion,
     generatedAt: document.generatedAt,
@@ -481,10 +530,7 @@ async function main() {
     source: document.source,
     sourceCatalogueSha256: document.sha256,
     stats: document.stats,
-    excludedCurators: curators
-      .filter((curator) => curator.selections.length === 0)
-      .map((curator) => ({ id: curator.id, displayName: curator.displayName, reason: "no-published-selections" })),
-    curators: activeCurators.map((curator) => ({
+    curators: curators.map((curator) => ({
       id: curator.id,
       displayName: curator.displayName,
       knownForTitles: curator.knownForTitles,
@@ -493,8 +539,8 @@ async function main() {
       source: curator.source,
       publishedSelectionCount: curator.selections.length,
       mappedSelectionCount: curator.selections.filter((selection) => selection.movieId).length,
-      mappedMovieIds: unique(curator.selections.map((selection) => selection.movieId).filter(Boolean)),
-      sourceListNames: unique(curator.selections.map((selection) => selection.sourceListName)),
+      mappedMovieIds: uniquePresent(curator.selections.map((selection) => selection.movieId).filter(Boolean)),
+      sourceListNames: uniquePresent(curator.selections.map((selection) => selection.sourceListName)),
     })),
   };
   await writeFile(rosterOutputPath, `${JSON.stringify(rosterDocument, null, 2)}\n`);

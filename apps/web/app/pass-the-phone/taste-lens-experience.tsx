@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   filterTasteLensCurators,
   pickRandomTasteLensCurator,
-  tasteLensLaunchRoster,
+  tasteLensCuratorDirectory,
   tasteLensEligibilityFor,
   tasteLensModeAvailability,
   tasteLensSourceById,
@@ -69,13 +69,13 @@ export function TasteLensExperience({
   onSelect: (selection: TasteLensSelection | null) => void;
 }) {
   const [surface, setSurface] = useState<Surface>("discover");
-  const [selectedCurator, setSelectedCurator] = useState<CuratorProfile>(tasteLensLaunchRoster[0]);
+  const [selectedCurator, setSelectedCurator] = useState<CuratorProfile>(tasteLensCuratorDirectory[0]);
   const dialogRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (!open) return;
     setSurface(selection ? "profile" : "discover");
-    const matched = tasteLensLaunchRoster.find((person) => person.id === selection?.curatorId);
+    const matched = tasteLensCuratorDirectory.find((person) => person.id === selection?.curatorId);
     if (matched) setSelectedCurator(matched);
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     window.setTimeout(() => dialogRef.current?.focus(), 0);
@@ -150,12 +150,12 @@ export function TasteLensExperience({
 function Discover({ onChoose }: { onChoose: (curator: CuratorProfile) => void }) {
   const [query, setQuery] = useState("");
   const matchingCurators = useMemo(
-    () => filterTasteLensCurators(tasteLensLaunchRoster, query),
+    () => filterTasteLensCurators(tasteLensCuratorDirectory, query),
     [query],
   );
 
   function chooseRandom() {
-    const curator = pickRandomTasteLensCurator(tasteLensLaunchRoster, null);
+    const curator = pickRandomTasteLensCurator(tasteLensCuratorDirectory, null);
     if (curator) onChoose(curator);
   }
 
@@ -183,16 +183,20 @@ function Discover({ onChoose }: { onChoose: (curator: CuratorProfile) => void })
       </div>
       <p className={styles.resultCount}>{matchingCurators.length} {matchingCurators.length === 1 ? "filmmaker" : "filmmakers"}</p>
       <div className={styles.curatorList}>
-        {matchingCurators.map((curator) => (
-          <button type="button" key={curator.id} onClick={() => onChoose(curator)}>
-            <Portrait curator={curator} decorative />
-            <span>
-              <strong>{curator.displayName}</strong>
-              <small>{curator.sourceDescription}</small>
-            </span>
-            <WatchSignalIcon name="chevron-right" />
-          </button>
-        ))}
+        {matchingCurators.map((curator) => {
+          const hasPublishedPicks = curator.publishedSelectionCount > 0;
+          return (
+            <button type="button" key={curator.id} disabled={!hasPublishedPicks} onClick={() => onChoose(curator)}>
+              <Portrait curator={curator} decorative />
+              <span>
+                <strong>{curator.displayName}</strong>
+                <small>{curator.sourceDescription}</small>
+                {!hasPublishedPicks ? <em>No published picks yet.</em> : null}
+              </span>
+              {hasPublishedPicks ? <WatchSignalIcon name="chevron-right" /> : null}
+            </button>
+          );
+        })}
         {matchingCurators.length === 0 ? <p className={styles.noResults}>No match yet. Try a person or movie title.</p> : null}
       </div>
     </div>
@@ -271,7 +275,7 @@ function Browse({ curator, availability }: { curator: CuratorProfile; availabili
     return () => controller.abort();
   }, [curator.id]);
 
-  const listNames = [...new Set(selections.map((selection) => selection.sourceListName))];
+  const listSegments = [...new Set(selections.map((selection) => `${selection.sourceListKind}:${selection.sourceListName}`))];
   return (
     <div className={styles.content}>
       <div className={styles.intro}>
@@ -284,7 +288,7 @@ function Browse({ curator, availability }: { curator: CuratorProfile; availabili
         <div className={styles.shelf} aria-label={`${curator.displayName}'s verified entries`}>
           {selections.map((selection) => (
             <article key={`${selection.sourceListName}:${selection.sourcePosition}:${selection.sourceMovieId}`}>
-              {listNames.length > 1 && selection.sourcePosition === 0 ? <h3>{sourceListLabel(selection.sourceListName)}</h3> : null}
+              {listSegments.length > 1 && selection.sourcePosition === 0 ? <h3>{sourceListLabel(selection)}</h3> : null}
               <span>{selection.releaseYear ?? ""}</span>
               <strong>{selection.title}</strong>
               <small>{selection.director}</small>
@@ -312,10 +316,10 @@ function SourceCredit({ curator }: { curator: CuratorProfile }) {
   );
 }
 
-function sourceListLabel(value: string): string {
-  if (value.toLowerCase() === "liste formative") return "Formative list";
-  if (value.toLowerCase() === "liste alternative") return "Alternative list";
-  return value;
+function sourceListLabel(selection: TasteLensCatalogueSelection): string {
+  if (selection.sourceListKind === "formative") return "Formative list";
+  if (selection.sourceListKind === "alternative") return "Alternative list";
+  return selection.sourceListName;
 }
 
 function SourceMark({ large = false }: { large?: boolean }) {

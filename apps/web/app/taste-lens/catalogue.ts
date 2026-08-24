@@ -1,8 +1,8 @@
 import type { CuratorId, CuratorProfile, TasteLensEligibility } from "./contract.ts";
-import { tasteLensLaunchRoster } from "./generated-roster.ts";
+import { tasteLensCuratorDirectory } from "./generated-roster.ts";
 
 export function tasteLensEligibilityFor(curatorId: CuratorId): TasteLensEligibility {
-  const curator = tasteLensLaunchRoster.find((profile) => profile.id === curatorId);
+  const curator = tasteLensCuratorDirectory.find((profile) => profile.id === curatorId);
   if (!curator) {
     return {
       eligibleExactSelectionCount: 0,

@@ -3,14 +3,14 @@ import test from "node:test";
 
 import {
   tasteLensEligibilityFor,
-  tasteLensLaunchRoster,
+  tasteLensCuratorDirectory,
   tasteLensModeAvailability,
   tasteLensSourceById,
 } from "../app/taste-lens/index.ts";
 import { tasteLensProfilePresentation } from "../app/pass-the-phone/taste-lens-presentation-contract.ts";
 
 test("Taste Lens presents clear actions with quiet, source-level attribution", () => {
-  const curator = tasteLensLaunchRoster.find((profile) => profile.id === "curator:bong-joon-ho");
+  const curator = tasteLensCuratorDirectory.find((profile) => profile.id === "curator:bong-joon-ho");
   assert.ok(curator);
   const source = tasteLensSourceById.get(curator.sourceIds[0]);
   assert.ok(source);

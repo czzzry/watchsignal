@@ -138,8 +138,8 @@ test("browse remains a direct source-list view when recommendation candidates ar
 });
 
 test("the private catalogue cannot become a public product fallback", async () => {
-  const { tasteLensLaunchRoster, tasteLensSourceById } = await import("../app/taste-lens/index.ts");
-  const bong = tasteLensLaunchRoster.find((profile) => profile.id === "curator:bong-joon-ho");
+  const { tasteLensCuratorDirectory, tasteLensSourceById } = await import("../app/taste-lens/index.ts");
+  const bong = tasteLensCuratorDirectory.find((profile) => profile.id === "curator:bong-joon-ho");
 
   assert.ok(bong);
   const selected = selectTasteLensMode({
@@ -158,10 +158,10 @@ test("the private catalogue cannot become a public product fallback", async () =
 test("the generated Bong Joon-ho catalogue keeps published depth and mapped titles separate", async () => {
   const {
     tasteLensEligibilityFor,
-    tasteLensLaunchRoster,
+    tasteLensCuratorDirectory,
     tasteLensSourceById,
   } = await import("../app/taste-lens/index.ts");
-  const bong = tasteLensLaunchRoster.find((profile) => profile.id === "curator:bong-joon-ho");
+  const bong = tasteLensCuratorDirectory.find((profile) => profile.id === "curator:bong-joon-ho");
 
   assert.ok(bong);
   const source = tasteLensSourceById.get(bong.sourceIds[0]);
@@ -185,10 +185,10 @@ test("the explicit private-household scope exposes mapped anchors without a fall
   const {
     selectTasteLensMode,
     tasteLensEligibilityFor,
-    tasteLensLaunchRoster,
+    tasteLensCuratorDirectory,
     tasteLensSourceById,
   } = await import("../app/taste-lens/index.ts");
-  const bong = tasteLensLaunchRoster.find((profile) => profile.id === "curator:bong-joon-ho");
+  const bong = tasteLensCuratorDirectory.find((profile) => profile.id === "curator:bong-joon-ho");
   assert.ok(bong);
   const catalogueEligibility = tasteLensEligibilityFor(bong.id);
 

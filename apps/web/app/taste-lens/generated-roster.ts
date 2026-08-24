@@ -22,8 +22,8 @@ type GeneratedRosterEntry = {
 
 const generatedCurators = generatedRoster.curators as unknown as GeneratedRosterEntry[];
 
-/** Lightweight catalogue used by the client and recommendation transport. */
-export const tasteLensLaunchRoster: readonly CuratorProfile[] = generatedCurators.map((entry) => ({
+/** Complete lightweight directory used by the client and recommendation transport. */
+export const tasteLensCuratorDirectory: readonly CuratorProfile[] = generatedCurators.map((entry) => ({
   id: entry.id as CuratorId,
   displayName: entry.displayName,
   sourceDescription: entry.sourceDescription,
@@ -50,5 +50,4 @@ export const tasteLensSourceById = new Map<SourceId, SourceProvenance>(
 );
 
 export const tasteLensCatalogueStats = generatedRoster.stats;
-export const tasteLensExcludedCurators = generatedRoster.excludedCurators;
 export const tasteLensSourceCatalogueSha256 = generatedRoster.sourceCatalogueSha256;

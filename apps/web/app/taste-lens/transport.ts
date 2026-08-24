@@ -1,6 +1,6 @@
 import type { TasteLensUsageScope } from "./contract.ts";
 import { tasteLensEligibilityFor } from "./catalogue.ts";
-import { tasteLensLaunchRoster, tasteLensSourceById } from "./generated-roster.ts";
+import { tasteLensCuratorDirectory, tasteLensSourceById } from "./generated-roster.ts";
 import { selectTasteLensMode } from "./mode-selection.ts";
 
 export type TasteLensSelectionReference = {
@@ -41,7 +41,7 @@ export class TasteLensTransportUnavailableError extends Error {
 export function curatorLensTransportForSelection(
   selection: TasteLensSelectionReference,
 ): CuratorLensTransport {
-  const curator = tasteLensLaunchRoster.find(
+  const curator = tasteLensCuratorDirectory.find(
     (profile) => profile.id === selection.curatorId,
   );
   if (!curator) {

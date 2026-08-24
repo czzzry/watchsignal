@@ -130,6 +130,7 @@ export type TasteLensCatalogueSelection = {
   sourceMovieId: string;
   sourceMovieUrl: string;
   sourceListName: string;
+  sourceListKind: "published" | "formative" | "alternative";
   sourcePosition: number;
   imageUrl: string | null;
 };

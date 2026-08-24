@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 
-import catalogue from "../../../../taste-lens/data/lacinetek-catalogue.generated.json" with { type: "json" };
+import { tasteLensCatalogueForRouteParameter } from "../../../../taste-lens/server-catalogue";
 
 export async function GET(
   _request: Request,
   context: { params: Promise<{ curatorId: string }> },
 ) {
   const { curatorId } = await context.params;
-  const curator = catalogue.curators.find((entry) => entry.id === curatorId);
+  const curator = tasteLensCatalogueForRouteParameter(curatorId);
   if (!curator || curator.selections.length === 0) {
     return NextResponse.json({ error: "Taste Lens catalogue not found." }, { status: 404 });
   }
@@ -19,6 +19,7 @@ export async function GET(
       sourceMovieId: selection.sourceMovieId,
       sourceMovieUrl: selection.sourceMovieUrl,
       sourceListName: selection.sourceListName,
+      sourceListKind: selection.sourceListKind,
       sourcePosition: selection.sourcePosition,
       title: selection.title,
       releaseYear: selection.releaseYear,

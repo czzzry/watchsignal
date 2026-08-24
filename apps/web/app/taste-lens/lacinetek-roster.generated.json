@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-24T15:44:18.656Z",
+  "generatedAt": "2026-08-24T16:24:24.251Z",
   "checkedOn": "2026-08-24",
   "source": {
     "publisher": "LaCinetek",
@@ -8,7 +8,7 @@
     "productEndpoint": "https://platform-257.kinow.io/graphql",
     "firstPartyFilmEndpoint": "https://www.lacinetek.com/fetch-films"
   },
-  "sourceCatalogueSha256": "2fee3a48fab358a2b63bd7f2604725934caf5413eb7181c63da9b747ead3861a",
+  "sourceCatalogueSha256": "498c77c58355533c69c727728682242ca9477de8b459aa27ffd1c914e061884d",
   "stats": {
     "sourceRosterCount": 158,
     "includedCuratorCount": 158,
@@ -20,27 +20,16 @@
     "unmappedSelectionCount": 1112,
     "curatorsWithMappedSelections": 156
   },
-  "excludedCurators": [
-    {
-      "id": "curator:claire-simon",
-      "displayName": "Claire Simon",
-      "reason": "no-published-selections"
-    },
-    {
-      "id": "curator:valerie-donzelli",
-      "displayName": "Valérie Donzelli",
-      "reason": "no-published-selections"
-    }
-  ],
   "curators": [
     {
       "id": "curator:abel-ferrara",
       "displayName": "Abel Ferrara",
       "knownForTitles": [
         "Bad Lieutenant",
-        "King of New York"
+        "King of New York",
+        "Body Snatchers"
       ],
-      "sourceDescription": "Filmmaker known for Bad Lieutenant and King of New York.",
+      "sourceDescription": "Director known for Bad Lieutenant, King of New York, and Body Snatchers.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6236-avatar_large.jpg?time=1716993136",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/abel-ferrara",
@@ -123,9 +112,9 @@
       "knownForTitles": [
         "The Taste of Others",
         "Place publique",
-        "I Got Life!"
+        "Look at Me"
       ],
-      "sourceDescription": "Filmmaker known for The Taste of Others, Place publique, and I Got Life!",
+      "sourceDescription": "Director known for The Taste of Others, Place publique, and Look at Me.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6384-avatar_large.jpg?time=1730216466",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/agnes-jaoui",
@@ -220,7 +209,7 @@
         "Faces Places",
         "Vagabond"
       ],
-      "sourceDescription": "Filmmaker known for Cléo from 5 to 7, Faces Places, and Vagabond.",
+      "sourceDescription": "Director known for Cléo from 5 to 7, Faces Places, and Vagabond.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/2863-avatar_large.jpg?time=1730213825",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/agnes-varda-78",
@@ -317,11 +306,11 @@
       "id": "curator:agnieszka-holland",
       "displayName": "Agnieszka Holland",
       "knownForTitles": [
-        "The Wire, Treme",
-        "House of Cards",
-        "Green Border"
+        "The Secret Garden",
+        "Total Eclipse",
+        "Mr. Jones"
       ],
-      "sourceDescription": "Filmmaker known for The Wire, Treme, House of Cards, and Green Border.",
+      "sourceDescription": "Director known for The Secret Garden, Total Eclipse, and Mr. Jones.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/10706-avatar_large.jpg?time=1730216550",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/agnieszka-holland",
@@ -409,7 +398,7 @@
         "Le Havre",
         "Shadows in Paradise"
       ],
-      "sourceDescription": "Filmmaker known for Fallen Leaves, Le Havre, and Shadows in Paradise.",
+      "sourceDescription": "Director known for Fallen Leaves, Le Havre, and Shadows in Paradise.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/2721-avatar_large.jpg?time=1717404625",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/aki-kaurismaeki",
@@ -499,7 +488,7 @@
         "Rashomon",
         "Ran"
       ],
-      "sourceDescription": "Filmmaker known for Seven Samurai, Rashomon, and Ran.",
+      "sourceDescription": "Director known for Seven Samurai, Rashomon, and Ran.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/2993-avatar_large.jpg?time=1675263080",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/akira-kurosawa-",
@@ -621,11 +610,11 @@
       "id": "curator:alain-chabat",
       "displayName": "Alain Chabat",
       "knownForTitles": [
-        "Night at the Museum: Battle of the Smithsonian",
         "HOUBA! On the Trail of the Marsupilami",
-        "Asterix & Obelix: Mission Cleopatra"
+        "Asterix & Obelix: Mission Cleopatra",
+        "RRRrrrr!!!"
       ],
-      "sourceDescription": "Filmmaker known for Night at the Museum: Battle of the Smithsonian, HOUBA! On the Trail of the Marsupilami, and Asterix & Obelix: Mission Cleopatra.",
+      "sourceDescription": "Director known for HOUBA! On the Trail of the Marsupilami, Asterix & Obelix: Mission Cleopatra, and RRRrrrr!!!",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/13692-avatar_large.jpg?time=1675089470",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/alain-chabat",
@@ -713,7 +702,7 @@
         "Misericordia",
         "Staying Vertical"
       ],
-      "sourceDescription": "Filmmaker known for Stranger by the Lake, Misericordia, and Staying Vertical.",
+      "sourceDescription": "Director known for Stranger by the Lake, Misericordia, and Staying Vertical.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/8968-avatar_large.jpg?time=1682343830",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/alain-guiraudie",
@@ -793,11 +782,11 @@
       "id": "curator:albert-dupontel",
       "displayName": "Albert Dupontel",
       "knownForTitles": [
-        "Irreversible",
         "See You Up There",
-        "Bye Bye Morons"
+        "Bye Bye Morons",
+        "9 Month Stretch"
       ],
-      "sourceDescription": "Filmmaker known for Irreversible, See You Up There, and Bye Bye Morons.",
+      "sourceDescription": "Director known for See You Up There, Bye Bye Morons, and 9 Month Stretch.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/15044-avatar_large.jpg?time=1620648211",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/albert-dupontel",
@@ -890,7 +879,7 @@
         "The Death of Louis XIV",
         "Afternoons of Solitude"
       ],
-      "sourceDescription": "Filmmaker known for Pacifiction, The Death of Louis XIV, and Afternoons of Solitude.",
+      "sourceDescription": "Director known for Pacifiction, The Death of Louis XIV, and Afternoons of Solitude.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/19878-avatar_large.jpg?time=1713965570",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/albert-serra",
@@ -973,10 +962,10 @@
       "displayName": "Alejandro Amenábar",
       "knownForTitles": [
         "The Others",
-        "Vanilla Sky",
-        "Regression"
+        "Regression",
+        "Agora"
       ],
-      "sourceDescription": "Filmmaker known for The Others, Vanilla Sky, and Regression.",
+      "sourceDescription": "Director known for The Others, Regression, and Agora.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/13360-avatar_large.jpg?time=1760349377",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/alejandro-amenabar",
@@ -1062,10 +1051,10 @@
       "displayName": "Alexandre Astier",
       "knownForTitles": [
         "Kaamelott: The First Chapter",
-        "Asterix: The Mansions of the Gods",
-        "Asterix: The Secret of the Magic Potion"
+        "Asterix: The Secret of the Magic Potion",
+        "Kaamelott: The Second Chapter (Part I)"
       ],
-      "sourceDescription": "Filmmaker known for Kaamelott: The First Chapter, Asterix: The Mansions of the Gods, and Asterix: The Secret of the Magic Potion.",
+      "sourceDescription": "Director known for Kaamelott: The First Chapter, Asterix: The Secret of the Magic Potion, and Kaamelott: The Second Chapter (Part I).",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/16827-avatar_large.jpg?time=1661420718",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/alexandre-astier",
@@ -1157,7 +1146,7 @@
         "We",
         "Towards Tenderness"
       ],
-      "sourceDescription": "Filmmaker known for Saint Omer, We, and Towards Tenderness.",
+      "sourceDescription": "Director known for Saint Omer, We, and Towards Tenderness.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/17155-avatar_large.jpg?time=1716993093",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/alice-diop",
@@ -1236,9 +1225,10 @@
       "displayName": "Alice Rohrwacher",
       "knownForTitles": [
         "Happy as Lazzaro",
-        "La Chimera"
+        "La Chimera",
+        "The Wonders"
       ],
-      "sourceDescription": "Filmmaker known for Happy as Lazzaro and La Chimera.",
+      "sourceDescription": "Director known for Happy as Lazzaro, La Chimera, and The Wonders.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/15829-avatar_large.jpg?time=1747311845",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/alice-rohrwacher",
@@ -1320,11 +1310,11 @@
       "id": "curator:alice-winocour",
       "displayName": "Alice Winocour",
       "knownForTitles": [
-        "Mustang",
         "Proxima",
-        "Revoir Paris"
+        "Revoir Paris",
+        "Disorder"
       ],
-      "sourceDescription": "Filmmaker known for Mustang, Proxima, and Revoir Paris.",
+      "sourceDescription": "Director known for Proxima, Revoir Paris, and Disorder.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/22314-avatar_large.jpg?time=1771319354",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/alice-winocour",
@@ -1409,11 +1399,11 @@
       "id": "curator:amat-escalante",
       "displayName": "Amat Escalante",
       "knownForTitles": [
-        "Heli",
         "The Untamed",
-        "Narcos: Mexico"
+        "Heli",
+        "Lost in the Night"
       ],
-      "sourceDescription": "Filmmaker known for Heli, The Untamed, and Narcos: Mexico.",
+      "sourceDescription": "Director known for The Untamed, Heli, and Lost in the Night.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/12543-avatar_large.jpg?time=1634657984",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/amat-escalante-67",
@@ -1513,7 +1503,7 @@
         "Summer in Berlin",
         "Rabiye Kurnaz vs. George W. Bush"
       ],
-      "sourceDescription": "Filmmaker known for Gundermann, Summer in Berlin, and Rabiye Kurnaz vs. George W. Bush.",
+      "sourceDescription": "Director known for Gundermann, Summer in Berlin, and Rabiye Kurnaz vs. George W. Bush.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/21913-avatar_large.jpg?time=1742818214",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/andreas-dresen",
@@ -1599,7 +1589,7 @@
         "Memoria",
         "Cemetery of Splendor"
       ],
-      "sourceDescription": "Filmmaker known for Uncle Boonmee Who Can Recall His Past Lives, Memoria, and Cemetery of Splendor.",
+      "sourceDescription": "Director known for Uncle Boonmee Who Can Recall His Past Lives, Memoria, and Cemetery of Splendor.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6828-avatar_large.jpg?time=1715941454",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/apichatpong-weerasethakul",
@@ -1677,7 +1667,7 @@
         "Ismael's Ghosts",
         "My Golden Days"
       ],
-      "sourceDescription": "Filmmaker known for Oh Mercy, Ismael's Ghosts, and My Golden Days.",
+      "sourceDescription": "Director known for Oh Mercy, Ismael's Ghosts, and My Golden Days.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6155-avatar_large.jpg?time=1733924254",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/arnaud-despleschin",
@@ -1868,11 +1858,11 @@
       "id": "curator:arthur-harari",
       "displayName": "Arthur Harari",
       "knownForTitles": [
-        "Anatomy of a Fall",
-        "Sibyl",
-        "Onoda: 10,000 Nights in the Jungle"
+        "Onoda: 10,000 Nights in the Jungle",
+        "Dark Diamond",
+        "In Vain"
       ],
-      "sourceDescription": "Filmmaker known for Anatomy of a Fall, Sibyl, and Onoda: 10,000 Nights in the Jungle.",
+      "sourceDescription": "Director known for Onoda: 10,000 Nights in the Jungle, Dark Diamond, and In Vain.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/18826-avatar_large.jpg?time=1716993886",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/arthur-harari",
@@ -1959,7 +1949,7 @@
         "The Captive",
         "Remember"
       ],
-      "sourceDescription": "Filmmaker known for Chloe, The Captive, and Remember.",
+      "sourceDescription": "Director known for Chloe, The Captive, and Remember.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/4264-avatar_large.jpg?time=1716993210",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/atom-egoyan",
@@ -2048,7 +2038,7 @@
         "Buffet Froid",
         "The Clink of Ice"
       ],
-      "sourceDescription": "Filmmaker known for Going Places, Buffet Froid, and The Clink of Ice.",
+      "sourceDescription": "Director known for Going Places, Buffet Froid, and The Clink of Ice.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/2874-avatar_large.jpg?time=1762182069",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/bertrand-blier",
@@ -2137,7 +2127,7 @@
         "House of Pleasures",
         "The Beast"
       ],
-      "sourceDescription": "Filmmaker known for Saint Laurent, House of Pleasures, and The Beast.",
+      "sourceDescription": "Director known for Saint Laurent, House of Pleasures, and The Beast.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6816-avatar_large.jpg?time=1682335985",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/bertrand-bonello",
@@ -2242,7 +2232,7 @@
         "The French Minister",
         "The Princess of Montpensier"
       ],
-      "sourceDescription": "Filmmaker known for In the Electric Mist, The French Minister, and The Princess of Montpensier.",
+      "sourceDescription": "Director known for In the Electric Mist, The French Minister, and The Princess of Montpensier.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6328-avatar_large.jpg?time=1680277230",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/bertrand-tavernier",
@@ -2342,7 +2332,7 @@
         "Snowpiercer",
         "Memories of Murder"
       ],
-      "sourceDescription": "Filmmaker known for Parasite, Snowpiercer, and Memories of Murder.",
+      "sourceDescription": "Director known for Parasite, Snowpiercer, and Memories of Murder.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6312-avatar_large.jpg?time=1716992666",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/joon-ho-bong",
@@ -2537,9 +2527,9 @@
       "knownForTitles": [
         "The Sweet Escape",
         "Paris Je T'aime",
-        "In Safe Hands"
+        "French Tech"
       ],
-      "sourceDescription": "Filmmaker known for The Sweet Escape, Paris Je T'aime, and In Safe Hands.",
+      "sourceDescription": "Director known for The Sweet Escape, Paris Je T'aime, and French Tech.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/10484-avatar_large.jpg?time=1675331910",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/bruno-podalydes",
@@ -2632,7 +2622,7 @@
         "Nowhere in Africa",
         "When Hitler Stole Pink Rabbit"
       ],
-      "sourceDescription": "Filmmaker known for All About Me, Nowhere in Africa, and When Hitler Stole Pink Rabbit.",
+      "sourceDescription": "Director known for All About Me, Nowhere in Africa, and When Hitler Stole Pink Rabbit.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/14850-avatar_large.jpg?time=1620648370",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/caroline-link",
@@ -2721,7 +2711,7 @@
         "An Impossible Love",
         "The Divide"
       ],
-      "sourceDescription": "Filmmaker known for Summertime, An Impossible Love, and The Divide.",
+      "sourceDescription": "Director known for Summertime, An Impossible Love, and The Divide.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/11523-avatar_large.jpg?time=1730134768",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/catherine-corsini-82",
@@ -2824,7 +2814,7 @@
         "Russian Dolls",
         "Chinese Puzzle"
       ],
-      "sourceDescription": "Filmmaker known for The Spanish Apartment, Russian Dolls, and Chinese Puzzle.",
+      "sourceDescription": "Director known for The Spanish Apartment, Russian Dolls, and Chinese Puzzle.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/3444-avatar_large.jpg?time=1716994352",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/cedric-klapisch-18",
@@ -2962,7 +2952,7 @@
         "Tomboy",
         "Water Lilies"
       ],
-      "sourceDescription": "Filmmaker known for Portrait of a Lady on Fire, Tomboy, and Water Lilies.",
+      "sourceDescription": "Director known for Portrait of a Lady on Fire, Tomboy, and Water Lilies.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6817-avatar_large.jpg?time=1730214193",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/celine-sciamma",
@@ -3053,7 +3043,7 @@
         "Je Tu Il Elle",
         "News from Home"
       ],
-      "sourceDescription": "Filmmaker known for Jeanne Dielman, 23, quai du Commerce, 1080 Bruxelles, Je Tu Il Elle, and News from Home.",
+      "sourceDescription": "Director known for Jeanne Dielman, 23, quai du Commerce, 1080 Bruxelles, Je Tu Il Elle, and News from Home.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/4535-avatar_large.jpg?time=1730132963",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/chantal-akerman",
@@ -3134,7 +3124,7 @@
         "Barbara",
         "Undine"
       ],
-      "sourceDescription": "Filmmaker known for Phoenix, Barbara, and Undine.",
+      "sourceDescription": "Director known for Phoenix, Barbara, and Undine.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/11005-avatar_large.jpg?time=1675345753",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/christian-petzold-7",
@@ -3230,9 +3220,10 @@
       "displayName": "Christian Rouaud",
       "knownForTitles": [
         "Leader-Sheep",
-        "Les LIP, l'imagination au pouvoir"
+        "Les LIP, l'imagination au pouvoir",
+        "Avec Dédé"
       ],
-      "sourceDescription": "Filmmaker known for Leader-Sheep and Les LIP, l'imagination au pouvoir.",
+      "sourceDescription": "Director known for Leader-Sheep, Les LIP, l'imagination au pouvoir, and Avec Dédé.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6818-avatar_large.jpg?time=1716994785",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/christian-rouaud",
@@ -3332,7 +3323,7 @@
         "The City Below",
         "The Lies of the Victors"
       ],
-      "sourceDescription": "Filmmaker known for I Am Guilty, The City Below, and The Lies of the Victors.",
+      "sourceDescription": "Director known for I Am Guilty, The City Below, and The Lies of the Victors.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6827-avatar_large.jpg?time=1716994058",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/christoph-hochhausler",
@@ -3435,7 +3426,7 @@
         "Beauty and the Beast",
         "Brotherhood of the Wolf"
       ],
-      "sourceDescription": "Filmmaker known for Silent Hill, Beauty and the Beast, and Brotherhood of the Wolf.",
+      "sourceDescription": "Director known for Silent Hill, Beauty and the Beast, and Brotherhood of the Wolf.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6819-avatar_large.jpg?time=1675264493",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/christophe-gans",
@@ -3539,7 +3530,7 @@
         "On a Magical Night",
         "The Beautiful Person"
       ],
-      "sourceDescription": "Filmmaker known for Love Songs, On a Magical Night, and The Beautiful Person.",
+      "sourceDescription": "Director known for Love Songs, On a Magical Night, and The Beautiful Person.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/13457-avatar_large.jpg?time=1716994166",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/christophe-honore-9",
@@ -3577,6 +3568,47 @@
       ]
     },
     {
+      "id": "curator:claire-simon",
+      "displayName": "Claire Simon",
+      "knownForTitles": [
+        "The Competition",
+        "Our Body",
+        "God's Offices"
+      ],
+      "sourceDescription": "Director known for The Competition, Our Body, and God's Offices.",
+      "portrait": {
+        "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/7518-avatar_large.jpg?time=1730214037",
+        "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/claire-simon",
+        "author": "LaCinetek",
+        "license": "Source profile",
+        "attribution": "Profile image from Claire Simon's LaCinetek page."
+      },
+      "source": {
+        "id": "source:lacinetek-claire-simon",
+        "publisher": "LaCinetek",
+        "sourceLabel": "Claire Simon's LaCinetek list",
+        "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/claire-simon",
+        "checkedOn": "2026-08-24",
+        "permissionStatus": "permission-required",
+        "selectionSignal": "formative",
+        "rankSemantics": "source-order-unknown",
+        "reportedDepth": {
+          "kind": "exact",
+          "count": 0,
+          "label": "0 published picks"
+        },
+        "privateHouseholdResearch": {
+          "scope": "private-household-research",
+          "productUse": "not-cleared",
+          "note": "Stored locally for the owner's private, noncommercial household use."
+        }
+      },
+      "publishedSelectionCount": 0,
+      "mappedSelectionCount": 0,
+      "mappedMovieIds": [],
+      "sourceListNames": []
+    },
+    {
       "id": "curator:claude-lelouch",
       "displayName": "Claude Lelouch",
       "knownForTitles": [
@@ -3584,7 +3616,7 @@
         "Itinerary of a Spoiled Child",
         "Un + une"
       ],
-      "sourceDescription": "Filmmaker known for A Man and a Woman, Itinerary of a Spoiled Child, and Un + une.",
+      "sourceDescription": "Director known for A Man and a Woman, Itinerary of a Spoiled Child, and Un + une.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6982-avatar_large.jpg?time=1680872413",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/claude-lelouch-69",
@@ -3679,7 +3711,7 @@
         "Sons of Ramses",
         "Braguino"
       ],
-      "sourceDescription": "Filmmaker known for The Wakhan Front, Sons of Ramses, and Braguino.",
+      "sourceDescription": "Director known for The Wakhan Front, Sons of Ramses, and Braguino.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/11954-avatar_large.jpg?time=1675347881",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/clement-cogitore-33",
@@ -3764,7 +3796,7 @@
         "12:08 East of Bucharest",
         "The Treasure"
       ],
-      "sourceDescription": "Filmmaker known for The Whistlers, 12:08 East of Bucharest, and The Treasure.",
+      "sourceDescription": "Director known for The Whistlers, 12:08 East of Bucharest, and The Treasure.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/13324-avatar_large.jpg?time=1716994915",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/corneliu-porumboiu-27",
@@ -3848,7 +3880,7 @@
         "Missing",
         "Amen."
       ],
-      "sourceDescription": "Filmmaker known for Z, Missing, and Amen.",
+      "sourceDescription": "Director known for Z, Missing, and Amen.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6820-avatar_large.jpg?time=1716993380",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/costa-gavras",
@@ -3944,9 +3976,9 @@
       "knownForTitles": [
         "4 Months, 3 Weeks and 2 Days",
         "Graduation",
-        "Train of Life"
+        "Beyond the Hills"
       ],
-      "sourceDescription": "Filmmaker known for 4 Months, 3 Weeks and 2 Days, Graduation, and Train of Life.",
+      "sourceDescription": "Director known for 4 Months, 3 Weeks and 2 Days, Graduation, and Beyond the Hills.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6826-avatar_large.jpg?time=1675265630",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/cristian-mungiu",
@@ -4034,7 +4066,7 @@
         "Sex",
         "Love"
       ],
-      "sourceDescription": "Filmmaker known for Dreams, Sex, and Love.",
+      "sourceDescription": "Director known for Dreams, Sex, and Love.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/22648-avatar_large.jpg?time=1784108729",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/dag-johan-haugerud",
@@ -4118,7 +4150,7 @@
         "Whiplash",
         "First Man"
       ],
-      "sourceDescription": "Filmmaker known for La La Land, Whiplash, and First Man.",
+      "sourceDescription": "Director known for La La Land, Whiplash, and First Man.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/13283-avatar_large.jpg?time=1716992739",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/damien-chazelle-55",
@@ -4223,7 +4255,7 @@
         "Deep Red",
         "Phenomena"
       ],
-      "sourceDescription": "Filmmaker known for Suspiria, Deep Red, and Phenomena.",
+      "sourceDescription": "Director known for Suspiria, Deep Red, and Phenomena.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/2974-avatar_large.jpg?time=1716992472",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/dario-argento-6",
@@ -4322,7 +4354,7 @@
         "A History of Violence",
         "Eastern Promises"
       ],
-      "sourceDescription": "Filmmaker known for The Fly, A History of Violence, and Eastern Promises.",
+      "sourceDescription": "Director known for The Fly, A History of Violence, and Eastern Promises.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/4842-avatar_large.jpg?time=1737624189",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/david-cronenberg-",
@@ -4401,7 +4433,7 @@
         "C'est La Vie",
         "Entre Nous"
       ],
-      "sourceDescription": "Filmmaker known for Peppermint Soda, C'est La Vie, and Entre Nous.",
+      "sourceDescription": "Director known for Peppermint Soda, C'est La Vie, and Entre Nous.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/18671-avatar_large.jpg?time=1730216282",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/diane-kurys",
@@ -4491,7 +4523,7 @@
         "Only the Animals",
         "With a Friend Like Harry..."
       ],
-      "sourceDescription": "Filmmaker known for The Night of the 12th, Only the Animals, and With a Friend Like Harry...",
+      "sourceDescription": "Director known for The Night of the 12th, Only the Animals, and With a Friend Like Harry...",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/18609-avatar_large.jpg?time=1704273311",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/dominik-moll",
@@ -4683,7 +4715,7 @@
         "To Each His Own Cinema",
         "7 Days in Havana"
       ],
-      "sourceDescription": "Filmmaker known for It Must Be Heaven, To Each His Own Cinema, and 7 Days in Havana.",
+      "sourceDescription": "Director known for It Must Be Heaven, To Each His Own Cinema, and 7 Days in Havana.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6846-avatar_large.jpg?time=1675350040",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/elia-suleiman-",
@@ -4775,7 +4807,7 @@
         "Love Affair(s)",
         "Diary of a Fleeting Affair"
       ],
-      "sourceDescription": "Filmmaker known for Lady J, Love Affair(s), and Diary of a Fleeting Affair.",
+      "sourceDescription": "Director known for Lady J, Love Affair(s), and Diary of a Fleeting Affair.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/17213-avatar_large.jpg?time=1779895999",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/emmanuel-mouret",
@@ -4863,11 +4895,11 @@
       "id": "curator:emmanuelle-bercot",
       "displayName": "Emmanuelle Bercot",
       "knownForTitles": [
-        "My King",
-        "Polisse",
-        "School's Out"
+        "The Players",
+        "Standing Tall",
+        "Student Services"
       ],
-      "sourceDescription": "Filmmaker known for My King, Polisse, and School's Out.",
+      "sourceDescription": "Director known for The Players, Standing Tall, and Student Services.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/15414-avatar_large.jpg?time=1730209646",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/emmanuelle-bercot",
@@ -4964,7 +4996,7 @@
         "The Golden Glove",
         "Head-On"
       ],
-      "sourceDescription": "Filmmaker known for In the Fade, The Golden Glove, and Head-On.",
+      "sourceDescription": "Director known for In the Fade, The Golden Glove, and Head-On.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/12206-avatar_large.jpg?time=1687344235",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/fatih-akin",
@@ -5053,7 +5085,7 @@
         "The Broken Circle Breakdown",
         "The Eight Mountains"
       ],
-      "sourceDescription": "Filmmaker known for Beautiful Boy, The Broken Circle Breakdown, and The Eight Mountains.",
+      "sourceDescription": "Director known for Beautiful Boy, The Broken Circle Breakdown, and The Eight Mountains.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/17524-avatar_large.jpg?time=1675349867",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/felix-van-groeningen",
@@ -5139,10 +5171,10 @@
       "displayName": "Francis Veber",
       "knownForTitles": [
         "The Dinner Game",
-        "Dinner for Schmucks",
-        "The Birdcage"
+        "Ruby & Quentin",
+        "La Chèvre"
       ],
-      "sourceDescription": "Filmmaker known for The Dinner Game, Dinner for Schmucks, and The Birdcage.",
+      "sourceDescription": "Director known for The Dinner Game, Ruby & Quentin, and La Chèvre.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/2597-avatar_large.jpg?time=1722240831",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/francis-veber",
@@ -5234,7 +5266,7 @@
         "8 Women",
         "Summer of 85"
       ],
-      "sourceDescription": "Filmmaker known for Young & Beautiful, 8 Women, and Summer of 85.",
+      "sourceDescription": "Director known for Young & Beautiful, 8 Women, and Summer of 85.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/10784-avatar_large.jpg?time=1680872035",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/francois-ozon-16",
@@ -5327,7 +5359,7 @@
         "Fahrenheit 451",
         "Jules and Jim"
       ],
-      "sourceDescription": "Filmmaker known for The 400 Blows, Fahrenheit 451, and Jules and Jim.",
+      "sourceDescription": "Director known for The 400 Blows, Fahrenheit 451, and Jules and Jim.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/2418-avatar_large.jpg?time=1675263199",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/francois-truffaut-10",
@@ -5471,7 +5503,7 @@
         "Taxi 3",
         "Wasabi"
       ],
-      "sourceDescription": "Filmmaker known for Taxi 2, Taxi 3, and Wasabi.",
+      "sourceDescription": "Director known for Taxi 2, Taxi 3, and Wasabi.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/8915-avatar_large.jpg?time=1675269972",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/gerard-krawczyk",
@@ -5554,11 +5586,11 @@
       "id": "curator:gilles-lellouche",
       "displayName": "Gilles Lellouche",
       "knownForTitles": [
-        "The Stronghold",
-        "C'est la vie!",
-        "Asterix & Obelix: The Middle Kingdom"
+        "Sink or Swim",
+        "Beating Hearts",
+        "The Players"
       ],
-      "sourceDescription": "Filmmaker known for The Stronghold, C'est la vie!, and Asterix & Obelix: The Middle Kingdom.",
+      "sourceDescription": "Director known for Sink or Swim, Beating Hearts, and The Players.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/22352-avatar_large.jpg?time=1774349294",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/gilles-lellouche",
@@ -5663,7 +5695,7 @@
         "A World Without Women",
         "Treasure Island"
       ],
-      "sourceDescription": "Filmmaker known for All Hands on Deck!, A World Without Women, and Treasure Island.",
+      "sourceDescription": "Director known for All Hands on Deck!, A World Without Women, and Treasure Island.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/19349-avatar_large.jpg?time=1715937692",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/guillaume-brac",
@@ -5753,9 +5785,10 @@
       "displayName": "Guillaume Nicloux",
       "knownForTitles": [
         "The Tower",
-        "Valley of Love"
+        "Valley of Love",
+        "To the Ends of the World"
       ],
-      "sourceDescription": "Filmmaker known for The Tower and Valley of Love.",
+      "sourceDescription": "Director known for The Tower, Valley of Love, and To the Ends of the World.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/15472-avatar_large.jpg?time=1675349635",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/guillaume-nicloux",
@@ -5842,7 +5875,7 @@
         "The Shape of Water",
         "Pan's Labyrinth"
       ],
-      "sourceDescription": "Filmmaker known for Pacific Rim, The Shape of Water, and Pan's Labyrinth.",
+      "sourceDescription": "Director known for Pacific Rim, The Shape of Water, and Pan's Labyrinth.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/12567-avatar_large.jpg?time=1752240112",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/guillermo-del-toro",
@@ -5898,7 +5931,7 @@
         "Monster",
         "Like Father, Like Son"
       ],
-      "sourceDescription": "Filmmaker known for Shoplifters, Monster, and Like Father, Like Son.",
+      "sourceDescription": "Director known for Shoplifters, Monster, and Like Father, Like Son.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6825-avatar_large.jpg?time=1716994459",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/hirokazu-kore-eda",
@@ -5987,7 +6020,7 @@
         "The Story of My Wife",
         "My Twentieth Century"
       ],
-      "sourceDescription": "Filmmaker known for On Body and Soul, The Story of My Wife, and My Twentieth Century.",
+      "sourceDescription": "Director known for On Body and Soul, The Story of My Wife, and My Twentieth Century.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/22353-avatar_large.jpg?time=1775223707",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/ildiko-enyedi",
@@ -6072,7 +6105,7 @@
         "Passages",
         "Married Life"
       ],
-      "sourceDescription": "Filmmaker known for Love Is Strange, Passages, and Married Life.",
+      "sourceDescription": "Director known for Love Is Strange, Passages, and Married Life.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6824-avatar_large.jpg?time=1622828396",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/ira-sachs",
@@ -6180,7 +6213,7 @@
         "The Brand New Testament",
         "The Eighth Day"
       ],
-      "sourceDescription": "Filmmaker known for Mr. Nobody, The Brand New Testament, and The Eighth Day.",
+      "sourceDescription": "Director known for Mr. Nobody, The Brand New Testament, and The Eighth Day.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/13456-avatar_large.jpg?time=1715940479",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/jaco-van-dormael-87",
@@ -6269,7 +6302,7 @@
         "Emilia Pérez",
         "A Prophet"
       ],
-      "sourceDescription": "Filmmaker known for The Sisters Brothers, Emilia Pérez, and A Prophet.",
+      "sourceDescription": "Director known for The Sisters Brothers, Emilia Pérez, and A Prophet.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6295-avatar_large.jpg?time=1683195549",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/jacques-audiard",
@@ -6362,7 +6395,7 @@
         "Ponette",
         "The Prodigal Daughter"
       ],
-      "sourceDescription": "Filmmaker known for Rodin, Ponette, and The Prodigal Daughter.",
+      "sourceDescription": "Director known for Rodin, Ponette, and The Prodigal Daughter.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/2935-avatar_large.jpg?time=1680872996",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/jacques-doillon",
@@ -6449,7 +6482,7 @@
         "The Lost City of Z",
         "We Own the Night"
       ],
-      "sourceDescription": "Filmmaker known for Ad Astra, The Lost City of Z, and We Own the Night.",
+      "sourceDescription": "Director known for Ad Astra, The Lost City of Z, and We Own the Night.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/5049-avatar_large.jpg?time=1716993775",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/james-gray",
@@ -6542,7 +6575,7 @@
         "Tijuana Bible",
         "The Lord's Ride"
       ],
-      "sourceDescription": "Filmmaker known for Eat Your Bones, Tijuana Bible, and The Lord's Ride.",
+      "sourceDescription": "Director known for Eat Your Bones, Tijuana Bible, and The Lord's Ride.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/21886-avatar_large.jpg?time=1742470456",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/jean-charles-hue",
@@ -6631,7 +6664,7 @@
         "Aristotle's Plot",
         "Quartier Mozart"
       ],
-      "sourceDescription": "Filmmaker known for The Bloodiest, Aristotle's Plot, and Quartier Mozart.",
+      "sourceDescription": "Director known for The Bloodiest, Aristotle's Plot, and Quartier Mozart.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/16393-avatar_large.jpg?time=1675350380",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/jean-pierre-bekolo",
@@ -6713,7 +6746,7 @@
         "The Kid with a Bike",
         "The Unknown Girl"
       ],
-      "sourceDescription": "Filmmaker known for Two Days, One Night, The Kid with a Bike, and The Unknown Girl.",
+      "sourceDescription": "Director known for Two Days, One Night, The Kid with a Bike, and The Unknown Girl.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/4661-avatar_large.jpg?time=1716992925",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/jean-pierre-dardenne-57",
@@ -6813,7 +6846,7 @@
         "Alien Resurrection",
         "Delicatessen"
       ],
-      "sourceDescription": "Filmmaker known for Amélie, Alien Resurrection, and Delicatessen.",
+      "sourceDescription": "Director known for Amélie, Alien Resurrection, and Delicatessen.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6821-avatar_large.jpg?time=1715861838",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/jean-pierre-jeunet",
@@ -6909,7 +6942,7 @@
         "Scarecrow",
         "Street Smart"
       ],
-      "sourceDescription": "Filmmaker known for The Panic in Needle Park, Scarecrow, and Street Smart.",
+      "sourceDescription": "Director known for The Panic in Needle Park, Scarecrow, and Street Smart.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6961-avatar_large.jpg?time=1680872000",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/jerry-schatzberg",
@@ -7002,7 +7035,7 @@
         "Club Zero",
         "Lourdes"
       ],
-      "sourceDescription": "Filmmaker known for Little Joe, Club Zero, and Lourdes.",
+      "sourceDescription": "Director known for Little Joe, Club Zero, and Lourdes.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/13234-avatar_large.jpg?time=1716993971",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/jessica-hausner",
@@ -7091,7 +7124,7 @@
         "The Restless",
         "Our Children"
       ],
-      "sourceDescription": "Filmmaker known for After Love, The Restless, and Our Children.",
+      "sourceDescription": "Director known for After Love, The Restless, and Our Children.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/18024-avatar_large.jpg?time=1676634244",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/joachim-lafosse",
@@ -7176,7 +7209,7 @@
         "Thelma",
         "Sentimental Value"
       ],
-      "sourceDescription": "Filmmaker known for The Worst Person in the World, Thelma, and Sentimental Value.",
+      "sourceDescription": "Director known for The Worst Person in the World, Thelma, and Sentimental Value.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/8858-avatar_large.jpg?time=1675268983",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/joachim-trier",
@@ -7270,7 +7303,7 @@
         "The Eternal Daughter",
         "The Souvenir: Part II"
       ],
-      "sourceDescription": "Filmmaker known for The Souvenir, The Eternal Daughter, and The Souvenir: Part II.",
+      "sourceDescription": "Director known for The Souvenir, The Eternal Daughter, and The Souvenir: Part II.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/19374-avatar_large.jpg?time=1730209473",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/joanna-hogg",
@@ -7362,7 +7395,7 @@
         "The Ornithologist",
         "Two Drifters"
       ],
-      "sourceDescription": "Filmmaker known for O Fantasma, The Ornithologist, and Two Drifters.",
+      "sourceDescription": "Director known for O Fantasma, The Ornithologist, and Two Drifters.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/10498-avatar_large.jpg?time=1675346557",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/joao-pedro-rodrigues-39",
@@ -7454,9 +7487,10 @@
       "displayName": "John Cameron Mitchell",
       "knownForTitles": [
         "Hedwig and the Angry Inch",
-        "How to Talk to Girls at Parties"
+        "How to Talk to Girls at Parties",
+        "Rabbit Hole"
       ],
-      "sourceDescription": "Filmmaker known for Hedwig and the Angry Inch and How to Talk to Girls at Parties.",
+      "sourceDescription": "Director known for Hedwig and the Angry Inch, How to Talk to Girls at Parties, and Rabbit Hole.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/17224-avatar_large.jpg?time=1715779926",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/john-cameron-mitchell",
@@ -7548,7 +7582,7 @@
         "Face/Off",
         "Paycheck"
       ],
-      "sourceDescription": "Filmmaker known for Mission: Impossible II, Face/Off, and Paycheck.",
+      "sourceDescription": "Director known for Mission: Impossible II, Face/Off, and Paycheck.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/3270-avatar_large.jpg?time=1715941992",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/john-woo",
@@ -7639,7 +7673,7 @@
         "The Other Way Around",
         "The Reconquest"
       ],
-      "sourceDescription": "Filmmaker known for The August Virgin, The Other Way Around, and The Reconquest.",
+      "sourceDescription": "Director known for The August Virgin, The Other Way Around, and The Reconquest.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/16716-avatar_large.jpg?time=1675349906",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/jonas-trueba",
@@ -7725,7 +7759,7 @@
         "Work in Progress",
         "Train of Shadows"
       ],
-      "sourceDescription": "Filmmaker known for In the City of Sylvia, Work in Progress, and Train of Shadows.",
+      "sourceDescription": "Director known for In the City of Sylvia, Work in Progress, and Train of Shadows.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/9182-avatar_large.jpg?time=1675270111",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/jose-luis-guerin",
@@ -7829,7 +7863,7 @@
         "Sibyl",
         "In Bed with Victoria"
       ],
-      "sourceDescription": "Filmmaker known for Anatomy of a Fall, Sibyl, and In Bed with Victoria.",
+      "sourceDescription": "Director known for Anatomy of a Fall, Sibyl, and In Bed with Victoria.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/14278-avatar_large.jpg?time=1730209557",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/justine-triet-23",
@@ -7919,7 +7953,7 @@
         "Hitlerkantate",
         "Do Right and Fear No One"
       ],
-      "sourceDescription": "Filmmaker known for The Hunger Years: In a Land of Plenty, Hitlerkantate, and Do Right and Fear No One.",
+      "sourceDescription": "Director known for The Hunger Years: In a Land of Plenty, Hitlerkantate, and Do Right and Fear No One.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/14229-avatar_large.jpg?time=1730133256",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/jutta-bruckner",
@@ -8008,7 +8042,7 @@
         "Certain Women",
         "Night Moves"
       ],
-      "sourceDescription": "Filmmaker known for First Cow, Certain Women, and Night Moves.",
+      "sourceDescription": "Director known for First Cow, Certain Women, and Night Moves.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/12878-avatar_large.jpg?time=1770118058",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/kelly-reichardt",
@@ -8080,7 +8114,7 @@
         "The Wind That Shakes the Barley",
         "Sorry We Missed You"
       ],
-      "sourceDescription": "Filmmaker known for I, Daniel Blake, The Wind That Shakes the Barley, and Sorry We Missed You.",
+      "sourceDescription": "Director known for I, Daniel Blake, The Wind That Shakes the Barley, and Sorry We Missed You.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6002-avatar_large.jpg?time=1705321868",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/ken-loach-",
@@ -8136,7 +8170,7 @@
         "Pulse",
         "Tokyo Sonata"
       ],
-      "sourceDescription": "Filmmaker known for Cure, Pulse, and Tokyo Sonata.",
+      "sourceDescription": "Director known for Cure, Pulse, and Tokyo Sonata.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6476-avatar_large.jpg?time=1680871859",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/kiyoshi-kurosawa",
@@ -8223,7 +8257,7 @@
         "The Secret Agent",
         "Aquarius"
       ],
-      "sourceDescription": "Filmmaker known for Bacurau, The Secret Agent, and Aquarius.",
+      "sourceDescription": "Director known for Bacurau, The Secret Agent, and Aquarius.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/14279-avatar_large.jpg?time=1716994597",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/kleber-mendonca-filho-45",
@@ -8317,7 +8351,7 @@
         "The Workshop",
         "7 Days in Havana"
       ],
-      "sourceDescription": "Filmmaker known for The Class, The Workshop, and 7 Days in Havana.",
+      "sourceDescription": "Director known for The Class, The Workshop, and 7 Days in Havana.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/3757-avatar_large.jpg?time=1762181883",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/laurent-cantet",
@@ -8419,7 +8453,7 @@
         "Annette",
         "The Lovers on the Bridge"
       ],
-      "sourceDescription": "Filmmaker known for Holy Motors, Annette, and The Lovers on the Bridge.",
+      "sourceDescription": "Director known for Holy Motors, Annette, and The Lovers on the Bridge.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/7886-avatar_large.jpg?time=1675329926",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/leos-carax",
@@ -8482,11 +8516,11 @@
       "id": "curator:lodge-kerrigan",
       "displayName": "Lodge Kerrigan",
       "knownForTitles": [
-        "The Killing",
-        "The Americans",
-        "Homeland"
+        "Clean, Shaven",
+        "Keane",
+        "Claire Dolan"
       ],
-      "sourceDescription": "Filmmaker known for The Killing, The Americans, and Homeland.",
+      "sourceDescription": "Director known for Clean, Shaven, Keane, and Claire Dolan.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/8726-avatar_large.jpg?time=1675268885",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/lodge-kerrigan",
@@ -8570,11 +8604,11 @@
       "id": "curator:louis-garrel",
       "displayName": "Louis Garrel",
       "knownForTitles": [
-        "The Dreamers",
-        "An Officer and a Spy",
-        "Little Women"
+        "The Innocent",
+        "A Faithful Man",
+        "Two Friends"
       ],
-      "sourceDescription": "Filmmaker known for The Dreamers, An Officer and a Spy, and Little Women.",
+      "sourceDescription": "Director known for The Innocent, A Faithful Man, and Two Friends.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/22255-avatar_large.jpg?time=1763731348",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/louis-garrel",
@@ -8664,7 +8698,7 @@
         "The Kid with a Bike",
         "The Unknown Girl"
       ],
-      "sourceDescription": "Filmmaker known for Two Days, One Night, The Kid with a Bike, and The Unknown Girl.",
+      "sourceDescription": "Director known for Two Days, One Night, The Kid with a Bike, and The Unknown Girl.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/4662-avatar_large.jpg?time=1715782874",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/luc-dardenne",
@@ -8765,7 +8799,7 @@
         "Opening Essay",
         "Brigitte and Brigitte"
       ],
-      "sourceDescription": "Filmmaker known for Barres, Opening Essay, and Brigitte and Brigitte.",
+      "sourceDescription": "Director known for Barres, Opening Essay, and Brigitte and Brigitte.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6822-avatar_large.jpg?time=1681213404",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/luc-moullet",
@@ -8854,7 +8888,7 @@
         "Innocence",
         "Earwig"
       ],
-      "sourceDescription": "Filmmaker known for Evolution, Innocence, and Earwig.",
+      "sourceDescription": "Director known for Evolution, Innocence, and Earwig.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/4611-avatar_large.jpg?time=1730216622",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/lucile-hadzihalilovic",
@@ -8948,7 +8982,7 @@
         "Girl",
         "Headlong"
       ],
-      "sourceDescription": "Filmmaker known for Close, Girl, and Headlong.",
+      "sourceDescription": "Director known for Close, Girl, and Headlong.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/15040-avatar_large.jpg?time=1716993046",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/lukas-dhont",
@@ -9035,7 +9069,7 @@
         "You Were Never Really Here",
         "Die My Love"
       ],
-      "sourceDescription": "Filmmaker known for We Need to Talk About Kevin, You Were Never Really Here, and Die My Love.",
+      "sourceDescription": "Director known for We Need to Talk About Kevin, You Were Never Really Here, and Die My Love.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6829-avatar_large.jpg?time=1774347673",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/lynne-ramsay",
@@ -9131,7 +9165,7 @@
         "A Screaming Man",
         "A Season in France"
       ],
-      "sourceDescription": "Filmmaker known for Lingui, the Sacred Bonds, A Screaming Man, and A Season in France.",
+      "sourceDescription": "Director known for Lingui, the Sacred Bonds, A Screaming Man, and A Season in France.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/10347-avatar_large.jpg?time=1716993930",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/mahamat-saleh-haroun-59",
@@ -9217,7 +9251,7 @@
         "Everyone Else",
         "The Forest for the Trees"
       ],
-      "sourceDescription": "Filmmaker known for Toni Erdmann, Everyone Else, and The Forest for the Trees.",
+      "sourceDescription": "Director known for Toni Erdmann, Everyone Else, and The Forest for the Trees.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/10106-avatar_large.jpg?time=1730216042",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/maren-ade",
@@ -9316,7 +9350,7 @@
         "La Flor",
         "Balnearios"
       ],
-      "sourceDescription": "Filmmaker known for Extraordinary Stories, La Flor, and Balnearios.",
+      "sourceDescription": "Director known for Extraordinary Stories, La Flor, and Balnearios.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/15470-avatar_large.jpg?time=1629299660",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/mariano-llinas",
@@ -9399,7 +9433,7 @@
         "Cassandro the Exotico!",
         "Felix in Wonderland"
       ],
-      "sourceDescription": "Filmmaker known for The Ballad of Genesis and Lady Jaye, Cassandro the Exotico!, and Felix in Wonderland.",
+      "sourceDescription": "Director known for The Ballad of Genesis and Lady Jaye, Cassandro the Exotico!, and Felix in Wonderland.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/18820-avatar_large.jpg?time=1756990155",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/marie-losier",
@@ -9485,7 +9519,7 @@
         "The Voices",
         "Radioactive"
       ],
-      "sourceDescription": "Filmmaker known for Persepolis, The Voices, and Radioactive.",
+      "sourceDescription": "Director known for Persepolis, The Voices, and Radioactive.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/10680-avatar_large.jpg?time=1780650323",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/marjane-satrapi",
@@ -9575,7 +9609,7 @@
         "Shutter Island",
         "The Departed"
       ],
-      "sourceDescription": "Filmmaker known for The Wolf of Wall Street, Shutter Island, and The Departed.",
+      "sourceDescription": "Director known for The Wolf of Wall Street, Shutter Island, and The Departed.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/2572-avatar_large.jpg?time=1742205397",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/martin-scorsese-5",
@@ -9767,9 +9801,10 @@
       "displayName": "Michael Haneke",
       "knownForTitles": [
         "Funny Games",
-        "Amour"
+        "Amour",
+        "The Piano Teacher"
       ],
-      "sourceDescription": "Filmmaker known for Funny Games and Amour.",
+      "sourceDescription": "Director known for Funny Games, Amour, and The Piano Teacher.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/3992-avatar_large.jpg?time=1721653288",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/michael-haneke",
@@ -9903,7 +9938,7 @@
         "OSS 117: Cairo, Nest of Spies",
         "OSS 117: Lost in Rio"
       ],
-      "sourceDescription": "Filmmaker known for The Artist, OSS 117: Cairo, Nest of Spies, and OSS 117: Lost in Rio.",
+      "sourceDescription": "Director known for The Artist, OSS 117: Cairo, Nest of Spies, and OSS 117: Lost in Rio.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6823-avatar_large.jpg?time=1683124860",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/michel-hazanavicius",
@@ -10008,7 +10043,7 @@
         "Azur & Asmar: The Princes' Quest",
         "Kirikou and the Wild Beasts"
       ],
-      "sourceDescription": "Filmmaker known for Kirikou and the Sorceress, Azur & Asmar: The Princes' Quest, and Kirikou and the Wild Beasts.",
+      "sourceDescription": "Director known for Kirikou and the Sorceress, Azur & Asmar: The Princes' Quest, and Kirikou and the Wild Beasts.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/15276-avatar_large.jpg?time=1716994952",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/michel-ocelot",
@@ -10085,7 +10120,7 @@
         "Arabian Nights: Volume 1, The Restless One",
         "Arabian Nights: Volume 2, The Desolate One"
       ],
-      "sourceDescription": "Filmmaker known for Tabu, Arabian Nights: Volume 1, The Restless One, and Arabian Nights: Volume 2, The Desolate One.",
+      "sourceDescription": "Director known for Tabu, Arabian Nights: Volume 1, The Restless One, and Arabian Nights: Volume 2, The Desolate One.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/9743-avatar_large.jpg?time=1716993504",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/miguel-gomes",
@@ -10175,7 +10210,7 @@
         "Horses of God",
         "Ali Zaoua: Prince of the Streets"
       ],
-      "sourceDescription": "Filmmaker known for Much Loved, Horses of God, and Ali Zaoua: Prince of the Streets.",
+      "sourceDescription": "Director known for Much Loved, Horses of God, and Ali Zaoua: Prince of the Streets.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/10858-avatar_large.jpg?time=1761318835",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/nabil-ayouch",
@@ -10284,7 +10319,7 @@
         "Ahed's Knee",
         "The Kindergarten Teacher"
       ],
-      "sourceDescription": "Filmmaker known for Synonyms, Ahed's Knee, and The Kindergarten Teacher.",
+      "sourceDescription": "Director known for Synonyms, Ahed's Knee, and The Kindergarten Teacher.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/7739-avatar_large.jpg?time=1716994537",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/nadav-lapid",
@@ -10374,7 +10409,7 @@
         "The Son's Room",
         "Caro diario"
       ],
-      "sourceDescription": "Filmmaker known for We Have a Pope, The Son's Room, and Caro diario.",
+      "sourceDescription": "Director known for We Have a Pope, The Son's Room, and Caro diario.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/2451-avatar_large.jpg?time=1716994701",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/nanni-moretti-19",
@@ -10466,7 +10501,7 @@
         "Radiance",
         "Still the Water"
       ],
-      "sourceDescription": "Filmmaker known for Sweet Bean, Radiance, and Still the Water.",
+      "sourceDescription": "Director known for Sweet Bean, Radiance, and Still the Water.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/10332-avatar_large.jpg?time=1730134963",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/naomi-kawase-61",
@@ -10531,9 +10566,9 @@
       "knownForTitles": [
         "To Be and to Have",
         "On the Adamant",
-        "A Tale of the Wind"
+        "La Maison de la Radio"
       ],
-      "sourceDescription": "Filmmaker known for To Be and to Have, On the Adamant, and A Tale of the Wind.",
+      "sourceDescription": "Director known for To Be and to Have, On the Adamant, and La Maison de la Radio.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/3667-avatar_large.jpg?time=1677496037",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/nicolas-philibert-33",
@@ -10616,11 +10651,11 @@
       "id": "curator:nicole-garcia",
       "displayName": "Nicole Garcia",
       "knownForTitles": [
-        "Who You Think I Am",
-        "My American Uncle",
-        "Families"
+        "From the Land of the Moon",
+        "The Adversary",
+        "Lovers"
       ],
-      "sourceDescription": "Filmmaker known for Who You Think I Am, My American Uncle, and Families.",
+      "sourceDescription": "Director known for From the Land of the Moon, The Adversary, and Lovers.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/16299-avatar_large.jpg?time=1730216859",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/nicole-garcia",
@@ -10714,11 +10749,11 @@
       "id": "curator:noemie-lvovsky",
       "displayName": "Noémie Lvovsky",
       "knownForTitles": [
-        "House of Pleasures",
         "Camille Rewinds",
-        "Rosalie Blum"
+        "Feelings",
+        "The Great Magic"
       ],
-      "sourceDescription": "Filmmaker known for House of Pleasures, Camille Rewinds, and Rosalie Blum.",
+      "sourceDescription": "Director known for Camille Rewinds, Feelings, and The Great Magic.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/4689-avatar_large.jpg?time=1730209221",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/noemie-lvovsky",
@@ -10809,7 +10844,7 @@
         "Paris Je T'aime",
         "Clouds of Sils Maria"
       ],
-      "sourceDescription": "Filmmaker known for Personal Shopper, Paris Je T'aime, and Clouds of Sils Maria.",
+      "sourceDescription": "Director known for Personal Shopper, Paris Je T'aime, and Clouds of Sils Maria.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/2696-avatar_large.jpg?time=1716992543",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/olivier-assayas-vod",
@@ -10984,7 +11019,7 @@
         "Falling Leaves",
         "Farewell, Home Sweet Home"
       ],
-      "sourceDescription": "Filmmaker known for There Once Was a Singing Blackbird, Falling Leaves, and Farewell, Home Sweet Home.",
+      "sourceDescription": "Director known for There Once Was a Singing Blackbird, Falling Leaves, and Farewell, Home Sweet Home.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/14109-avatar_large.jpg?time=1765894187",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/otar-iosseliani-",
@@ -11144,11 +11179,11 @@
       "id": "curator:pascale-ferran",
       "displayName": "Pascale Ferran",
       "knownForTitles": [
-        "The Red Turtle",
         "Lady Chatterley",
-        "Bird People"
+        "Bird People",
+        "Coming to Terms with the Dead"
       ],
-      "sourceDescription": "Filmmaker known for The Red Turtle, Lady Chatterley, and Bird People.",
+      "sourceDescription": "Director known for Lady Chatterley, Bird People, and Coming to Terms with the Dead.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6157-avatar_large.jpg?time=1736268355",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/pascale-ferran",
@@ -11263,7 +11298,7 @@
         "French Fried Vacation",
         "French Fried Vacations 3: Friends Forever"
       ],
-      "sourceDescription": "Filmmaker known for French Fried Vacation 2, French Fried Vacation, and French Fried Vacations 3: Friends Forever.",
+      "sourceDescription": "Director known for French Fried Vacation 2, French Fried Vacation, and French Fried Vacations 3: Friends Forever.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/6446-avatar_large.jpg?time=1716994565",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/patrice-leconte",
@@ -11366,7 +11401,7 @@
         "Saturn Bowling",
         "Visiting Hours"
       ],
-      "sourceDescription": "Filmmaker known for Paul Sanchez Is Back!, Saturn Bowling, and Visiting Hours.",
+      "sourceDescription": "Director known for Paul Sanchez Is Back!, Saturn Bowling, and Visiting Hours.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/5220-avatar_large.jpg?time=1730209292",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/patricia-mazuy",
@@ -11469,11 +11504,11 @@
       "id": "curator:paul-schrader",
       "displayName": "Paul Schrader",
       "knownForTitles": [
-        "Taxi Driver",
-        "Raging Bull",
-        "First Reformed"
+        "First Reformed",
+        "The Card Counter",
+        "American Gigolo"
       ],
-      "sourceDescription": "Filmmaker known for Taxi Driver, Raging Bull, and First Reformed.",
+      "sourceDescription": "Director known for First Reformed, The Card Counter, and American Gigolo.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/3785-avatar_large.jpg?time=1716994830",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/paul-schrader",
@@ -11562,7 +11597,7 @@
         "The Strangler",
         "Rosa la rose, fille publique"
       ],
-      "sourceDescription": "Filmmaker known for Et + si @ff, The Strangler, and Rosa la rose, fille publique.",
+      "sourceDescription": "Director known for Et + si @ff, The Strangler, and Rosa la rose, fille publique.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/13633-avatar_large.jpg?time=1715941229",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/paul-vecchiali",
@@ -11654,7 +11689,7 @@
         "RoboCop",
         "Starship Troopers"
       ],
-      "sourceDescription": "Filmmaker known for Total Recall, RoboCop, and Starship Troopers.",
+      "sourceDescription": "Director known for Total Recall, RoboCop, and Starship Troopers.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/5693-avatar_large.jpg?time=1680872696",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/paul-verhoeven",
@@ -11711,7 +11746,7 @@
         "A Night of Knowing Nothing",
         "And What Is the Summer Saying?"
       ],
-      "sourceDescription": "Filmmaker known for All We Imagine as Light, A Night of Knowing Nothing, and And What Is the Summer Saying?",
+      "sourceDescription": "Director known for All We Imagine as Light, A Night of Knowing Nothing, and And What Is the Summer Saying?",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/20675-avatar_large.jpg?time=1727948538",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/payal-kapadia",
@@ -11790,7 +11825,7 @@
         "In Vanda's Room",
         "Colossal Youth"
       ],
-      "sourceDescription": "Filmmaker known for Vitalina Varela, In Vanda's Room, and Colossal Youth.",
+      "sourceDescription": "Director known for Vitalina Varela, In Vanda's Room, and Colossal Youth.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/8900-avatar_large.jpg?time=1716992802",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/pedro-costa",
@@ -11874,7 +11909,7 @@
         "Up",
         "Monsters, Inc."
       ],
-      "sourceDescription": "Filmmaker known for Inside Out, Up, and Monsters, Inc.",
+      "sourceDescription": "Director known for Inside Out, Up, and Monsters, Inc.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/14865-avatar_large.jpg?time=1675350506",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/pete-docter",
@@ -11963,11 +11998,11 @@
       "id": "curator:peter-handke",
       "displayName": "Peter Handke",
       "knownForTitles": [
-        "City of Angels",
-        "Wings of Desire",
-        "Wrong Move"
+        "The Left-Handed Woman",
+        "The Absence",
+        "Chronicle of Current Events"
       ],
-      "sourceDescription": "Filmmaker known for City of Angels, Wings of Desire, and Wrong Move.",
+      "sourceDescription": "Director known for The Left-Handed Woman, The Absence, and Chronicle of Current Events.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/9793-avatar_large.jpg?time=1700575898",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/peter-handke",
@@ -12033,11 +12068,11 @@
       "id": "curator:philippe-garrel",
       "displayName": "Philippe Garrel",
       "knownForTitles": [
-        "The Two of Us",
         "Lover for a Day",
-        "Jealousy"
+        "Jealousy",
+        "In the Shadow of Women"
       ],
-      "sourceDescription": "Filmmaker known for The Two of Us, Lover for a Day, and Jealousy.",
+      "sourceDescription": "Director known for Lover for a Day, Jealousy, and In the Shadow of Women.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/3677-avatar_large.jpg?time=1716993339",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/philippe-garrel",
@@ -12126,7 +12161,7 @@
         "Cycling with Molière",
         "Normandy Nude"
       ],
-      "sourceDescription": "Filmmaker known for The Women on the 6th Floor, Cycling with Molière, and Normandy Nude.",
+      "sourceDescription": "Director known for The Women on the 6th Floor, Cycling with Molière, and Normandy Nude.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/20023-avatar_large.jpg?time=1752843829",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/philippe-le-guay",
@@ -12220,7 +12255,7 @@
         "The Trouble with You",
         "Beautiful Lies"
       ],
-      "sourceDescription": "Filmmaker known for Priceless, The Trouble with You, and Beautiful Lies.",
+      "sourceDescription": "Director known for Priceless, The Trouble with You, and Beautiful Lies.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/2636-avatar_large.jpg?time=1675268807",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/pierre-salvadori",
@@ -12309,11 +12344,11 @@
       "id": "curator:radu-jude",
       "displayName": "Radu Jude",
       "knownForTitles": [
-        "Amen.",
         "Bad Luck Banging or Loony Porn",
-        "The Death of Mr. Lazarescu"
+        "Do Not Expect Too Much from the End of the World",
+        "Aferim!"
       ],
-      "sourceDescription": "Filmmaker known for Amen., Bad Luck Banging or Loony Porn, and The Death of Mr. Lazarescu.",
+      "sourceDescription": "Director known for Bad Luck Banging or Loony Porn, Do Not Expect Too Much from the End of the World, and Aferim!",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/16181-avatar_large.jpg?time=1715861936",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/radu-jude",
@@ -12390,7 +12425,7 @@
         "Lumière & Company",
         "12 Days"
       ],
-      "sourceDescription": "Filmmaker known for To Each His Own Cinema, Lumière & Company, and 12 Days.",
+      "sourceDescription": "Director known for To Each His Own Cinema, Lumière & Company, and 12 Days.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/3239-avatar_large.jpg?time=1675267312",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/raymond-depardon",
@@ -12473,7 +12508,7 @@
         "A Private Life",
         "Other People's Children"
       ],
-      "sourceDescription": "Filmmaker known for An Easy Girl, A Private Life, and Other People's Children.",
+      "sourceDescription": "Director known for An Easy Girl, A Private Life, and Other People's Children.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/18940-avatar_large.jpg?time=1684313617",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/rebecca-zlotowski",
@@ -12569,9 +12604,9 @@
       "knownForTitles": [
         "The French Kissers",
         "Jacky in the Kingdom of Women",
-        "40"
+        "Le Grand départ"
       ],
-      "sourceDescription": "Filmmaker known for The French Kissers, Jacky in the Kingdom of Women, and 40.",
+      "sourceDescription": "Director known for The French Kissers, Jacky in the Kingdom of Women, and Le Grand départ.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/12786-avatar_large.jpg?time=1675347837",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/riad-sattouf-26",
@@ -12668,7 +12703,7 @@
         "The House by the Sea",
         "Army of Crime"
       ],
-      "sourceDescription": "Filmmaker known for The Snows of Kilimanjaro, The House by the Sea, and Army of Crime.",
+      "sourceDescription": "Director known for The Snows of Kilimanjaro, The House by the Sea, and Army of Crime.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/11031-avatar_large.jpg?time=1675345896",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/robert-guediguian-47",
@@ -12759,7 +12794,7 @@
         "Eastern Boys",
         "The Returned"
       ],
-      "sourceDescription": "Filmmaker known for BPM (Beats per Minute), Eastern Boys, and The Returned.",
+      "sourceDescription": "Director known for BPM (Beats per Minute), Eastern Boys, and The Returned.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/10275-avatar_large.jpg?time=1747313260",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/robin-campillo",
@@ -12845,7 +12880,7 @@
         "Wheel of Fortune and Fantasy",
         "Evil Does Not Exist"
       ],
-      "sourceDescription": "Filmmaker known for Drive My Car, Wheel of Fortune and Fantasy, and Evil Does Not Exist.",
+      "sourceDescription": "Director known for Drive My Car, Wheel of Fortune and Fantasy, and Evil Does Not Exist.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/19779-avatar_large.jpg?time=1712065128",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/ryusuke-hamaguchi",
@@ -12931,7 +12966,7 @@
         "Leila's Brothers",
         "Life and a Day"
       ],
-      "sourceDescription": "Filmmaker known for Law of Tehran, Leila's Brothers, and Life and a Day.",
+      "sourceDescription": "Director known for Law of Tehran, Leila's Brothers, and Life and a Day.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/18522-avatar_large.jpg?time=1679663993",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/saeed-roustaee",
@@ -13022,7 +13057,7 @@
         "The Florida Project",
         "Tangerine"
       ],
-      "sourceDescription": "Filmmaker known for Anora, The Florida Project, and Tangerine.",
+      "sourceDescription": "Director known for Anora, The Florida Project, and Tangerine.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/21064-avatar_large.jpg?time=1740131029",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/sean-baker",
@@ -13116,7 +13151,7 @@
         "Adolescents",
         "Come Undone"
       ],
-      "sourceDescription": "Filmmaker known for Little Girl, Adolescents, and Come Undone.",
+      "sourceDescription": "Director known for Little Girl, Adolescents, and Come Undone.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/22547-avatar_large.jpg?time=1781789112",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/sebastien-lifshitz",
@@ -13209,7 +13244,7 @@
         "The Extraordinary Voyage",
         "Birth of the Tramp"
       ],
-      "sourceDescription": "Filmmaker known for Henri-Georges Clouzot's Inferno, The Extraordinary Voyage, and Birth of the Tramp.",
+      "sourceDescription": "Director known for Henri-Georges Clouzot's Inferno, The Extraordinary Voyage, and Birth of the Tramp.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/14352-avatar_large.jpg?time=1675349887",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/serge-bromberg",
@@ -13306,7 +13341,7 @@
         "Voyages en Italie",
         "Les Coquillettes"
       ],
-      "sourceDescription": "Filmmaker known for Enormous, Voyages en Italie, and Les Coquillettes.",
+      "sourceDescription": "Director known for Enormous, Voyages en Italie, and Les Coquillettes.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/19610-avatar_large.jpg?time=1707469615",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/sophie-letourneur",
@@ -13392,7 +13427,7 @@
         "A Clockwork Orange",
         "2001: A Space Odyssey"
       ],
-      "sourceDescription": "Filmmaker known for The Shining, A Clockwork Orange, and 2001: A Space Odyssey.",
+      "sourceDescription": "Director known for The Shining, A Clockwork Orange, and 2001: A Space Odyssey.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/5117-avatar_large.jpg?time=1675262912",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/stanley-kubrick-fdsv",
@@ -13530,7 +13565,7 @@
         "Scorched Earth",
         "In the Shadows"
       ],
-      "sourceDescription": "Filmmaker known for Gold, Scorched Earth, and In the Shadows.",
+      "sourceDescription": "Director known for Gold, Scorched Earth, and In the Shadows.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/14881-avatar_large.jpg?time=1675348907",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/thomas-arslan",
@@ -13614,9 +13649,9 @@
       "knownForTitles": [
         "The Animal Kingdom",
         "Love at First Fight",
-        "(Girl)Friend"
+        "Paris Shanghai"
       ],
-      "sourceDescription": "Filmmaker known for The Animal Kingdom, Love at First Fight, and (Girl)Friend.",
+      "sourceDescription": "Director known for The Animal Kingdom, Love at First Fight, and Paris Shanghai.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/21959-avatar_large.jpg?time=1750672580",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/thomas-cailley",
@@ -13704,7 +13739,7 @@
         "Dark Waters",
         "May December"
       ],
-      "sourceDescription": "Filmmaker known for Carol, Dark Waters, and May December.",
+      "sourceDescription": "Director known for Carol, Dark Waters, and May December.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/14099-avatar_large.jpg?time=1675332036",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/todd-haynes-28",
@@ -13789,14 +13824,55 @@
       ]
     },
     {
+      "id": "curator:valerie-donzelli",
+      "displayName": "Valérie Donzelli",
+      "knownForTitles": [
+        "Declaration of War",
+        "Notre Dame",
+        "Just the Two of Us"
+      ],
+      "sourceDescription": "Director known for Declaration of War, Notre Dame, and Just the Two of Us.",
+      "portrait": {
+        "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/21946-avatar_large.jpg?time=1747750496",
+        "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/valerie-donzelli",
+        "author": "LaCinetek",
+        "license": "Source profile",
+        "attribution": "Profile image from Valérie Donzelli's LaCinetek page."
+      },
+      "source": {
+        "id": "source:lacinetek-valerie-donzelli",
+        "publisher": "LaCinetek",
+        "sourceLabel": "Valérie Donzelli's LaCinetek list",
+        "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/valerie-donzelli",
+        "checkedOn": "2026-08-24",
+        "permissionStatus": "permission-required",
+        "selectionSignal": "formative",
+        "rankSemantics": "source-order-unknown",
+        "reportedDepth": {
+          "kind": "exact",
+          "count": 0,
+          "label": "0 published picks"
+        },
+        "privateHouseholdResearch": {
+          "scope": "private-household-research",
+          "productUse": "not-cleared",
+          "note": "Stored locally for the owner's private, noncommercial household use."
+        }
+      },
+      "publishedSelectionCount": 0,
+      "mappedSelectionCount": 0,
+      "mappedMovieIds": [],
+      "sourceListNames": []
+    },
+    {
       "id": "curator:valerie-lemercier",
       "displayName": "Valérie Lemercier",
       "knownForTitles": [
-        "The Visitors",
-        "Little Nicholas",
-        "Nicholas on Holiday"
+        "Aline",
+        "Royal Palace",
+        "Marie-Francine"
       ],
-      "sourceDescription": "Filmmaker known for The Visitors, Little Nicholas, and Nicholas on Holiday.",
+      "sourceDescription": "Director known for Aline, Royal Palace, and Marie-Francine.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/21602-avatar_large.jpg?time=1736155189",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/valerie-lemercier-",
@@ -13881,7 +13957,7 @@
         "The French Connection",
         "Killer Joe"
       ],
-      "sourceDescription": "Filmmaker known for The Exorcist, The French Connection, and Killer Joe.",
+      "sourceDescription": "Director known for The Exorcist, The French Connection, and Killer Joe.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/5030-avatar_large.jpg?time=1716993270",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/william-friedkin",
@@ -13970,7 +14046,7 @@
         "Perfect Days",
         "Wings of Desire"
       ],
-      "sourceDescription": "Filmmaker known for Paris, Texas, Perfect Days, and Wings of Desire.",
+      "sourceDescription": "Director known for Paris, Texas, Perfect Days, and Wings of Desire.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/3115-avatar_large.jpg?time=1711555519",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/wim-wenders-70",
@@ -14058,11 +14134,11 @@
       "id": "curator:xavier-beauvois",
       "displayName": "Xavier Beauvois",
       "knownForTitles": [
-        "Let the Sunshine In",
-        "Farewell, My Queen",
-        "Chocolat"
+        "Of Gods and Men",
+        "The Guardians",
+        "The Young Lieutenant"
       ],
-      "sourceDescription": "Filmmaker known for Let the Sunshine In, Farewell, My Queen, and Chocolat.",
+      "sourceDescription": "Director known for Of Gods and Men, The Guardians, and The Young Lieutenant.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/13584-avatar_large.jpg?time=1689859045",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/xavier-beauvois",
@@ -14161,7 +14237,7 @@
         "It's Only the End of the World",
         "I Killed My Mother"
       ],
-      "sourceDescription": "Filmmaker known for Mommy, It's Only the End of the World, and I Killed My Mother.",
+      "sourceDescription": "Director known for Mommy, It's Only the End of the World, and I Killed My Mother.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/18348-avatar_large.jpg?time=1695115350",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/xavier-dolan",
@@ -14259,7 +14335,7 @@
         "You and the Night",
         "Hideous"
       ],
-      "sourceDescription": "Filmmaker known for Knife+Heart, You and the Night, and Hideous.",
+      "sourceDescription": "Director known for Knife+Heart, You and the Night, and Hideous.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/11162-avatar_large.jpg?time=1716993694",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/yann-gonzalez",
@@ -14353,7 +14429,7 @@
         "Ivan & Abraham",
         "Clubbed to Death"
       ],
-      "sourceDescription": "Filmmaker known for M, Ivan & Abraham, and Clubbed to Death.",
+      "sourceDescription": "Director known for M, Ivan & Abraham, and Clubbed to Death.",
       "portrait": {
         "imageUrl": "https://d32gva8s8jjsl4.cloudfront.net/img/m/17050-avatar_large.jpg?time=1732893829",
         "sourceUrl": "https://www.lacinetek.com/fr-en/director-list/yolande-zauberman",
