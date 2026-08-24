@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
   MATCH_CONVERGENCE_DURATION_MS,
   MATCH_REVEAL_MAX_MS,
+  matchingFailureActions,
   matchingTransitionCopy,
   matchRevealMeetsBudget,
 } from "../app/pass-the-phone/matching-transition-contract.ts";
@@ -64,11 +64,18 @@ test("a matching failure can retain the ballot for retry instead of silently adv
   assert.deepEqual(events.at(-1), ["finish"]);
 });
 
-test("matching failure exposes an error and retry without a local-result escape hatch", async () => {
-  const source = await readFile(
-    new URL("../app/pass-the-phone/matching-transition.tsx", import.meta.url),
-    "utf8",
-  );
-  assert.doesNotMatch(source, /Show local result|data-local-result|onUseLocal/);
-  assert.match(source, /Try again/);
+test("matching failure exposes only working retry and home actions", async () => {
+  const events = [];
+  const actions = matchingFailureActions({
+    onRetry: async () => events.push("retry"),
+    onCancel: () => events.push("home"),
+  });
+
+  assert.deepEqual(actions.map(({ id, label }) => ({ id, label })), [
+    { id: "retry", label: "Try again" },
+    { id: "home", label: "Back home" },
+  ]);
+  await actions[0].activate();
+  await actions[1].activate();
+  assert.deepEqual(events, ["retry", "home"]);
 });

@@ -134,6 +134,7 @@ export function canonicalSharedResultReady(
     || session.state !== "reranked"
     || session.founderReactions.length !== 5
     || session.wifeReactions.length !== 5
+    || session.rerankedShortlist.length !== 5
     || session.rerankedSourceMovieIds.length !== 5
   ) {
     return false;
@@ -141,6 +142,13 @@ export function canonicalSharedResultReady(
   try {
     requireBallotIds(session.founderReactions, session.shortlist, "founder");
     requireBallotIds(session.wifeReactions, session.shortlist, "partner");
+    requireSameMovieIds(
+      session.rerankedShortlist.map((item) => item.sourceMovieId),
+      session.rerankedSourceMovieIds,
+      "The verified result order does not match the server rerank.",
+      true,
+    );
+    canonicalRecoveryCandidates(session.rerankedShortlist, session.rerankedShortlist);
     return true;
   } catch {
     return false;

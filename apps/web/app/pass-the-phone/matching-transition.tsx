@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { WatchSignalIcon } from "../ui/watchsignal-icons";
 import {
+  matchingFailureActions,
   matchingTransitionCopy,
   type MatchingTransitionPhase,
 } from "./matching-transition-contract";
@@ -27,6 +28,7 @@ export function MatchingTransition({
   const homeRef = useRef<HTMLButtonElement>(null);
   const completedRef = useRef(false);
   const copy = matchingTransitionCopy({ phase, coupleSession });
+  const failureActions = matchingFailureActions({ onRetry, onCancel });
 
   useEffect(() => {
     const restoreBackground = isolateTransitionBackground(overlayRef.current);
@@ -99,12 +101,16 @@ export function MatchingTransition({
 
       {phase === "failed" ? (
         <div className={styles.recoveryActions}>
-          <button ref={retryRef} type="button" onClick={() => void onRetry()}>
-            Try again
-          </button>
-          <button ref={homeRef} type="button" onClick={onCancel}>
-            Back home
-          </button>
+          {failureActions.map((action) => (
+            <button
+              key={action.id}
+              ref={action.id === "retry" ? retryRef : homeRef}
+              type="button"
+              onClick={() => void action.activate()}
+            >
+              {action.label}
+            </button>
+          ))}
         </div>
       ) : null}
     </section>

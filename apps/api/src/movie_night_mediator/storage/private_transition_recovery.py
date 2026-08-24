@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import sqlite3
 import secrets
 from contextlib import closing
@@ -257,10 +256,14 @@ class SQLitePrivateTransitionRecoveryStore:
             ).fetchone()
         if row is None:
             return None
+        try:
+            command_kind = RecoveryCommandKind(row["command_kind"])
+        except ValueError:
+            return None
         return StoredPrivateTransitionCommand(
             recovery_id=row["recovery_id"],
             command_id=row["command_id"],
-            command_kind=RecoveryCommandKind(row["command_kind"]),
+            command_kind=command_kind,
             request_fingerprint=row["request_fingerprint"],
             starting_revision=int(row["starting_revision"]),
             result_revision=(
@@ -925,8 +928,7 @@ class SQLitePrivateTransitionRecoveryStore:
                             active_command_kind IS NULL OR active_command_kind IN (
                                 'seal_founder_ballot',
                                 'open_second_pass',
-                                'seal_final_ballot',
-                                'use_local_result'
+                                'seal_final_ballot'
                             )
                         ),
                         active_command_request_fingerprint TEXT CHECK (
@@ -954,8 +956,7 @@ class SQLitePrivateTransitionRecoveryStore:
                             command_kind IN (
                                 'seal_founder_ballot',
                                 'open_second_pass',
-                                'seal_final_ballot',
-                                'use_local_result'
+                                'seal_final_ballot'
                             )
                         ),
                         request_fingerprint TEXT CHECK (
@@ -970,95 +971,6 @@ class SQLitePrivateTransitionRecoveryStore:
                     );
                     """
                 )
-                self._ensure_local_result_command_kind(connection)
-
-    def _ensure_local_result_command_kind(
-        self,
-        connection: DatabaseConnection,
-    ) -> None:
-        if isinstance(connection, sqlite3.Connection):
-            row = connection.execute(
-                """
-                SELECT sql
-                FROM sqlite_master
-                WHERE type = 'table'
-                  AND name = 'private_transition_recovery_commands'
-                """
-            ).fetchone()
-            if row is None or "use_local_result" in str(row["sql"]):
-                return
-            connection.executescript(
-                """
-                ALTER TABLE private_transition_recovery_commands
-                RENAME TO private_transition_recovery_commands_legacy;
-
-                CREATE TABLE private_transition_recovery_commands (
-                    recovery_id TEXT NOT NULL REFERENCES private_transition_recoveries(recovery_id)
-                        ON DELETE CASCADE,
-                    command_id TEXT NOT NULL CHECK (length(command_id) = 64),
-                    command_kind TEXT NOT NULL CHECK (
-                        command_kind IN (
-                            'seal_founder_ballot',
-                            'open_second_pass',
-                            'seal_final_ballot',
-                            'use_local_result'
-                        )
-                    ),
-                    request_fingerprint TEXT CHECK (
-                        request_fingerprint IS NULL OR length(request_fingerprint) = 64
-                    ),
-                    starting_revision INTEGER NOT NULL,
-                    result_revision INTEGER,
-                    status TEXT NOT NULL CHECK (status IN ('sealed', 'completed')),
-                    created_at_ms BIGINT NOT NULL,
-                    updated_at_ms BIGINT NOT NULL,
-                    PRIMARY KEY (recovery_id, command_id)
-                );
-
-                INSERT INTO private_transition_recovery_commands
-                SELECT * FROM private_transition_recovery_commands_legacy;
-
-                DROP TABLE private_transition_recovery_commands_legacy;
-                """
-            )
-            return
-
-        constraints = connection.execute(
-            """
-            SELECT c.conname AS name, pg_get_constraintdef(c.oid) AS definition
-            FROM pg_constraint c
-            JOIN pg_class t ON t.oid = c.conrelid
-            WHERE t.relname = 'private_transition_recovery_commands'
-              AND c.contype = 'c'
-            """
-        ).fetchall()
-        kind_constraints = [
-            row
-            for row in constraints
-            if "command_kind" in str(row["definition"])
-        ]
-        if any("use_local_result" in str(row["definition"]) for row in kind_constraints):
-            return
-        for row in kind_constraints:
-            constraint_name = str(row["name"])
-            if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", constraint_name):
-                raise ValueError("Unsafe recovery constraint name.")
-            connection.execute(
-                f"ALTER TABLE private_transition_recovery_commands "
-                f'DROP CONSTRAINT "{constraint_name}"'
-            )
-        connection.execute(
-            """
-            ALTER TABLE private_transition_recovery_commands
-            ADD CONSTRAINT private_transition_recovery_commands_kind_check_v2
-            CHECK (command_kind IN (
-                'seal_founder_ballot',
-                'open_second_pass',
-                'seal_final_ballot',
-                'use_local_result'
-            ))
-            """
-        )
 
     def _connect(self) -> DatabaseConnection:
         return connect_database(self.database_path)

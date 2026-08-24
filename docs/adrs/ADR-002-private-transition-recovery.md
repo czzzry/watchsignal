@@ -4,6 +4,8 @@
 
 Accepted on 2026-08-13 by the founder.
 
+Amended on 2026-08-24 by the founder to remove local result fallback.
+
 Option A is implemented.
 
 Option B remains the documented rollback path if a privacy, concurrency, deployment, or usability regression requires durable recovery to be withdrawn.
@@ -15,7 +17,7 @@ The corresponding implementation gates are:
 
 ## Context
 
-WatchSignal has accepted mobile experiences for sealing the first private ballot, handing the phone to the next person, saving the final ballot, matching, retrying a failed match, and showing a local result.
+WatchSignal has accepted mobile experiences for sealing the first private ballot, handing the phone to the next person, saving the final ballot, matching, retrying a failed match, and showing only a verified server-ranked result.
 
 The accepted product experience promises that those private transition states can survive a page refresh.
 
@@ -62,7 +64,6 @@ SealCommand =
 - SealFounderBallot(command_id, canonical_session_id, ballot, display_snapshot)
 - OpenSecondPass(command_id, optional canonical_session_id)
 - SealFinalBallot(command_id, optional canonical_session_id, ballot, display_snapshot)
-- UseLocalResult(command_id)
 ```
 
 The founder seal binds the recovery to the canonical session.
@@ -77,10 +78,10 @@ The module derives stage, actor, participants, workflow and payload versions, re
 ResumeProjection =
 - HandoffPending(recipient_label, can_begin=false)
 - HandoffReady(recipient_label, can_begin=true)
-- SecondPassReady(display_snapshot)
+- SecondPassReady(canonical_session_id, display_snapshot)
 - MatchingPending()
-- MatchingFailed(can_retry=true, can_use_local=true)
-- ResultReady(canonical_session_id, result_source, final_reactions, display_snapshot)
+- MatchingFailed(can_retry=true, can_use_local=false)
+- ResultReady(canonical_session_id, result_source=shared, final_reactions, display_snapshot)
 ```
 
 Handoff projections contain no ballot or movie field.
@@ -91,7 +92,7 @@ Matching projections do not return either ballot.
 
 The result projection is released only after the private transition is complete.
 
-It contains the canonical session reference, shared-or-local result source, the final participant's five public reaction values, and the bounded five-title display snapshot needed to mount the accepted result.
+It contains the canonical session reference, the shared result source, the final participant's five public reaction values, and the bounded five-title display snapshot needed to mount the accepted result.
 
 It contains no founder ballot, scorer payload, profile evidence, or arbitrary provider response.
 
@@ -309,9 +310,9 @@ Stage-specific stored schemas are:
 - Final seal and matching failure: display snapshot plus only the unsent final ballot; already-submitted founder data comes from the canonical session.
 - Result-ready: display snapshot only; canonical rerank and reactions come from the session.
 
-`UseLocalResult` returns the final reactions directly for the current authenticated response without advancing the durable record to result-ready.
-Until the browser acknowledges and consumes that response, the record remains final-sealed or matching-failed, where retention of the unsent final ballot is already allowed.
-If the response is lost, the household returns to the safe matching recovery choices instead of leaving a ballot inside a result-ready payload.
+There is no local result fallback.
+If canonical matching cannot finish or the saved ballots and rerank cannot be verified, WatchSignal reports a matching failure and offers retry or a clean return home.
+It never turns the browser's local snapshot into an apparent recommendation result.
 
 Durable refresh recovery under Option A applies only while the recovery service and a canonical shared couple session are reachable.
 
