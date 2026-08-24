@@ -38,8 +38,12 @@ import {
   ResultsStep,
   ReviewNotesWidget,
   SessionRecoveryStep,
-  SetupStep,
 } from "./pass-the-phone-components";
+import {
+  SetupScreen,
+  type SetupScreenModel,
+} from "./pass-the-phone/setup/setup-screen";
+import { createSetupScreenWiring } from "./pass-the-phone/setup/setup-screen-wiring";
 import { RequiredOnboarding } from "./pass-the-phone/required-onboarding";
 import {
   PrivateHandoffStep,
@@ -1008,6 +1012,83 @@ export function PassThePhoneWizard({
     );
   }
 
+  const setupScreenModel: SetupScreenModel = {
+    household: {
+      founderLabel,
+      wifeLabel,
+      profiles: effectiveSetupLoad.setup.profiles,
+      availabilityRegion: effectiveSetupLoad.setup.defaults.availabilityRegion,
+      canPersist: effectiveSetupLoad.canPersist,
+      peopleMode,
+      activeProfileId: effectiveSetupLoad.setup.activeProfileId,
+      partnerProfileId: effectiveSetupLoad.setup.partnerProfileId,
+      profileSetupBusy,
+      profileSetupMessage,
+    },
+    tonight: {
+      sessionMode,
+      languageMode,
+      intent: {
+        text: tonightIntentText,
+        pending: pendingTonightIntent,
+        active: activeTonightIntent,
+        clarificationText: tonightIntentClarificationText,
+        busy: tonightIntentBusy,
+        message: tonightIntentMessage,
+      },
+      tasteLensSelection,
+    },
+    readiness: {
+      isSyncing,
+      onboardingStatus,
+      onboardingRequired: isOnboardingRequired,
+      onboardingCompletion,
+      onboardingMessage,
+      onboardingPrompt,
+    },
+    memory: {
+      summaries: profileMemorySummaries,
+      events: profileMemoryEvents,
+      message: profileMemoryMessage,
+      status: profileMemoryStatus,
+    },
+    history: {
+      sessions: recentSessions,
+      sessionsStatus: recentSessionsStatus,
+      sessionsMessage: recentSessionsMessage,
+      selected: selectedHistory,
+      selectedStatus: selectedHistoryStatus,
+      selectedMessage: selectedHistoryMessage,
+    },
+    review: {
+      apiConnected: apiHealth.connected,
+      enabled: reviewMode,
+    },
+  };
+  const setupScreen = createSetupScreenWiring({
+    model: setupScreenModel,
+    actionSources: {
+      changePeopleMode: setPeopleMode,
+      chooseActiveProfile,
+      choosePartnerProfile,
+      createProfile,
+      saveDefaults: saveTonightDefaults,
+      changeIntentText: updateTonightIntentText,
+      changeIntentClarificationText: (clarificationText) => updateTonightIntent({ clarificationText }),
+      interpretIntent: interpretTonightIntentText,
+      answerIntentClarification: answerTonightIntentClarification,
+      removeIntentSignal: removeTonightIntentSignal,
+      applyIntent: applyTonightIntent,
+      clearIntent: clearTonightIntent,
+      cancelIntent: cancelTonightIntentInterpretation,
+      selectTasteLens: setTasteLensSelection,
+      start: startSession,
+      beginOnboarding: (opener) => beginOnboarding(undefined, opener),
+      loadMemory: loadProfileMemorySummaries,
+      loadHistory: loadRecentSessions,
+      selectHistory: loadRecentSessionDetail,
+    },
+  });
 
   return (
     <main ref={appShellRef} className="appShell">
@@ -1052,64 +1133,9 @@ export function PassThePhoneWizard({
       ) : null}
 
       {step === "setup" ? (
-        <SetupStep
-          founderLabel={founderLabel}
-          wifeLabel={wifeLabel}
-          setupLoad={effectiveSetupLoad}
-          apiHealth={apiHealth}
-          sessionMode={sessionMode}
-          peopleMode={peopleMode}
-          onPeopleModeChange={setPeopleMode}
-          activeProfileId={effectiveSetupLoad.setup.activeProfileId}
-          partnerProfileId={effectiveSetupLoad.setup.partnerProfileId}
-          profileSetupBusy={profileSetupBusy}
-          profileSetupMessage={profileSetupMessage}
-          onActiveProfileChange={chooseActiveProfile}
-          onPartnerProfileChange={choosePartnerProfile}
-          onCreateProfile={createProfile}
-          languageMode={languageMode}
-          onSaveTonightDefaults={saveTonightDefaults}
-          isSyncing={isSyncing}
-          onboardingBusy={onboardingBusy}
-          onboardingStatus={onboardingStatus}
-          onboardingRequired={isOnboardingRequired}
-          onboardingCompletion={onboardingCompletion}
-          onboardingMessage={onboardingMessage}
-          onboardingPrompt={onboardingPrompt}
-          profileMemorySummaries={profileMemorySummaries}
-          profileMemoryEvents={profileMemoryEvents}
-          profileMemoryMessage={profileMemoryMessage}
-          profileMemoryStatus={profileMemoryStatus}
-          onLoadProfileMemory={loadProfileMemorySummaries}
-          tonightIntentText={tonightIntentText}
-          onTonightIntentTextChange={updateTonightIntentText}
-          pendingTonightIntent={pendingTonightIntent}
-          activeTonightIntent={activeTonightIntent}
-          tonightIntentClarificationText={tonightIntentClarificationText}
-          onTonightIntentClarificationTextChange={(value) =>
-            updateTonightIntent({ clarificationText: value })
-          }
-          tonightIntentBusy={tonightIntentBusy}
-          tonightIntentMessage={tonightIntentMessage}
-          onInterpretTonightIntent={interpretTonightIntentText}
-          onAnswerTonightIntentClarification={answerTonightIntentClarification}
-          onRemoveTonightIntentSignal={removeTonightIntentSignal}
-          onApplyTonightIntent={applyTonightIntent}
-          onClearTonightIntent={clearTonightIntent}
-          onCancelTonightIntentInterpretation={cancelTonightIntentInterpretation}
-          tasteLensSelection={tasteLensSelection}
-          onTasteLensSelectionChange={setTasteLensSelection}
-          onStart={startSession}
-          onBeginOnboarding={(opener) => beginOnboarding(undefined, opener)}
-          recentSessions={recentSessions}
-          recentSessionsStatus={recentSessionsStatus}
-          recentSessionsMessage={recentSessionsMessage}
-          selectedHistory={selectedHistory}
-          selectedHistoryStatus={selectedHistoryStatus}
-          selectedHistoryMessage={selectedHistoryMessage}
-          onLoadRecentSessions={loadRecentSessions}
-          onSelectRecentSession={loadRecentSessionDetail}
-          reviewMode={reviewMode}
+        <SetupScreen
+          model={setupScreen.model}
+          actions={setupScreen.actions}
         />
       ) : null}
 
