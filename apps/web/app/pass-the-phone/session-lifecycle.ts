@@ -918,11 +918,10 @@ export async function advancePassThePhoneHandoff(
   try {
     const session = await dependencies.advanceHandoff(input.sharedSession.sessionId);
     ports.updateSession({ sharedSession: session });
+    ports.completeHandoff();
   } catch (error) {
-    ports.setDemoDebugFallback();
     ports.updateSession({ apiError: publicErrorMessage("handoff-save", error) });
   } finally {
     ports.finishSessionSync();
-    ports.completeHandoff();
   }
 }

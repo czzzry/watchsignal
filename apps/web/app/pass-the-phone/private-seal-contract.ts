@@ -69,6 +69,24 @@ export function privateHandoffCopy(
   };
 }
 
+export function privateHandoffActionCopy(retry: boolean): {
+  action: string;
+  assurance: string;
+  back: string;
+} {
+  return retry
+    ? {
+        action: "Retry private handoff",
+        assurance: "The earlier answers remain sealed.",
+        back: "Back home",
+      }
+    : {
+        action: "Begin recipient's picks",
+        assurance: "No earlier answers are shown",
+        back: "Back home",
+      };
+}
+
 export function privacySafeBackTarget(step: WizardStep): WizardStep {
   return step === "handoff" ? "handoff" : step;
 }

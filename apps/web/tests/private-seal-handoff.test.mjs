@@ -5,6 +5,7 @@ import {
   PRIVACY_SEAL_DURATION_MS,
   PRIVACY_SEAL_MAX_MS,
   createPrivacySealCompletionController,
+  privateHandoffActionCopy,
   privateHandoffCopy,
   privacySafeBackTarget,
   privacySealCopy,
@@ -77,6 +78,14 @@ test("handoff copy names the recipient without exposing any ballot detail", () =
     title: "Ready for Wife",
     detail: "Husband's picks are sealed. Only Wife's choices appear next.",
     action: "Begin Wife's picks",
+  });
+});
+
+test("timed-out private handoff keeps a retry and back-home escape hatch", () => {
+  assert.deepEqual(privateHandoffActionCopy(true), {
+    action: "Retry private handoff",
+    assurance: "The earlier answers remain sealed.",
+    back: "Back home",
   });
 });
 
