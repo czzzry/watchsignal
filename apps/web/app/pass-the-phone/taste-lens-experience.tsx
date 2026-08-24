@@ -2,16 +2,17 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  filterTasteLensCurators,
+  pickRandomTasteLensCurator,
   tasteLensLaunchRoster,
-  localSeedEligibilityFor,
-  tasteLensLocalSeedSelections,
+  tasteLensEligibilityFor,
   tasteLensModeAvailability,
   tasteLensSourceById,
   type CuratorProfile,
   type ModeAvailability,
+  type TasteLensCatalogueSelection,
   type TasteLensMode,
   type TasteLensUsageScope,
-  type VerifiedLocalSeedSelection,
 } from "../taste-lens";
 import { WatchSignalIcon } from "../ui/watchsignal-icons";
 import styles from "./taste-lens-experience.module.css";
@@ -34,30 +35,26 @@ function sourceFor(curator: CuratorProfile) {
   return tasteLensSourceById.get(curator.sourceIds[0]);
 }
 
-function isPersonalResearchPreview(curator: CuratorProfile): boolean {
+function isPrivateHouseholdCatalogue(curator: CuratorProfile): boolean {
   const source = sourceFor(curator);
-  return curator.localSeed?.usageScope === "manual-personal-research-testing" &&
-    source?.personalResearchTesting?.scope === "manual-personal-research-testing" &&
-    source.personalResearchTesting.productUse === "not-cleared";
+  return curator.privateCatalogue?.usageScope === "private-household-research" &&
+    source?.privateHouseholdResearch?.scope === "private-household-research" &&
+    source.privateHouseholdResearch.productUse === "not-cleared";
 }
 
 function availabilityFor(curator: CuratorProfile): readonly ModeAvailability[] {
   return tasteLensModeAvailability({
     curator,
     sources: tasteLensSourceById,
-    eligibility: localSeedEligibilityFor(curator.id),
-    usageScope: isPersonalResearchPreview(curator)
-      ? "local-personal-research-testing"
+    eligibility: tasteLensEligibilityFor(curator.id),
+    usageScope: isPrivateHouseholdCatalogue(curator)
+      ? "private-household-research"
       : "product",
   });
 }
 
 function isAvailable(availability: readonly ModeAvailability[], mode: TasteLensMode): boolean {
   return availability.some((item) => item.mode === mode && item.state !== "unavailable");
-}
-
-function localSelectionsFor(curator: CuratorProfile): readonly VerifiedLocalSeedSelection[] {
-  return tasteLensLocalSeedSelections.get(curator.id) ?? [];
 }
 
 export function TasteLensExperience({
@@ -110,8 +107,8 @@ export function TasteLensExperience({
       curatorName: selectedCurator.displayName,
       sourceLabel: source?.sourceLabel ?? "Published source",
       mode,
-      usageScope: isPersonalResearchPreview(selectedCurator)
-        ? "local-personal-research-testing"
+      usageScope: isPrivateHouseholdCatalogue(selectedCurator)
+        ? "private-household-research"
         : "product",
     });
     onClose();
@@ -151,7 +148,16 @@ export function TasteLensExperience({
 }
 
 function Discover({ onChoose }: { onChoose: (curator: CuratorProfile) => void }) {
-  const featuredCurator = tasteLensLaunchRoster.find((curator) => curator.id === "curator:bong-joon-ho") ?? tasteLensLaunchRoster[0];
+  const [query, setQuery] = useState("");
+  const matchingCurators = useMemo(
+    () => filterTasteLensCurators(tasteLensLaunchRoster, query),
+    [query],
+  );
+
+  function chooseRandom() {
+    const curator = pickRandomTasteLensCurator(tasteLensLaunchRoster, null);
+    if (curator) onChoose(curator);
+  }
 
   return (
     <div className={styles.content}>
@@ -159,15 +165,36 @@ function Discover({ onChoose }: { onChoose: (curator: CuratorProfile) => void })
         <h2 id="taste-lens-title">Borrow a filmmaker&apos;s taste.</h2>
         <p>Start with movies they chose, then let WatchSignal find a fit for you.</p>
       </div>
-      <button type="button" className={styles.featuredCurator} onClick={() => onChoose(featuredCurator)}>
-        <Portrait curator={featuredCurator} large />
-        <span>
-          <strong>{featuredCurator.displayName}</strong>
-          <small>Four checked picks from a Sight and Sound ballot.</small>
-        </span>
-        <WatchSignalIcon name="chevron-right" />
-      </button>
-      <p className={styles.moreSoon}>More filmmaker lists are being checked.</p>
+      <div className={styles.discoveryTools}>
+        <label className={styles.searchField}>
+          <WatchSignalIcon name="search" />
+          <input
+            aria-label="Search filmmakers or movies"
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search names or movies"
+          />
+        </label>
+        <button type="button" className={styles.randomButton} onClick={chooseRandom}>
+          <WatchSignalIcon name="refresh" />
+          Random
+        </button>
+      </div>
+      <p className={styles.resultCount}>{matchingCurators.length} {matchingCurators.length === 1 ? "filmmaker" : "filmmakers"}</p>
+      <div className={styles.curatorList}>
+        {matchingCurators.map((curator) => (
+          <button type="button" key={curator.id} onClick={() => onChoose(curator)}>
+            <Portrait curator={curator} decorative />
+            <span>
+              <strong>{curator.displayName}</strong>
+              <small>{curator.sourceDescription}</small>
+            </span>
+            <WatchSignalIcon name="chevron-right" />
+          </button>
+        ))}
+        {matchingCurators.length === 0 ? <p className={styles.noResults}>No match yet. Try a person or movie title.</p> : null}
+      </div>
     </div>
   );
 }
@@ -188,7 +215,7 @@ function Profile({
     curator,
     source: sourceFor(curator),
     availability,
-    personalResearchPreview: isPersonalResearchPreview(curator),
+    privateHouseholdCatalogue: isPrivateHouseholdCatalogue(curator),
   });
   const inspirationAction = presentation.actions.find((action) => action.mode === "inspiration");
   const browseAction = presentation.actions.find((action) => action.mode === "browse");
@@ -221,24 +248,50 @@ function Profile({
 
 function Browse({ curator, availability }: { curator: CuratorProfile; availability: readonly ModeAvailability[] }) {
   const browseAvailable = isAvailable(availability, "browse");
-  const selections = localSelectionsFor(curator);
+  const [selections, setSelections] = useState<readonly TasteLensCatalogueSelection[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoadState("loading");
+    setSelections([]);
+    fetch(`/api/taste-lens/catalogue/${encodeURIComponent(curator.id)}`, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Catalogue unavailable");
+        return response.json();
+      })
+      .then((payload) => {
+        setSelections(payload.selections ?? []);
+        setLoadState("ready");
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setLoadState("error");
+      });
+    return () => controller.abort();
+  }, [curator.id]);
+
+  const listNames = [...new Set(selections.map((selection) => selection.sourceListName))];
   return (
     <div className={styles.content}>
       <div className={styles.intro}>
         <h2 id="taste-lens-title">{curator.displayName}&apos;s shelf</h2>
-        <p>{browseAvailable ? "Published picks, shown as a list rather than a recommendation ranking." : "No source-checked titles are ready to browse yet."}</p>
+        <p>{browseAvailable ? "The movies they chose, in the order LaCinetek shows them." : "This published list is not available right now."}</p>
       </div>
-      {browseAvailable ? (
+      {browseAvailable && loadState === "loading" ? <p className={styles.pendingShelf}>Loading the list…</p> : null}
+      {browseAvailable && loadState === "error" ? <p className={styles.pendingShelf}>The list could not be loaded. Go back and try again.</p> : null}
+      {browseAvailable && loadState === "ready" ? (
         <div className={styles.shelf} aria-label={`${curator.displayName}'s verified entries`}>
           {selections.map((selection) => (
-            <article key={selection.movieId}>
-              <span>{selection.releaseYear}</span>
+            <article key={`${selection.sourceListName}:${selection.sourcePosition}:${selection.sourceMovieId}`}>
+              {listNames.length > 1 && selection.sourcePosition === 0 ? <h3>{sourceListLabel(selection.sourceListName)}</h3> : null}
+              <span>{selection.releaseYear ?? ""}</span>
               <strong>{selection.title}</strong>
               <small>{selection.director}</small>
             </article>
           ))}
         </div>
-      ) : <p className={styles.pendingShelf}>This list is still being checked.</p>}
+      ) : null}
       <SourceCredit curator={curator} />
     </div>
   );
@@ -249,26 +302,27 @@ function SourceCredit({ curator }: { curator: CuratorProfile }) {
     curator,
     source: sourceFor(curator),
     availability: [],
-    personalResearchPreview: isPersonalResearchPreview(curator),
+    privateHouseholdCatalogue: isPrivateHouseholdCatalogue(curator),
   }).sourceCredit;
   if (!sourceCredit) return null;
   return (
     <div className={styles.sourceCredit}>
       <p>Source: <a href={sourceCredit.sourceUrl} target="_blank" rel="noreferrer">{sourceCredit.publisher}</a> · {sourceCredit.checkedCountLabel}</p>
-      <details>
-        <summary>{sourceCredit.aboutLabel}</summary>
-        <p>{sourceCredit.detail}</p>
-        {curator.portrait ? <a href={curator.portrait.sourceUrl} target="_blank" rel="noreferrer">{curator.portrait.attribution}</a> : null}
-      </details>
     </div>
   );
+}
+
+function sourceListLabel(value: string): string {
+  if (value.toLowerCase() === "liste formative") return "Formative list";
+  if (value.toLowerCase() === "liste alternative") return "Alternative list";
+  return value;
 }
 
 function SourceMark({ large = false }: { large?: boolean }) {
   return <span className={large ? `${styles.sourceMark} ${styles.sourceMarkLarge}` : styles.sourceMark} aria-hidden="true"><WatchSignalIcon name="film" /></span>;
 }
 
-function Portrait({ curator, large = false }: { curator: CuratorProfile; large?: boolean }) {
+function Portrait({ curator, large = false, decorative = false }: { curator: CuratorProfile; large?: boolean; decorative?: boolean }) {
   if (!curator.portrait) return <SourceMark large={large} />;
-  return <img className={large ? `${styles.portrait} ${styles.portraitLarge}` : styles.portrait} src={curator.portrait.imageUrl} alt={curator.displayName} referrerPolicy="no-referrer" />;
+  return <img className={large ? `${styles.portrait} ${styles.portraitLarge}` : styles.portrait} src={curator.portrait.imageUrl} alt={decorative ? "" : curator.displayName} loading={large ? "eager" : "lazy"} decoding="async" referrerPolicy="no-referrer" />;
 }

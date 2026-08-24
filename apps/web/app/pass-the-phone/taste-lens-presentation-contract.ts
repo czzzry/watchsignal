@@ -18,8 +18,6 @@ export type TasteLensSourceCredit = {
   publisher: string;
   sourceUrl: string;
   checkedCountLabel: string;
-  aboutLabel: string;
-  detail: string;
 };
 
 export type TasteLensProfilePresentation = {
@@ -39,12 +37,12 @@ export function tasteLensProfilePresentation({
   curator,
   source,
   availability,
-  personalResearchPreview,
+  privateHouseholdCatalogue,
 }: {
   curator: CuratorProfile;
   source: SourceProvenance | undefined;
   availability: readonly ModeAvailability[];
-  personalResearchPreview: boolean;
+  privateHouseholdCatalogue: boolean;
 }): TasteLensProfilePresentation {
   const actions: TasteLensProfileAction[] = [];
 
@@ -52,37 +50,35 @@ export function tasteLensProfilePresentation({
     actions.push({
       mode: "inspiration",
       label: "Use as inspiration",
-      detail: "Find movies connected to these picks and your taste.",
+      detail: "Let their picks steer tonight's recommendations.",
     });
   }
   if (isAvailable(availability, "browse")) {
     actions.push({
       mode: "browse",
-      label: "See their picks",
-      detail: "Skip matching and browse the source list.",
+      label: "See their list",
+      detail: "Skip matching and browse what they chose.",
     });
   }
   if (isAvailable(availability, "exact-list")) {
     actions.push({
       mode: "exact-list",
-      label: "Choose only from this list",
-      detail: "Keep tonight's search inside the published picks.",
+      label: "Pick from their list",
+      detail: "Rank their published picks for your household.",
     });
   }
 
   return {
-    profileDescription: personalResearchPreview
-      ? `${curator.displayName}'s Sight and Sound ballot, with ${curator.normalizedSelectionCount} picks available here.`
-      : curator.sourceDescription,
+    profileDescription: curator.sourceDescription,
     actions,
     sourceCredit: source
       ? {
         tone: "quiet",
         publisher: source.publisher,
         sourceUrl: source.sourceUrl,
-        checkedCountLabel: `${curator.normalizedSelectionCount} picks checked`,
-        aboutLabel: "About this source",
-        detail: `${source.reportedDepth.label}. WatchSignal uses only the titles checked against the published list.`,
+        checkedCountLabel: privateHouseholdCatalogue
+          ? `${curator.publishedSelectionCount} published picks`
+          : source.reportedDepth.label,
       }
       : null,
   };

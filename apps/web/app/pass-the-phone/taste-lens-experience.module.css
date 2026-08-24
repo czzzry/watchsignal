@@ -103,6 +103,134 @@
   text-wrap: pretty;
 }
 
+.discoveryTools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px;
+}
+
+.searchField {
+  min-height: 46px;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #aebdcd;
+}
+
+.searchField:focus-within {
+  border-color: rgba(204, 174, 255, 0.72);
+}
+
+.searchField svg,
+.randomButton svg {
+  width: 18px;
+  height: 18px;
+}
+
+.searchField input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #f4f7fb;
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+.searchField input::placeholder {
+  color: #8394a8;
+}
+
+.randomButton {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(198, 165, 255, 0.42);
+  border-radius: 12px;
+  padding: 0 13px;
+  background: rgba(169, 123, 255, 0.1);
+  color: #eadfff;
+  font-size: 0.78rem;
+  box-shadow: none;
+}
+
+.randomButton:hover:enabled {
+  transform: none;
+  background: rgba(169, 123, 255, 0.16);
+}
+
+.resultCount {
+  margin: -7px 0 -10px;
+  color: #8294a8;
+  font-size: 0.7rem;
+}
+
+.curatorList {
+  display: grid;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.curatorList > button {
+  min-height: 76px;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 0;
+  padding: 12px 2px;
+  background: transparent;
+  color: #f4f7fb;
+  text-align: left;
+  box-shadow: none;
+}
+
+.curatorList > button:hover:enabled {
+  transform: none;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.curatorList > button > span {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.curatorList strong {
+  font-size: 0.88rem;
+  line-height: 1.2;
+}
+
+.curatorList small {
+  overflow: hidden;
+  color: #9eafc1;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.curatorList > button > svg {
+  width: 16px;
+  height: 16px;
+  color: #9f8abb;
+}
+
+.noResults {
+  margin: 0;
+  padding: 20px 2px;
+  color: #aebdcd;
+  font-size: 0.8rem;
+}
+
 .featuredCurator {
   min-height: 146px;
   display: grid;
@@ -285,6 +413,15 @@
   gap: 3px 10px;
   padding: 14px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.shelf h3 {
+  grid-column: 1 / -1;
+  margin: 3px 0 8px;
+  color: #d9c8f7;
+  font-size: 0.72rem;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
 }
 
 .shelf span {

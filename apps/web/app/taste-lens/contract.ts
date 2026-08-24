@@ -22,17 +22,17 @@ export type PermissionStatus =
   | "not-cleared";
 
 /**
- * A seed may exist only to exercise local product behaviour during personal
- * research. This is explicitly not a licence, a provider approval, or a
- * permission to ship the source's data to users.
+ * The private household catalogue is an explicit non-product usage boundary.
+ * This is not a licence, provider approval, or permission to ship the source's
+ * data to other users.
  */
-export type PersonalResearchTestingPosture = {
-  scope: "manual-personal-research-testing";
+export type PrivateHouseholdResearchPosture = {
+  scope: "private-household-research";
   productUse: "not-cleared";
   note: string;
 };
 
-export type TasteLensUsageScope = "product" | "local-personal-research-testing";
+export type TasteLensUsageScope = "product" | "private-household-research";
 
 export type AttributedPortrait = {
   imageUrl: string;
@@ -84,14 +84,15 @@ export type SourceProvenance = {
   selectionSignal: SelectionSignal;
   rankSemantics: RankSemantics;
   reportedDepth: SourceDepthClaim;
-  personalResearchTesting?: PersonalResearchTestingPosture;
+  privateHouseholdResearch?: PrivateHouseholdResearchPosture;
 };
 
 export type CuratorProfile = {
   id: CuratorId;
   displayName: string;
-  /** Use only claims supplied by the source. Do not infer an expansive biography. */
+  /** Short factual context such as recognizable films the person directed. */
   sourceDescription: string;
+  knownForTitles: readonly string[];
   sourceIds: readonly SourceId[];
   /** An independently reusable portrait, with display-ready attribution. */
   portrait?: AttributedPortrait;
@@ -101,38 +102,36 @@ export type CuratorProfile = {
    * It is never the source's published-list claim and must not be presented as one.
    */
   normalizedSelectionCount: number;
+  /** All retrievable published entries, including entries not mapped into the learned catalogue. */
+  publishedSelectionCount: number;
+  /** Stable normalized IDs that may cross the recommendation boundary. */
+  mappedMovieIds: readonly NormalizedMovieId[];
   /**
-   * Present only for a deliberately small, local seed.
-   * This describes how the seed may be exercised, not a source-data licence.
+   * Present only for the owner's private household catalogue.
+   * This describes how the catalogue may be exercised, not a source-data licence.
    */
-  localSeed?: {
-    usageScope: "manual-personal-research-testing";
+  privateCatalogue?: {
+    usageScope: "private-household-research";
     sourceId: SourceId;
-    individuallyVerifiedSelectionCount: number;
+    mappedSelectionCount: number;
   };
 };
 
-export type AttributedSelection = {
-  curatorId: CuratorId;
-  movieId: NormalizedMovieId;
-  sourceId: SourceId;
-  signal: SelectionSignal;
-  /** Undefined means the source did not communicate a meaningful rank. */
-  sourceRank?: number;
-};
-
 /**
- * A source-attributed title manually checked against its publisher page.
- * `sourceMovieId` is the publisher's stable movie identifier where one is
- * exposed. `sourceRank` stays undefined when the source does not rank entries.
+ * A source-attributed title available from the publisher catalogue.
+ * `movieId` remains null when it cannot be matched safely to WatchSignal's
+ * normalized catalogue. Source position is display order, never preference rank.
  */
-export type VerifiedLocalSeedSelection = AttributedSelection & {
+export type TasteLensCatalogueSelection = {
+  movieId: NormalizedMovieId | null;
   title: string;
-  releaseYear: number;
+  releaseYear: number | null;
   director: string;
   sourceMovieId: string;
   sourceMovieUrl: string;
-  checkedOn: string;
+  sourceListName: string;
+  sourcePosition: number;
+  imageUrl: string | null;
 };
 
 export type CatalogueReadiness =
@@ -267,29 +266,28 @@ export function catalogueReadiness(
 }
 
 /**
- * Local research is intentionally opt-in at the call site.
- * It permits a manually entered, source-attributed seed to exercise browse and
- * inspiration behaviour without representing that source as cleared for the
- * product. Product calls must continue through `catalogueReadiness` above.
+ * Private household research is intentionally opt-in at the call site.
+ * It permits the owner to exercise browse and inspiration behaviour without
+ * representing the source as cleared for a public product.
  */
-export function localResearchSeedReadiness(
+export function privateHouseholdCatalogueReadiness(
   curator: CuratorProfile,
   sources: ReadonlyMap<SourceId, SourceProvenance>,
 ): CatalogueReadiness {
   if (
-    !curator.localSeed ||
-    curator.localSeed.individuallyVerifiedSelectionCount < 1 ||
+    !curator.privateCatalogue ||
+    curator.privateCatalogue.mappedSelectionCount < 1 ||
     curator.normalizedSelectionCount < 1 ||
-    (curator.catalogueStatus !== "verified" && curator.catalogueStatus !== "partially-verified")
+    curator.catalogueStatus !== "verified"
   ) {
     return { ready: false, reason: "catalogue-not-verified" };
   }
 
-  const source = sources.get(curator.localSeed.sourceId);
+  const source = sources.get(curator.privateCatalogue.sourceId);
   if (
     !source ||
-    source.personalResearchTesting?.scope !== "manual-personal-research-testing" ||
-    source.personalResearchTesting.productUse !== "not-cleared"
+    source.privateHouseholdResearch?.scope !== "private-household-research" ||
+    source.privateHouseholdResearch.productUse !== "not-cleared"
   ) {
     return { ready: false, reason: "permission-not-cleared" };
   }

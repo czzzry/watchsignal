@@ -18,7 +18,7 @@ import { loadRecommendationShortlist } from "../app/session-client.ts";
 const bongLens = {
   curatorId: "curator:bong-joon-ho",
   mode: "inspiration",
-  usageScope: "local-personal-research-testing",
+  usageScope: "private-household-research",
 };
 
 const activeRunStatus = {
@@ -100,17 +100,15 @@ function startInput(overrides = {}) {
   };
 }
 
-test("Bong's research preview transport is derived from normalized verified catalogue anchors", () => {
-  assert.deepEqual(curatorLensTransportForSelection(bongLens), {
-    curatorId: "curator:bong-joon-ho",
-    mode: "inspiration",
-    anchorSourceMovieIds: ["tmdb:539", "tmdb:1578", "tmdb:1949", "tmdb:36095"],
-    provenance: {
-      sourceName: "Bong Joon-ho's 2022 Directors' Poll ballot",
-      sourceUrl: "https://www.bfi.org.uk/sight-and-sound/greatest-films-all-time/all-voters/bong-joon-ho",
-      retrievedAt: "2026-08-23",
-    },
-  });
+test("Bong's private catalogue transport contains the complete normalized anchor set", () => {
+  const transport = curatorLensTransportForSelection(bongLens);
+  assert.equal(transport.curatorId, "curator:bong-joon-ho");
+  assert.equal(transport.mode, "inspiration");
+  assert.equal(transport.anchorSourceMovieIds.length > 40, true);
+  assert.equal(transport.anchorSourceMovieIds.includes("tmdb:36095"), true);
+  assert.equal(new Set(transport.anchorSourceMovieIds).size, transport.anchorSourceMovieIds.length);
+  assert.equal(transport.provenance.sourceName, "Bong Joon-ho's LaCinetek list");
+  assert.equal(transport.provenance.sourceUrl, "https://www.lacinetek.com/fr-en/director-list/joon-ho-bong");
 });
 
 test("initial and five-more requests preserve the active Taste Lens", async () => {

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  localSeedEligibilityFor,
+  tasteLensEligibilityFor,
   tasteLensLaunchRoster,
   tasteLensModeAvailability,
   tasteLensSourceById,
@@ -21,31 +21,34 @@ test("Taste Lens presents clear actions with quiet, source-level attribution", (
     availability: tasteLensModeAvailability({
       curator,
       sources: tasteLensSourceById,
-      eligibility: localSeedEligibilityFor(curator.id),
-      usageScope: "local-personal-research-testing",
+      eligibility: tasteLensEligibilityFor(curator.id),
+      usageScope: "private-household-research",
     }),
-    personalResearchPreview: true,
+    privateHouseholdCatalogue: true,
   });
 
   assert.deepEqual(presentation.actions, [
     {
       mode: "inspiration",
       label: "Use as inspiration",
-      detail: "Find movies connected to these picks and your taste.",
+      detail: "Let their picks steer tonight's recommendations.",
     },
     {
       mode: "browse",
-      label: "See their picks",
-      detail: "Skip matching and browse the source list.",
+      label: "See their list",
+      detail: "Skip matching and browse what they chose.",
+    },
+    {
+      mode: "exact-list",
+      label: "Pick from their list",
+      detail: "Rank their published picks for your household.",
     },
   ]);
   assert.deepEqual(presentation.sourceCredit, {
     tone: "quiet",
-    publisher: "BFI Sight and Sound",
-    sourceUrl: "https://www.bfi.org.uk/sight-and-sound/greatest-films-all-time/all-voters/bong-joon-ho",
-    checkedCountLabel: "4 picks checked",
-    aboutLabel: "About this source",
-    detail: "10 Directors' Poll selections. WatchSignal uses only the titles checked against the published list.",
+    publisher: "LaCinetek",
+    sourceUrl: "https://www.lacinetek.com/fr-en/director-list/joon-ho-bong",
+    checkedCountLabel: "50 published picks",
   });
 
   const visibleCopy = JSON.stringify(presentation);

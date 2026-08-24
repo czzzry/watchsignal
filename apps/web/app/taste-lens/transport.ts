@@ -1,13 +1,6 @@
-import {
-  signalMeaning,
-  type CuratorId,
-  type TasteLensUsageScope,
-} from "./contract.ts";
-import {
-  localSeedEligibilityFor,
-  tasteLensLocalSeedSelections,
-} from "./local-seed.ts";
-import { tasteLensLaunchRoster, tasteLensSourceById } from "./launch-roster.ts";
+import type { TasteLensUsageScope } from "./contract.ts";
+import { tasteLensEligibilityFor } from "./catalogue.ts";
+import { tasteLensLaunchRoster, tasteLensSourceById } from "./generated-roster.ts";
 import { selectTasteLensMode } from "./mode-selection.ts";
 
 export type TasteLensSelectionReference = {
@@ -58,7 +51,7 @@ export function curatorLensTransportForSelection(
   const requested = selectTasteLensMode({
     curator,
     sources: tasteLensSourceById,
-    eligibility: localSeedEligibilityFor(curator.id),
+    eligibility: tasteLensEligibilityFor(curator.id),
     requestedMode: selection.mode,
     usageScope: selection.usageScope,
   });
@@ -66,22 +59,15 @@ export function curatorLensTransportForSelection(
     throw new TasteLensTransportUnavailableError(requested.explanation);
   }
 
-  const localSeedSourceId = "localSeed" in curator
-    ? curator.localSeed.sourceId
-    : null;
+  const privateCatalogueSourceId = curator.privateCatalogue?.sourceId ?? null;
   const source = curator.sourceIds
     .map((sourceId) => tasteLensSourceById.get(sourceId))
-    .find((candidate) => candidate?.id === localSeedSourceId);
+    .find((candidate) => candidate?.id === privateCatalogueSourceId);
   if (!source) {
     throw new TasteLensTransportUnavailableError("The selected Taste Lens has no verified source provenance.");
   }
 
-  const verifiedSelections = tasteLensLocalSeedSelections.get(curator.id as CuratorId) ?? [];
-  const anchors = verifiedSelections
-    .filter((entry) => entry.sourceId === source.id)
-    .filter((entry) => selection.mode === "exact-list" || signalMeaning[entry.signal].canSeedInspiration)
-    .map((entry) => entry.movieId)
-    .filter((movieId, index, all) => all.indexOf(movieId) === index);
+  const anchors = [...curator.mappedMovieIds];
 
   if (anchors.length === 0) {
     throw new TasteLensTransportUnavailableError("The selected Taste Lens has no verified movie anchors.");
