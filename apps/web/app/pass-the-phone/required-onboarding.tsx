@@ -23,6 +23,8 @@ import {
   type OnboardingBucketKey,
   type OnboardingFlowState,
 } from "./required-onboarding-contract";
+import { useStandaloneBackHandler } from "./standalone-back-navigation";
+import { standaloneSurfaceBackAction } from "./standalone-back-navigation-contract";
 import styles from "./required-onboarding.module.css";
 
 export function RequiredOnboarding({
@@ -76,11 +78,20 @@ export function RequiredOnboarding({
   }
 
   function moveBack(): void {
-    if (busy) return;
     const previous = reverseOnboardingFlow(flow);
-    if (previous) setFlow(previous);
-    else onClose();
+    const action = standaloneSurfaceBackAction({
+      blocked: busy,
+      hasPrevious: previous !== null,
+    });
+    if (action === "previous" && previous) setFlow(previous);
+    if (action === "close") onClose();
   }
+
+  useStandaloneBackHandler({
+    active: true,
+    priority: 20,
+    onBack: moveBack,
+  });
 
   function continueFlow(): void {
     setFlow((current) => advanceOnboardingFlow(current, draft));

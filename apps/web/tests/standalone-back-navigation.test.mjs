@@ -4,9 +4,13 @@ import test from "node:test";
 import {
   createStandaloneBackHandlerRegistry,
   createStandaloneBackNavigationController,
+  standaloneHandoffContinueAction,
+  standaloneSurfaceBackAction,
   standaloneWizardBackAction,
   standaloneBackGuardStateKey,
+  standaloneWizardRecoveryBlocksBack,
 } from "../app/pass-the-phone/standalone-back-navigation-contract.ts";
+import { matchingTransitionBackAction } from "../app/pass-the-phone/matching-transition-contract.ts";
 
 function backHarness(initialState = { __NA: true }) {
   let state = initialState;
@@ -155,4 +159,67 @@ test("wizard Back never crosses a sealed private boundary", () => {
     step: "results",
     cardIndex: 0,
   }), "close-overlay");
+});
+
+test("in-flight private recovery consumes Back until handoff is safe", () => {
+  assert.equal(standaloneWizardRecoveryBlocksBack("sealing"), true);
+  assert.equal(standaloneWizardRecoveryBlocksBack("handoff_pending"), true);
+  assert.equal(standaloneWizardRecoveryBlocksBack("matching_pending"), true);
+  assert.equal(standaloneWizardRecoveryBlocksBack("handoff_ready"), false);
+  assert.equal(standaloneWizardRecoveryBlocksBack("handoff_retry"), false);
+  assert.equal(standaloneWizardRecoveryBlocksBack("second_pass_ready"), false);
+  assert.equal(standaloneWizardRecoveryBlocksBack("matching_failed"), false);
+  assert.equal(standaloneWizardRecoveryBlocksBack(null), false);
+});
+
+test("handoff reopens an existing second pass without reconciliation", () => {
+  const reactions = { arrival: "interested" };
+  const pass = { step: "handoff", index: 0, reactions };
+  const action = standaloneHandoffContinueAction({
+    recoveryStage: "second_pass_ready",
+    apiSession: true,
+  });
+
+  if (action === "reopen-second-pass") pass.step = "wife";
+
+  assert.equal(pass.step, "wife");
+  assert.equal(pass.index, 0);
+  assert.equal(pass.reactions, reactions);
+  assert.deepEqual(pass.reactions, { arrival: "interested" });
+});
+
+test("child surfaces retain busy state and unwind local navigation first", () => {
+  const registry = createStandaloneBackHandlerRegistry();
+  const calls = [];
+  let busy = true;
+  let detailOpen = true;
+  registry.register(() => calls.push("parent-close"), 10);
+  registry.register(() => {
+    const action = standaloneSurfaceBackAction({
+      blocked: busy,
+      hasPrevious: detailOpen,
+    });
+    if (action === "previous") {
+      detailOpen = false;
+      calls.push("local-back");
+    }
+    if (action === "close") calls.push("child-close");
+  }, 20);
+
+  assert.equal(registry.handleBack(), true);
+  assert.deepEqual(calls, []);
+
+  busy = false;
+  assert.equal(registry.handleBack(), true);
+  assert.deepEqual(calls, ["local-back"]);
+  assert.equal(detailOpen, false);
+
+  assert.equal(registry.handleBack(), true);
+  assert.deepEqual(calls, ["local-back", "child-close"]);
+});
+
+test("matching failure returns Home while active matching consumes Back", () => {
+  assert.equal(matchingTransitionBackAction("saving"), "stay");
+  assert.equal(matchingTransitionBackAction("matching"), "stay");
+  assert.equal(matchingTransitionBackAction("failed"), "close");
 });

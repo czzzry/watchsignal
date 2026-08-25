@@ -78,7 +78,12 @@ import {
   StandaloneBackNavigationProvider,
   useStandaloneBackHandler,
 } from "./pass-the-phone/standalone-back-navigation";
-import { standaloneWizardBackAction } from "./pass-the-phone/standalone-back-navigation-contract";
+import {
+  standaloneHandoffContinueAction,
+  standaloneWizardBackAction,
+  standaloneWizardRecoveryBlocksBack,
+  type StandaloneWizardRecoveryStage,
+} from "./pass-the-phone/standalone-back-navigation-contract";
 import {
   launchStingPlan,
   launchStingStorageKey,
@@ -227,7 +232,7 @@ function PassThePhoneWizardContent({
     null,
   );
   const [transitionRecoveryStage, setTransitionRecoveryStage] = useState<
-    "handoff_pending" | "handoff_ready" | "handoff_retry" | "second_pass_ready" | "matching_pending" | "matching_failed" | "sealing" | null
+    StandaloneWizardRecoveryStage
   >(null);
   const [recoveredRecipientLabel, setRecoveredRecipientLabel] = useState<
     string | null
@@ -417,6 +422,7 @@ function PassThePhoneWizardContent({
           privacySeal ||
           matchingTransition ||
           isSyncing ||
+          standaloneWizardRecoveryBlocksBack(transitionRecoveryStage) ||
           (shortlistGeneration && shortlistGeneration.stage !== "failed"),
         ),
         dismissibleOverlay: Boolean(
@@ -818,7 +824,18 @@ function PassThePhoneWizardContent({
   }
 
   async function continueAfterHandoff(): Promise<void> {
-    if (transitionRecoveryStage === "handoff_retry") {
+    const action = standaloneHandoffContinueAction({
+      recoveryStage: transitionRecoveryStage,
+      apiSession: sessionSource === "api" && sharedSession !== null,
+    });
+    if (action === "stay") {
+      return;
+    }
+    if (action === "reopen-second-pass") {
+      dispatchNavigation({ type: "handoff.completed" });
+      return;
+    }
+    if (action === "resume-handoff") {
       try {
         setTransitionRecoveryStage("handoff_pending");
         const outcome = await transitionRecoveryCoordinator().resume();
@@ -832,7 +849,7 @@ function PassThePhoneWizardContent({
       }
       return;
     }
-    if (transitionRecoveryStage === "handoff_ready") {
+    if (action === "open-second-pass") {
       try {
         setTransitionRecoveryStage("handoff_pending");
         const outcome = await transitionRecoveryCoordinator().openSecondPass();
@@ -846,7 +863,7 @@ function PassThePhoneWizardContent({
       }
       return;
     }
-    if (sessionSource === "api" && sharedSession !== null) {
+    if (action === "reject-unverified") {
       setTransitionRecoveryStage("handoff_retry");
       updateSession({
         apiError: "The private handoff could not be verified. Retry or go back home.",

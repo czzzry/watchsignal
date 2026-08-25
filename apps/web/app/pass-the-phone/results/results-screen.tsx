@@ -22,6 +22,8 @@ import {
   reviewSurfaceContract,
 } from "../review-mode-contract";
 import { SessionRecoveryStep } from "../session-recovery-step";
+import { useStandaloneBackHandler } from "../standalone-back-navigation";
+import { standaloneSurfaceBackAction } from "../standalone-back-navigation-contract";
 import { OutcomeUtility } from "./outcome-utility";
 import { RankedResultStage } from "./ranked-result-stage";
 import {
@@ -160,6 +162,18 @@ export function ResultsScreen({
     handleSaveOutcome,
     handleSaveFeedback,
   } = persistence;
+
+  useStandaloneBackHandler({
+    active: utilityView !== "home",
+    priority: 30,
+    onBack: () => {
+      const action = standaloneSurfaceBackAction({
+        blocked: false,
+        hasPrevious: utilityView !== "home",
+      });
+      if (action === "previous") setUtilityView("home");
+    },
+  });
 
   useEffect(() => {
     if (

@@ -9,6 +9,8 @@ import {
   intentSignalChips,
   uncertainIntentParts,
 } from "./tonight-intent-contract";
+import { useStandaloneBackHandler } from "./standalone-back-navigation";
+import { standaloneSurfaceBackAction } from "./standalone-back-navigation-contract";
 import styles from "./tonight-intent-setup.module.css";
 
 export function TonightIntentSetup({
@@ -54,6 +56,18 @@ export function TonightIntentSetup({
   const activeChips = intentSignalChips(activeIntent);
   const uncertainty = uncertainIntentParts(pendingIntent?.rawText ?? text);
   const hasAnything = Boolean(text || pendingIntent || activeIntent);
+
+  useStandaloneBackHandler({
+    active: true,
+    priority: 20,
+    onBack: () => {
+      const action = standaloneSurfaceBackAction({
+        blocked: busy,
+        hasPrevious: false,
+      });
+      if (action === "close") onClose();
+    },
+  });
 
   function confirm(): void {
     onApply();

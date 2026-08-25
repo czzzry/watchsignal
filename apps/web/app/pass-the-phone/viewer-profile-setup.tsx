@@ -11,6 +11,8 @@ import {
   viewerModeOptions,
   viewerSetupMessage,
 } from "./viewer-profile-contract";
+import { useStandaloneBackHandler } from "./standalone-back-navigation";
+import { standaloneSurfaceBackAction } from "./standalone-back-navigation-contract";
 import styles from "./viewer-profile-setup.module.css";
 
 export function ViewerProfileSetup({
@@ -58,6 +60,18 @@ export function ViewerProfileSetup({
     partnerProfileId,
   );
   const publicMessage = viewerSetupMessage(message, lastAction);
+
+  useStandaloneBackHandler({
+    active: true,
+    priority: 20,
+    onBack: () => {
+      const action = standaloneSurfaceBackAction({
+        blocked: busy,
+        hasPrevious: false,
+      });
+      if (action === "close") onClose();
+    },
+  });
 
   useEffect(() => {
     if (

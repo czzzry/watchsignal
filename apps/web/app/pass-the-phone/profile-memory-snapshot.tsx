@@ -12,6 +12,7 @@ import {
   householdMemorySummary,
   profileMemoryPublicMessage,
 } from "./profile-memory-snapshot-contract";
+import { useStandaloneBackHandler } from "./standalone-back-navigation";
 import styles from "./profile-memory-snapshot.module.css";
 
 export function ProfileMemorySnapshot({
@@ -43,6 +44,12 @@ export function ProfileMemorySnapshot({
     ),
   );
   const publicMessage = profileMemoryPublicMessage(status, message);
+
+  useStandaloneBackHandler({
+    active: true,
+    priority: 20,
+    onBack: onClose,
+  });
 
   return (
     <AccessibleModal

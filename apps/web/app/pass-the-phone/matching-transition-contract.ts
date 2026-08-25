@@ -1,3 +1,8 @@
+import {
+  standaloneSurfaceBackAction,
+  type StandaloneSurfaceBackAction,
+} from "./standalone-back-navigation-contract.ts";
+
 export const MATCH_CONVERGENCE_DURATION_MS = 480;
 export const MATCH_REVEAL_MAX_MS = 850;
 
@@ -50,6 +55,15 @@ export function matchingTransitionCopy({
     title: "Matching paused",
     detail: "No result was created. Try again to verify both ballots.",
   };
+}
+
+export function matchingTransitionBackAction(
+  phase: MatchingTransitionPhase,
+): StandaloneSurfaceBackAction {
+  return standaloneSurfaceBackAction({
+    blocked: phase !== "failed",
+    hasPrevious: false,
+  });
 }
 
 export function matchRevealMeetsBudget(durationMs: number): boolean {

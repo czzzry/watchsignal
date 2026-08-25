@@ -17,6 +17,54 @@ export type StandaloneWizardBackAction =
   | "handoff"
   | "home";
 
+export type StandaloneSurfaceBackAction = "stay" | "previous" | "close";
+
+export type StandaloneWizardRecoveryStage =
+  | "handoff_pending"
+  | "handoff_ready"
+  | "handoff_retry"
+  | "second_pass_ready"
+  | "matching_pending"
+  | "matching_failed"
+  | "sealing"
+  | null;
+
+export type StandaloneHandoffContinueAction =
+  | "stay"
+  | "resume-handoff"
+  | "open-second-pass"
+  | "reopen-second-pass"
+  | "reject-unverified"
+  | "advance-local";
+
+export function standaloneSurfaceBackAction(input: {
+  blocked: boolean;
+  hasPrevious: boolean;
+}): StandaloneSurfaceBackAction {
+  if (input.blocked) return "stay";
+  return input.hasPrevious ? "previous" : "close";
+}
+
+export function standaloneWizardRecoveryBlocksBack(
+  stage: StandaloneWizardRecoveryStage,
+): boolean {
+  return stage === "sealing"
+    || stage === "handoff_pending"
+    || stage === "matching_pending";
+}
+
+export function standaloneHandoffContinueAction(input: {
+  recoveryStage: StandaloneWizardRecoveryStage;
+  apiSession: boolean;
+}): StandaloneHandoffContinueAction {
+  if (input.recoveryStage === "handoff_retry") return "resume-handoff";
+  if (input.recoveryStage === "handoff_ready") return "open-second-pass";
+  if (input.recoveryStage === "second_pass_ready") return "reopen-second-pass";
+  if (standaloneWizardRecoveryBlocksBack(input.recoveryStage)) return "stay";
+  if (input.recoveryStage === "matching_failed") return "stay";
+  return input.apiSession ? "reject-unverified" : "advance-local";
+}
+
 export function standaloneWizardBackAction(input: {
   blocked: boolean;
   dismissibleOverlay: boolean;
