@@ -13,6 +13,8 @@ import {
   historyPublicMessage,
   recentNightSummary,
 } from "./household-history-contract";
+import { useStandaloneBackHandler } from "./standalone-back-navigation";
+import { standaloneSurfaceBackAction } from "./standalone-back-navigation-contract";
 import styles from "./household-history.module.css";
 
 export function HouseholdHistory({
@@ -51,6 +53,21 @@ export function HouseholdHistory({
     setDetailSessionId(sessionId);
     await onSelect(sessionId);
   }
+
+  function moveBack(): void {
+    const action = standaloneSurfaceBackAction({
+      blocked: false,
+      hasPrevious: detailSessionId !== null,
+    });
+    if (action === "previous") setDetailSessionId(null);
+    if (action === "close") onClose();
+  }
+
+  useStandaloneBackHandler({
+    active: true,
+    priority: 20,
+    onBack: moveBack,
+  });
 
   return (
     <AccessibleModal

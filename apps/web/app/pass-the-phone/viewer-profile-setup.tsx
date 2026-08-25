@@ -11,6 +11,8 @@ import {
   viewerModeOptions,
   viewerSetupMessage,
 } from "./viewer-profile-contract";
+import { useStandaloneBackHandler } from "./standalone-back-navigation";
+import { standaloneSurfaceBackAction } from "./standalone-back-navigation-contract";
 import styles from "./viewer-profile-setup.module.css";
 
 export function ViewerProfileSetup({
@@ -59,6 +61,22 @@ export function ViewerProfileSetup({
   );
   const publicMessage = viewerSetupMessage(message, lastAction);
 
+  function close(): void {
+    if (!busy) onClose();
+  }
+
+  useStandaloneBackHandler({
+    active: true,
+    priority: 20,
+    onBack: () => {
+      const action = standaloneSurfaceBackAction({
+        blocked: busy,
+        hasPrevious: false,
+      });
+      if (action === "close") close();
+    },
+  });
+
   useEffect(() => {
     if (
       createPendingName &&
@@ -87,7 +105,7 @@ export function ViewerProfileSetup({
     <AccessibleModal
       backgroundRef={backgroundRef}
       opener={opener}
-      onClose={onClose}
+      onClose={close}
       layerClassName={styles.layer}
       backdropClassName={styles.backdrop}
       dialogClassName={styles.dialog}
@@ -98,7 +116,7 @@ export function ViewerProfileSetup({
           <span>People</span>
           <h2 id="viewer-profile-title">Who’s watching?</h2>
         </div>
-        <button type="button" onClick={onClose} aria-label="Close people settings" autoFocus>
+        <button type="button" onClick={close} disabled={busy} aria-label="Close people settings" autoFocus>
           <WatchSignalIcon name="close" />
         </button>
       </header>

@@ -4,9 +4,11 @@ import { useEffect, useRef } from "react";
 import { WatchSignalIcon } from "../ui/watchsignal-icons";
 import {
   matchingFailureActions,
+  matchingTransitionBackAction,
   matchingTransitionCopy,
   type MatchingTransitionPhase,
 } from "./matching-transition-contract";
+import { useStandaloneBackHandler } from "./standalone-back-navigation";
 import { isolateTransitionBackground } from "./transition-isolation";
 import styles from "./matching-transition.module.css";
 
@@ -29,6 +31,15 @@ export function MatchingTransition({
   const completedRef = useRef(false);
   const copy = matchingTransitionCopy({ phase, coupleSession });
   const failureActions = matchingFailureActions({ onRetry, onCancel });
+
+  useStandaloneBackHandler({
+    active: true,
+    priority: 30,
+    onBack: () => {
+      const action = matchingTransitionBackAction(phase);
+      if (action === "close") onCancel();
+    },
+  });
 
   useEffect(() => {
     const restoreBackground = isolateTransitionBackground(overlayRef.current);

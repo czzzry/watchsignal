@@ -14,6 +14,7 @@ import {
   type TonightDefaultsDraft,
   type TonightDefaultsSaveResult,
 } from "./tonight-defaults-contract";
+import { useStandaloneBackHandler } from "./standalone-back-navigation";
 import styles from "./tonight-defaults-setup.module.css";
 
 export function TonightDefaultsSetup({
@@ -52,12 +53,24 @@ export function TonightDefaultsSetup({
   const [saveError, setSaveError] = useState<string | null>(null);
   const saveLockedRef = useRef(false);
   const isBusy = busy || saving;
+  const hasUnsavedChanges = draftLanguage !== languageMode ||
+    draftAvailability !== availabilityRegion ||
+    draftSessionMode !== sessionMode;
 
   function close(): void {
-    if (!isBusy) {
-      onClose();
-    }
+    if (isBusy) return;
+    if (
+      hasUnsavedChanges &&
+      !window.confirm("Leave without saving tonight’s changes?")
+    ) return;
+    onClose();
   }
+
+  useStandaloneBackHandler({
+    active: true,
+    priority: 20,
+    onBack: close,
+  });
 
   async function save(): Promise<void> {
     if (isBusy || saveLockedRef.current) {

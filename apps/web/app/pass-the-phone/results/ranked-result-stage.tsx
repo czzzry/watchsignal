@@ -21,6 +21,7 @@ import { WatchSignalBrand } from "../../ui/primitives";
 import {
   completedResultNavigationActions,
 } from "./completed-result-navigation";
+import { useStandaloneBackHandler } from "../standalone-back-navigation";
 import {
   personInitials,
   publicResultSynopsis,
@@ -43,7 +44,9 @@ export function RankedResultStage({
   continuationContent,
   continuationAvailable = true,
   utilityContent,
+  utilityCloseBlocked,
   onReset,
+  onUtilityClose,
   onToggleContinuation,
   onPosterFallback,
 }: {
@@ -56,7 +59,9 @@ export function RankedResultStage({
   continuationContent: ReactNode;
   continuationAvailable?: boolean;
   utilityContent: ReactNode;
+  utilityCloseBlocked: boolean;
   onReset: () => void;
+  onUtilityClose: () => void;
   onToggleContinuation: () => void;
   onPosterFallback: PosterFallbackHandler;
 }) {
@@ -86,6 +91,18 @@ export function RankedResultStage({
     setBackdropFailed(false);
     setAvailabilityOpen(false);
   }, [movie?.id]);
+
+  useStandaloneBackHandler({
+    active: activeDialog !== null,
+    priority: 20,
+    onBack: closeActiveDialog,
+  });
+
+  useStandaloneBackHandler({
+    active: availabilityOpen && activeDialog === null,
+    priority: 10,
+    onBack: () => setAvailabilityOpen(false),
+  });
 
   if (!movie) {
     return null;
@@ -136,6 +153,10 @@ export function RankedResultStage({
     if (activeDialog === "continuation") {
       onToggleContinuation();
       return;
+    }
+    if (activeDialog === "utility") {
+      if (utilityCloseBlocked) return;
+      onUtilityClose();
     }
     setLocalDialog(null);
   }
@@ -284,7 +305,7 @@ export function RankedResultStage({
           dialogClassName={styles.utilitySheet}
           label="Result options"
         >
-            <div className={styles.sheetHeader}><span /><strong>Tonight’s result</strong><button type="button" onClick={closeActiveDialog} aria-label="Close" autoFocus><WatchSignalIcon name="close" /></button></div>
+            <div className={styles.sheetHeader}><span /><strong>Tonight’s result</strong><button type="button" onClick={closeActiveDialog} aria-label="Close" autoFocus disabled={utilityCloseBlocked}><WatchSignalIcon name="close" /></button></div>
             <div className={styles.sheetScroll}>{utilityContent}</div>
         </AccessibleModal>
       ) : null}

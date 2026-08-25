@@ -20,6 +20,7 @@ import {
   selectableTasteLensAction,
   tasteLensProfilePresentation,
 } from "./taste-lens-presentation-contract";
+import { useStandaloneBackHandler } from "./standalone-back-navigation";
 
 export type TasteLensSelection = {
   curatorId: string;
@@ -91,6 +92,20 @@ export function TasteLensExperience({
   }, [onClose, open, selection]);
 
   const availability = useMemo(() => availabilityFor(selectedCurator), [selectedCurator]);
+
+  useStandaloneBackHandler({
+    active: open,
+    priority: 20,
+    onBack: () => {
+      if (surface === "browse") {
+        setSurface("profile");
+      } else if (surface === "profile") {
+        setSurface("discover");
+      } else {
+        onClose();
+      }
+    },
+  });
 
   if (!open) return null;
 

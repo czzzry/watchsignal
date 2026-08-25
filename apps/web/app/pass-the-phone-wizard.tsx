@@ -74,6 +74,13 @@ import {
   reviewModeFromSearch,
   reviewSurfaceContract,
 } from "./pass-the-phone/review-mode-contract";
+import { useStandaloneBackHandler } from "./pass-the-phone/standalone-back-navigation";
+import {
+  standaloneHandoffContinueAction,
+  standaloneWizardBackAction,
+  standaloneWizardRecoveryBlocksBack,
+  type StandaloneWizardRecoveryStage,
+} from "./pass-the-phone/standalone-back-navigation-contract";
 import {
   launchStingPlan,
   launchStingStorageKey,
@@ -113,6 +120,13 @@ const stepOrder: WizardStep[] = ["setup", "founder", "handoff", "wife", "results
 let launchStingShownInMemory = false;
 
 export function PassThePhoneWizard({
+  apiHealth,
+  setupLoad,
+}: PassThePhoneWizardProps) {
+  return <PassThePhoneWizardContent apiHealth={apiHealth} setupLoad={setupLoad} />;
+}
+
+function PassThePhoneWizardContent({
   apiHealth,
   setupLoad,
 }: PassThePhoneWizardProps) {
@@ -211,7 +225,7 @@ export function PassThePhoneWizard({
     null,
   );
   const [transitionRecoveryStage, setTransitionRecoveryStage] = useState<
-    "handoff_pending" | "handoff_ready" | "handoff_retry" | "second_pass_ready" | "matching_pending" | "matching_failed" | "sealing" | null
+    StandaloneWizardRecoveryStage
   >(null);
   const [recoveredRecipientLabel, setRecoveredRecipientLabel] = useState<
     string | null
@@ -387,6 +401,49 @@ export function PassThePhoneWizard({
   });
   const tonightIntentBusy = tonightIntentStatus !== "ready";
   const sessionDateLabel = formatSessionDate(new Date());
+
+  useStandaloneBackHandler({
+    active: true,
+    priority: 0,
+    onBack: () => {
+      const cardIndex = step === "founder"
+        ? firstPassActor === "founder" ? founderIndex : wifeIndex
+        : step === "wife" ? wifeIndex : 0;
+      const action = standaloneWizardBackAction({
+        blocked: Boolean(
+          showLaunchSting ||
+          privacySeal ||
+          matchingTransition ||
+          isSyncing ||
+          standaloneWizardRecoveryBlocksBack(transitionRecoveryStage) ||
+          (shortlistGeneration && shortlistGeneration.stage !== "failed"),
+        ),
+        dismissibleOverlay: Boolean(
+          onboardingPrompt || shortlistGeneration?.stage === "failed",
+        ),
+        step,
+        cardIndex,
+      });
+
+      if (action === "close-overlay") {
+        if (shortlistGeneration?.stage === "failed") {
+          setShortlistGeneration(null);
+        } else {
+          cancelOnboarding();
+        }
+      } else if (action === "previous-card") {
+        if (step === "founder" && firstPassActor === "founder") {
+          setFounderIndex((current) => current - 1);
+        } else {
+          setWifeIndex((current) => current - 1);
+        }
+      } else if (action === "handoff") {
+        dispatchNavigation({ type: "navigation.back" });
+      } else if (action === "home") {
+        resetSession();
+      }
+    },
+  });
 
   useEffect(() => {
     let storedAsShown = false;
@@ -760,7 +817,18 @@ export function PassThePhoneWizard({
   }
 
   async function continueAfterHandoff(): Promise<void> {
-    if (transitionRecoveryStage === "handoff_retry") {
+    const action = standaloneHandoffContinueAction({
+      recoveryStage: transitionRecoveryStage,
+      apiSession: sessionSource === "api" && sharedSession !== null,
+    });
+    if (action === "stay") {
+      return;
+    }
+    if (action === "reopen-second-pass") {
+      dispatchNavigation({ type: "handoff.completed" });
+      return;
+    }
+    if (action === "resume-handoff") {
       try {
         setTransitionRecoveryStage("handoff_pending");
         const outcome = await transitionRecoveryCoordinator().resume();
@@ -774,7 +842,7 @@ export function PassThePhoneWizard({
       }
       return;
     }
-    if (transitionRecoveryStage === "handoff_ready") {
+    if (action === "open-second-pass") {
       try {
         setTransitionRecoveryStage("handoff_pending");
         const outcome = await transitionRecoveryCoordinator().openSecondPass();
@@ -788,7 +856,7 @@ export function PassThePhoneWizard({
       }
       return;
     }
-    if (sessionSource === "api" && sharedSession !== null) {
+    if (action === "reject-unverified") {
       setTransitionRecoveryStage("handoff_retry");
       updateSession({
         apiError: "The private handoff could not be verified. Retry or go back home.",

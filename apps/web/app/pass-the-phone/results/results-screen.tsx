@@ -34,6 +34,7 @@ import {
   ResultUtilityHub,
   type ResultUtilityView,
 } from "./result-utility-hub";
+import { resultUtilityPersistenceBlocksBack } from "./result-utility-navigation-contract";
 import { useResultsPersistence } from "./use-results-persistence";
 import { WatchlistUtility } from "./watchlist-utility";
 
@@ -161,6 +162,13 @@ export function ResultsScreen({
     handleSaveFeedback,
   } = persistence;
 
+  const utilityBackBusy = resultUtilityPersistenceBlocksBack({
+    watchlistStatus,
+    watchlistEntryBusyCount: Object.keys(watchlistEntryBusy).length,
+    outcomeBusy,
+    feedbackBusy,
+  });
+
   useEffect(() => {
     if (
       !canPersist ||
@@ -246,6 +254,7 @@ export function ResultsScreen({
         winnerTitle={bestPick.title}
         saved={Boolean(bestPickWatchlistEntry)}
         saveBusy={watchlistStatus === "saving" || Boolean(watchlistEntryBusy[bestPick.id])}
+        backBusy={utilityBackBusy}
         saveMessage={watchlistMessage}
         canSave={canSaveWatchlist}
         watchlistCount={watchlistEntries.length}
@@ -340,7 +349,9 @@ export function ResultsScreen({
       continuationContent={continuationContent}
       continuationAvailable
       utilityContent={utilityContent}
+      utilityCloseBlocked={utilityBackBusy}
       onReset={actions.result.startNewNight}
+      onUtilityClose={() => setUtilityView("home")}
       onToggleContinuation={() => setContinuationOpen((current) => !current)}
       onPosterFallback={handlePosterFallback}
     />

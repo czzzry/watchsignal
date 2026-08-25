@@ -1,0 +1,290 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-25T09:21:54Z",
+  "title": "Design System: WatchSignal",
+  "extensions": {
+    "colorMeta": {
+      "night-950": {
+        "role": "neutral",
+        "displayName": "Cinema Black",
+        "canonical": "#050309",
+        "tonalRamp": ["#050309", "#17101E", "#2A1E33", "#463650", "#65546F", "#8C7B95", "#B9AFC0", "#F5F2F8"]
+      },
+      "night-900": {
+        "role": "neutral",
+        "displayName": "Night Black",
+        "canonical": "#0A0610",
+        "tonalRamp": ["#0A0610", "#1C1424", "#30233A", "#4B3B56", "#6B5A76", "#91809B", "#BDB2C3", "#F7F4F8"]
+      },
+      "night-850": {
+        "role": "neutral",
+        "displayName": "Raised Night",
+        "canonical": "#100817",
+        "tonalRamp": ["#100817", "#23142D", "#382342", "#533A5F", "#72597E", "#98809F", "#C2B2C7", "#F8F4F9"]
+      },
+      "plum-800": {
+        "role": "neutral",
+        "displayName": "Deep Plum",
+        "canonical": "#1C1026",
+        "tonalRamp": ["#13091C", "#281435", "#402152", "#5C3770", "#7A5690", "#9F7FAE", "#CAB2D1", "#F8F2FA"]
+      },
+      "plum-700": {
+        "role": "neutral",
+        "displayName": "Raised Plum",
+        "canonical": "#2B183A",
+        "tonalRamp": ["#160A20", "#2B183A", "#45275B", "#633D7A", "#825C99", "#A684B6", "#CEB7D6", "#F9F3FA"]
+      },
+      "signal-400": {
+        "role": "primary",
+        "displayName": "Signal Violet",
+        "canonical": "#B986FF",
+        "tonalRamp": ["#251237", "#3B1E57", "#562C7B", "#743FA1", "#945BC8", "#B986FF", "#D5BDFF", "#F5ECFF"]
+      },
+      "signal-300": {
+        "role": "primary",
+        "displayName": "Signal Lavender",
+        "canonical": "#D5BDFF",
+        "tonalRamp": ["#2A183F", "#432662", "#5E3986", "#7D53AA", "#9F75CF", "#C09CED", "#D5BDFF", "#F6F0FF"]
+      },
+      "cyan-500": {
+        "role": "secondary",
+        "displayName": "Electric Cyan",
+        "canonical": "#78E8F5",
+        "tonalRamp": ["#082D32", "#0D4850", "#14636D", "#21818C", "#35A2AE", "#55C5D0", "#78E8F5", "#E9FCFE"]
+      },
+      "paper-50": {
+        "role": "neutral",
+        "displayName": "Projection White",
+        "canonical": "#FAF8FC",
+        "tonalRamp": ["#211C24", "#3C3540", "#58505D", "#77707B", "#99929D", "#BBB5BF", "#DDD8E1", "#FAF8FC"]
+      },
+      "paper-100": {
+        "role": "neutral",
+        "displayName": "Reading Sheet",
+        "canonical": "#F5F2F8",
+        "tonalRamp": ["#201A23", "#3A333E", "#564E5A", "#746C78", "#958E99", "#B7B0BB", "#D9D4DD", "#F5F2F8"]
+      },
+      "ink-900": {
+        "role": "neutral",
+        "displayName": "Dark Ink",
+        "canonical": "#1B1124",
+        "tonalRamp": ["#1B1124", "#30213B", "#493753", "#65516F", "#837087", "#A493A8", "#C9BBCB", "#F7F2F8"]
+      },
+      "ink-700": {
+        "role": "neutral",
+        "displayName": "Muted Ink",
+        "canonical": "#554A5A",
+        "tonalRamp": ["#1F1922", "#352E39", "#554A5A", "#716677", "#8E8394", "#ADA2B2", "#CDC4D1", "#F7F3F8"]
+      },
+      "danger-400": {
+        "role": "tertiary",
+        "displayName": "Danger Rose",
+        "canonical": "#FF8F9C",
+        "tonalRamp": ["#3B1018", "#5B1A26", "#7E2937", "#A63F4E", "#CE5C6A", "#F27B89", "#FFABB4", "#FFECEF"]
+      },
+      "success-400": {
+        "role": "tertiary",
+        "displayName": "Success Mint",
+        "canonical": "#9EE0BD",
+        "tonalRamp": ["#103024", "#194A36", "#28664B", "#408361", "#5DA17B", "#7DC09A", "#9EE0BD", "#EDFAF3"]
+      },
+      "warning-400": {
+        "role": "tertiary",
+        "displayName": "Warning Amber",
+        "canonical": "#F4CA8B",
+        "tonalRamp": ["#38280F", "#554019", "#735925", "#947433", "#B59046", "#D5AD63", "#F4CA8B", "#FFF6E8"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Cinematic Display",
+        "purpose": "Movie titles, handoffs, launch, and the final reveal only."
+      },
+      "headline": {
+        "displayName": "Utility Headline",
+        "purpose": "Primary setup and supporting-screen headings."
+      },
+      "title": {
+        "displayName": "Product Title",
+        "purpose": "Sheet titles, component titles, and meaningful section labels."
+      },
+      "body": {
+        "displayName": "Product Body",
+        "purpose": "Plain-language explanations and instructions."
+      },
+      "label": {
+        "displayName": "Compact Label",
+        "purpose": "Controls, metadata, and concise status language."
+      }
+    },
+    "shadows": [
+      {
+        "name": "compact-lift",
+        "value": "0 4px 16px rgba(0, 0, 0, 0.22)",
+        "purpose": "Small floating feedback and compact overlays."
+      },
+      {
+        "name": "sheet-lift",
+        "value": "0 20px 48px rgba(0, 0, 0, 0.38)",
+        "purpose": "Dialogs and sheets above a cinema stage."
+      },
+      {
+        "name": "poster-anchor",
+        "value": "0 8px 8px rgba(0, 0, 0, 0.32)",
+        "purpose": "The primary movie card only."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Entrances, card changes, and direct manipulation feedback."
+      },
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.2, 0, 0, 1)",
+        "purpose": "Color, border, opacity, and other state transitions."
+      },
+      {
+        "name": "fast",
+        "value": "140ms",
+        "purpose": "Button and compact-control feedback."
+      },
+      {
+        "name": "base",
+        "value": "220ms",
+        "purpose": "Sheets, cards, and ordinary state changes."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "minimum-phone",
+        "value": "320px"
+      },
+      {
+        "name": "primary-phone",
+        "value": "390px"
+      },
+      {
+        "name": "maximum-product-width",
+        "value": "430px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single dominant action for the current state.",
+      "html": "<button class=\"ds-btn-primary\">Start tonight</button>",
+      "css": ".ds-btn-primary { min-height: 54px; border: 0; border-radius: var(--ws-radius-md, 12px); padding: 0 20px; background: var(--ws-paper-50, #faf8fc); color: var(--ws-ink-900, #1b1124); font: 700 14px/1 var(--ws-font-ui, system-ui); letter-spacing: -0.015em; transition: transform 140ms cubic-bezier(0.16, 1, 0.3, 1), opacity 140ms ease; } .ds-btn-primary:hover { transform: translateY(-1px); } .ds-btn-primary:active { transform: scale(.975); } .ds-btn-primary:focus-visible { outline: 2px solid var(--ws-signal-400, #b986ff); outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "A supporting action that never competes with the primary button.",
+      "html": "<button class=\"ds-btn-secondary\">Details</button>",
+      "css": ".ds-btn-secondary { min-height: 48px; border: 1px solid rgba(255,255,255,.11); border-radius: var(--ws-radius-md, 12px); padding: 0 20px; background: rgba(255,255,255,.075); color: var(--ws-paper-50, #faf8fc); font: 700 14px/1 var(--ws-font-ui, system-ui); letter-spacing: -0.015em; transition: background 140ms ease, transform 140ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-secondary:hover { background: rgba(255,255,255,.12); transform: translateY(-1px); } .ds-btn-secondary:active { transform: scale(.975); } .ds-btn-secondary:focus-visible { outline: 2px solid var(--ws-signal-400, #b986ff); outline-offset: 2px; }"
+    },
+    {
+      "name": "Icon Button",
+      "kind": "button",
+      "refersTo": "button-icon",
+      "description": "A compact accessible navigation or utility action.",
+      "html": "<button class=\"ds-btn-icon\" aria-label=\"Go back\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M15 18l-6-6 6-6\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></button>",
+      "css": ".ds-btn-icon { width: 44px; min-height: 44px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.11); border-radius: 999px; padding: 0; background: rgba(255,255,255,.075); color: var(--ws-paper-50, #faf8fc); } .ds-btn-icon svg { width: 20px; height: 20px; } .ds-btn-icon:hover { background: rgba(255,255,255,.12); } .ds-btn-icon:active { transform: scale(.975); } .ds-btn-icon:focus-visible { outline: 2px solid var(--ws-signal-400, #b986ff); outline-offset: 2px; }"
+    },
+    {
+      "name": "Signal Chip",
+      "kind": "chip",
+      "description": "A compact confirmed intent, filter, or progress signal.",
+      "html": "<button class=\"ds-signal-chip\" aria-pressed=\"true\">Thoughtful</button>",
+      "css": ".ds-signal-chip { min-height: 44px; border: 1px solid rgba(185,134,255,.48); border-radius: 999px; padding: 0 14px; background: rgba(185,134,255,.17); color: var(--ws-paper-50, #faf8fc); font: 700 12px/1 var(--ws-font-ui, system-ui); } .ds-signal-chip:hover { background: rgba(185,134,255,.25); } .ds-signal-chip:focus-visible { outline: 2px solid var(--ws-signal-400, #b986ff); outline-offset: 2px; }"
+    },
+    {
+      "name": "Movie Card",
+      "kind": "card",
+      "refersTo": "movie-card",
+      "description": "The poster-led private reaction surface.",
+      "html": "<article class=\"ds-movie-card\"><div class=\"ds-movie-scrim\"></div><div class=\"ds-movie-copy\"><h2>Arrival</h2><p>2016 · 1h 56m · Drama · Sci-Fi</p><strong>Thoughtful science fiction with real emotional weight.</strong></div></article>",
+      "css": ".ds-movie-card { position: relative; width: 280px; height: 420px; overflow: hidden; border-radius: var(--ws-radius-lg, 16px); background: linear-gradient(160deg, var(--ws-plum-700, #2b183a), var(--ws-night-900, #0a0610)); color: var(--ws-paper-50, #faf8fc); box-shadow: 0 8px 8px rgba(0,0,0,.32); font-family: var(--ws-font-ui, system-ui); } .ds-movie-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 35%, rgba(5,3,9,.5) 62%, #050309 100%); } .ds-movie-copy { position: absolute; right: 0; bottom: 0; left: 0; display: grid; gap: 7px; padding: 60px 16px 16px; } .ds-movie-copy h2 { margin: 0; font: 600 40px/.98 var(--ws-font-display, Georgia, serif); letter-spacing: -.035em; } .ds-movie-copy p { margin: 0; color: rgba(250,248,252,.68); font-size: 12px; } .ds-movie-copy strong { font-size: 13px; line-height: 1.42; }"
+    },
+    {
+      "name": "Reading Sheet",
+      "kind": "card",
+      "refersTo": "sheet-light",
+      "description": "A calm pale surface for details that should not compete with the cinema stage.",
+      "html": "<section class=\"ds-reading-sheet\"><span></span><h2>What it is about</h2><p>An expert linguist is recruited to communicate with visitors whose arrival changes the world.</p></section>",
+      "css": ".ds-reading-sheet { width: 300px; border-radius: 16px 16px 0 0; padding: 24px 16px; background: var(--ws-paper-100, #f5f2f8); color: var(--ws-ink-900, #1b1124); box-shadow: 0 -16px 48px rgba(0,0,0,.32); font-family: var(--ws-font-ui, system-ui); } .ds-reading-sheet > span { width: 34px; height: 4px; display: block; margin: -14px auto 20px; border-radius: 999px; background: #bdb5c2; } .ds-reading-sheet h2 { margin: 0 0 8px; font-size: 14px; } .ds-reading-sheet p { margin: 0; color: var(--ws-ink-700, #554a5a); font-size: 14px; line-height: 1.55; }"
+    },
+    {
+      "name": "Match Score",
+      "kind": "custom",
+      "description": "A compact signal of recommendation strength on the shared result.",
+      "html": "<div class=\"ds-score\" aria-label=\"84 match\"><svg viewBox=\"0 0 64 64\" aria-hidden=\"true\"><circle cx=\"32\" cy=\"32\" r=\"28\"/><circle class=\"ds-score-arc\" cx=\"32\" cy=\"32\" r=\"28\"/></svg><strong>84</strong><small>match</small></div>",
+      "css": ".ds-score { position: relative; width: 64px; height: 64px; display: grid; place-content: center; color: var(--ws-paper-50, #faf8fc); font-family: var(--ws-font-ui, system-ui); font-variant-numeric: tabular-nums; text-align: center; } .ds-score svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); } .ds-score circle { fill: rgba(6,3,10,.56); stroke: rgba(255,255,255,.2); stroke-width: 3; } .ds-score .ds-score-arc { fill: none; stroke: var(--ws-signal-400, #b986ff); stroke-linecap: round; stroke-dasharray: 148 176; } .ds-score strong { font-size: 20px; line-height: 1; } .ds-score small { color: rgba(255,255,255,.65); font-size: 12px; font-weight: 700; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Private Screening Room",
+    "overview": "WatchSignal is a premium cinematic mobile product with a restrained nightlife signal running through it. It should feel like two people have entered a focused private screening room where the product quietly does the difficult work and gives one movie the stage. The system rejects generic streaming-service chrome, gamer styling, decorative neon, flat prototype utility, and interface ornament that competes with the decision.",
+    "keyCharacteristics": [
+      "Phone-first and safe-area-aware, with a primary canvas of 390 by 844 pixels and support from 320 to 430 pixels wide.",
+      "Near-black and plum surfaces with restrained violet and cyan signals.",
+      "Real poster and backdrop art used as decision context rather than wallpaper.",
+      "One dominant action per state, with secondary work progressively disclosed.",
+      "Short state-driven motion at signature moments and stable reading surfaces everywhere else.",
+      "Human language, honest errors, and no consumer-facing algorithm jargon."
+    ],
+    "rules": [
+      {
+        "name": "The Signal Rarity Rule",
+        "body": "Violet and cyan communicate identity, selection, progress, or recommendation strength and never exist as ambient decoration alone.",
+        "section": "colors"
+      },
+      {
+        "name": "The Honest Image Rule",
+        "body": "Essential text over dynamic artwork always receives a deterministic contrast scrim, while missing art receives the deliberate plum fallback rather than a broken image or fake poster.",
+        "section": "colors"
+      },
+      {
+        "name": "The Movie Owns the Serif Rule",
+        "body": "Serif type belongs to titles and signature cinematic moments, never buttons, forms, navigation, or diagnostic text.",
+        "section": "typography"
+      },
+      {
+        "name": "The Twelve Pixel Floor",
+        "body": "Production body, metadata, and control text never render below 12 pixels.",
+        "section": "typography"
+      },
+      {
+        "name": "The Structural Shadow Rule",
+        "body": "A shadow may explain which surface is above another, but it may not be added simply to make a card look premium.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Reduced Transparency Rule",
+        "body": "When reduced transparency is requested, translucent layers become solid raised-night surfaces and backdrop blur disappears.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do design and verify the full flow first at 390 by 844 pixels, then check every supported width from 320 to 430 pixels and 200 percent text zoom.",
+      "Do use real TMDB poster or backdrop art in recognizable movie surfaces and use a finished WatchSignal asset when a tactile hero object is needed.",
+      "Do keep one obvious action, short human explanations, and progressively disclosed utilities on every state.",
+      "Do preserve the exact privacy, recommendation-source, truthful-error, reduced-motion, focus, contrast, and safe-area contracts in PRODUCT.md.",
+      "Do use the shared tokens and primitives before introducing a new local style."
+    ],
+    "donts": [
+      "Don't make WatchSignal feel like a generic streaming-service clone, a gamer skin, neon decoration pasted over ordinary app structure, or a flat conservative utility app.",
+      "Don't ship a surface that looks cheap, sparse without meaning, overcrowded with explanatory copy, or recognizably AI-generated.",
+      "Don't use generic recommendation language, internal model terminology, repetitive source labels, or decorative dashboards in the normal household flow.",
+      "Don't use oversized close-up faces, fake poster art, or hero imagery that overwhelms the product's purpose.",
+      "Don't hide a weak or failed recommendation path behind an apparently valid fallback.",
+      "Don't use gradient text, decorative glassmorphism, side-stripe accents, identical card grids, or oversized rounded cards as a shortcut to visual interest.",
+      "Don't synthesize physical lighting, glow, blur, masks, or tactile objects in CSS when the design calls for a reviewed finished visual asset."
+    ]
+  }
+}

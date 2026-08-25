@@ -15,6 +15,8 @@ import {
   setupStatesMatch,
   updateSetupProfile,
 } from "./setup-local-state";
+import { useStandaloneBackHandler } from "./pass-the-phone/standalone-back-navigation";
+import { standaloneRouteBackAction } from "./pass-the-phone/standalone-back-navigation-contract";
 import { WatchSignalIcon } from "./ui/watchsignal-icons";
 import { WatchSignalBrand } from "./ui/primitives";
 import styles from "./setup-wizard.module.css";
@@ -89,6 +91,25 @@ export function SetupWizard({ setupLoad }: SetupWizardProps) {
     return () => window.removeEventListener("beforeunload", warnBeforeUnload);
   }, [hasUnsavedChanges]);
 
+  useStandaloneBackHandler({
+    active: true,
+    priority: 0,
+    onBack: () => {
+      const action = standaloneRouteBackAction({
+        blocked: saveStatus === "saving",
+        hasUnsaved: hasUnsavedChanges,
+      });
+      if (action === "stay") return;
+      if (
+        action === "review-unsaved" &&
+        !window.confirm("Leave without saving these changes?")
+      ) {
+        return;
+      }
+      window.location.assign("/");
+    },
+  });
+
   function updateProfile(profileId: string, change: Partial<SetupProfile>) {
     setSetup((current) => updateSetupProfile(current, profileId, change));
     setSaveStatus("unsaved");
@@ -141,6 +162,10 @@ export function SetupWizard({ setupLoad }: SetupWizardProps) {
   }
 
   function leaveSetup(event: MouseEvent<HTMLAnchorElement>): void {
+    if (saveStatus === "saving") {
+      event.preventDefault();
+      return;
+    }
     if (!hasUnsavedChanges) return;
     if (!window.confirm("Leave without saving these changes?")) event.preventDefault();
   }
