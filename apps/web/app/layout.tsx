@@ -3,6 +3,7 @@ import "./ui/watchsignal-system.css";
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { LogoutButton } from "./auth/logout-button";
+import { StandaloneBackNavigationProvider } from "./pass-the-phone/standalone-back-navigation";
 import { ServiceWorkerRegistration } from "./service-worker-registration";
 
 export const metadata: Metadata = {
@@ -31,12 +32,14 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <ServiceWorkerRegistration />
-        {children}
-        <footer className="siteCreditsLink">
-          <a href="/credits">Data credits</a>
-          <LogoutButton />
-        </footer>
+        <StandaloneBackNavigationProvider>
+          <ServiceWorkerRegistration />
+          {children}
+          <footer className="siteCreditsLink">
+            <a href="/credits">Data credits</a>
+            <LogoutButton />
+          </footer>
+        </StandaloneBackNavigationProvider>
       </body>
     </html>
   );

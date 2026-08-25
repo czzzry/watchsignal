@@ -44,3 +44,11 @@ export function tasteLabQueueState(
   if (local) return "local-exhausted";
   return historyLength > 0 ? "exhausted" : "empty";
 }
+
+export function tasteLabHasUnsavedDrafts(
+  draftsByProfile: Record<string, Record<string, unknown>>,
+): boolean {
+  return Object.values(draftsByProfile).some(
+    (profileDrafts) => Object.keys(profileDrafts).length > 0,
+  );
+}

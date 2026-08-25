@@ -2,10 +2,17 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  tasteLabHasUnsavedDrafts,
   tasteLabChoiceGroups,
   tasteLabLabelIsPreference,
   tasteLabQueueState,
 } from "../app/taste-lab/taste-lab-contract.ts";
+
+test("Taste Lab protects drafts from every household profile", () => {
+  assert.equal(tasteLabHasUnsavedDrafts({}), false);
+  assert.equal(tasteLabHasUnsavedDrafts({ husband: {}, wife: {} }), false);
+  assert.equal(tasteLabHasUnsavedDrafts({ husband: {}, wife: { "movie-2": "liked" } }), true);
+});
 
 test("S18 preserves every API label and keeps familiarity separate", () => {
   assert.deepEqual(

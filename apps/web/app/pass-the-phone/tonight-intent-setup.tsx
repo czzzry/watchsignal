@@ -57,6 +57,10 @@ export function TonightIntentSetup({
   const uncertainty = uncertainIntentParts(pendingIntent?.rawText ?? text);
   const hasAnything = Boolean(text || pendingIntent || activeIntent);
 
+  function close(): void {
+    if (!busy) onClose();
+  }
+
   useStandaloneBackHandler({
     active: true,
     priority: 20,
@@ -65,7 +69,7 @@ export function TonightIntentSetup({
         blocked: busy,
         hasPrevious: false,
       });
-      if (action === "close") onClose();
+      if (action === "close") close();
     },
   });
 
@@ -83,7 +87,7 @@ export function TonightIntentSetup({
     <AccessibleModal
       backgroundRef={backgroundRef}
       opener={opener}
-      onClose={onClose}
+      onClose={close}
       layerClassName={styles.layer}
       backdropClassName={styles.backdrop}
       dialogClassName={styles.dialog}
@@ -94,7 +98,7 @@ export function TonightIntentSetup({
           <span>Tonight only</span>
           <h2 id="tonight-intent-title">What are you in the mood for?</h2>
         </div>
-        <button type="button" onClick={onClose} aria-label="Close tonight mood" autoFocus>
+        <button type="button" onClick={close} disabled={busy} aria-label="Close tonight mood" autoFocus>
           <WatchSignalIcon name="close" />
         </button>
       </header>

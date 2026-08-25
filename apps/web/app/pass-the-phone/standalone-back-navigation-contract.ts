@@ -18,6 +18,8 @@ export type StandaloneWizardBackAction =
   | "home";
 
 export type StandaloneSurfaceBackAction = "stay" | "previous" | "close";
+export type StandaloneRouteBackAction = "stay" | "review-unsaved" | "home";
+export type StandaloneUnhandledBackAction = "stay" | "home";
 
 export type StandaloneWizardRecoveryStage =
   | "handoff_pending"
@@ -43,6 +45,20 @@ export function standaloneSurfaceBackAction(input: {
 }): StandaloneSurfaceBackAction {
   if (input.blocked) return "stay";
   return input.hasPrevious ? "previous" : "close";
+}
+
+export function standaloneRouteBackAction(input: {
+  blocked: boolean;
+  hasUnsaved: boolean;
+}): StandaloneRouteBackAction {
+  if (input.blocked) return "stay";
+  return input.hasUnsaved ? "review-unsaved" : "home";
+}
+
+export function standaloneUnhandledBackAction(
+  pathname: string,
+): StandaloneUnhandledBackAction {
+  return pathname === "/" ? "stay" : "home";
 }
 
 export function standaloneWizardRecoveryBlocksBack(

@@ -12,6 +12,7 @@ import {
 import {
   createStandaloneBackHandlerRegistry,
   createStandaloneBackNavigationController,
+  standaloneUnhandledBackAction,
 } from "./standalone-back-navigation-contract";
 
 type RegisterBackHandler = (
@@ -45,7 +46,12 @@ export function StandaloneBackNavigationProvider({
         window.addEventListener("popstate", listener);
         return () => window.removeEventListener("popstate", listener);
       },
-      onBack: registry.handleBack,
+      onBack() {
+        if (registry.handleBack()) return;
+        if (standaloneUnhandledBackAction(window.location.pathname) === "home") {
+          window.location.assign("/");
+        }
+      },
     });
 
     controller.start();

@@ -53,11 +53,17 @@ export function TonightDefaultsSetup({
   const [saveError, setSaveError] = useState<string | null>(null);
   const saveLockedRef = useRef(false);
   const isBusy = busy || saving;
+  const hasUnsavedChanges = draftLanguage !== languageMode ||
+    draftAvailability !== availabilityRegion ||
+    draftSessionMode !== sessionMode;
 
   function close(): void {
-    if (!isBusy) {
-      onClose();
-    }
+    if (isBusy) return;
+    if (
+      hasUnsavedChanges &&
+      !window.confirm("Leave without saving tonight’s changes?")
+    ) return;
+    onClose();
   }
 
   useStandaloneBackHandler({

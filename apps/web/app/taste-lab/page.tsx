@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import {
   getTasteLabProfiles,
   getTasteLabQueue,
@@ -15,8 +15,11 @@ import {
 } from "../taste-lab-client";
 import { WatchSignalIcon } from "../ui/watchsignal-icons";
 import { WatchSignalBrand } from "../ui/primitives";
+import { useStandaloneBackHandler } from "../pass-the-phone/standalone-back-navigation";
+import { standaloneRouteBackAction } from "../pass-the-phone/standalone-back-navigation-contract";
 import {
   tasteLabChoiceGroups,
+  tasteLabHasUnsavedDrafts,
   tasteLabQueueState,
   type TasteLabQueueState,
 } from "./taste-lab-contract";
@@ -55,6 +58,7 @@ export default function TasteLabPage() {
   const selectedLabel = activeCandidate
     ? draftsByProfile[profileId]?.[activeCandidate.movie.sourceMovieId]
     : undefined;
+  const hasUnsavedDrafts = tasteLabHasUnsavedDrafts(draftsByProfile);
   const importableCount = history.filter((rating) => rating.isImportablePreference).length;
   const familiarityCount = history.length - importableCount;
   const coverage = useMemo(() => {
@@ -83,6 +87,38 @@ export default function TasteLabPage() {
       requestAnimationFrame(() => activeTitleRef.current?.focus());
     }
   }, [activeCandidate?.movie.sourceMovieId]);
+
+  useStandaloneBackHandler({
+    active: true,
+    priority: 0,
+    onBack: () => {
+      const action = standaloneRouteBackAction({
+        blocked: busy,
+        hasUnsaved: hasUnsavedDrafts,
+      });
+      if (action === "stay") return;
+      if (
+        action === "review-unsaved" &&
+        !window.confirm("Leave without saving your current choice?")
+      ) {
+        return;
+      }
+      window.location.assign("/");
+    },
+  });
+
+  function leaveTasteLab(event: MouseEvent<HTMLAnchorElement>): void {
+    if (busy) {
+      event.preventDefault();
+      return;
+    }
+    if (
+      hasUnsavedDrafts &&
+      !window.confirm("Leave without saving your current choice?")
+    ) {
+      event.preventDefault();
+    }
+  }
 
   async function loadProfiles(): Promise<void> {
     try {
@@ -254,7 +290,7 @@ export default function TasteLabPage() {
   return (
     <main className={styles.shell}>
       <header className={styles.topbar}>
-        <a href="/" aria-label="Back to WatchSignal"><WatchSignalBrand /></a>
+        <a href="/" aria-label="Back to WatchSignal" onClick={leaveTasteLab}><WatchSignalBrand /></a>
         <span>Private Taste Lab</span>
       </header>
 

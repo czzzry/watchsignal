@@ -74,10 +74,7 @@ import {
   reviewModeFromSearch,
   reviewSurfaceContract,
 } from "./pass-the-phone/review-mode-contract";
-import {
-  StandaloneBackNavigationProvider,
-  useStandaloneBackHandler,
-} from "./pass-the-phone/standalone-back-navigation";
+import { useStandaloneBackHandler } from "./pass-the-phone/standalone-back-navigation";
 import {
   standaloneHandoffContinueAction,
   standaloneWizardBackAction,
@@ -126,11 +123,7 @@ export function PassThePhoneWizard({
   apiHealth,
   setupLoad,
 }: PassThePhoneWizardProps) {
-  return (
-    <StandaloneBackNavigationProvider>
-      <PassThePhoneWizardContent apiHealth={apiHealth} setupLoad={setupLoad} />
-    </StandaloneBackNavigationProvider>
-  );
+  return <PassThePhoneWizardContent apiHealth={apiHealth} setupLoad={setupLoad} />;
 }
 
 function PassThePhoneWizardContent({

@@ -5,12 +5,18 @@ import {
   createStandaloneBackHandlerRegistry,
   createStandaloneBackNavigationController,
   standaloneHandoffContinueAction,
+  standaloneRouteBackAction,
   standaloneSurfaceBackAction,
+  standaloneUnhandledBackAction,
   standaloneWizardBackAction,
   standaloneBackGuardStateKey,
   standaloneWizardRecoveryBlocksBack,
 } from "../app/pass-the-phone/standalone-back-navigation-contract.ts";
 import { matchingTransitionBackAction } from "../app/pass-the-phone/matching-transition-contract.ts";
+import {
+  resultUtilityBackHandlerActive,
+  resultUtilityPersistenceBlocksBack,
+} from "../app/pass-the-phone/results/result-utility-navigation-contract.ts";
 
 function backHarness(initialState = { __NA: true }) {
   let state = initialState;
@@ -222,4 +228,40 @@ test("matching failure returns Home while active matching consumes Back", () => 
   assert.equal(matchingTransitionBackAction("saving"), "stay");
   assert.equal(matchingTransitionBackAction("matching"), "stay");
   assert.equal(matchingTransitionBackAction("failed"), "close");
+});
+
+test("direct installed routes preserve drafts and pending saves", () => {
+  assert.equal(standaloneRouteBackAction({ blocked: true, hasUnsaved: false }), "stay");
+  assert.equal(standaloneRouteBackAction({ blocked: false, hasUnsaved: true }), "review-unsaved");
+  assert.equal(standaloneRouteBackAction({ blocked: false, hasUnsaved: false }), "home");
+});
+
+test("unhandled installed routes return Home without moving Home itself", () => {
+  assert.equal(standaloneUnhandledBackAction("/credits"), "home");
+  assert.equal(standaloneUnhandledBackAction("/login"), "home");
+  assert.equal(standaloneUnhandledBackAction("/"), "stay");
+});
+
+test("result utility owns Back only while nested or persisting", () => {
+  assert.equal(resultUtilityBackHandlerActive({ busy: false, view: "home" }), false);
+  assert.equal(resultUtilityBackHandlerActive({ busy: false, view: "watchlist" }), true);
+  assert.equal(resultUtilityBackHandlerActive({ busy: true, view: "home" }), true);
+  assert.equal(resultUtilityBackHandlerActive({ busy: true, view: "outcome" }), true);
+});
+
+test("all result writes block Back until they settle", () => {
+  const idle = {
+    watchlistStatus: "idle",
+    watchlistEntryBusyCount: 0,
+    outcomeBusy: false,
+    feedbackBusy: false,
+  };
+  assert.equal(resultUtilityPersistenceBlocksBack(idle), false);
+  assert.equal(resultUtilityPersistenceBlocksBack({ ...idle, watchlistStatus: "loading" }), false);
+  assert.equal(resultUtilityPersistenceBlocksBack({ ...idle, watchlistStatus: "saving" }), true);
+  assert.equal(resultUtilityPersistenceBlocksBack({ ...idle, watchlistStatus: "removing" }), true);
+  assert.equal(resultUtilityPersistenceBlocksBack({ ...idle, watchlistStatus: "marking" }), true);
+  assert.equal(resultUtilityPersistenceBlocksBack({ ...idle, watchlistEntryBusyCount: 1 }), true);
+  assert.equal(resultUtilityPersistenceBlocksBack({ ...idle, outcomeBusy: true }), true);
+  assert.equal(resultUtilityPersistenceBlocksBack({ ...idle, feedbackBusy: true }), true);
 });

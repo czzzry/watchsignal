@@ -22,8 +22,6 @@ import {
   reviewSurfaceContract,
 } from "../review-mode-contract";
 import { SessionRecoveryStep } from "../session-recovery-step";
-import { useStandaloneBackHandler } from "../standalone-back-navigation";
-import { standaloneSurfaceBackAction } from "../standalone-back-navigation-contract";
 import { OutcomeUtility } from "./outcome-utility";
 import { RankedResultStage } from "./ranked-result-stage";
 import {
@@ -36,6 +34,7 @@ import {
   ResultUtilityHub,
   type ResultUtilityView,
 } from "./result-utility-hub";
+import { resultUtilityPersistenceBlocksBack } from "./result-utility-navigation-contract";
 import { useResultsPersistence } from "./use-results-persistence";
 import { WatchlistUtility } from "./watchlist-utility";
 
@@ -163,16 +162,11 @@ export function ResultsScreen({
     handleSaveFeedback,
   } = persistence;
 
-  useStandaloneBackHandler({
-    active: utilityView !== "home",
-    priority: 30,
-    onBack: () => {
-      const action = standaloneSurfaceBackAction({
-        blocked: false,
-        hasPrevious: utilityView !== "home",
-      });
-      if (action === "previous") setUtilityView("home");
-    },
+  const utilityBackBusy = resultUtilityPersistenceBlocksBack({
+    watchlistStatus,
+    watchlistEntryBusyCount: Object.keys(watchlistEntryBusy).length,
+    outcomeBusy,
+    feedbackBusy,
   });
 
   useEffect(() => {
@@ -260,6 +254,7 @@ export function ResultsScreen({
         winnerTitle={bestPick.title}
         saved={Boolean(bestPickWatchlistEntry)}
         saveBusy={watchlistStatus === "saving" || Boolean(watchlistEntryBusy[bestPick.id])}
+        backBusy={utilityBackBusy}
         saveMessage={watchlistMessage}
         canSave={canSaveWatchlist}
         watchlistCount={watchlistEntries.length}
@@ -354,7 +349,9 @@ export function ResultsScreen({
       continuationContent={continuationContent}
       continuationAvailable
       utilityContent={utilityContent}
+      utilityCloseBlocked={utilityBackBusy}
       onReset={actions.result.startNewNight}
+      onUtilityClose={() => setUtilityView("home")}
       onToggleContinuation={() => setContinuationOpen((current) => !current)}
       onPosterFallback={handlePosterFallback}
     />
