@@ -1194,7 +1194,7 @@ export function DebugHistoryPanel({
             reactions={history.founderReactions}
           />
           <DebugReactionList
-            label="Wife reactions"
+            label="Second viewer reactions"
             reactions={history.wifeReactions}
           />
           <DebugReactionList
@@ -1202,7 +1202,7 @@ export function DebugHistoryPanel({
             reactions={history.previousFounderReactions}
           />
           <DebugReactionList
-            label="Previous wife reactions"
+            label="Previous second-viewer reactions"
             reactions={history.previousWifeReactions}
           />
           <DebugList

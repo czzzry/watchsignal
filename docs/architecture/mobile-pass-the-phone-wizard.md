@@ -11,7 +11,7 @@ It uses backend recommendation and shared-session APIs when they are reachable, 
 flowchart TD
     A["Setup status"] --> B["Founder reaction pass"]
     B --> C["Handoff screen"]
-    C --> D["Wife reaction pass"]
+    C --> D["Second viewer reaction pass"]
     D --> E["Reranked result"]
 ```
 

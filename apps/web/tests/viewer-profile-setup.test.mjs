@@ -16,9 +16,9 @@ const profiles = [
 
 test("S08 exposes the three exact viewer modes without changing PeopleMode values", () => {
   assert.deepEqual(viewerModeOptions("Cezary", "Partner"), [
-    { value: "couple", label: "Couple", detail: "Cezary + Partner" },
-    { value: "founder", label: "Husband solo", detail: "Cezary" },
-    { value: "wife", label: "Wife solo", detail: "Partner" },
+    { value: "couple", label: "Two viewers", detail: "Cezary + Partner" },
+    { value: "founder", label: "Cezary only", detail: "Cezary" },
+    { value: "wife", label: "Partner only", detail: "Partner" },
   ]);
 });
 

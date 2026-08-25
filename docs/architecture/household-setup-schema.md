@@ -27,5 +27,5 @@ erDiagram
 ```
 
 The default committed setup creates one `households` row labeled `Household`.
-It creates exactly two `participant_profiles` rows labeled `Husband` and `Wife`.
+It creates exactly two `participant_profiles` rows labeled `Viewer 1` and `Viewer 2`.
 The SQLite path is selected through the `MOVIE_NIGHT_MEDIATOR_SQLITE_PATH` environment variable, with a local development fallback of `data/movie_night_mediator.sqlite3`.

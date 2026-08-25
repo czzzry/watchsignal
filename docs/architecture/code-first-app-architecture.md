@@ -39,7 +39,7 @@ Instead, it should make the product core testable in normal application code and
 - Onboarding is required before real recommendations.
 - One-sided onboarding unlocks solo recommendations.
 - Shared compromise recommendations require both users to onboard.
-- Household profiles are configurable during setup, with Husband and Wife as defaults.
+- Household profiles are configurable during setup, with Viewer 1 and Viewer 2 as defaults.
 - Seed and backfill title resolution should be hybrid: resolve through TMDb when possible, but allow unresolved text entries for later cleanup.
 - The MVP shortlist should show five titles.
 - The shortlist should include one interesting safe pick when possible.

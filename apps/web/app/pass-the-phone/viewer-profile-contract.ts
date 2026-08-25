@@ -15,17 +15,17 @@ export function viewerModeOptions(
   return [
     {
       value: "couple",
-      label: "Couple",
+      label: "Two viewers",
       detail: `${founderLabel} + ${wifeLabel}`,
     },
     {
       value: "founder",
-      label: "Husband solo",
+      label: `${founderLabel} only`,
       detail: founderLabel,
     },
     {
       value: "wife",
-      label: "Wife solo",
+      label: `${wifeLabel} only`,
       detail: wifeLabel,
     },
   ];

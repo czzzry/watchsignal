@@ -99,7 +99,7 @@ Kun Cheng GNHF can later execute bounded issues once each issue has clear owners
 - The UI should be a polished mobile wizard flow.
 - Pass-the-phone is the primary MVP input mode.
 - Separate-phone mode is MVP plus N unless it is cheap to add safely.
-- Household profiles are configurable with Husband and Wife as committed defaults.
+- Household profiles are configurable with Viewer 1 and Viewer 2 as inclusive defaults.
 - Seed and backfill title resolution is hybrid.
 - The app tries TMDb resolution immediately and allows unresolved text fallback.
 - The main recommendation pool uses Safe Picks.
@@ -130,7 +130,7 @@ Kun Cheng GNHF can later execute bounded issues once each issue has clear owners
 - A separate smoke test can verify local credentials against live TMDb without printing secrets.
 - Safe Pick gate tests should cover provider buckets, Amazon rent or buy, original language, foreign-language uncertainty, already-watched filtering, and manual watchability corrections.
 - Scoring tests should verify observable ranking behavior under husband-first, wife-first, and compromise modes.
-- Pass-the-phone tests should verify state transitions from founder reaction pass to wife reaction pass to reranked result.
+- Pass-the-phone tests should verify state transitions from first-viewer reaction pass to second-viewer reaction pass to reranked result.
 - Frontend tests should focus on wizard flow behavior once the UI has real screens.
 - Visual UI review should use Lavish or another reviewable artifact for meaningful screens or design alternatives.
 - The baseline validation commands are the API test suite, API compile check, and Next.js production build.

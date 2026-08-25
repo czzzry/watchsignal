@@ -5,6 +5,13 @@ import {
   loadSetupFromPhone,
   updateSetupProfile,
 } from "../app/setup-local-state.ts";
+import { createGenericSetupProfiles } from "../app/setup-defaults-contract.ts";
+
+test("fresh installs use inclusive viewer labels", () => {
+  const labels = createGenericSetupProfiles().map((profile) => profile.label);
+  assert.deepEqual(labels, ["Viewer 1", "Viewer 2"]);
+  assert.doesNotMatch(labels.join(" "), /husband|wife|couple/i);
+});
 
 test("S20 stores, reloads, edits, and keeps the complete setup without mapping drift", () => {
   const records = new Map();

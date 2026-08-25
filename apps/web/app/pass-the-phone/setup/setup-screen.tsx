@@ -135,17 +135,22 @@ export type SetupScreenActions = {
   };
 };
 
-const sessionModeLabels: Record<SessionMode, string> = {
-  compromise: "Compromise",
-  "founder-first": "Founder first",
-  "wife-first": "Wife first",
-};
-
 const languageModeLabels: Record<LanguageMode, string> = {
   english: "English",
   "subtitles-ok": "Foreign + English subtitles",
   anything: "No rules",
 };
+
+function sessionModeLabel(
+  mode: SessionMode,
+  firstViewerLabel: string,
+  secondViewerLabel: string,
+): string {
+  if (mode === "compromise") return "Balanced";
+  return mode === "founder-first"
+    ? `${firstViewerLabel} leads`
+    : `${secondViewerLabel} leads`;
+}
 
 export function SetupScreen({
   model,
@@ -400,7 +405,18 @@ export function SetupScreen({
             <SummaryTile label="People" value={selectedPeopleLabel} />
             <SummaryTile label="Language" value={selectedLanguageLabel} />
             <SummaryTile label={readiness.onboardingRequired ? "Need" : "Shortlist"} value={readiness.onboardingRequired ? "Loved + Ok + No for each person" : "Five reactions each"} />
-            <SummaryTile label="Mode" value={isCoupleSession ? sessionModeLabels[tonight.sessionMode] : "Solo picker"} />
+            <SummaryTile
+              label="Mode"
+              value={
+                isCoupleSession
+                  ? sessionModeLabel(
+                      tonight.sessionMode,
+                      household.founderLabel,
+                      household.wifeLabel,
+                    )
+                  : "Solo picker"
+              }
+            />
           </div>
           <div className="modeBlock">
             <p className="controlLabel">People</p>

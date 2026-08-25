@@ -44,7 +44,7 @@ Inherited product decisions from the carried-over docs stand unless this file or
 
 ## Onboarding And Data
 
-- Use configurable household profiles with Husband and Wife as defaults.
+- Use configurable household profiles with Viewer 1 and Viewer 2 as inclusive defaults.
 - Use minimal onboarding plus a tiny hard-constraint interview.
 - Allow low-polish manual watched-history backfill.
 - Resolve seed and backfill titles through TMDb when possible.

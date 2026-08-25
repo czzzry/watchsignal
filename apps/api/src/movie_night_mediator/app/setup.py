@@ -62,14 +62,14 @@ def default_setup_state() -> SetupState:
         profiles=(
             SetupProfile(
                 id="profile-1",
-                label="Husband",
+                label="Viewer 1",
                 order=1,
                 avatar_key="spark",
                 color_key="cyan",
             ),
             SetupProfile(
                 id="profile-2",
-                label="Wife",
+                label="Viewer 2",
                 order=2,
                 avatar_key="moon",
                 color_key="rose",

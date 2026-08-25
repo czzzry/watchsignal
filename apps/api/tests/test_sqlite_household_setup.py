@@ -65,7 +65,7 @@ class SQLiteHouseholdSetupTest(unittest.TestCase):
             )
             self.assertEqual(
                 [profile.display_label for profile in loaded_setup.participant_profiles],
-                ["Husband", "Wife"],
+                ["Viewer 1", "Viewer 2"],
             )
 
     def test_two_generic_participant_profiles_survive_sqlite_round_trip(self) -> None:
