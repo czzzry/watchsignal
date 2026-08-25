@@ -20,6 +20,7 @@ import {
   type SeenMemorySaveResult,
 } from "./seen-memory-contract";
 import { SeenMemoryDialog } from "./seen-memory-dialog";
+import { useStandaloneBackHandler } from "./standalone-back-navigation";
 import styles from "./private-reaction-card.module.css";
 
 const seenMemoryLabels = Object.fromEntries(
@@ -90,6 +91,19 @@ export function PrivateReactionCard({
   const fitLine = publicReactionFitLine(candidate);
   const synopsis = publicReactionSynopsis(candidate);
   const showPoster = Boolean(candidate.posterUrl) && !posterFailed;
+
+  useStandaloneBackHandler({
+    active: detailsOpen || seenMemoryOpen || pendingReaction !== null || isSyncing,
+    priority: 20,
+    onBack: () => {
+      if (pendingReaction !== null || isSyncing) return;
+      if (seenMemoryOpen) {
+        setSeenMemoryOpen(false);
+      } else {
+        setDetailsOpen(false);
+      }
+    },
+  });
 
   async function commitReaction(reaction: ReactionValue): Promise<void> {
     const now = window.performance.now();

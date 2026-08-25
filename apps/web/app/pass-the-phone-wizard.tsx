@@ -75,6 +75,11 @@ import {
   reviewSurfaceContract,
 } from "./pass-the-phone/review-mode-contract";
 import {
+  StandaloneBackNavigationProvider,
+  useStandaloneBackHandler,
+} from "./pass-the-phone/standalone-back-navigation";
+import { standaloneWizardBackAction } from "./pass-the-phone/standalone-back-navigation-contract";
+import {
   launchStingPlan,
   launchStingStorageKey,
 } from "./pass-the-phone/launch-sting-contract";
@@ -113,6 +118,17 @@ const stepOrder: WizardStep[] = ["setup", "founder", "handoff", "wife", "results
 let launchStingShownInMemory = false;
 
 export function PassThePhoneWizard({
+  apiHealth,
+  setupLoad,
+}: PassThePhoneWizardProps) {
+  return (
+    <StandaloneBackNavigationProvider>
+      <PassThePhoneWizardContent apiHealth={apiHealth} setupLoad={setupLoad} />
+    </StandaloneBackNavigationProvider>
+  );
+}
+
+function PassThePhoneWizardContent({
   apiHealth,
   setupLoad,
 }: PassThePhoneWizardProps) {
@@ -387,6 +403,48 @@ export function PassThePhoneWizard({
   });
   const tonightIntentBusy = tonightIntentStatus !== "ready";
   const sessionDateLabel = formatSessionDate(new Date());
+
+  useStandaloneBackHandler({
+    active: true,
+    priority: 0,
+    onBack: () => {
+      const cardIndex = step === "founder"
+        ? firstPassActor === "founder" ? founderIndex : wifeIndex
+        : step === "wife" ? wifeIndex : 0;
+      const action = standaloneWizardBackAction({
+        blocked: Boolean(
+          showLaunchSting ||
+          privacySeal ||
+          matchingTransition ||
+          isSyncing ||
+          (shortlistGeneration && shortlistGeneration.stage !== "failed"),
+        ),
+        dismissibleOverlay: Boolean(
+          onboardingPrompt || shortlistGeneration?.stage === "failed",
+        ),
+        step,
+        cardIndex,
+      });
+
+      if (action === "close-overlay") {
+        if (shortlistGeneration?.stage === "failed") {
+          setShortlistGeneration(null);
+        } else {
+          cancelOnboarding();
+        }
+      } else if (action === "previous-card") {
+        if (step === "founder" && firstPassActor === "founder") {
+          setFounderIndex((current) => current - 1);
+        } else {
+          setWifeIndex((current) => current - 1);
+        }
+      } else if (action === "handoff") {
+        dispatchNavigation({ type: "navigation.back" });
+      } else if (action === "home") {
+        resetSession();
+      }
+    },
+  });
 
   useEffect(() => {
     let storedAsShown = false;

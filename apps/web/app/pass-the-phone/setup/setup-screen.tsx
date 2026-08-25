@@ -26,6 +26,7 @@ import { intentSummary } from "../tonight-intent-contract";
 import { ProfileMemorySnapshot } from "../profile-memory-snapshot";
 import { HouseholdHistory } from "../household-history";
 import { WatchSignalIcon } from "../../ui/watchsignal-icons";
+import { useStandaloneBackHandler } from "../standalone-back-navigation";
 import {
   TasteLensExperience,
   type TasteLensSelection,
@@ -256,6 +257,17 @@ export function SetupScreen({
     actions.tonight.intent.cancel();
     setSetupUtility(null);
   }
+
+  useStandaloneBackHandler({
+    active: setupUtility !== null,
+    priority: 10,
+    onBack: () => {
+      if (setupUtility === "intent") {
+        actions.tonight.intent.cancel();
+      }
+      setSetupUtility(null);
+    },
+  });
 
   return (
     <section className="wizardPanel heroPanel cinematicHeroPanel" aria-labelledby="setup-heading">

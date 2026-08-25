@@ -21,6 +21,7 @@ import { WatchSignalBrand } from "../../ui/primitives";
 import {
   completedResultNavigationActions,
 } from "./completed-result-navigation";
+import { useStandaloneBackHandler } from "../standalone-back-navigation";
 import {
   personInitials,
   publicResultSynopsis,
@@ -86,6 +87,18 @@ export function RankedResultStage({
     setBackdropFailed(false);
     setAvailabilityOpen(false);
   }, [movie?.id]);
+
+  useStandaloneBackHandler({
+    active: activeDialog !== null,
+    priority: 20,
+    onBack: closeActiveDialog,
+  });
+
+  useStandaloneBackHandler({
+    active: availabilityOpen && activeDialog === null,
+    priority: 10,
+    onBack: () => setAvailabilityOpen(false),
+  });
 
   if (!movie) {
     return null;
