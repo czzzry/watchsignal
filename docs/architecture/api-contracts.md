@@ -184,8 +184,8 @@ Expected `GET /setup` response:
 {
   "householdLabel": "Household",
   "profiles": [
-    { "id": "profile-1", "label": "Husband", "order": 1 },
-    { "id": "profile-2", "label": "Wife", "order": 2 }
+    { "id": "profile-1", "label": "Viewer 1", "order": 1 },
+    { "id": "profile-2", "label": "Viewer 2", "order": 2 }
   ],
   "defaults": {
     "sessionType": "Movie night",

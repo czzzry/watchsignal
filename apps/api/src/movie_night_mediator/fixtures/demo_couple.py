@@ -30,7 +30,7 @@ DEMO_HOUSEHOLD_DEFAULTS = HouseholdDefaults(
 DEMO_HUSBAND_PROFILE = UserProfile(
     user_id="husband",
     role="husband",
-    display_label="Husband",
+    display_label="Viewer 1",
     onboarding_seeds=(
         OnboardingSeed(
             title="The Matrix",
@@ -53,7 +53,7 @@ DEMO_HUSBAND_PROFILE = UserProfile(
 DEMO_WIFE_PROFILE = UserProfile(
     user_id="wife",
     role="wife",
-    display_label="Wife",
+    display_label="Viewer 2",
     onboarding_seeds=(
         OnboardingSeed(
             title="Knives Out",

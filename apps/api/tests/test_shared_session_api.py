@@ -288,7 +288,7 @@ class SharedSessionApiTest(unittest.TestCase):
                 )
 
             self.assertEqual(raised.exception.status_code, 409)
-            self.assertIn("Wife reaction pass is active", raised.exception.detail)
+            self.assertIn("Second viewer reaction pass is active", raised.exception.detail)
 
     def test_session_api_rejects_duplicate_and_missing_reaction_ids(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

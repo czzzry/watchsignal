@@ -4,6 +4,7 @@ import type {
   SetupStatePayload,
 } from "./api-contract.generated";
 import { apiRequestTimeoutMs } from "./api-timeout";
+import { createGenericSetupProfiles } from "./setup-defaults-contract";
 
 export const DEFAULT_API_BASE_URL = "http://127.0.0.1:8000";
 
@@ -33,22 +34,7 @@ export const fallbackSetup: SetupState = {
   householdLabel: "Household",
   activeProfileId: "profile-1",
   partnerProfileId: "profile-2",
-  profiles: [
-    {
-      id: "profile-1",
-      label: "Husband",
-      order: 1,
-      avatarKey: "spark",
-      colorKey: "cyan",
-    },
-    {
-      id: "profile-2",
-      label: "Wife",
-      order: 2,
-      avatarKey: "moon",
-      colorKey: "rose",
-    },
-  ],
+  profiles: createGenericSetupProfiles(),
   defaults: {
     sessionType: "Movie night",
     inputMode: "Pass the phone",

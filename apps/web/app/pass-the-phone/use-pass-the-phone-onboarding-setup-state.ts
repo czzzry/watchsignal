@@ -111,8 +111,8 @@ export function usePassThePhoneOnboardingSetupState({
     ) ??
     profiles.find((profile) => profile.id !== founderProfile?.id) ??
     profiles[1];
-  const founderLabel = founderProfile?.label || "Husband";
-  const wifeLabel = wifeProfile?.label || "Wife";
+  const founderLabel = founderProfile?.label || "Viewer 1";
+  const wifeLabel = wifeProfile?.label || "Viewer 2";
   const founderAvatarKey = founderProfile?.avatarKey || "spark";
   const wifeAvatarKey = wifeProfile?.avatarKey || "moon";
   const founderColorKey = founderProfile?.colorKey || "cyan";

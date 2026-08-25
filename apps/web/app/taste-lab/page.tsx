@@ -13,6 +13,7 @@ import {
   type TasteLabRatingInputPayload,
   type TasteLabRatingLabel,
 } from "../taste-lab-client";
+import { createGenericSetupProfiles } from "../setup-defaults-contract";
 import { WatchSignalIcon } from "../ui/watchsignal-icons";
 import { WatchSignalBrand } from "../ui/primitives";
 import { useStandaloneBackHandler } from "../pass-the-phone/standalone-back-navigation";
@@ -27,10 +28,7 @@ import styles from "./taste-lab.module.css";
 
 const householdId = "default-household";
 const fallbackProfileId = "profile-1";
-const fallbackProfiles: SetupProfilePayload[] = [
-  { id: "profile-1", label: "Husband", order: 1, avatarKey: "spark", colorKey: "cyan" },
-  { id: "profile-2", label: "Wife", order: 2, avatarKey: "moon", colorKey: "rose" },
-];
+const fallbackProfiles: SetupProfilePayload[] = createGenericSetupProfiles();
 
 type DraftsByProfile = Record<string, Record<string, TasteLabRatingLabel>>;
 

@@ -238,7 +238,7 @@ class SharedSessionService:
 
         if session.state == SharedSessionState.WIFE_REACTING:
             if participant_id != session.wife_participant_id:
-                raise SessionTransitionError("Wife reaction pass is active.")
+                raise SessionTransitionError("Second viewer reaction pass is active.")
 
             reranked_ids = self._rerank(session, reactions)
             return SharedMovieNightSession(

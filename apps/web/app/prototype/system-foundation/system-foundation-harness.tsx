@@ -152,7 +152,7 @@ function UtilityExample() {
         </header>
 
         <div className={styles.settingRows}>
-          <button type="button"><span><WatchSignalIcon name="users" />People</span><strong>Husband + Wife</strong><WatchSignalIcon name="chevron-right" /></button>
+          <button type="button"><span><WatchSignalIcon name="users" />People</span><strong>Viewer 1 + Viewer 2</strong><WatchSignalIcon name="chevron-right" /></button>
           <button ref={languageButtonRef} type="button" onClick={() => setSheet("language")}><span><WatchSignalIcon name="message" />Language</span><strong>{language}</strong><WatchSignalIcon name="chevron-right" /></button>
           <button type="button"><span><WatchSignalIcon name="play" />Availability</span><strong>Prime Video · Germany</strong><WatchSignalIcon name="chevron-right" /></button>
         </div>

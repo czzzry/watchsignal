@@ -11,7 +11,7 @@ stateDiagram-v2
     [*] --> founder_reacting
     founder_reacting --> handoff: founder submits reactions
     handoff --> wife_reacting: phone is handed off
-    wife_reacting --> reranked: wife submits reactions
+    wife_reacting --> reranked: second viewer submits reactions
     reranked --> [*]
 ```
 
@@ -26,7 +26,7 @@ stateDiagram-v2
 Each route returns the full shared session payload.
 The frontend should treat the returned `state` as the next-screen driver.
 The payload includes the original `shortlist`, the submitted reaction arrays, `rerankedSourceMovieIds`, `rerankedShortlist`, and `bestPickSourceMovieId`.
-`rerankedShortlist` is empty before reranking and contains the full title objects in result order after the wife reaction pass.
+`rerankedShortlist` is empty before reranking and contains the full title objects in result order after the second viewer reaction pass.
 This keeps the result screen from doing an extra id-to-title join.
 
 The API accepts only a five-title shortlist and one reaction per shortlist item.

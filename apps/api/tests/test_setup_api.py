@@ -65,14 +65,14 @@ class SetupApiTest(unittest.TestCase):
                     "profiles": [
                         {
                             "id": "profile-1",
-                            "label": "Husband",
+                            "label": "Viewer 1",
                             "order": 1,
                             "avatarKey": "spark",
                             "colorKey": "cyan",
                         },
                         {
                             "id": "profile-2",
-                            "label": "Wife",
+                            "label": "Viewer 2",
                             "order": 2,
                             "avatarKey": "moon",
                             "colorKey": "rose",
@@ -243,7 +243,7 @@ class SetupApiTest(unittest.TestCase):
             self.assertEqual(payload_to_dict(payload)["partnerProfileId"], "profile-1")
             self.assertEqual(
                 [profile["label"] for profile in payload_to_dict(payload)["profiles"]],
-                ["Alex - tester", "Sophie - tester", "Husband", "Wife"],
+                ["Alex - tester", "Sophie - tester", "Viewer 1", "Viewer 2"],
             )
             self.assertEqual(
                 [profile["id"] for profile in payload_to_dict(payload_again)["profiles"]],
