@@ -184,7 +184,7 @@ pnpm build:web
 ```
 
 WatchSignal is an actively developed, household-protected prototype.
-There is no public demo because real profiles and movie-night choices stay behind household access.
+A public, sanitized [product showcase](https://watchsignal-web.vercel.app/showcase) demonstrates the flow; real profiles and movie-night choices remain behind household access.
 The complete flow, private handoff, persistence, learned retrieval, ranked results, and feedback loops are implemented, while the recommendation quality claim remains deliberately open to real household use.
 
 Useful project documents:
