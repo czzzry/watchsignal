@@ -13,8 +13,10 @@
 .stageContent {
   min-height: 100svh;
   display: grid;
-  grid-template-rows: auto 4px minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  overscroll-behavior-x: none;
   padding-bottom: max(12px, var(--ws-safe-bottom));
+  touch-action: pan-y;
 }
 
 .header {
@@ -114,21 +116,127 @@
   font-size: 12px;
 }
 
-.progressTrack {
-  margin-inline: max(var(--ws-page-gutter), var(--ws-safe-left));
-  overflow: hidden;
-  border-radius: var(--ws-radius-pill);
-  background: rgba(250, 248, 252, 0.1);
+.posterRailSection {
+  display: grid;
+  gap: 7px;
+  padding: 2px max(var(--ws-page-gutter), var(--ws-safe-right)) 8px max(var(--ws-page-gutter), var(--ws-safe-left));
 }
 
-.progressTrack span {
+.screenReaderOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.posterRailHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--ws-text-muted);
+  font-size: 11px;
+}
+
+.posterRailHeader h2 {
+  margin: 0;
+  color: inherit;
+  font-family: var(--ws-font-ui);
+  font-size: inherit;
+  font-weight: 680;
+}
+
+.posterRailHeader span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.posterRail {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(42px, 50px));
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.posterRailItem {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  aspect-ratio: 2 / 3;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: var(--ws-plum-800);
+  opacity: 0.42;
+  transform: translateY(0) scale(1);
+  transition:
+    border-color 180ms var(--ws-ease-out),
+    opacity 180ms var(--ws-ease-out),
+    transform 180ms var(--ws-ease-out);
+}
+
+.posterRailItem[data-status="done"] {
+  opacity: 0.7;
+}
+
+.posterRailItem[data-status="deferred"] {
+  border-color: var(--ws-cyan-500);
+  opacity: 0.78;
+}
+
+.posterRailItem[data-active="true"] {
+  z-index: 1;
+  border-color: var(--ws-signal-400);
+  opacity: 1;
+  transform: translateY(-2px) scale(1.06);
+}
+
+.posterRailItem > img,
+.posterRailFallback {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  display: block;
-  transform-origin: left;
-  border-radius: inherit;
-  background: var(--ws-signal-400);
-  transition: transform 220ms var(--ws-ease-out);
+}
+
+.posterRailItem > img {
+  object-fit: cover;
+}
+
+.posterRailFallback {
+  display: grid;
+  place-items: center;
+  color: var(--ws-text-muted);
+  font-family: var(--ws-font-display);
+  font-size: 22px;
+}
+
+.posterRailMark {
+  position: absolute;
+  z-index: 1;
+  top: 3px;
+  right: 3px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(5, 3, 9, 0.84);
+  color: var(--ws-text);
+}
+
+.posterRailMark svg {
+  width: 12px;
+  height: 12px;
 }
 
 .cardArea {
@@ -141,14 +249,22 @@
 .movieCard {
   position: relative;
   width: 100%;
-  height: min(100%, 536px);
+  height: min(100%, 452px);
   min-height: 372px;
   overflow: hidden;
   border-radius: var(--ws-radius-lg);
   background: var(--ws-plum-800);
   box-shadow: 0 8px 8px rgba(0, 0, 0, 0.32);
   isolation: isolate;
+  touch-action: pan-y;
+  transform: translate3d(var(--ws-swipe-offset, 0), 0, 0);
+  transition: transform 160ms var(--ws-ease-out);
+  user-select: none;
   animation: cardIn 220ms var(--ws-ease-out) both;
+}
+
+.movieCard[data-dragging="true"] {
+  transition: none;
 }
 
 .poster,
@@ -314,6 +430,14 @@
   padding: 4px max(var(--ws-page-gutter), var(--ws-safe-right)) 0;
 }
 
+.promptRow {
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
 .prompt,
 .privateStatus {
   margin: 0;
@@ -323,6 +447,34 @@
 .prompt {
   font-size: 13px;
   font-weight: 680;
+  text-align: left;
+}
+
+.skipButton {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 0;
+  border-radius: var(--ws-radius-pill);
+  padding: 0 4px 0 12px;
+  background: transparent;
+  color: var(--ws-text-muted);
+  font-family: var(--ws-font-ui);
+  font-size: 12px;
+  font-weight: 680;
+}
+
+.skipButton:hover:enabled {
+  background: var(--ws-surface);
+  color: var(--ws-text);
+  transform: none;
+}
+
+.skipButton svg {
+  width: 18px;
+  height: 18px;
 }
 
 .reactionChoices {
@@ -564,6 +716,11 @@
     gap: 3px;
     min-height: 62px;
   }
+
+  .posterRail {
+    grid-template-columns: repeat(5, minmax(38px, 46px));
+    gap: 4px;
+  }
 }
 
 @media (max-width: 239px) {
@@ -584,6 +741,16 @@
     padding-bottom: 4px;
   }
 
+  .posterRailSection {
+    gap: 5px;
+    padding-top: 0;
+    padding-bottom: 4px;
+  }
+
+  .posterRail {
+    grid-template-columns: repeat(5, minmax(34px, 42px));
+  }
+
   .cardArea {
     align-items: start;
     padding-top: 8px;
@@ -591,8 +758,8 @@
   }
 
   .movieCard {
-    height: min(100%, 374px);
-    min-height: 360px;
+    height: min(100%, 336px);
+    min-height: 328px;
   }
 
   .movieCopy {
@@ -617,6 +784,10 @@
     padding-top: 0;
   }
 
+  .promptRow {
+    min-height: 40px;
+  }
+
   .reactionChoices button {
     min-height: 48px;
   }
@@ -629,13 +800,15 @@
 
 @media (prefers-reduced-motion: reduce) {
   .movieCard,
+  .posterRailItem,
   .lockIn,
   .reactionChoices button[data-selected="true"],
   .detailsSheet {
     animation-duration: 1ms;
   }
 
-  .progressTrack span {
+  .movieCard,
+  .posterRailItem {
     transition-duration: 1ms;
   }
 }
@@ -648,6 +821,7 @@
 
   .movieActions button,
   .reactionChoices button,
+  .skipButton,
   .backButton {
     background: var(--ws-night-850);
   }
@@ -655,14 +829,12 @@
 
 @media (forced-colors: active) {
   .movieCard,
+  .posterRailItem,
   .reactionChoices button,
+  .skipButton,
   .movieActions button,
   .detailsSheet {
     border: 1px solid CanvasText;
-  }
-
-  .progressTrack span {
-    background: Highlight;
   }
 
   .reactionChoices button[data-selected="true"] {

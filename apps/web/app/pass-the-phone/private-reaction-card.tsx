@@ -1,9 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import type { DemoCandidate, ReactionValue } from "../session-fixtures";
 import { reactionLabels } from "../session-fixtures";
-import type { SeenMemoryValue } from "../pass-the-phone-model";
+import type { ReactionState, SeenMemoryValue } from "../pass-the-phone-model";
 import { AccessibleModal } from "../ui/accessible-modal";
 import { WatchSignalIcon, type WatchSignalIconName } from "../ui/watchsignal-icons";
 import { WatchSignalBrand } from "../ui/primitives";
@@ -21,6 +27,8 @@ import {
 } from "./seen-memory-contract";
 import { SeenMemoryDialog } from "./seen-memory-dialog";
 import { useStandaloneBackHandler } from "./standalone-back-navigation";
+import { privateReactionSwipeAction } from "./private-reaction-journey.ts";
+import { PrivateReactionPosterRail } from "./private-reaction-poster-rail";
 import styles from "./private-reaction-card.module.css";
 
 const seenMemoryLabels = Object.fromEntries(
@@ -32,7 +40,9 @@ export function PrivateReactionCard({
   actorAvatarKey,
   actorColorKey,
   actor,
-  index,
+  candidates,
+  reactions,
+  completedCount,
   total,
   candidate,
   selectedReaction,
@@ -40,7 +50,11 @@ export function PrivateReactionCard({
   isSyncing,
   localOnly,
   sessionNotice,
+  deferredCandidateIds,
+  forceDecision,
+  hasForwardCandidate,
   onReaction,
+  onSkip,
   onSeenIt,
   onBack,
 }: {
@@ -48,7 +62,9 @@ export function PrivateReactionCard({
   actorAvatarKey: string;
   actorColorKey: string;
   actor: "founder" | "wife";
-  index: number;
+  candidates: DemoCandidate[];
+  reactions: ReactionState;
+  completedCount: number;
   total: number;
   candidate: DemoCandidate;
   selectedReaction: ReactionValue | undefined;
@@ -56,11 +72,15 @@ export function PrivateReactionCard({
   isSyncing: boolean;
   localOnly: boolean;
   sessionNotice?: string | null;
+  deferredCandidateIds: string[];
+  forceDecision: boolean;
+  hasForwardCandidate: boolean;
   onReaction: (
     actor: "founder" | "wife",
     candidateId: string,
     reaction: ReactionValue,
   ) => void | Promise<void>;
+  onSkip: () => void;
   onSeenIt: (memory: SeenMemoryValue) => Promise<SeenMemorySaveResult>;
   onBack: () => void;
 }) {
@@ -73,6 +93,12 @@ export function PrivateReactionCard({
   const [commitError, setCommitError] = useState<string | null>(null);
   const commitLockedRef = useRef(false);
   const lastAcceptedAtRef = useRef(Number.NEGATIVE_INFINITY);
+  const swipeStartRef = useRef<{
+    pointerId: number;
+    x: number;
+    y: number;
+  } | null>(null);
+  const [swipeOffset, setSwipeOffset] = useState(0);
   const backgroundRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -83,14 +109,28 @@ export function PrivateReactionCard({
     setSeenMemoryOpener(null);
     setPendingReaction(null);
     setCommitError(null);
+    setSwipeOffset(0);
+    swipeStartRef.current = null;
   }, [candidate.id]);
 
   const activeReaction = pendingReaction ?? selectedReaction;
   const status = privateReactionStatus({ pending: pendingReaction, isSyncing, localOnly });
-  const visibleStatus = pendingReaction || isSyncing ? status : sessionNotice ?? status;
   const fitLine = publicReactionFitLine(candidate);
   const synopsis = publicReactionSynopsis(candidate);
   const showPoster = Boolean(candidate.posterUrl) && !posterFailed;
+  const deferredSet = new Set(deferredCandidateIds);
+  const activeCandidateDeferred = deferredSet.has(candidate.id);
+  const progressPosition = Math.min(total, completedCount + 1);
+  const interactionBlocked = pendingReaction !== null || isSyncing || detailsOpen || seenMemoryOpen;
+  const deferredStatus = privateDeferredStatus({
+    candidates,
+    activeCandidateId: candidate.id,
+    deferredCandidateIds,
+    forceDecision,
+  });
+  const publicStatus = pendingReaction || isSyncing
+    ? status
+    : sessionNotice ?? deferredStatus ?? status;
 
   useStandaloneBackHandler({
     active: detailsOpen || seenMemoryOpen || pendingReaction !== null || isSyncing,
@@ -136,9 +176,70 @@ export function PrivateReactionCard({
     setDetailsOpen(true);
   }
 
+  function beginSwipe(event: ReactPointerEvent<HTMLElement>): void {
+    if (
+      interactionBlocked ||
+      !event.isPrimary ||
+      isInteractiveTarget(event.target)
+    ) {
+      return;
+    }
+    swipeStartRef.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+    };
+    try {
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+    } catch {
+      // The gesture still works where synthetic pointers or older browsers omit capture.
+    }
+  }
+
+  function updateSwipe(event: ReactPointerEvent<HTMLElement>): void {
+    const start = swipeStartRef.current;
+    if (!start || start.pointerId !== event.pointerId) return;
+    const deltaX = event.clientX - start.x;
+    const deltaY = event.clientY - start.y;
+    if (Math.abs(deltaX) <= Math.abs(deltaY)) return;
+    setSwipeOffset(Math.max(-84, Math.min(84, deltaX * 0.72)));
+  }
+
+  function finishSwipe(event: ReactPointerEvent<HTMLElement>): void {
+    const start = swipeStartRef.current;
+    swipeStartRef.current = null;
+    setSwipeOffset(0);
+    if (!start || start.pointerId !== event.pointerId) return;
+    try {
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+    } catch {
+      // The pointer may already have been released by the browser.
+    }
+    const action = privateReactionSwipeAction({
+      deltaX: event.clientX - start.x,
+      deltaY: event.clientY - start.y,
+      blocked: interactionBlocked,
+    });
+    if (action === "back") onBack();
+    if (action === "skip") onSkip();
+  }
+
+  function cancelSwipe(event: ReactPointerEvent<HTMLElement>): void {
+    if (swipeStartRef.current?.pointerId !== event.pointerId) return;
+    swipeStartRef.current = null;
+    setSwipeOffset(0);
+  }
+
   return (
     <section className={styles.stage} data-reaction-stage aria-labelledby="private-reaction-title">
-      <div ref={backgroundRef} className={styles.stageContent}>
+      <div
+        ref={backgroundRef}
+        className={styles.stageContent}
+        onPointerDown={beginSwipe}
+        onPointerMove={updateSwipe}
+        onPointerUp={finishSwipe}
+        onPointerCancel={cancelSwipe}
+      >
         <header className={styles.header}>
           <button
             type="button"
@@ -155,17 +256,27 @@ export function PrivateReactionCard({
             <div><strong>{actorLabel}</strong><small>Private pick</small></div>
           </div>
 
-          <div className={styles.progress} aria-label={`Movie ${index + 1} of ${total}`}>
-            <strong>{index + 1}</strong><span>of {total}</span>
+          <div className={styles.progress} aria-label={`Movie ${progressPosition} of ${total}`}>
+            <strong>{progressPosition}</strong><span>of {total}</span>
           </div>
         </header>
 
-        <div className={styles.progressTrack} aria-hidden="true">
-          <span style={{ transform: `scaleX(${Math.min(1, (index + 1) / Math.max(1, total))})` }} />
-        </div>
+        <PrivateReactionPosterRail
+          candidates={candidates}
+          reactions={reactions}
+          activeCandidateId={candidate.id}
+          deferredCandidateIds={deferredCandidateIds}
+          hasForwardCandidate={hasForwardCandidate}
+        />
 
         <main className={styles.cardArea}>
-          <article className={styles.movieCard} data-pending={pendingReaction !== null || undefined}>
+          <article
+            key={candidate.id}
+            className={styles.movieCard}
+            data-pending={pendingReaction !== null || undefined}
+            data-dragging={swipeOffset !== 0 || undefined}
+            style={{ "--ws-swipe-offset": `${swipeOffset}px` } as CSSProperties}
+          >
             <div className={styles.posterFallback} aria-hidden={showPoster || undefined}>
               <WatchSignalBrand compact />
               <span>{candidate.title}</span>
@@ -216,7 +327,22 @@ export function PrivateReactionCard({
         </main>
 
         <footer className={styles.reactionDock}>
-          <p className={styles.prompt}>Would you watch this tonight?</p>
+          <div className={styles.promptRow}>
+            <p className={styles.prompt}>
+              {forceDecision ? "Choose the closest answer." : "Would you watch this tonight?"}
+            </p>
+            {!forceDecision ? (
+              <button
+                type="button"
+                className={styles.skipButton}
+                disabled={interactionBlocked}
+                onClick={onSkip}
+              >
+                {hasForwardCandidate ? "Next" : activeCandidateDeferred ? "Skip again" : "Skip for now"}
+                <WatchSignalIcon name="chevron-right" />
+              </button>
+            ) : null}
+          </div>
           <div className={styles.reactionChoices} role="group" aria-label={`Private reaction for ${candidate.title}`}>
             {privateReactionValues.map((reaction) => (
               <button
@@ -234,7 +360,7 @@ export function PrivateReactionCard({
             ))}
           </div>
           <p className={styles.privateStatus} data-error={commitError ? "true" : undefined} role={commitError ? "alert" : "status"} aria-live="polite">
-            {commitError ?? visibleStatus}
+            {commitError ?? publicStatus}
           </p>
         </footer>
       </div>
@@ -304,4 +430,37 @@ function reactionIcon(reaction: ReactionValue): WatchSignalIconName {
 
 function avatarSymbol(avatarKey: string): string {
   return ({ spark: "S", moon: "M", comet: "C", ticket: "T" } as Record<string, string>)[avatarKey] ?? "P";
+}
+
+function isInteractiveTarget(target: EventTarget): boolean {
+  return target instanceof Element && Boolean(
+    target.closest("button, a, input, select, textarea, summary, [role='button']"),
+  );
+}
+
+function privateDeferredStatus({
+  candidates,
+  activeCandidateId,
+  deferredCandidateIds,
+  forceDecision,
+}: {
+  candidates: DemoCandidate[];
+  activeCandidateId: string;
+  deferredCandidateIds: string[];
+  forceDecision: boolean;
+}): string | null {
+  if (forceDecision) {
+    return "Choose the closest answer to finish this round.";
+  }
+  if (deferredCandidateIds.includes(activeCandidateId)) {
+    return "This one came back after your other picks.";
+  }
+  if (deferredCandidateIds.length === 0) return null;
+  if (deferredCandidateIds.length > 1) {
+    return `${deferredCandidateIds.length} skipped picks will return at the end.`;
+  }
+  const title = candidates.find(
+    (candidate) => candidate.id === deferredCandidateIds[0],
+  )?.title;
+  return title ? `${title} will return after the other picks.` : "Your skipped pick will return at the end.";
 }

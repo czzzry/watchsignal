@@ -82,6 +82,15 @@ import {
   type StandaloneWizardRecoveryStage,
 } from "./pass-the-phone/standalone-back-navigation-contract";
 import {
+  activePrivateReactionCandidateId,
+  advancePrivateReactionAfterAnswer,
+  canNavigatePrivateReactionBack,
+  canNavigatePrivateReactionForward,
+  navigatePrivateReactionBack,
+  navigatePrivateReactionForwardOrSkip,
+  privateReactionCompletedCount,
+} from "./pass-the-phone/private-reaction-journey.ts";
+import {
   launchStingPlan,
   launchStingStorageKey,
 } from "./pass-the-phone/launch-sting-contract";
@@ -184,10 +193,10 @@ function PassThePhoneWizardContent({
   });
   const sessionControl = usePassThePhoneSessionControl(demoCandidateViewModels);
   const {
-    founderIndex,
-    setFounderIndex,
-    wifeIndex,
-    setWifeIndex,
+    founderJourney,
+    setFounderJourney,
+    wifeJourney,
+    setWifeJourney,
     sessionCandidates,
     founderReactions,
     setFounderReactions,
@@ -336,8 +345,18 @@ function PassThePhoneWizardContent({
     continueWithTonightIntents,
   });
   const isCoupleSession = peopleMode === "couple";
-  const founderCandidate = sessionCandidates[founderIndex];
-  const wifeCandidate = sessionCandidates[wifeIndex];
+  const candidateIds = useMemo(
+    () => sessionCandidates.map((candidate) => candidate.id),
+    [sessionCandidates],
+  );
+  const founderCandidateId = activePrivateReactionCandidateId(founderJourney);
+  const wifeCandidateId = activePrivateReactionCandidateId(wifeJourney);
+  const founderCandidate = sessionCandidates.find(
+    (candidate) => candidate.id === founderCandidateId,
+  );
+  const wifeCandidate = sessionCandidates.find(
+    (candidate) => candidate.id === wifeCandidateId,
+  );
   const firstPassActor: "founder" | "wife" =
     peopleMode === "wife" ? "wife" : "founder";
   const firstPassLabel = peopleMode === "wife" ? wifeLabel : founderLabel;
@@ -354,6 +373,10 @@ function PassThePhoneWizardContent({
   const secondPassColorKey = secondPassPresentation.colorKey;
   const firstPassCandidate =
     firstPassActor === "founder" ? founderCandidate : wifeCandidate;
+  const firstPassJourney =
+    firstPassActor === "founder" ? founderJourney : wifeJourney;
+  const firstPassReactions =
+    firstPassActor === "founder" ? founderReactions : wifeReactions;
   const activeStepOrder: WizardStep[] = isCoupleSession
     ? stepOrder
     : ["setup", "founder", "results"];
@@ -407,8 +430,8 @@ function PassThePhoneWizardContent({
     priority: 0,
     onBack: () => {
       const cardIndex = step === "founder"
-        ? firstPassActor === "founder" ? founderIndex : wifeIndex
-        : step === "wife" ? wifeIndex : 0;
+        ? firstPassJourney.cursor
+        : step === "wife" ? wifeJourney.cursor : 0;
       const action = standaloneWizardBackAction({
         blocked: Boolean(
           showLaunchSting ||
@@ -433,9 +456,9 @@ function PassThePhoneWizardContent({
         }
       } else if (action === "previous-card") {
         if (step === "founder" && firstPassActor === "founder") {
-          setFounderIndex((current) => current - 1);
+          setFounderJourney(navigatePrivateReactionBack);
         } else {
-          setWifeIndex((current) => current - 1);
+          setWifeJourney(navigatePrivateReactionBack);
         }
       } else if (action === "handoff") {
         dispatchNavigation({ type: "navigation.back" });
@@ -475,7 +498,7 @@ function PassThePhoneWizardContent({
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [step, founderIndex, wifeIndex]);
+  }, [step, founderJourney.cursor, wifeJourney.cursor]);
 
   useEffect(() => {
     setReviewMode(reviewModeFromSearch(window.location.search));
@@ -700,9 +723,14 @@ function PassThePhoneWizardContent({
 
     if (actor === "founder") {
       const nextReactions = { ...founderReactions, [candidateId]: reaction };
+      const advance = advancePrivateReactionAfterAnswer({
+        journey: founderJourney,
+        candidateIds,
+        reactions: nextReactions,
+      });
       setFounderReactions(nextReactions);
 
-      if (founderIndex === sessionCandidates.length - 1) {
+      if (advance.outcome === "complete") {
         if (isCoupleSession) {
           if (sessionSource !== "api" || !sharedSession) {
             const persistence = submitActorPass("founder", nextReactions);
@@ -750,19 +778,41 @@ function PassThePhoneWizardContent({
         return;
       }
 
-      setFounderIndex((current) => current + 1);
+      setFounderJourney(advance.journey);
       return;
     }
 
     const nextReactions = { ...wifeReactions, [candidateId]: reaction };
+    const advance = advancePrivateReactionAfterAnswer({
+      journey: wifeJourney,
+      candidateIds,
+      reactions: nextReactions,
+    });
     setWifeReactions(nextReactions);
 
-    if (wifeIndex === sessionCandidates.length - 1) {
+    if (advance.outcome === "complete") {
       await runFinalMatching("wife", nextReactions);
       return;
     }
 
-    setWifeIndex((current) => current + 1);
+    setWifeJourney(advance.journey);
+  }
+
+  function skipPrivateReaction(actor: "founder" | "wife"): void {
+    if (sessionCandidates.length === 0 || isSyncing) return;
+    if (actor === "founder") {
+      setFounderJourney((journey) => navigatePrivateReactionForwardOrSkip({
+        journey,
+        candidateIds,
+        reactions: founderReactions,
+      }).journey);
+      return;
+    }
+    setWifeJourney((journey) => navigatePrivateReactionForwardOrSkip({
+      journey,
+      candidateIds,
+      reactions: wifeReactions,
+    }).journey);
   }
 
   async function recordSeenMemory(
@@ -1274,7 +1324,9 @@ function PassThePhoneWizardContent({
               firstPassActor === "founder" ? founderColorKey : wifeColorKey
             }
             actor={firstPassActor}
-            index={firstPassActor === "founder" ? founderIndex : wifeIndex}
+            candidates={sessionCandidates}
+            reactions={firstPassReactions}
+            completedCount={privateReactionCompletedCount(candidateIds, firstPassReactions)}
             total={sessionCandidates.length}
             candidate={firstPassCandidate}
             selectedReaction={
@@ -1294,20 +1346,24 @@ function PassThePhoneWizardContent({
                 ? apiError
                 : null
             }
+            deferredCandidateIds={firstPassJourney.deferredCandidateIds}
+            forceDecision={firstPassJourney.forcedCandidateIds.includes(firstPassCandidate.id)}
+            hasForwardCandidate={canNavigatePrivateReactionForward(firstPassJourney)}
             onReaction={recordReaction}
+            onSkip={() => skipPrivateReaction(firstPassActor)}
             onSeenIt={(memory) =>
               recordSeenMemory(firstPassActor, firstPassCandidate, memory)
             }
             onBack={() => {
-              if ((firstPassActor === "founder" ? founderIndex : wifeIndex) === 0) {
+              if (!canNavigatePrivateReactionBack(firstPassJourney)) {
                 dispatchNavigation({ type: "session.reset" });
                 return;
               }
 
               if (firstPassActor === "founder") {
-                setFounderIndex((current) => current - 1);
+                setFounderJourney(navigatePrivateReactionBack);
               } else {
-                setWifeIndex((current) => current - 1);
+                setWifeJourney(navigatePrivateReactionBack);
               }
             }}
           />
@@ -1345,7 +1401,9 @@ function PassThePhoneWizardContent({
             actorAvatarKey={secondPassAvatarKey}
             actorColorKey={secondPassColorKey}
             actor="wife"
-            index={wifeIndex}
+            candidates={sessionCandidates}
+            reactions={wifeReactions}
+            completedCount={privateReactionCompletedCount(candidateIds, wifeReactions)}
             total={sessionCandidates.length}
             candidate={wifeCandidate}
             selectedReaction={wifeReactions[wifeCandidate.id]}
@@ -1357,15 +1415,19 @@ function PassThePhoneWizardContent({
                 ? apiError
                 : null
             }
+            deferredCandidateIds={wifeJourney.deferredCandidateIds}
+            forceDecision={wifeJourney.forcedCandidateIds.includes(wifeCandidate.id)}
+            hasForwardCandidate={canNavigatePrivateReactionForward(wifeJourney)}
             onReaction={recordReaction}
+            onSkip={() => skipPrivateReaction("wife")}
             onSeenIt={(memory) => recordSeenMemory("wife", wifeCandidate, memory)}
             onBack={() => {
-              if (wifeIndex === 0) {
+              if (!canNavigatePrivateReactionBack(wifeJourney)) {
                 dispatchNavigation({ type: "navigation.back" });
                 return;
               }
 
-              setWifeIndex((current) => current - 1);
+              setWifeJourney(navigatePrivateReactionBack);
             }}
           />
         ) : (

@@ -166,7 +166,9 @@ export function ReactionStep({
   actorAvatarKey,
   actorColorKey,
   actor,
-  index,
+  candidates,
+  reactions,
+  completedCount,
   total,
   candidate,
   selectedReaction,
@@ -174,7 +176,11 @@ export function ReactionStep({
   isSyncing,
   localOnly,
   sessionNotice,
+  deferredCandidateIds,
+  forceDecision,
+  hasForwardCandidate,
   onReaction,
+  onSkip,
   onSeenIt,
   onBack,
 }: {
@@ -182,7 +188,9 @@ export function ReactionStep({
   actorAvatarKey: string;
   actorColorKey: string;
   actor: "founder" | "wife";
-  index: number;
+  candidates: DemoCandidate[];
+  reactions: ReactionState;
+  completedCount: number;
   total: number;
   candidate: DemoCandidate;
   selectedReaction: ReactionValue | undefined;
@@ -190,11 +198,15 @@ export function ReactionStep({
   isSyncing: boolean;
   localOnly: boolean;
   sessionNotice?: string | null;
+  deferredCandidateIds: string[];
+  forceDecision: boolean;
+  hasForwardCandidate: boolean;
   onReaction: (
     actor: "founder" | "wife",
     candidateId: string,
     reaction: ReactionValue,
   ) => void | Promise<void>;
+  onSkip: () => void;
   onSeenIt: (memory: SeenMemoryValue) => Promise<SeenMemorySaveResult>;
   onBack: () => void;
 }) {
@@ -204,7 +216,9 @@ export function ReactionStep({
       actorAvatarKey={actorAvatarKey}
       actorColorKey={actorColorKey}
       actor={actor}
-      index={index}
+      candidates={candidates}
+      reactions={reactions}
+      completedCount={completedCount}
       total={total}
       candidate={candidate}
       selectedReaction={selectedReaction}
@@ -212,7 +226,11 @@ export function ReactionStep({
       isSyncing={isSyncing}
       localOnly={localOnly}
       sessionNotice={sessionNotice}
+      deferredCandidateIds={deferredCandidateIds}
+      forceDecision={forceDecision}
+      hasForwardCandidate={hasForwardCandidate}
       onReaction={onReaction}
+      onSkip={onSkip}
       onSeenIt={onSeenIt}
       onBack={onBack}
     />

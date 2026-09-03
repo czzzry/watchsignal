@@ -11,6 +11,10 @@ import type {
   SharedSessionPayload,
   TonightIntentInterpretationPayload,
 } from "../session-client";
+import {
+  createPrivateReactionJourney,
+  type PrivateReactionJourney,
+} from "./private-reaction-journey.ts";
 
 export function scoringReactionSignals(
   session: SharedSessionPayload,
@@ -81,8 +85,13 @@ export function latestTonightIntent(
 export function usePassThePhoneSessionControl(
   initialCandidates: CandidateViewModel[],
 ) {
-  const [founderIndex, setFounderIndex] = useState(0);
-  const [wifeIndex, setWifeIndex] = useState(0);
+  const initialCandidateIds = initialCandidates.map((candidate) => candidate.id);
+  const [founderJourney, setFounderJourney] = useState<PrivateReactionJourney>(
+    () => createPrivateReactionJourney(initialCandidateIds),
+  );
+  const [wifeJourney, setWifeJourney] = useState<PrivateReactionJourney>(
+    () => createPrivateReactionJourney(initialCandidateIds),
+  );
   const [sessionCandidates, setSessionCandidates] =
     useState<CandidateViewModel[]>(initialCandidates);
   const [founderReactions, setFounderReactions] = useState<ReactionState>({});
@@ -94,8 +103,9 @@ export function usePassThePhoneSessionControl(
   >([]);
 
   function resetBatch(nextCandidates = initialCandidates): void {
-    setFounderIndex(0);
-    setWifeIndex(0);
+    const candidateIds = nextCandidates.map((candidate) => candidate.id);
+    setFounderJourney(createPrivateReactionJourney(candidateIds));
+    setWifeJourney(createPrivateReactionJourney(candidateIds));
     setSessionCandidates(nextCandidates);
     setFounderReactions({});
     setWifeReactions({});
@@ -128,10 +138,10 @@ export function usePassThePhoneSessionControl(
   }
 
   return {
-    founderIndex,
-    setFounderIndex,
-    wifeIndex,
-    setWifeIndex,
+    founderJourney,
+    setFounderJourney,
+    wifeJourney,
+    setWifeJourney,
     sessionCandidates,
     setSessionCandidates,
     founderReactions,
