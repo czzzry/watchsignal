@@ -247,6 +247,13 @@ export async function startPassThePhoneSession(
     if (curatorLens) {
       return failTasteLensShortlist(ports);
     }
+    if (isFreshnessExhaustionFailure(error)) {
+      const message = publicShortlistFailure();
+      ports.resetBatch();
+      ports.updateSession({ apiError: message, recommendationRunStatus: null });
+      ports.updateShortlistStage?.("failed");
+      return { status: "failed", message };
+    }
     if (isPersonalizedModelAvailabilityFailure(error)) {
       const message = personalizedModelAvailabilityMessage();
       ports.resetBatch();
@@ -652,6 +659,12 @@ function isPersonalizedModelAvailabilityFailure(error: unknown): boolean {
     error.message.includes("Personalized recommendations are temporarily unavailable") ||
     error.message.includes("did not use a popularity fallback")
   );
+}
+
+function isFreshnessExhaustionFailure(error: unknown): boolean {
+  return error instanceof Error && error.message
+    .toLocaleLowerCase()
+    .includes("fresh picks unavailable");
 }
 
 function personalizedModelAvailabilityMessage(): string {

@@ -119,6 +119,7 @@ from movie_night_mediator.storage import (
     SQLiteBackfillStore,
     SQLiteFeedbackStore,
     SQLiteOutcomeStore,
+    SQLiteRecommendationExposureStore,
     SQLiteRecommendationSnapshotStore,
     SQLitePrivateTransitionRecoveryStore,
     SQLiteSessionStore,
@@ -142,6 +143,7 @@ class _AppServices:
     outcome_service: SessionOutcomeService
     history_service: SessionHistoryService
     recommendation_snapshot_service: RecommendationSnapshotService
+    recommendation_exposure_store: SQLiteRecommendationExposureStore
     recommendation_snapshot_store: SQLiteRecommendationSnapshotStore
     taste_lab_service: TasteLabService
     taste_memory_service: TasteMemoryService
@@ -161,6 +163,7 @@ def _build_app_services(
     feedback_store: SQLiteFeedbackStore | None,
     outcome_store: SQLiteOutcomeStore | None,
     session_store: SQLiteSessionStore | None,
+    recommendation_exposure_store: SQLiteRecommendationExposureStore | None,
     recommendation_snapshot_store: SQLiteRecommendationSnapshotStore | None,
     taste_lab_store: SQLiteTasteLabStore | None,
     taste_memory_store: SQLiteTasteMemoryStore | None,
@@ -176,6 +179,9 @@ def _build_app_services(
     resolved_outcome_store = outcome_store or SQLiteOutcomeStore()
     resolved_recommendation_snapshot_store = (
         recommendation_snapshot_store or SQLiteRecommendationSnapshotStore()
+    )
+    resolved_recommendation_exposure_store = (
+        recommendation_exposure_store or SQLiteRecommendationExposureStore()
     )
     resolved_private_transition_recovery_store = (
         private_transition_recovery_store
@@ -235,6 +241,7 @@ def _build_app_services(
         setup_store=resolved_setup_store,
         onboarding_store=resolved_onboarding_store,
         session_store=resolved_session_store,
+        exposure_store=resolved_recommendation_exposure_store,
         taste_lab_service=taste_lab_service,
         backfill_service=backfill_service,
         taste_memory_service=taste_memory_service,
@@ -269,6 +276,7 @@ def _build_app_services(
         outcome_service=outcome_service,
         history_service=history_service,
         recommendation_snapshot_service=recommendation_snapshot_service,
+        recommendation_exposure_store=resolved_recommendation_exposure_store,
         recommendation_snapshot_store=resolved_recommendation_snapshot_store,
         taste_lab_service=taste_lab_service,
         taste_memory_service=taste_memory_service,
@@ -288,6 +296,7 @@ def create_app(
     feedback_store: SQLiteFeedbackStore | None = None,
     outcome_store: SQLiteOutcomeStore | None = None,
     session_store: SQLiteSessionStore | None = None,
+    recommendation_exposure_store: SQLiteRecommendationExposureStore | None = None,
     recommendation_snapshot_store: SQLiteRecommendationSnapshotStore | None = None,
     taste_lab_store: SQLiteTasteLabStore | None = None,
     taste_memory_store: SQLiteTasteMemoryStore | None = None,
@@ -361,6 +370,7 @@ def create_app(
         feedback_store=feedback_store,
         outcome_store=outcome_store,
         session_store=session_store,
+        recommendation_exposure_store=recommendation_exposure_store,
         recommendation_snapshot_store=recommendation_snapshot_store,
         taste_lab_store=taste_lab_store,
         taste_memory_store=taste_memory_store,

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import importlib.util
 import unittest
+from contextlib import ExitStack
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -25,6 +27,57 @@ class MigrationPathTests(unittest.TestCase):
         source = REPO_ROOT / "apps" / "api" / "data" / "movie_night_mediator.sqlite3"
 
         self.assertEqual(MIGRATION_TOOL.resolve_source_path(source), source)
+
+    def test_postgres_schema_initialization_includes_slate_exposures(self) -> None:
+        store_names = (
+            "SQLiteSetupStore",
+            "SQLiteHouseholdStore",
+            "SQLiteOnboardingStore",
+            "SQLiteBackfillStore",
+            "SQLiteFeedbackStore",
+            "SQLiteOutcomeStore",
+            "SQLiteRecommendationExposureStore",
+            "SQLiteRecommendationSnapshotStore",
+            "SQLiteSessionStore",
+            "SQLiteTasteLabStore",
+            "SQLiteTasteMemoryStore",
+            "SQLiteWatchlistStore",
+        )
+        stores: dict[str, Mock] = {}
+        with ExitStack() as stack:
+            for store_name in store_names:
+                store = Mock(name=store_name)
+                stores[store_name] = store
+                stack.enter_context(
+                    patch.object(
+                        MIGRATION_TOOL,
+                        store_name,
+                        return_value=store,
+                    )
+                )
+            MIGRATION_TOOL.initialize_postgres_schema(
+                "postgresql://migration-test.invalid/watchsignal"
+            )
+
+        for store in stores.values():
+            store.initialize_schema.assert_called_once_with()
+
+    def test_sequence_reset_includes_immutable_slate_issues(self) -> None:
+        connection = Mock()
+
+        MIGRATION_TOOL._reset_known_sequences(connection)
+
+        statements = "\n".join(
+            call.args[0] for call in connection.execute.call_args_list
+        )
+        self.assertIn("onboarding_seed_titles", statements)
+        self.assertIn("recommendation_slate_issues", statements)
+        self.assertIn("issue_id", statements)
+        self.assertIn("MAX(issue_id)", statements)
+        self.assertIn(
+            "EXISTS (SELECT 1 FROM recommendation_slate_issues)",
+            statements,
+        )
 
 
 if __name__ == "__main__":

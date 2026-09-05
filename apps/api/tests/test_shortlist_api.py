@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from fastapi import HTTPException, Response
 from fastapi.routing import APIRoute
@@ -46,6 +48,20 @@ from movie_night_mediator.taste_lab import (
 
 
 class ShortlistApiTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self._database_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self._database_directory.cleanup)
+        self._database_path_patch = patch.dict(
+            os.environ,
+            {
+                "MOVIE_NIGHT_MEDIATOR_SQLITE_PATH": str(
+                    Path(self._database_directory.name) / "shortlist-api.sqlite3"
+                )
+            },
+        )
+        self._database_path_patch.start()
+        self.addCleanup(self._database_path_patch.stop)
+
     def test_exact_curator_lens_api_exposes_active_provenance_and_never_discovers(
         self,
     ) -> None:
@@ -1069,7 +1085,7 @@ class ShortlistApiTest(unittest.TestCase):
 
             before_payload = post_shortlist(
                 RecommendationShortlistRequestPayload(
-                    sessionId="persistent-memory-before",
+                    sessionId="persistent-memory-comparison",
                     source="live_tmdb",
                     participantIds=["profile-1"],
                 )
@@ -1084,20 +1100,21 @@ class ShortlistApiTest(unittest.TestCase):
             )
             after_payload = post_shortlist(
                 RecommendationShortlistRequestPayload(
-                    sessionId="persistent-memory-after",
+                    sessionId="persistent-memory-comparison",
                     source="live_tmdb",
                     participantIds=["profile-1"],
                 )
             )
+            after_snapshot = snapshot_store.load_snapshot(
+                "persistent-memory-comparison"
+            )
             other_profile_payload = post_shortlist(
                 RecommendationShortlistRequestPayload(
-                    sessionId="persistent-memory-other-profile",
+                    sessionId="persistent-memory-comparison",
                     source="live_tmdb",
                     participantIds=["profile-2"],
                 )
             )
-
-            after_snapshot = snapshot_store.load_snapshot("persistent-memory-after")
 
             before_rank = next(
                 index

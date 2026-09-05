@@ -21,6 +21,7 @@ from movie_night_mediator.storage import (
     SQLiteFeedbackStore,
     SQLiteHouseholdStore,
     SQLiteOutcomeStore,
+    SQLiteRecommendationExposureStore,
     SQLiteRecommendationSnapshotStore,
     SQLiteSessionStore,
     SQLiteTasteLabStore,
@@ -172,6 +173,7 @@ def initialize_postgres_schema(database_url: str) -> None:
             SQLiteBackfillStore(),
             SQLiteFeedbackStore(),
             SQLiteOutcomeStore(),
+            SQLiteRecommendationExposureStore(),
             SQLiteRecommendationSnapshotStore(),
             SQLiteSessionStore(),
             SQLiteTasteLabStore(),
@@ -253,6 +255,15 @@ def _reset_known_sequences(connection: Any) -> None:
             pg_get_serial_sequence('onboarding_seed_titles', 'seed_id'),
             COALESCE((SELECT MAX(seed_id) FROM onboarding_seed_titles), 1),
             EXISTS (SELECT 1 FROM onboarding_seed_titles)
+        )
+        """
+    )
+    connection.execute(
+        """
+        SELECT setval(
+            pg_get_serial_sequence('recommendation_slate_issues', 'issue_id'),
+            COALESCE((SELECT MAX(issue_id) FROM recommendation_slate_issues), 1),
+            EXISTS (SELECT 1 FROM recommendation_slate_issues)
         )
         """
     )

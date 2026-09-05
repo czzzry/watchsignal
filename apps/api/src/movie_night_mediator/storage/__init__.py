@@ -8,6 +8,9 @@ from movie_night_mediator.storage.private_transition_recovery import (
 from movie_night_mediator.storage.recommendation_snapshot import (
     SQLiteRecommendationSnapshotStore,
 )
+from movie_night_mediator.storage.recommendation_exposure import (
+    SQLiteRecommendationExposureStore,
+)
 from movie_night_mediator.storage.session import SQLiteSessionStore
 from movie_night_mediator.storage.settings import SQLITE_PATH_ENV_VAR, SQLiteSettings
 from movie_night_mediator.storage.sqlite import SQLiteHouseholdStore
@@ -23,6 +26,7 @@ __all__ = [
     "SQLiteHouseholdStore",
     "SQLiteOutcomeStore",
     "SQLitePrivateTransitionRecoveryStore",
+    "SQLiteRecommendationExposureStore",
     "SQLiteRecommendationSnapshotStore",
     "SQLiteSessionStore",
     "SQLiteSettings",

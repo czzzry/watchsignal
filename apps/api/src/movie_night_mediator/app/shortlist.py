@@ -289,6 +289,7 @@ def get_candidate_source_shortlist_items(
     recently_rejected_source_movie_ids: tuple[str, ...] = (),
     softly_rejected_source_movie_ids: tuple[str, ...] = (),
     candidate_source_movie_ids: tuple[str, ...] | None = None,
+    priority_source_movie_ids: tuple[str, ...] = (),
 ) -> tuple[OfflineShortlistItem, ...]:
     result = _run_candidate_pipeline(
         candidate_source,
@@ -310,7 +311,10 @@ def get_candidate_source_shortlist_items(
         candidate.source_movie_id: candidate for candidate in result.candidates
     }
     ranked_candidates = _select_diverse_shortlist(
-        result.ranked_candidates,
+        _prioritize_ranked_candidates(
+            result.ranked_candidates,
+            priority_source_movie_ids=priority_source_movie_ids,
+        ),
         candidates_by_source_id=candidates_by_source_id,
         limit=limit,
     )
@@ -351,8 +355,13 @@ def _run_candidate_pipeline(
     if candidate_source_movie_ids is not None:
         if not callable(explicit_hydration):
             raise ValueError("Candidate source cannot hydrate an explicit candidate pool.")
+        hydration_source_movie_ids = tuple(
+            source_movie_id
+            for source_movie_id in candidate_source_movie_ids
+            if source_movie_id not in excluded_ids
+        )
         candidates = explicit_hydration(
-            source_movie_ids=candidate_source_movie_ids,
+            source_movie_ids=hydration_source_movie_ids,
             session=session,
             household_defaults=household_defaults,
             limit=candidate_limit,
@@ -485,6 +494,35 @@ def _select_diverse_shortlist(
     return tuple(
         replace(item, candidate_rank=index)
         for index, item in enumerate(selected, start=1)
+    )
+
+
+def _prioritize_ranked_candidates(
+    ranked_candidates: tuple[RankedCandidate, ...],
+    *,
+    priority_source_movie_ids: tuple[str, ...],
+) -> tuple[RankedCandidate, ...]:
+    """Keep selected fresh leaders first before one final diversity pass."""
+
+    if not priority_source_movie_ids:
+        return ranked_candidates
+    priorities = {
+        source_movie_id: index
+        for index, source_movie_id in enumerate(priority_source_movie_ids)
+    }
+    priority_rows = sorted(
+        (
+            candidate
+            for candidate in ranked_candidates
+            if candidate.source_movie_id in priorities
+        ),
+        key=lambda candidate: priorities[candidate.source_movie_id],
+    )
+    priority_ids = {candidate.source_movie_id for candidate in priority_rows}
+    return tuple(priority_rows) + tuple(
+        candidate
+        for candidate in ranked_candidates
+        if candidate.source_movie_id not in priority_ids
     )
 
 

@@ -71,7 +71,7 @@ flowchart LR
 ## Recommendation application boundary
 
 The API route validates and translates HTTP payloads but does not execute the recommendation workflow.
-`RecommendationService` owns profile and memory evidence loading, candidate-source selection, fetch budgeting, scorer selection, shortlist generation, snapshot creation, and application-level failure semantics.
+`RecommendationService` owns profile and memory evidence loading, recent-slate exposure lookup, candidate-source selection, fetch budgeting, scorer selection, shortlist generation, exposure recording, snapshot creation, and application-level failure semantics.
 The TMDb adapter owns provider communication and candidate construction.
 The scoring module owns ranking policy and evidence generation.
 
@@ -83,11 +83,16 @@ flowchart LR
     C --> E["Candidate source"]
     C --> F["Scoring module"]
     C --> G["Recommendation snapshot"]
+    C --> I["Recent issued-slate exposures"]
     E --> H["TMDb adapter or demo fixtures"]
 ```
 
 The live candidate pipeline has one execution path for fetching, exclusion, enrichment, watched-state marking, scoring, and snapshotting.
 Callers may request ranked domain candidates or display-ready shortlist items without duplicating that pipeline.
+The final issued slate is recorded before the response returns, independently of reactions or outcomes.
+New sessions prefer candidates outside the recent household exposure window, while an exact retry replays its immutable response.
+The active 25-movie window is claimed atomically, so simultaneous requests cannot both consume the same fresh candidates.
+Exposure changes short-term eligibility only and never writes a taste preference.
 
 ## Pass-the-phone state boundaries
 

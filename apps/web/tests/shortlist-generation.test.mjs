@@ -144,6 +144,46 @@ test("trained-model failure never swaps in a demo or popularity substitute", asy
   assert.ok(failure);
 });
 
+test("exhausted freshness never swaps in the built-in slate", async () => {
+  const events = [];
+  const outcome = await startPassThePhoneSession(
+    {
+      apiConnected: true,
+      isCoupleSession: true,
+      sessionMode: "compromise",
+      participantIds: ["profile-1", "profile-2"],
+      shortlistSize: 5,
+      availabilityRegion: "Prime Video Germany",
+      activeTonightIntent: null,
+      activeTonightIntents: [],
+      fallbackCandidates: demoCandidateViewModels,
+      disconnectedMessage: "offline",
+    },
+    ports(events),
+    {
+      createId: () => "freshness-exhausted",
+      loadShortlist: async () => {
+        throw new Error(
+          "Fresh picks unavailable: we couldn't find an unseen movie that still fits tonight.",
+        );
+      },
+      createSession: async () => { throw new Error("must not create"); },
+      continueSession: async () => { throw new Error("must not continue"); },
+    },
+  );
+
+  assert.equal(outcome.status, "failed");
+  assert.match(outcome.message, /five fresh picks/i);
+  assert.equal(events.some(([name]) => name === "navigate"), false);
+  assert.equal(
+    events.some(
+      ([name, value]) =>
+        name === "session" && value.recommendationSource === "demo",
+    ),
+    false,
+  );
+});
+
 function ports(events) {
   return {
     resetBatch: (candidates) => events.push(["reset", candidates]),

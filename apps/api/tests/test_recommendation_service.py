@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 
@@ -51,6 +54,7 @@ from movie_night_mediator.domain import (
 from movie_night_mediator.scoring import ScoringEngineId
 from movie_night_mediator.storage import (
     SQLiteBackfillStore,
+    SQLiteRecommendationExposureStore,
     SQLiteRecommendationSnapshotStore,
     SQLiteSessionStore,
     SQLiteTasteLabStore,
@@ -119,6 +123,100 @@ class RepeatCandidateSource:
             )
             for index in range(1, 7)
         )
+
+
+class NoveltyCandidateSource:
+    def __init__(self, count: int = 12) -> None:
+        self.count = count
+        self.fetch_count = 0
+
+    def fetch_candidates(self, **_kwargs):
+        self.fetch_count += 1
+        return tuple(
+            Candidate(
+                source_movie_id=f"tmdb:novelty-{index}",
+                title=f"Novelty Film {index}",
+                media_type=MediaType.MOVIE,
+                genres=("Drama",),
+                providers=("Prime Video",),
+            )
+            for index in range(1, self.count + 1)
+        )
+
+
+class MutableNoveltyCandidateSource:
+    def __init__(self) -> None:
+        self.wave = 1
+        self.fetch_count = 0
+
+    def fetch_candidates(self, **_kwargs):
+        self.fetch_count += 1
+        offset = 0 if self.wave == 1 else 20
+        return tuple(
+            Candidate(
+                source_movie_id=f"tmdb:mutable-{offset + index}",
+                title=f"Mutable Film {offset + index}",
+                media_type=MediaType.MOVIE,
+                genres=("Drama",),
+                providers=("Prime Video",),
+            )
+            for index in range(1, 13)
+        )
+
+
+class ConcurrentNoveltyCandidateSource(NoveltyCandidateSource):
+    def __init__(self, barrier: threading.Barrier) -> None:
+        super().__init__()
+        self._barrier = barrier
+        self._fetch_count = 0
+
+    def fetch_candidates(self, **kwargs):
+        self._fetch_count += 1
+        if self._fetch_count == 1:
+            self._barrier.wait(timeout=5)
+        return super().fetch_candidates(**kwargs)
+
+
+class ScarceDiversityCandidateSource:
+    def fetch_candidates(self, **_kwargs):
+        return (
+            Candidate(
+                source_movie_id="tmdb:x-men-original",
+                title="X-Men",
+                media_type=MediaType.MOVIE,
+                genres=("Action", "Sci-Fi"),
+                metadata_keywords=("superhero", "based on comic"),
+                collection_name="X-Men Collection",
+                providers=("Prime Video",),
+            ),
+            *tuple(
+                Candidate(
+                    source_movie_id=f"tmdb:drama-{index}",
+                    title=f"Grounded Drama {index}",
+                    media_type=MediaType.MOVIE,
+                    genres=("Drama",),
+                    providers=("Prime Video",),
+                )
+                for index in range(1, 5)
+            ),
+            Candidate(
+                source_movie_id="tmdb:logan",
+                title="Logan",
+                media_type=MediaType.MOVIE,
+                genres=("Action", "Sci-Fi"),
+                metadata_keywords=("superhero", "based on comic"),
+                collection_name="X-Men Collection",
+                providers=("Prime Video",),
+            ),
+        )
+
+
+class ShrinkingRefillCandidateSource(NoveltyCandidateSource):
+    def fetch_candidates(self, **kwargs):
+        candidates = super().fetch_candidates(**kwargs)
+        if self.fetch_count < 3:
+            return candidates[:6]
+        return (candidates[1], candidates[2], candidates[3], candidates[5])
 
 
 class ExactCuratorCandidateSource:
@@ -687,6 +785,356 @@ class RecommendationServiceTest(unittest.TestCase):
             self.assertEqual(len(shortlist), 5)
             self.assertNotIn("tmdb:old-1", {item.source_movie_id for item in shortlist})
 
+    def test_unanswered_slate_is_not_repeated_on_the_next_movie_night(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            directory_path = Path(directory)
+            first_service, _ = recommendation_service(
+                directory_path,
+                candidate_source=NoveltyCandidateSource(),
+            )
+
+            first_shortlist = first_service.recommend(
+                RecommendationRequest(
+                    household_id="default-household",
+                    source=RecommendationSource.LIVE_TMDB,
+                    session=SessionContext(
+                        session_id="unanswered-night-1",
+                        audience_mode=AudienceMode.SOLO,
+                        viewer_user_ids=("profile-1",),
+                        service_constraint="Prime Video",
+                    ),
+                )
+            )
+
+            second_service, _ = recommendation_service(
+                directory_path,
+                candidate_source=NoveltyCandidateSource(),
+            )
+            second_shortlist = second_service.recommend(
+                RecommendationRequest(
+                    household_id="default-household",
+                    source=RecommendationSource.LIVE_TMDB,
+                    session=SessionContext(
+                        session_id="unanswered-night-2",
+                        audience_mode=AudienceMode.SOLO,
+                        viewer_user_ids=("profile-1",),
+                        service_constraint="Prime Video",
+                    ),
+                )
+            )
+
+            self.assertEqual(len(first_shortlist), 5)
+            self.assertEqual(len(second_shortlist), 5)
+            self.assertTrue(
+                {item.source_movie_id for item in first_shortlist}.isdisjoint(
+                    item.source_movie_id for item in second_shortlist
+                )
+            )
+
+    def test_scarce_pool_leads_with_the_only_fresh_movie_then_uses_repeats(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            directory_path = Path(directory)
+            service, _ = recommendation_service(
+                directory_path,
+                candidate_source=NoveltyCandidateSource(count=6),
+            )
+            first_shortlist = service.recommend(
+                novelty_request(session_id="scarce-night-1")
+            )
+            second_shortlist = service.recommend(
+                novelty_request(session_id="scarce-night-2")
+            )
+
+            first_ids = {item.source_movie_id for item in first_shortlist}
+            second_ids = [item.source_movie_id for item in second_shortlist]
+            self.assertEqual(len(second_ids), 5)
+            self.assertEqual(len(set(second_ids)), 5)
+            self.assertEqual(second_ids[0], "tmdb:novelty-6")
+            self.assertNotEqual(set(second_ids), first_ids)
+
+    def test_same_session_retry_is_idempotent_and_does_not_consume_novelty(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            directory_path = Path(directory)
+            service, _ = recommendation_service(
+                directory_path,
+                candidate_source=NoveltyCandidateSource(),
+            )
+            request = novelty_request(session_id="retried-night")
+
+            first_shortlist = service.recommend(request)
+            retry_shortlist = service.recommend(request)
+            next_shortlist = service.recommend(
+                novelty_request(session_id="night-after-retry")
+            )
+            first_ids = tuple(item.source_movie_id for item in first_shortlist)
+
+            self.assertEqual(
+                tuple(item.source_movie_id for item in retry_shortlist),
+                first_ids,
+            )
+            self.assertTrue(
+                set(first_ids).isdisjoint(
+                    item.source_movie_id for item in next_shortlist
+                )
+            )
+            exposures = SQLiteRecommendationExposureStore(
+                database_path=directory_path / "recommendation-service.sqlite3"
+            )
+            self.assertEqual(
+                exposures.source_movie_ids_for_session(
+                    household_id="default-household",
+                    session_id="retried-night",
+                ),
+                first_ids,
+            )
+
+    def test_same_request_replays_issued_slate_without_calling_provider_again(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            directory_path = Path(directory)
+            candidate_source = MutableNoveltyCandidateSource()
+            service, _ = recommendation_service(
+                directory_path,
+                candidate_source=candidate_source,
+            )
+            request = novelty_request(session_id="provider-changed-during-retry")
+
+            first_shortlist = service.recommend(request)
+            candidate_source.wave = 2
+            replayed_shortlist = service.recommend(request)
+
+            self.assertEqual(replayed_shortlist, first_shortlist)
+            self.assertEqual(candidate_source.fetch_count, 1)
+
+    def test_five_more_in_same_session_issues_and_replays_a_new_batch(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            directory_path = Path(directory)
+            candidate_source = NoveltyCandidateSource()
+            service, _ = recommendation_service(
+                directory_path,
+                candidate_source=candidate_source,
+            )
+            first_request = novelty_request(session_id="continued-night")
+            first_shortlist = service.recommend(first_request)
+            continuation_request = replace(
+                first_request,
+                excluded_source_movie_ids=tuple(
+                    item.source_movie_id for item in first_shortlist
+                ),
+            )
+
+            continuation = service.recommend(continuation_request)
+            replay = service.recommend(continuation_request)
+
+            self.assertTrue(
+                {item.source_movie_id for item in first_shortlist}.isdisjoint(
+                    item.source_movie_id for item in continuation
+                )
+            )
+            self.assertEqual(replay, continuation)
+            self.assertEqual(candidate_source.fetch_count, 2)
+            exposures = SQLiteRecommendationExposureStore(
+                database_path=directory_path / "recommendation-service.sqlite3"
+            )
+            self.assertEqual(
+                len(
+                    exposures.source_movie_ids_for_session(
+                        household_id="default-household",
+                        session_id="continued-night",
+                    )
+                ),
+                10,
+            )
+
+    def test_concurrent_new_sessions_cannot_issue_the_same_slate(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            directory_path = Path(directory)
+            database_path = directory_path / "recommendation-service.sqlite3"
+            SQLiteRecommendationExposureStore(
+                database_path=database_path
+            ).initialize_schema()
+            barrier = threading.Barrier(2)
+            first_service, _ = recommendation_service(
+                directory_path,
+                candidate_source=ConcurrentNoveltyCandidateSource(barrier),
+            )
+            second_service, _ = recommendation_service(
+                directory_path,
+                candidate_source=ConcurrentNoveltyCandidateSource(barrier),
+            )
+
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                futures = (
+                    executor.submit(
+                        first_service.recommend,
+                        novelty_request(session_id="concurrent-night-1"),
+                    ),
+                    executor.submit(
+                        second_service.recommend,
+                        novelty_request(session_id="concurrent-night-2"),
+                    ),
+                )
+                first_shortlist, second_shortlist = (
+                    future.result(timeout=15) for future in futures
+                )
+
+            self.assertTrue(
+                {item.source_movie_id for item in first_shortlist}.isdisjoint(
+                    item.source_movie_id for item in second_shortlist
+                )
+            )
+
+    def test_scarce_refill_reapplies_franchise_and_theme_diversity(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            service, _ = recommendation_service(
+                Path(directory),
+                candidate_source=ScarceDiversityCandidateSource(),
+            )
+            first_shortlist = service.recommend(
+                novelty_request(session_id="diverse-scarce-night-1")
+            )
+            second_shortlist = service.recommend(
+                novelty_request(session_id="diverse-scarce-night-2")
+            )
+
+            first_ids = {item.source_movie_id for item in first_shortlist}
+            second_ids = {item.source_movie_id for item in second_shortlist}
+            self.assertEqual(len(first_shortlist), 5)
+            self.assertEqual(len(second_shortlist), 5)
+            self.assertIn("tmdb:logan", second_ids)
+            self.assertNotIn("tmdb:x-men-original", second_ids)
+            self.assertNotEqual(first_ids, second_ids)
+
+    def test_partial_fresh_refill_never_falls_through_to_demo_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            service, _ = recommendation_service(
+                Path(directory),
+                candidate_source=ShrinkingRefillCandidateSource(),
+            )
+            service.recommend(
+                novelty_request(session_id="shrinking-refill-night-1")
+            )
+
+            with self.assertRaises(IncompleteRecommendationError) as raised:
+                service.recommend(
+                    novelty_request(session_id="shrinking-refill-night-2")
+                )
+
+            self.assertIn("Fresh picks unavailable", str(raised.exception))
+
+    def test_exposure_records_only_the_final_five_not_the_ranked_pool(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            directory_path = Path(directory)
+            service, _ = recommendation_service(
+                directory_path,
+                candidate_source=NoveltyCandidateSource(),
+            )
+            shortlist = service.recommend(
+                novelty_request(session_id="exposure-boundary")
+            )
+            exposures = SQLiteRecommendationExposureStore(
+                database_path=directory_path / "recommendation-service.sqlite3"
+            )
+
+            self.assertEqual(
+                exposures.source_movie_ids_for_session(
+                    household_id="default-household",
+                    session_id="exposure-boundary",
+                ),
+                tuple(item.source_movie_id for item in shortlist),
+            )
+            self.assertEqual(len(shortlist), 5)
+
+    def test_novelty_is_scoped_to_the_household(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            service, _ = recommendation_service(
+                Path(directory),
+                candidate_source=NoveltyCandidateSource(),
+            )
+            household_a_first = service.recommend(
+                novelty_request(
+                    session_id="household-a-1",
+                    household_id="household-a",
+                )
+            )
+            household_b_first = service.recommend(
+                novelty_request(
+                    session_id="household-b-1",
+                    household_id="household-b",
+                )
+            )
+            household_a_second = service.recommend(
+                novelty_request(
+                    session_id="household-a-2",
+                    household_id="household-a",
+                )
+            )
+
+            household_a_first_ids = {
+                item.source_movie_id for item in household_a_first
+            }
+            self.assertEqual(
+                {item.source_movie_id for item in household_b_first},
+                household_a_first_ids,
+            )
+            self.assertTrue(
+                household_a_first_ids.isdisjoint(
+                    item.source_movie_id for item in household_a_second
+                )
+            )
+
+    def test_no_fresh_eligible_movie_fails_instead_of_repeating_the_slate(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            service, _ = recommendation_service(
+                Path(directory),
+                candidate_source=NoveltyCandidateSource(count=5),
+            )
+            service.recommend(novelty_request(session_id="exhausted-night-1"))
+
+            with self.assertRaises(IncompleteRecommendationError) as raised:
+                service.recommend(
+                    novelty_request(session_id="exhausted-night-2")
+                )
+
+            self.assertIn("Fresh picks unavailable", str(raised.exception))
+
+    def test_existing_unanswered_shared_session_bootstraps_freshness(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            directory_path = Path(directory)
+            database_path = directory_path / "recommendation-service.sqlite3"
+            previous_ids = tuple(f"tmdb:novelty-{index}" for index in range(1, 6))
+            SQLiteSessionStore(database_path=database_path).save_session(
+                SharedMovieNightSession(
+                    session_id="pre-exposure-table-night",
+                    household_id="default-household",
+                    active_mode=SessionMode.COMPROMISE,
+                    participant_ids=("profile-1", "profile-2"),
+                    state=SharedSessionState.FOUNDER_REACTING,
+                    shortlist=tuple(
+                        SessionShortlistItem(
+                            source_movie_id=source_movie_id,
+                            title=f"Previous Film {index}",
+                            candidate_rank=index,
+                            profile_score=0.8,
+                        )
+                        for index, source_movie_id in enumerate(previous_ids, start=1)
+                    ),
+                )
+            )
+            service, _ = recommendation_service(
+                directory_path,
+                candidate_source=NoveltyCandidateSource(),
+            )
+
+            shortlist = service.recommend(
+                novelty_request(session_id="first-night-after-deploy")
+            )
+
+            self.assertTrue(
+                set(previous_ids).isdisjoint(
+                    item.source_movie_id for item in shortlist
+                )
+            )
+
     def test_live_profiles_use_saved_onboarding_instead_of_demo_seeds(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             directory_path = Path(directory)
@@ -769,6 +1217,23 @@ def demo_request() -> RecommendationRequest:
     )
 
 
+def novelty_request(
+    *,
+    session_id: str,
+    household_id: str = "default-household",
+) -> RecommendationRequest:
+    return RecommendationRequest(
+        household_id=household_id,
+        source=RecommendationSource.LIVE_TMDB,
+        session=SessionContext(
+            session_id=session_id,
+            audience_mode=AudienceMode.SOLO,
+            viewer_user_ids=("profile-1",),
+            service_constraint="Prime Video",
+        ),
+    )
+
+
 def recommendation_service(
     directory: Path,
     *,
@@ -783,6 +1248,9 @@ def recommendation_service(
             setup_store=SQLiteSetupStore(database_path=database_path),
             onboarding_store=onboarding_store,
             session_store=SQLiteSessionStore(database_path=database_path),
+            exposure_store=SQLiteRecommendationExposureStore(
+                database_path=database_path
+            ),
             taste_lab_service=TasteLabService(
                 SQLiteTasteLabStore(database_path=database_path)
             ),

@@ -22,6 +22,9 @@ The first operating store should use these tabs:
 - `onboarding_seeds`
 - `sessions`
 - `session_candidates`
+- `recommendation_slate_issues`
+- `recommendation_slate_exposures`
+- `recommendation_slate_novelty_window`
 - `shortlist_reactions`
 - `outcomes`
 - `post_watch_feedback`
@@ -122,6 +125,50 @@ Working fields:
 - `user_b`
 - `compromise`
 - `shared`
+
+### `recommendation_slate_issues`
+
+Represents one immutable recommendation response.
+The canonical response lets an exact request retry return the same five without calling the movie provider again.
+
+Working fields:
+- `issue_id`
+- `household_id`
+- `session_id`
+- `request_fingerprint`
+- `canonical_run_json`
+- `issued_at`
+
+The same session may have multiple issues when reactions, exclusions, nudges, or durable taste evidence change.
+The combination of household, session, and full request fingerprint is idempotent.
+
+### `recommendation_slate_exposures`
+
+Represents the final ordered movies issued to a household, whether or not anyone finishes rating them.
+These rows are durable audit evidence and are not taste evidence.
+
+Working fields:
+- `issue_id`
+- `household_id`
+- `session_id`
+- `source_movie_id`
+- `presented_rank`
+
+Recent exposure may change candidate eligibility, but it must never create a profile preference or taste-memory event.
+
+### `recommendation_slate_novelty_window`
+
+Represents the household's bounded active freshness cooldown.
+It keeps only the 25 most recently issued movie IDs, which is five normal slates.
+
+Working fields:
+- `household_id`
+- `source_movie_id`
+- `issue_id`
+- `session_id`
+- `presented_rank`
+
+The active window is claimed atomically so overlapping requests cannot both issue the same newly available movie.
 
 ### `shortlist_reactions`
 

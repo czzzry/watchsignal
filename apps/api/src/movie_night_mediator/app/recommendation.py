@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+import hashlib
+import json
+from dataclasses import asdict, dataclass
 from enum import StrEnum
-from typing import Callable
+from typing import Any, Callable
 
 from movie_night_mediator.adapters import (
     TmdbCandidateSource,
@@ -18,7 +20,9 @@ from movie_night_mediator.app.recommendation_snapshot import (
     RecommendationSnapshotService,
 )
 from movie_night_mediator.app.shortlist import (
+    OfflineShortlistCastMember,
     OfflineShortlistItem,
+    OfflineShortlistProviderAvailability,
     get_candidate_source_shortlist_items,
     get_offline_demo_shortlist,
 )
@@ -31,9 +35,11 @@ from movie_night_mediator.app.taste_memory import TasteMemoryService
 from movie_night_mediator.domain import (
     CandidateSource,
     HouseholdDefaults,
+    MediaType,
     ScoringSessionReaction,
     SessionContext,
     SessionReactionLabel,
+    SharedMovieNightSession,
     UserProfile,
 )
 from movie_night_mediator.fixtures.demo_couple import (
@@ -48,7 +54,14 @@ from movie_night_mediator.scoring import (
 from movie_night_mediator.app.setup import SQLiteSetupStore
 from movie_night_mediator.app.onboarding import SQLiteOnboardingStore
 from movie_night_mediator.taste_lab import TasteLabService
-from movie_night_mediator.storage import SQLiteSessionStore
+from movie_night_mediator.storage import (
+    SQLiteRecommendationExposureStore,
+    SQLiteSessionStore,
+)
+from movie_night_mediator.storage.recommendation_exposure import (
+    ConcurrentRecommendationSlateConflict,
+    RecommendationSlateIssue,
+)
 from movie_night_mediator.domain import (
     OnboardingSeed,
     ProfileTasteEvidence,
@@ -60,6 +73,10 @@ from movie_night_mediator.domain import (
 class RecommendationSource(StrEnum):
     DEMO = "demo"
     LIVE_TMDB = "live_tmdb"
+
+
+RECENT_SLATE_MOVIE_LIMIT = 25
+MAX_SLATE_ISSUE_ATTEMPTS = 3
 
 
 class RecommendationRunMode(StrEnum):
@@ -184,6 +201,12 @@ class IncompleteRecommendationError(RecommendationServiceError):
     pass
 
 
+class FreshRecommendationUnavailableError(IncompleteRecommendationError):
+    """No valid slate can satisfy the cross-session novelty contract."""
+
+    pass
+
+
 class CuratorLensInsufficientCandidatesError(IncompleteRecommendationError):
     """A curator lens could not satisfy the household's hard checks."""
 
@@ -213,6 +236,7 @@ class RecommendationService:
         snapshot_service: RecommendationSnapshotService,
         onboarding_store: SQLiteOnboardingStore | None = None,
         session_store: SQLiteSessionStore | None = None,
+        exposure_store: SQLiteRecommendationExposureStore | None = None,
         candidate_source: CandidateSource | None = None,
         candidate_source_factory: Callable[[], CandidateSource] = TmdbCandidateSource,
         candidate_retriever: PersonalizedCandidateRetriever | None = None,
@@ -224,6 +248,7 @@ class RecommendationService:
         self._snapshot_service = snapshot_service
         self._onboarding_store = onboarding_store
         self._session_store = session_store
+        self._exposure_store = exposure_store
         self._candidate_source = candidate_source
         self._candidate_source_factory = candidate_source_factory
         self._candidate_retriever = candidate_retriever
@@ -243,11 +268,65 @@ class RecommendationService:
         self,
         request: RecommendationRequest,
     ) -> RecommendationRun:
+        for attempt in range(MAX_SLATE_ISSUE_ATTEMPTS):
+            try:
+                return self._recommend_run_once(request)
+            except ConcurrentRecommendationSlateConflict:
+                if attempt + 1 == MAX_SLATE_ISSUE_ATTEMPTS:
+                    break
+        raise FreshRecommendationUnavailableError(
+            "Fresh picks unavailable: another movie-night request changed the "
+            "freshness window. Please try this recommendation once more."
+        )
+
+    def _recommend_run_once(
+        self,
+        request: RecommendationRequest,
+    ) -> RecommendationRun:
         users = self._users_for_request(request)
+        historical_sessions = self._historical_sessions_for_request(request)
         watched_ids = self._watched_ids_for_request(request)
         recently_rejected_ids, softly_rejected_ids = self._historical_rejection_ids_for_request(
-            request
+            request,
+            historical_sessions=historical_sessions,
         )
+        request_fingerprint = _recommendation_request_fingerprint(
+            request=request,
+            users=users,
+            watched_source_movie_ids=watched_ids,
+            recently_rejected_source_movie_ids=recently_rejected_ids,
+            softly_rejected_source_movie_ids=softly_rejected_ids,
+        )
+        if (
+            request.source == RecommendationSource.LIVE_TMDB
+            and self._exposure_store is not None
+        ):
+            existing_issue = self._exposure_store.load_issue(
+                household_id=request.household_id,
+                session_id=request.session.session_id,
+                request_fingerprint=request_fingerprint,
+            )
+            if existing_issue is not None:
+                return _recommendation_run_from_issue(existing_issue)
+            observed_active_source_movie_ids = (
+                self._exposure_store.active_source_movie_ids(
+                    household_id=request.household_id,
+                    limit=RECENT_SLATE_MOVIE_LIMIT,
+                )
+            )
+        else:
+            observed_active_source_movie_ids = ()
+
+        def finalize(run: RecommendationRun) -> RecommendationRun:
+            return self._finalize_run(
+                request,
+                run,
+                request_fingerprint=request_fingerprint,
+                observed_active_source_movie_ids=(
+                    observed_active_source_movie_ids
+                ),
+            )
+
         scorer = build_recommendation_scorer(request.scoring_engine)
         curator_lens = request.curator_lens
         exact_curator_list = (
@@ -257,6 +336,19 @@ class RecommendationService:
         inspiration_curator_lens = (
             curator_lens is not None
             and curator_lens.mode == CuratorLensMode.INSPIRATION
+        )
+        recently_presented_ids = (
+            self._recently_presented_ids_for_request(
+                request,
+                historical_sessions=historical_sessions,
+            )
+            if request.source == RecommendationSource.LIVE_TMDB
+            else ()
+        )
+        effective_excluded_ids = tuple(
+            dict.fromkeys(
+                request.excluded_source_movie_ids + recently_presented_ids
+            )
         )
 
         if (
@@ -296,30 +388,39 @@ class RecommendationService:
                     shortlist=shortlist,
                     request=request,
                 )
-                return RecommendationRun(
+                return finalize(
+                    RecommendationRun(
+                        shortlist=shortlist,
+                        mode=RecommendationRunMode.CURATOR_EXACT_LIST,
+                        label="Curator picks, household-ranked",
+                        detail=(
+                            "Every pick came from the selected curator's published list, "
+                            "then passed household constraints and diversity checks."
+                        ),
+                        trained_candidate_retrieval=False,
+                        trained_scoring=False,
+                        curator_lens_status=CuratorLensStatus.ACTIVE,
+                        curator_lens=curator_lens,
+                    ),
+                )
+            return finalize(
+                RecommendationRun(
                     shortlist=shortlist,
-                    mode=RecommendationRunMode.CURATOR_EXACT_LIST,
-                    label="Curator picks, household-ranked",
+                    mode=RecommendationRunMode.DEMO,
+                    label="Built-in demo picks",
                     detail=(
-                        "Every pick came from the selected curator's published list, "
-                        "then passed household constraints and diversity checks."
+                        "This is the local demo catalog, not a personalized live "
+                        "recommendation."
                     ),
                     trained_candidate_retrieval=False,
                     trained_scoring=False,
-                    curator_lens_status=CuratorLensStatus.ACTIVE,
+                    curator_lens_status=(
+                        CuratorLensStatus.CONTRACT_READY
+                        if curator_lens is not None
+                        else None
+                    ),
                     curator_lens=curator_lens,
-                )
-            return RecommendationRun(
-                shortlist=shortlist,
-                mode=RecommendationRunMode.DEMO,
-                label="Built-in demo picks",
-                detail="This is the local demo catalog, not a personalized live recommendation.",
-                trained_candidate_retrieval=False,
-                trained_scoring=False,
-                curator_lens_status=(
-                    CuratorLensStatus.CONTRACT_READY if curator_lens is not None else None
                 ),
-                curator_lens=curator_lens,
             )
 
         candidate_source = self._candidate_source or self._candidate_source_factory()
@@ -331,15 +432,24 @@ class RecommendationService:
             self._default_candidate_retriever = build_default_personalized_retriever()
             self._default_candidate_retriever_loaded = True
         retriever = retriever or self._default_candidate_retriever
-        candidate_limit = live_candidate_fetch_limit(
-            shortlist_size=request.shortlist_size,
-            excluded_count=len(request.excluded_source_movie_ids),
-            watched_count=len(watched_ids),
-        )
         requires_trained_run = request.scoring_engine in {
             ScoringEngineId.V2_COLLABORATIVE,
             ScoringEngineId.V2_HYBRID,
         }
+        retrieval_filters_exposures_before_hydration = (
+            requires_trained_run
+            or exact_curator_list
+            or inspiration_curator_lens
+        )
+        candidate_limit = live_candidate_fetch_limit(
+            shortlist_size=request.shortlist_size,
+            excluded_count=(
+                len(request.excluded_source_movie_ids)
+                if retrieval_filters_exposures_before_hydration
+                else len(effective_excluded_ids)
+            ),
+            watched_count=len(watched_ids),
+        )
         if exact_curator_list and not supports_explicit_hydration:
             raise CuratorLensUnavailableError(
                 "This live movie provider cannot verify the curator's published list. "
@@ -369,7 +479,7 @@ class RecommendationService:
             assert curator_lens is not None
             retrieval_exclusions = tuple(
                 dict.fromkeys(
-                    request.excluded_source_movie_ids
+                    effective_excluded_ids
                     + watched_ids
                     + recently_rejected_ids
                 )
@@ -398,8 +508,12 @@ class RecommendationService:
                     "from a popularity list."
                 )
 
-        try:
-            shortlist = get_candidate_source_shortlist_items(
+        def load_live_shortlist(
+            excluded_source_movie_ids: tuple[str, ...],
+            *,
+            priority_source_movie_ids: tuple[str, ...] = (),
+        ) -> tuple[OfflineShortlistItem, ...]:
+            return get_candidate_source_shortlist_items(
                 candidate_source,
                 session=request.session,
                 household_defaults=HouseholdDefaults(
@@ -411,7 +525,7 @@ class RecommendationService:
                 candidate_limit=candidate_limit,
                 scorer=scorer,
                 snapshot_service=self._snapshot_service,
-                excluded_source_movie_ids=request.excluded_source_movie_ids,
+                excluded_source_movie_ids=excluded_source_movie_ids,
                 watched_source_movie_ids=watched_ids,
                 session_reactions=request.session_reactions,
                 recently_rejected_source_movie_ids=recently_rejected_ids,
@@ -421,7 +535,45 @@ class RecommendationService:
                     if exact_curator_list
                     else inspiration_candidate_source_ids
                 ),
+                priority_source_movie_ids=priority_source_movie_ids,
             )
+
+        try:
+            shortlist = load_live_shortlist(effective_excluded_ids)
+            if recently_presented_ids and len(shortlist) < request.shortlist_size:
+                if not shortlist:
+                    raise FreshRecommendationUnavailableError(
+                        "Fresh picks unavailable: we couldn't find an unseen movie "
+                        "that still fits tonight. Change a nudge or try again after "
+                        "your profile changes."
+                    )
+                if inspiration_curator_lens:
+                    raise CuratorLensInsufficientCandidatesError(
+                        "This curator direction does not have enough fresh matches "
+                        "for tonight. WatchSignal did not repeat the previous slate."
+                    )
+                fresh_source_movie_ids = tuple(
+                    item.source_movie_id for item in shortlist
+                )
+                shortlist = load_live_shortlist(
+                    request.excluded_source_movie_ids,
+                    priority_source_movie_ids=fresh_source_movie_ids,
+                )
+                fresh_id_set = set(fresh_source_movie_ids)
+                if not fresh_id_set.intersection(
+                    item.source_movie_id for item in shortlist
+                ):
+                    raise FreshRecommendationUnavailableError(
+                        "Fresh picks unavailable: we couldn't keep an unseen movie "
+                        "while preserving tonight's variety guardrails. Change a "
+                        "nudge or try again after your profile changes."
+                    )
+                if len(shortlist) != request.shortlist_size:
+                    raise FreshRecommendationUnavailableError(
+                        "Fresh picks unavailable: we found an unseen movie, but not "
+                        "enough compatible titles to complete a varied five. Change "
+                        "a nudge or try again after your profile changes."
+                    )
         except TmdbCandidateSourceError as error:
             raise RecommendationSourceUnavailableError(str(error)) from error
 
@@ -430,21 +582,26 @@ class RecommendationService:
                 shortlist=shortlist,
                 request=request,
             )
-            return RecommendationRun(
-                shortlist=shortlist,
-                mode=RecommendationRunMode.CURATOR_EXACT_LIST,
-                label="Curator picks, household-ranked",
-                detail=(
-                    "Every pick came from the selected curator's published list, "
-                    "then passed household constraints and diversity checks."
+            return finalize(
+                RecommendationRun(
+                    shortlist=shortlist,
+                    mode=RecommendationRunMode.CURATOR_EXACT_LIST,
+                    label="Curator picks, household-ranked",
+                    detail=(
+                        "Every pick came from the selected curator's published list, "
+                        "then passed household constraints and diversity checks."
+                    ),
+                    trained_candidate_retrieval=False,
+                    trained_scoring=(
+                        request.scoring_engine
+                        in {
+                            ScoringEngineId.V2_COLLABORATIVE,
+                            ScoringEngineId.V2_HYBRID,
+                        }
+                    ),
+                    curator_lens_status=CuratorLensStatus.ACTIVE,
+                    curator_lens=curator_lens,
                 ),
-                trained_candidate_retrieval=False,
-                trained_scoring=(
-                    request.scoring_engine
-                    in {ScoringEngineId.V2_COLLABORATIVE, ScoringEngineId.V2_HYBRID}
-                ),
-                curator_lens_status=CuratorLensStatus.ACTIVE,
-                curator_lens=curator_lens,
             )
 
         if inspiration_curator_lens:
@@ -453,21 +610,23 @@ class RecommendationService:
                 request=request,
             )
             assert curator_lens is not None
-            return RecommendationRun(
-                shortlist=shortlist,
-                mode=RecommendationRunMode.CURATOR_INSPIRATION,
-                label="Curator-inspired, household-ranked",
-                detail=(
-                    "The learned movie model expanded "
-                    f"{inspiration_anchor_count} of "
-                    f"{len(curator_lens.anchor_source_movie_ids)} supplied curator "
-                    "titles that were verified in its item space, then household "
-                    "constraints, availability, and slate diversity chose these picks."
+            return finalize(
+                RecommendationRun(
+                    shortlist=shortlist,
+                    mode=RecommendationRunMode.CURATOR_INSPIRATION,
+                    label="Curator-inspired, household-ranked",
+                    detail=(
+                        "The learned movie model expanded "
+                        f"{inspiration_anchor_count} of "
+                        f"{len(curator_lens.anchor_source_movie_ids)} supplied curator "
+                        "titles that were verified in its item space, then household "
+                        "constraints, availability, and slate diversity chose these picks."
+                    ),
+                    trained_candidate_retrieval=True,
+                    trained_scoring=requires_trained_run,
+                    curator_lens_status=CuratorLensStatus.ACTIVE,
+                    curator_lens=curator_lens,
                 ),
-                trained_candidate_retrieval=True,
-                trained_scoring=requires_trained_run,
-                curator_lens_status=CuratorLensStatus.ACTIVE,
-                curator_lens=curator_lens,
             )
 
         if len(shortlist) != request.shortlist_size:
@@ -480,33 +639,92 @@ class RecommendationService:
             raise IncompleteRecommendationError(detail)
 
         if requires_trained_run:
-            return RecommendationRun(
-                shortlist=shortlist,
-                mode=RecommendationRunMode.PERSONALIZED_HYBRID,
-                label="Personalized model active",
-                detail=(
-                    "Candidates came from the trained taste model, then were "
-                    "checked for availability, safety, tonight's nudges, and variety."
+            return finalize(
+                RecommendationRun(
+                    shortlist=shortlist,
+                    mode=RecommendationRunMode.PERSONALIZED_HYBRID,
+                    label="Personalized model active",
+                    detail=(
+                        "Candidates came from the trained taste model, then were "
+                        "checked for availability, safety, tonight's nudges, and variety."
+                    ),
+                    trained_candidate_retrieval=True,
+                    trained_scoring=True,
                 ),
-                trained_candidate_retrieval=True,
-                trained_scoring=True,
             )
 
-        return RecommendationRun(
-            shortlist=shortlist,
-            mode=RecommendationRunMode.EXPLICIT_ROLLBACK,
-            label="Rollback recommendation mode",
-            detail=(
-                "This run used the explicitly selected fallback scorer. It is not "
-                "a trained personalized-model test."
+        return finalize(
+            RecommendationRun(
+                shortlist=shortlist,
+                mode=RecommendationRunMode.EXPLICIT_ROLLBACK,
+                label="Rollback recommendation mode",
+                detail=(
+                    "This run used the explicitly selected fallback scorer. It is not "
+                    "a trained personalized-model test."
+                ),
+                trained_candidate_retrieval=False,
+                trained_scoring=False,
+                curator_lens_status=(
+                    CuratorLensStatus.CONTRACT_READY
+                    if curator_lens is not None
+                    else None
+                ),
+                curator_lens=curator_lens,
             ),
-            trained_candidate_retrieval=False,
-            trained_scoring=False,
-            curator_lens_status=(
-                CuratorLensStatus.CONTRACT_READY if curator_lens is not None else None
-            ),
-            curator_lens=curator_lens,
         )
+
+    def _recently_presented_ids_for_request(
+        self,
+        request: RecommendationRequest,
+        *,
+        historical_sessions: tuple[SharedMovieNightSession, ...],
+    ) -> tuple[str, ...]:
+        recent_ids: list[str] = []
+        if self._exposure_store is not None:
+            recent_ids.extend(
+                self._exposure_store.recent_source_movie_ids(
+                    household_id=request.household_id,
+                    excluding_session_id=request.session.session_id,
+                    limit=RECENT_SLATE_MOVIE_LIMIT,
+                )
+            )
+
+        for session in historical_sessions:
+            if session.session_id == request.session.session_id:
+                continue
+            recent_ids.extend(item.source_movie_id for item in session.shortlist)
+            recent_ids.extend(
+                item.source_movie_id for item in reversed(session.previous_shortlist)
+            )
+
+        return tuple(dict.fromkeys(recent_ids))[:RECENT_SLATE_MOVIE_LIMIT]
+
+    def _finalize_run(
+        self,
+        request: RecommendationRequest,
+        run: RecommendationRun,
+        *,
+        request_fingerprint: str,
+        observed_active_source_movie_ids: tuple[str, ...],
+    ) -> RecommendationRun:
+        if (
+            request.source == RecommendationSource.LIVE_TMDB
+            and self._exposure_store is not None
+            and len(run.shortlist) == request.shortlist_size
+        ):
+            issue = self._exposure_store.issue_or_load(
+                household_id=request.household_id,
+                session_id=request.session.session_id,
+                request_fingerprint=request_fingerprint,
+                canonical_run_json=_recommendation_run_json(run),
+                source_movie_ids=tuple(
+                    item.source_movie_id for item in run.shortlist
+                ),
+                observed_active_source_movie_ids=observed_active_source_movie_ids,
+                active_movie_limit=RECENT_SLATE_MOVIE_LIMIT,
+            )
+            return _recommendation_run_from_issue(issue)
+        return run
 
     @staticmethod
     def _require_curator_exact_list_shortlist(
@@ -673,6 +891,8 @@ class RecommendationService:
     def _historical_rejection_ids_for_request(
         self,
         request: RecommendationRequest,
+        *,
+        historical_sessions: tuple[SharedMovieNightSession, ...],
     ) -> tuple[tuple[str, ...], tuple[str, ...]]:
         if self._session_store is None or not request.session.viewer_user_ids:
             return (), ()
@@ -680,10 +900,7 @@ class RecommendationService:
         no_by_profile: dict[str, set[str]] = {
             profile_id: set() for profile_id in request.session.viewer_user_ids
         }
-        for session in self._session_store.list_sessions(
-            household_id=request.household_id,
-            limit=20,
-        ):
+        for session in historical_sessions:
             reaction_groups = (
                 session.founder_reactions,
                 session.wife_reactions,
@@ -708,6 +925,17 @@ class RecommendationService:
             tuple(sorted(any_rejected - all_rejected)),
         )
 
+    def _historical_sessions_for_request(
+        self,
+        request: RecommendationRequest,
+    ) -> tuple[SharedMovieNightSession, ...]:
+        if self._session_store is None:
+            return ()
+        return self._session_store.list_sessions(
+            household_id=request.household_id,
+            limit=20,
+        )
+
     def _watched_ids_for_request(
         self,
         request: RecommendationRequest,
@@ -717,6 +945,144 @@ class RecommendationService:
             household_id=request.household_id,
             profile_ids=request.session.viewer_user_ids,
         )
+
+
+def _recommendation_request_fingerprint(
+    *,
+    request: RecommendationRequest,
+    users: tuple[UserProfile, ...],
+    watched_source_movie_ids: tuple[str, ...],
+    recently_rejected_source_movie_ids: tuple[str, ...],
+    softly_rejected_source_movie_ids: tuple[str, ...],
+) -> str:
+    """Identify the full recommendation intent, including durable taste state."""
+
+    canonical = json.dumps(
+        {
+            "request": asdict(request),
+            "users": [asdict(user) for user in users],
+            "watchedSourceMovieIds": watched_source_movie_ids,
+            "recentlyRejectedSourceMovieIds": recently_rejected_source_movie_ids,
+            "softlyRejectedSourceMovieIds": softly_rejected_source_movie_ids,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _recommendation_run_json(run: RecommendationRun) -> str:
+    return json.dumps(
+        asdict(run),
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
+def _recommendation_run_from_issue(
+    issue: RecommendationSlateIssue,
+) -> RecommendationRun:
+    run = _recommendation_run_from_json(issue.canonical_run_json)
+    payload_ids = tuple(item.source_movie_id for item in run.shortlist)
+    if payload_ids != issue.source_movie_ids:
+        raise RuntimeError(
+            "Stored recommendation response does not match its exposure rows."
+        )
+    return run
+
+
+def _recommendation_run_from_json(payload_json: str) -> RecommendationRun:
+    payload: dict[str, Any] = json.loads(payload_json)
+    curator_payload = payload.get("curator_lens")
+    curator_lens = None
+    if curator_payload is not None:
+        provenance_payload = curator_payload["provenance"]
+        curator_lens = CuratorLens(
+            curator_id=curator_payload["curator_id"],
+            mode=CuratorLensMode(curator_payload["mode"]),
+            anchor_source_movie_ids=tuple(
+                curator_payload["anchor_source_movie_ids"]
+            ),
+            provenance=CuratorLensProvenance(
+                source_name=provenance_payload["source_name"],
+                source_url=provenance_payload.get("source_url"),
+                retrieved_at=provenance_payload.get("retrieved_at"),
+            ),
+        )
+    curator_status = payload.get("curator_lens_status")
+    return RecommendationRun(
+        shortlist=tuple(
+            _offline_shortlist_item_from_payload(item)
+            for item in payload["shortlist"]
+        ),
+        mode=RecommendationRunMode(payload["mode"]),
+        label=payload["label"],
+        detail=payload["detail"],
+        trained_candidate_retrieval=payload["trained_candidate_retrieval"],
+        trained_scoring=payload["trained_scoring"],
+        curator_lens_status=(
+            CuratorLensStatus(curator_status)
+            if curator_status is not None
+            else None
+        ),
+        curator_lens=curator_lens,
+    )
+
+
+def _offline_shortlist_item_from_payload(
+    payload: dict[str, Any],
+) -> OfflineShortlistItem:
+    return OfflineShortlistItem(
+        source_movie_id=payload["source_movie_id"],
+        title=payload["title"],
+        candidate_rank=int(payload["candidate_rank"]),
+        media_type=MediaType(payload["media_type"]),
+        year=payload.get("year"),
+        release_year=payload.get("release_year"),
+        runtime=payload.get("runtime"),
+        runtime_min=payload.get("runtime_min"),
+        genres=tuple(payload["genres"]),
+        provider_names=tuple(payload["provider_names"]),
+        provider_availability=tuple(
+            OfflineShortlistProviderAvailability(
+                provider_name=availability["provider_name"],
+                access_type=availability["access_type"],
+                region=availability["region"],
+            )
+            for availability in payload["provider_availability"]
+        ),
+        poster_url=payload.get("poster_url"),
+        backdrop_url=payload.get("backdrop_url"),
+        overview=payload["overview"],
+        top_cast=tuple(payload["top_cast"]),
+        cast_details=tuple(
+            OfflineShortlistCastMember(
+                name=member["name"],
+                character=member.get("character"),
+                profile_url=member.get("profile_url"),
+            )
+            for member in payload["cast_details"]
+        ),
+        matched_person_names=tuple(payload["matched_person_names"]),
+        safe_pick_status=payload["safe_pick_status"],
+        availability=payload["availability"],
+        language_access=payload["language_access"],
+        tone=payload["tone"],
+        reason=payload["reason"],
+        fit_bucket=payload["fit_bucket"],
+        group_score=float(payload["group_score"]),
+        founder_score=payload.get("founder_score"),
+        wife_score=payload.get("wife_score"),
+        why_short=payload["why_short"],
+        is_interesting_pick=payload["is_interesting_pick"],
+        original_language=payload["original_language"],
+        spoken_languages=tuple(payload["spoken_languages"]),
+        english_subtitles_verified=payload["english_subtitles_verified"],
+        dominant_positive_evidence=tuple(
+            payload.get("dominant_positive_evidence", ())
+        ),
+        dominant_penalties=tuple(payload.get("dominant_penalties", ())),
+    )
 
 
 def live_candidate_fetch_limit(
